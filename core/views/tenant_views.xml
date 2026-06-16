@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_havanoposdesk_tenant_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.tenant.tree</field>
+            <field name="model">havanoposdesk.tenant</field>
+            <field name="arch" type="xml">
+                <list string="Tenants">
+                    <field name="name"/>
+                    <field name="active" optional="show"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_havanoposdesk_tenant_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.tenant.form</field>
+            <field name="model">havanoposdesk.tenant</field>
+            <field name="arch" type="xml">
+                <form string="Tenant">
+                    <sheet>
+                        <group>
+                            <field name="name"/>
+                            <field name="active"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+    </data>
+</odoo>

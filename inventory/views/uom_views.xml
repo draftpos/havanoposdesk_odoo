@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_havanoposdesk_uom_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.uom.tree</field>
+            <field name="model">havanoposdesk.uom</field>
+            <field name="arch" type="xml">
+                <list string="Units of Measure">
+                    <field name="name"/>
+                    <field name="abbreviation" optional="show"/>
+                    <field name="weight_scale_status" optional="show"/>
+                    <field name="measurement_conversion" optional="hide"/>
+                    <field name="tenant_id" column_invisible="1"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- UOM Form View -->
+        <record id="view_havanoposdesk_uom_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.uom.form</field>
+            <field name="model">havanoposdesk.uom</field>
+            <field name="arch" type="xml">
+                <form string="Unit of Measure">
+                    <sheet>
+                        <div class="oe_title">
+                            <label for="name" class="oe_edit_only" string="UOM Name"/>
+                            <h1>
+                                <field name="name" placeholder="e.g. Kilogram"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="abbreviation" placeholder="e.g. kg"/>
+                                <field name="tenant_id" invisible="1"/>
+                            </group>
+                            <group>
+                                <field name="weight_scale_status" widget="boolean_toggle"/>
+                                <field name="measurement_conversion" widget="boolean_toggle"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_havanoposdesk_uom" model="ir.actions.act_window">
+            <field name="name">Units of Measure</field>
+            <field name="res_model">havanoposdesk.uom</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <menuitem id="menu_uom" name="Units of Measure" parent="menu_inventory_root" action="action_havanoposdesk_uom" sequence="30"/>
+    </data>
+</odoo>

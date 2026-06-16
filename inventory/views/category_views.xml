@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_havanoposdesk_category_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.category.tree</field>
+            <field name="model">havanoposdesk.category</field>
+            <field name="arch" type="xml">
+                <list string="Categories">
+                    <field name="name"/>
+                    <field name="classification_code" optional="show"/>
+                    <field name="is_main_category" optional="show"/>
+                    <field name="parent_id" optional="hide"/>
+                    <field name="color_hex" widget="color" optional="hide"/>
+                    <field name="tenant_id" column_invisible="1"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_havanoposdesk_category_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.category.form</field>
+            <field name="model">havanoposdesk.category</field>
+            <field name="arch" type="xml">
+                <form string="Category">
+                    <sheet>
+                        <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}"/>
+                        <div class="oe_title">
+                            <label for="name" class="oe_edit_only" string="Category Name"/>
+                            <h1>
+                                <field name="name" placeholder="e.g. Beverages"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="is_main_category"/>
+                                <field name="parent_id" invisible="is_main_category == True"/>
+                                <field name="classification_code"/>
+                            </group>
+                            <group>
+                                <field name="color_hex" widget="color" placeholder="e.g. ffffff"/>
+                                <field name="tenant_id" invisible="1"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_havanoposdesk_category" model="ir.actions.act_window">
+            <field name="name">Categories</field>
+            <field name="res_model">havanoposdesk.category</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <menuitem id="menu_category" name="Categories" parent="menu_inventory_root" action="action_havanoposdesk_category" sequence="20"/>
+    </data>
+</odoo>

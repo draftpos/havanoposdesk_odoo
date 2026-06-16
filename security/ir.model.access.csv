@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_havanoposdesk_tenant,havanoposdesk.tenant,model_havanoposdesk_tenant,base.group_user,1,1,1,1
+access_havanoposdesk_category,havanoposdesk.category,model_havanoposdesk_category,base.group_user,1,1,1,1
+access_havanoposdesk_uom,havanoposdesk.uom,model_havanoposdesk_uom,base.group_user,1,1,1,1
+access_havanoposdesk_product,havanoposdesk.product,model_havanoposdesk_product,base.group_user,1,1,1,1

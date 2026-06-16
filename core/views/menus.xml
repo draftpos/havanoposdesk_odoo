@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Top-level Menus acting as Apps on the Dashboard -->
+        <menuitem id="menu_inventory_root" name="Stock" sequence="10" web_icon="stock,static/description/icon.png"/>
+        <menuitem id="menu_sales_root" name="Sales" sequence="20" web_icon="sale,static/description/icon.png"/>
+        <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="purchase,static/description/icon.png"/>
+
+        <!-- Actions -->
+        <record id="action_havanoposdesk_tenant" model="ir.actions.act_window">
+            <field name="name">Tenants</field>
+            <field name="res_model">havanoposdesk.tenant</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <!-- Use Odoo's Native Settings App (Users & Companies) -->
+        <menuitem id="menu_tenant" name="Tenants" parent="base.menu_users" action="action_havanoposdesk_tenant" sequence="100"/>
+    </data>
+</odoo>
