@@ -109,7 +109,9 @@
             <field name="search_view_id" ref="view_havanoposdesk_product_search"/>
         </record>
 
-        <!-- Menu Item -->
-        <menuitem id="menu_product" name="Products" parent="menu_inventory_root" action="action_havanoposdesk_product" sequence="10"/>
+        <!-- Menu Items for all Apps -->
+        <menuitem id="menu_product_inventory" name="Products" parent="menu_inventory_master" action="action_havanoposdesk_product" sequence="10"/>
+        <menuitem id="menu_product_sales" name="Products" parent="menu_sales_master" action="action_havanoposdesk_product" sequence="10"/>
+        <menuitem id="menu_product_suppliers" name="Products" parent="menu_suppliers_master" action="action_havanoposdesk_product" sequence="10"/>
     </data>
 </odoo>

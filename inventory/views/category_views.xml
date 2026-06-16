@@ -51,6 +51,8 @@
             <field name="view_mode">list,form</field>
         </record>
 
-        <menuitem id="menu_category" name="Categories" parent="menu_inventory_root" action="action_havanoposdesk_category" sequence="20"/>
+        <menuitem id="menu_category_inventory" name="Categories" parent="menu_inventory_master" action="action_havanoposdesk_category" sequence="20"/>
+        <menuitem id="menu_category_sales" name="Categories" parent="menu_sales_master" action="action_havanoposdesk_category" sequence="20"/>
+        <menuitem id="menu_category_suppliers" name="Categories" parent="menu_suppliers_master" action="action_havanoposdesk_category" sequence="20"/>
     </data>
 </odoo>

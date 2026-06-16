@@ -49,6 +49,8 @@
             <field name="view_mode">list,form</field>
         </record>
 
-        <menuitem id="menu_uom" name="Units of Measure" parent="menu_inventory_root" action="action_havanoposdesk_uom" sequence="30"/>
+        <menuitem id="menu_uom_inventory" name="Units of Measure" parent="menu_inventory_master" action="action_havanoposdesk_uom" sequence="30"/>
+        <menuitem id="menu_uom_sales" name="Units of Measure" parent="menu_sales_master" action="action_havanoposdesk_uom" sequence="30"/>
+        <menuitem id="menu_uom_suppliers" name="Units of Measure" parent="menu_suppliers_master" action="action_havanoposdesk_uom" sequence="30"/>
     </data>
 </odoo>

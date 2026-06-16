@@ -6,6 +6,24 @@
         <menuitem id="menu_sales_root" name="Sales" sequence="20" web_icon="sale,static/description/icon.png"/>
         <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="purchase,static/description/icon.png"/>
 
+        <!-- Stock Navigation Tabs -->
+        <menuitem id="menu_inventory_master" name="Master" parent="menu_inventory_root" sequence="10"/>
+        <menuitem id="menu_inventory_operations" name="Operations" parent="menu_inventory_root" sequence="20"/>
+        <menuitem id="menu_inventory_reports" name="Reports" parent="menu_inventory_root" sequence="30"/>
+        <menuitem id="menu_inventory_settings" name="Settings" parent="menu_inventory_root" sequence="40"/>
+
+        <!-- Sales Navigation Tabs -->
+        <menuitem id="menu_sales_master" name="Master" parent="menu_sales_root" sequence="10"/>
+        <menuitem id="menu_sales_operations" name="Operations" parent="menu_sales_root" sequence="20"/>
+        <menuitem id="menu_sales_reports" name="Reports" parent="menu_sales_root" sequence="30"/>
+        <menuitem id="menu_sales_settings" name="Settings" parent="menu_sales_root" sequence="40"/>
+
+        <!-- Suppliers Navigation Tabs -->
+        <menuitem id="menu_suppliers_master" name="Master" parent="menu_suppliers_root" sequence="10"/>
+        <menuitem id="menu_suppliers_operations" name="Operations" parent="menu_suppliers_root" sequence="20"/>
+        <menuitem id="menu_suppliers_reports" name="Reports" parent="menu_suppliers_root" sequence="30"/>
+        <menuitem id="menu_suppliers_settings" name="Settings" parent="menu_suppliers_root" sequence="40"/>
+
         <!-- Actions -->
         <record id="action_havanoposdesk_tenant" model="ir.actions.act_window">
             <field name="name">Tenants</field>
