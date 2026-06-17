@@ -6,17 +6,17 @@
             <field name="name">havanoposdesk.product.tree</field>
             <field name="model">havanoposdesk.product</field>
             <field name="arch" type="xml">
-                <list string="Products">
-                    <field name="name"/>
-                    <field name="item_code" optional="show"/>
-                    <field name="category_id" optional="show"/>
-                    <field name="uom_id" optional="show"/>
-                    <field name="buying_price" optional="show"/>
-                    <field name="selling_price" optional="show"/>
-                    <field name="track_qty" optional="show"/>
-                    <field name="opening_stock" string="Stock on Hand" optional="show"/>
-                    <field name="color" column_invisible="1"/>
-                    <field name="tenant_id" column_invisible="1"/>
+                <list  string="Products">
+                    <field  name="name"/>
+                    <field  name="item_code" optional="show"/>
+                    <field  name="category_id" optional="show"/>
+                    <field  name="uom_id" optional="show"/>
+                    <field  name="buying_price" optional="show"/>
+                    <field  name="selling_price" optional="show"/>
+                    <field  name="track_qty" optional="show"/>
+                    <field  name="opening_stock" string="On hand" optional="show"/>
+                    <field  name="color" column_invisible="1"/>
+                    <field  name="tenant_id" column_invisible="1"/>
                 </list>
             </field>
         </record>
@@ -50,7 +50,7 @@
                                         <field name="markup" class="border-bottom border-dark"/>
                                         <field name="id" invisible="1"/>
                                         <field name="opening_stock" string="Opening Stock" invisible="id" class="border-bottom border-dark"/>
-                                        <field name="opening_stock" string="Stock on Hand" invisible="not id" readonly="1" class="border-bottom border-dark"/>
+                                        <field name="opening_stock" string="On hand" invisible="not id" readonly="1" class="border-bottom border-dark"/>
                                         <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}"/>
                                     </group>
                                 </group>
@@ -86,7 +86,7 @@
                     <field name="name"/>
                     <field name="item_code"/>
                     <field name="category_id"/>
-                    <field name="opening_stock" string="Stock on Hand"/>
+                    <field name="opening_stock" string="On hand"/>
                     <separator/>
                     <filter string="In Stock" name="in_stock" domain="[('opening_stock', '&gt;', 0)]"/>
                     <filter string="Out of Stock" name="out_of_stock" domain="[('opening_stock', '&lt;=', 0)]"/>
@@ -104,7 +104,5 @@
 
         <!-- Menu Items for all Apps -->
         <menuitem id="menu_product_inventory" name="Products" parent="menu_inventory_master" action="action_havanoposdesk_product" sequence="10"/>
-        <menuitem id="menu_product_sales" name="Products" parent="menu_sales_master" action="action_havanoposdesk_product" sequence="10"/>
-        <menuitem id="menu_product_suppliers" name="Products" parent="menu_suppliers_master" action="action_havanoposdesk_product" sequence="10"/>
     </data>
 </odoo>

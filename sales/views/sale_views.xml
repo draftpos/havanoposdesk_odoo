@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Sale Form View -->
+        <record id="view_havanoposdesk_sale_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.form</field>
+            <field name="model">havanoposdesk.sale</field>
+            <field name="arch" type="xml">
+                <form string="Sale">
+                    <sheet>
+                        <div class="oe_title" invisible="1">
+                            <h1>
+                                <field name="name"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="customer" class="border-bottom border-dark"/>
+                                <field name="store" class="border-bottom border-dark"/>
+                            </group>
+                            <group>
+                                <field name="posting_date" class="border-bottom border-dark"/>
+                                <field name="posting_time" widget="float_time" class="border-bottom border-dark"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Items">
+                                <field name="line_ids">
+                                    <list  editable="bottom">
+                                        <field name="product_id" width="25%" optional="show"/>
+                                        <field name="accepted_qty" width="25%" sum="Total Qty" optional="show"/>
+                                        <field name="rate" width="25%" optional="show"/>
+                                        <field name="amount" width="25%" sum="Total Amount" optional="show"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Sale Tree View -->
+        <record id="view_havanoposdesk_sale_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.tree</field>
+            <field name="model">havanoposdesk.sale</field>
+            <field name="arch" type="xml">
+                <list  string="Sales">
+                    <field  name="name" optional="show"/>
+                    <field  name="customer" optional="show"/>
+                    <field  name="store" optional="show"/>
+                    <field  name="posting_date" optional="show"/>
+                    <field  name="posting_time" widget="float_time" optional="show"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Action -->
+        <record id="action_havanoposdesk_sale" model="ir.actions.act_window">
+            <field name="name">Sales</field>
+            <field name="res_model">havanoposdesk.sale</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new Sale Record
+                </p>
+            </field>
+        </record>
+
+        <!-- Menu -->
+        <menuitem id="menu_sales_sale" 
+                  name="Sales" 
+                  parent="menu_sales_master" 
+                  action="action_havanoposdesk_sale" 
+                  sequence="10"/>
+    </data>
+</odoo>

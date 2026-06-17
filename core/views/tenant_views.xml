@@ -5,9 +5,9 @@
             <field name="name">havanoposdesk.tenant.tree</field>
             <field name="model">havanoposdesk.tenant</field>
             <field name="arch" type="xml">
-                <list string="Tenants">
-                    <field name="name"/>
-                    <field name="active" optional="show"/>
+                <list  string="Tenants">
+                    <field  name="name"/>
+                    <field  name="active" optional="show"/>
                 </list>
             </field>
         </record>
