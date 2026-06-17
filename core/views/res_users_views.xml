@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_users_form_inherit_havano" model="ir.ui.view">
+            <field name="name">res.users.form.inherit.havano</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="base.view_users_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//notebook" position="inside">
+                    <page string="Havano SaaS" name="havano_saas">
+                        <group>
+                            <group string="SaaS Credentials">
+                                <field name="havano_role"/>
+                                <field name="tenant_id" options="{'no_create': True}" invisible="havano_role == 'super_admin'"/>
+                            </group>
+                            <group string="Shop Access" invisible="havano_role == 'super_admin'">
+                                <field name="default_shop_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                                <field name="shop_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                            </group>
+                        </group>
+                    </page>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

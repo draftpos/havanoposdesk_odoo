@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<odoo>
+    <!-- Existing models -->
+    <record id="model_havanoposdesk_tenant" model="ir.model">
+        <field name="name">havanoposdesk.tenant</field>
+        <field name="model">x_havanoposdesk.tenant</field>
+    </record>
+    <record id="model_havanoposdesk_category" model="ir.model">
+        <field name="name">havanoposdesk.category</field>
+        <field name="model">x_havanoposdesk.category</field>
+    </record>
+    <record id="model_havanoposdesk_uom" model="ir.model">
+        <field name="name">havanoposdesk.uom</field>
+        <field name="model">x_havanoposdesk.uom</field>
+    </record>
+    <record id="model_havanoposdesk_product" model="ir.model">
+        <field name="name">havanoposdesk.product</field>
+        <field name="model">x_havanoposdesk.product</field>
+    </record>
+    <record id="model_havanoposdesk_stock_valuation" model="ir.model">
+        <field name="name">havanoposdesk.stock.valuation</field>
+        <field name="model">x_havanoposdesk.stock.valuation</field>
+    </record>
+    <record id="model_havanoposdesk_stock_ledger" model="ir.model">
+        <field name="name">havanoposdesk.stock.ledger</field>
+        <field name="model">x_havanoposdesk.stock.ledger</field>
+    </record>
+    <record id="model_havanoposdesk_shop" model="ir.model">
+        <field name="name">havanoposdesk.shop</field>
+        <field name="model">x_havanoposdesk.shop</field>
+    </record>
+    <record id="model_havanoposdesk_sale" model="ir.model">
+        <field name="name">havanoposdesk.sale</field>
+        <field name="model">x_havanoposdesk.sale</field>
+    </record>
+    <record id="model_havanoposdesk_purchase" model="ir.model">
+        <field name="name">havanoposdesk.purchase</field>
+        <field name="model">x_havanoposdesk.purchase</field>
+    </record>
+    <record id="model_havanoposdesk_supplier" model="ir.model">
+        <field name="name">havanoposdesk.supplier</field>
+        <field name="model">x_havanoposdesk.supplier</field>
+    </record>
+    <!-- New models -->
+    <record id="model_havanoposdesk_subscription_plan" model="ir.model">
+        <field name="name">havanoposdesk.subscription.plan</field>
+        <field name="model">x_havanoposdesk.subscription.plan</field>
+    </record>
+    <record id="model_havanoposdesk_pos_terminal" model="ir.model">
+        <field name="name">havanoposdesk.pos.terminal</field>
+        <field name="model">x_havanoposdesk.pos.terminal</field>
+    </record>
+</odoo>

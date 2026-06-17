@@ -7,6 +7,8 @@
             <field name="arch" type="xml">
                 <list string="Tenants">
                     <field name="name"/>
+                    <field name="subscription_plan_id"/>
+                    <field name="subscription_state" widget="badge" decoration-success="subscription_state == 'active'" decoration-warning="subscription_state == 'expired'" decoration-danger="subscription_state == 'cancelled'"/>
                     <field name="active" optional="show"/>
                 </list>
             </field>
@@ -17,14 +19,30 @@
             <field name="model">havanoposdesk.tenant</field>
             <field name="arch" type="xml">
                 <form string="Tenant">
+                    <header>
+                        <button name="action_approve" type="object" string="Approve / Activate" class="oe_highlight" invisible="subscription_state == 'active'" groups="base.group_system"/>
+                        <button name="action_expire" type="object" string="Set Expired" invisible="subscription_state == 'expired'" groups="base.group_system"/>
+                        <button name="action_cancel" type="object" string="Cancel Subscription" class="btn-danger" invisible="subscription_state == 'cancelled'" groups="base.group_system"/>
+                        <button name="action_pay_and_activate" type="object" string="Pay &amp; Activate Plan" class="btn-success" invisible="subscription_state == 'active' or not subscription_plan_id"/>
+                        <field name="subscription_state" widget="statusbar" statusbar_visible="active,pending,expired,cancelled"/>
+                    </header>
                     <sheet>
                         <group>
-                            <field name="name"/>
-                            <field name="active"/>
+                            <group string="Subscription Details">
+                                <field name="name"/>
+                                <field name="subscription_plan_id" options="{'no_create': True}"/>
+                                <field name="payment_status"/>
+                            </group>
+                            <group string="Duration &amp; Status">
+                                <field name="subscription_start_date" readonly="1"/>
+                                <field name="subscription_end_date" readonly="1"/>
+                                <field name="active"/>
+                            </group>
                         </group>
                     </sheet>
                 </form>
             </field>
         </record>
+
     </data>
 </odoo>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- My Business Root Menu (visible to tenant admins) -->
+        <menuitem id="menu_my_business_root" name="My Business" sequence="5" groups="base.group_user"/>
+
+        <!-- Shops Submenu -->
+        <record id="action_my_shops" model="ir.actions.act_window">
+            <field name="name">My Shops</field>
+            <field name="res_model">havanoposdesk.shop</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
+        </record>
+        <menuitem id="menu_my_shops" name="Shops" parent="menu_my_business_root" action="action_my_shops" sequence="10"/>
+
+        <!-- POS Terminals Submenu -->
+        <record id="action_my_terminals" model="ir.actions.act_window">
+            <field name="name">My POS Terminals</field>
+            <field name="res_model">havanoposdesk.pos.terminal</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
+        </record>
+        <menuitem id="menu_my_terminals" name="POS Terminals" parent="menu_my_business_root" action="action_my_terminals" sequence="20"/>
+
+        <!-- Cashiers Submenu (users with role 'user') -->
+        <record id="action_my_cashiers" model="ir.actions.act_window">
+            <field name="name">My Cashiers</field>
+            <field name="res_model">res.users</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain">[('tenant_id', '=', context.get('tenant_id')), ('havano_role', '=', 'user')]</field>
+            <field name="context">{'default_tenant_id': context.get('tenant_id'), 'default_havano_role': 'user'}</field>
+        </record>
+        <menuitem id="menu_my_cashiers" name="Cashiers" parent="menu_my_business_root" action="action_my_cashiers" sequence="30"/>
+
+    </data>
+</odoo>

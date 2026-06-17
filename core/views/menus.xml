@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <!-- Enable Free Sign Up (B2C Registration) by default -->
+        <record id="auth_signup_uninvited_b2c" model="ir.config_parameter">
+            <field name="key">auth_signup.uninvited</field>
+            <field name="value">b2c</field>
+        </record>
+
         <!-- Top-level Menus acting as Apps on the Dashboard -->
         <menuitem id="menu_inventory_root" name="Stock" sequence="10" web_icon="stock,static/description/icon.png"/>
         <menuitem id="menu_sales_root" name="Sales" sequence="20" web_icon="sale,static/description/icon.png"/>
@@ -31,7 +37,22 @@
             <field name="view_mode">list,form</field>
         </record>
 
-        <!-- Use Odoo's Native Settings App (Users & Companies) -->
+        <!-- SaaS Configuration App (Restricted to Settings Administrator) -->
+        <menuitem id="menu_saas_root" name="SaaS Config" sequence="5" web_icon="havanoposdesk_odoo,static/description/icon.png" groups="base.group_system"/>
+
+        <!-- SaaS Admin Navigation -->
+        <menuitem id="menu_saas_users" name="Users" parent="menu_saas_root" action="action_saas_users" sequence="10"/>
+        <menuitem id="menu_saas_tenants" name="Tenants" parent="menu_saas_root" action="action_havanoposdesk_tenant" sequence="20"/>
+        <menuitem id="menu_saas_shops" name="Shops" parent="menu_saas_root" action="action_havanoposdesk_shop" sequence="30"/>
+        <menuitem id="menu_saas_plans" name="Subscription Plans" parent="menu_saas_root" action="action_subscription_plans" sequence="40"/>
+        
+        <!-- Also keep Tenants and Shops in native users menu just in case -->
         <menuitem id="menu_tenant" name="Tenants" parent="base.menu_users" action="action_havanoposdesk_tenant" sequence="100"/>
+        <menuitem id="menu_shop" name="Shops" parent="base.menu_users" action="action_havanoposdesk_shop" sequence="110"/>
+
+        <!-- My Business Analytics Navigation (visible to tenant admins / base.group_user) -->
+        <menuitem id="menu_my_business_analytics" name="Analytics" parent="menu_my_business_root" sequence="40"/>
+        <menuitem id="menu_my_sales_analysis" name="Sales Analysis" parent="menu_my_business_analytics" action="action_sales_analysis" sequence="10"/>
+        <menuitem id="menu_my_purchases_analysis" name="Purchases Analysis" parent="menu_my_business_analytics" action="action_purchases_analysis" sequence="20"/>
     </data>
 </odoo>

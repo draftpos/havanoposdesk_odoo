@@ -17,6 +17,7 @@
                     <field name="opening_stock" string="Stock on Hand" optional="show"/>
                     <field name="color" column_invisible="1"/>
                     <field name="tenant_id" column_invisible="1"/>
+                    <field name="shop_id" optional="show"/>
                 </list>
             </field>
         </record>
@@ -41,6 +42,7 @@
                                         <field name="category_id" options="{'no_create': True, 'no_create_edit': True}"/>
                                         <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}"/>
                                         <field name="tenant_id" invisible="1"/>
+                                        <field name="shop_id" options="{'no_create': True}"/>
                                         <field name="track_qty"/>
                                         <field name="color" invisible="1"/>
                                     </group>
