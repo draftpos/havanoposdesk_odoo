@@ -5,8 +5,6 @@ class Customer(models.Model):
     _description = 'Customer'
 
     name = fields.Char(string='Customer Name', required=True)
-    customer_type = fields.Selection([
-        ('company', 'Company'),
-        ('individual', 'Individual'),
-        ('partnership', 'Partnership')
-    ], string='Customer Type', default='individual', required=True)
+    address = fields.Char(string='Address')
+    phone = fields.Char(string='Phone Number')
+    email = fields.Char(string='Email')

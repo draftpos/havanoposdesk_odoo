@@ -5,8 +5,6 @@ class Supplier(models.Model):
     _description = 'Supplier'
 
     name = fields.Char(string='Supplier Name', required=True)
-    supplier_type = fields.Selection([
-        ('company', 'Company'),
-        ('individual', 'Individual'),
-        ('partnership', 'Partnership')
-    ], string='Supplier Type', default='company', required=True)
+    address = fields.Char(string='Address')
+    phone = fields.Char(string='Phone Number')
+    email = fields.Char(string='Email')
