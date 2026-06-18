@@ -6,15 +6,15 @@
             <field name="name">havanoposdesk.stock.valuation.tree</field>
             <field name="model">havanoposdesk.stock.valuation</field>
             <field name="arch" type="xml">
-                <list string="Stock Valuation" create="0">
-                    <field name="product_id" optional="show"/>
-                    <field name="item_name" optional="show"/>
-                    <field name="item_code" optional="show"/>
-                    <field name="category_id" optional="show"/>
-                    <field name="store" optional="show"/>
-                    <field name="on_hand_qty" optional="show"/>
-                    <field name="value_cost" optional="show"/>
-                    <field name="value_selling" optional="show"/>
+                <list  string="Stock Valuation" create="0">
+                    <field  name="product_id" optional="show"/>
+                    <field  name="item_name" optional="show"/>
+                    <field  name="item_code" optional="show"/>
+                    <field  name="category_id" optional="show"/>
+                    <field  name="store" optional="show"/>
+                    <field  name="on_hand_qty" optional="show"/>
+                    <field  name="value_cost" optional="show"/>
+                    <field  name="value_selling" optional="show"/>
                 </list>
             </field>
         </record>
@@ -24,22 +24,22 @@
             <field name="name">havanoposdesk.stock.ledger.tree</field>
             <field name="model">havanoposdesk.stock.ledger</field>
             <field name="arch" type="xml">
-                <list string="Stock Ledger" create="0">
-                    <field name="product_id" optional="show"/>
-                    <field name="item_name" optional="show"/>
-                    <field name="item_code" optional="show"/>
-                    <field name="uom_id" optional="show"/>
-                    <field name="in_qty" optional="show"/>
-                    <field name="out_qty" optional="show"/>
-                    <field name="balance_qty" optional="show"/>
-                    <field name="store" optional="show"/>
-                    <field name="category_id" optional="show"/>
-                    <field name="in_value" optional="show"/>
-                    <field name="out_value" optional="show"/>
-                    <field name="buying_price" optional="show"/>
-                    <field name="type" optional="show"/>
-                    <field name="doc_no" optional="show"/>
-                    <field name="balance_value" optional="show"/>
+                <list  string="Stock Ledger" create="0">
+                    <field  name="product_id" optional="show"/>
+                    <field  name="item_name" optional="show"/>
+                    <field  name="item_code" optional="show"/>
+                    <field  name="uom_id" optional="show"/>
+                    <field  name="in_qty" optional="show"/>
+                    <field  name="out_qty" optional="show"/>
+                    <field  name="balance_qty" optional="show"/>
+                    <field  name="store" optional="show"/>
+                    <field  name="category_id" optional="show"/>
+                    <field  name="in_value" optional="show"/>
+                    <field  name="out_value" optional="show"/>
+                    <field  name="buying_price" optional="show"/>
+                    <field  name="type" optional="show"/>
+                    <field  name="doc_no" optional="show"/>
+                    <field  name="balance_value" optional="show"/>
                 </list>
             </field>
         </record>

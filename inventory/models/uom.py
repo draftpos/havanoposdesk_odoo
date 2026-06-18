@@ -2,7 +2,7 @@ from odoo import models, fields
 
 class HavanoposdeskUom(models.Model):
     _name = 'havanoposdesk.uom'
-    _description = 'Unit of Measure'
+    _description = 'UOM'
 
     name = fields.Char(string='UOM Name', required=True)
     

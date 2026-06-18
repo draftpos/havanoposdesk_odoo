@@ -6,8 +6,8 @@ class HavanoposdeskProduct(models.Model):
 
     name = fields.Char(string='Product Name', required=True)
     item_code = fields.Char(string='Item Code', required=True, copy=False, readonly=True, default=lambda self: 'New')
-    buying_price = fields.Float(string='Buying Price', default=0.0)
-    selling_price = fields.Float(string='Selling Price')
+    buying_price = fields.Float(string='Buy price', default=0.0)
+    selling_price = fields.Float(string='Sell price')
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
@@ -43,7 +43,7 @@ class HavanoposdeskProduct(models.Model):
     is_active = fields.Boolean(string='Active', default=True)
     
     category_id = fields.Many2one('havanoposdesk.category', string='Category', default=lambda self: (self.env['havanoposdesk.category'].search([('name', '=', 'Basics')], limit=1) or self.env['havanoposdesk.category'].create({'name': 'Basics'})).id)
-    uom_id = fields.Many2one('havanoposdesk.uom', string='Unit of Measure', default=lambda self: (self.env['havanoposdesk.uom'].search([('name', '=', 'Each')], limit=1) or self.env['havanoposdesk.uom'].create({'name': 'Each'})).id)
+    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=lambda self: (self.env['havanoposdesk.uom'].search([('name', '=', 'Each')], limit=1) or self.env['havanoposdesk.uom'].create({'name': 'Each'})).id)
     
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
     shop_id = fields.Many2one('havanoposdesk.shop', string='Shop', required=True, default=lambda self: self.env.user.default_shop_id.id or self.env['havanoposdesk.shop'].search([('tenant_id', '=', self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)], limit=1).id)

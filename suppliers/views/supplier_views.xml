@@ -1,83 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <!-- Suppliers List View -->
-        <record id="view_havanoposdesk_supplier_tree" model="ir.ui.view">
-            <field name="name">havanoposdesk.supplier.tree</field>
-            <field name="model">havanoposdesk.supplier</field>
-            <field name="arch" type="xml">
-                <list string="Suppliers">
-                    <field name="name"/>
-                    <field name="phone"/>
-                    <field name="email"/>
-                    <field name="shop_id"/>
-                </list>
-            </field>
-        </record>
-
-        <!-- Suppliers Form View -->
+        <!-- Supplier Form View -->
         <record id="view_havanoposdesk_supplier_form" model="ir.ui.view">
             <field name="name">havanoposdesk.supplier.form</field>
             <field name="model">havanoposdesk.supplier</field>
             <field name="arch" type="xml">
                 <form string="Supplier">
                     <sheet>
-                        <group>
-                            <group>
-                                <field name="name"/>
-                                <field name="phone"/>
-                                <field name="email"/>
-                            </group>
-                            <group>
-                                <field name="shop_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
-                                <field name="tenant_id" invisible="1"/>
-                            </group>
-                        </group>
-                    </sheet>
-                </form>
-            </field>
-        </record>
-
-        <!-- Purchases List View -->
-        <record id="view_havanoposdesk_purchase_tree" model="ir.ui.view">
-            <field name="name">havanoposdesk.purchase.tree</field>
-            <field name="model">havanoposdesk.purchase</field>
-            <field name="arch" type="xml">
-                <list string="Purchases" default_order="date desc">
-                    <field name="name"/>
-                    <field name="date"/>
-                    <field name="shop_id"/>
-                    <field name="supplier_id"/>
-                    <field name="amount_total" sum="Total Purchases"/>
-                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'confirmed'" decoration-success="state == 'done'"/>
-                </list>
-            </field>
-        </record>
-
-        <!-- Purchases Form View -->
-        <record id="view_havanoposdesk_purchase_form" model="ir.ui.view">
-            <field name="name">havanoposdesk.purchase.form</field>
-            <field name="model">havanoposdesk.purchase</field>
-            <field name="arch" type="xml">
-                <form string="Purchase">
-                    <header>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,done"/>
-                    </header>
-                    <sheet>
                         <div class="oe_title">
                             <h1>
-                                <field name="name" readonly="1"/>
+                                <field name="name" placeholder="e.g. ABC Corp" class="border-bottom border-dark"/>
                             </h1>
                         </div>
                         <group>
                             <group>
-                                <field name="shop_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
-                                <field name="date"/>
+                                <field name="supplier_type" class="border-bottom border-dark"/>
                             </group>
                             <group>
-                                <field name="supplier_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
-                                <field name="amount_total"/>
-                                <field name="tenant_id" invisible="1"/>
                             </group>
                         </group>
                     </sheet>
@@ -85,68 +25,35 @@
             </field>
         </record>
 
-        <!-- Purchases Graph View -->
-        <record id="view_havanoposdesk_purchase_graph" model="ir.ui.view">
-            <field name="name">havanoposdesk.purchase.graph</field>
-            <field name="model">havanoposdesk.purchase</field>
+        <!-- Supplier Tree View -->
+        <record id="view_havanoposdesk_supplier_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.supplier.tree</field>
+            <field name="model">havanoposdesk.supplier</field>
             <field name="arch" type="xml">
-                <graph string="Purchases Analysis" type="bar" sample="1">
-                    <field name="date" interval="day"/>
-                    <field name="amount_total" type="measure"/>
-                </graph>
+                <list  string="Suppliers">
+                    <field  name="name" optional="show"/>
+                    <field  name="supplier_type" optional="show"/>
+                </list>
             </field>
         </record>
 
-        <!-- Purchases Pivot View -->
-        <record id="view_havanoposdesk_purchase_pivot" model="ir.ui.view">
-            <field name="name">havanoposdesk.purchase.pivot</field>
-            <field name="model">havanoposdesk.purchase</field>
-            <field name="arch" type="xml">
-                <pivot string="Purchases Analysis" sample="1">
-                    <field name="date" interval="month" type="row"/>
-                    <field name="supplier_id" type="col"/>
-                    <field name="amount_total" type="measure"/>
-                </pivot>
-            </field>
-        </record>
-
-        <!-- Action: Suppliers Master -->
-        <record id="action_suppliers_master" model="ir.actions.act_window">
+        <!-- Action -->
+        <record id="action_havanoposdesk_supplier" model="ir.actions.act_window">
             <field name="name">Suppliers</field>
             <field name="res_model">havanoposdesk.supplier</field>
             <field name="view_mode">list,form</field>
-            <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
-                    Add your first supplier!
+                    Create a new Supplier Record
                 </p>
             </field>
         </record>
 
-        <!-- Action: Purchases Operations -->
-        <record id="action_purchases_operations" model="ir.actions.act_window">
-            <field name="name">Purchase Orders</field>
-            <field name="res_model">havanoposdesk.purchase</field>
-            <field name="view_mode">list,form</field>
-            <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
-            <field name="help" type="html">
-                <p class="o_view_nocontent_smiling_face">
-                    Create a purchase order!
-                </p>
-            </field>
-        </record>
-
-        <!-- Action: Purchases Analytics -->
-        <record id="action_purchases_analysis" model="ir.actions.act_window">
-            <field name="name">Purchases Analytics</field>
-            <field name="res_model">havanoposdesk.purchase</field>
-            <field name="view_mode">graph,pivot</field>
-            <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
-        </record>
-
-        <!-- Menu Connections -->
-        <menuitem id="menu_suppliers_master_list" name="Suppliers" parent="menu_suppliers_master" action="action_suppliers_master" sequence="10"/>
-        <menuitem id="menu_purchases_orders" name="Purchase Orders" parent="menu_suppliers_operations" action="action_purchases_operations" sequence="10"/>
-        <menuitem id="menu_purchases_analysis" name="Purchases Analysis" parent="menu_suppliers_reports" action="action_purchases_analysis" sequence="10"/>
+        <!-- Menu -->
+        <menuitem id="menu_suppliers_supplier" 
+                  name="Suppliers" 
+                  parent="menu_suppliers_master" 
+                  action="action_havanoposdesk_supplier" 
+                  sequence="20"/>
     </data>
 </odoo>

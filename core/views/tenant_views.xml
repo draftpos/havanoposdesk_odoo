@@ -5,11 +5,17 @@
             <field name="name">havanoposdesk.tenant.tree</field>
             <field name="model">havanoposdesk.tenant</field>
             <field name="arch" type="xml">
+<<<<<<< HEAD
                 <list string="Tenants">
                     <field name="name"/>
                     <field name="subscription_plan_id"/>
                     <field name="subscription_state" widget="badge" decoration-success="subscription_state == 'active'" decoration-warning="subscription_state == 'expired'" decoration-danger="subscription_state == 'cancelled'"/>
                     <field name="active" optional="show"/>
+=======
+                <list  string="Tenants">
+                    <field  name="name"/>
+                    <field  name="active" optional="show"/>
+>>>>>>> 55fb830 (Add Purchases, Sales, Customers, and Suppliers modules and layout fixes)
                 </list>
             </field>
         </record>

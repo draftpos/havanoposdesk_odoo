@@ -115,7 +115,7 @@ class StockAdjustmentLine(models.Model):
     product_id = fields.Many2one('havanoposdesk.product', string='Item Name', required=True)
     on_hand = fields.Float(string='On Hand', readonly=True)
     counted = fields.Float(string='Counted')
-    buying_price = fields.Float(related='product_id.buying_price', string='Buying Price', readonly=True, store=True)
+    buying_price = fields.Float(related='product_id.buying_price', string='Buy price', readonly=True, store=True)
     qty_difference = fields.Float(string='Qty Difference', compute='_compute_differences', store=True)
     amount_difference = fields.Float(string='Amount Difference', compute='_compute_differences', store=True)
 

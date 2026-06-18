@@ -5,10 +5,10 @@
             <field name="name">havanoposdesk.category.tree</field>
             <field name="model">havanoposdesk.category</field>
             <field name="arch" type="xml">
-                <list string="Categories">
-                    <field name="name"/>
-                    <field name="is_main_category" optional="show"/>
-                    <field name="tenant_id" column_invisible="1"/>
+                <list  string="Categories">
+                    <field  name="name"/>
+                    <field  name="is_main_category" optional="show"/>
+                    <field  name="tenant_id" column_invisible="1"/>
                 </list>
             </field>
         </record>
@@ -45,7 +45,5 @@
         </record>
 
         <menuitem id="menu_category_inventory" name="Categories" parent="menu_inventory_master" action="action_havanoposdesk_category" sequence="20"/>
-        <menuitem id="menu_category_sales" name="Categories" parent="menu_sales_master" action="action_havanoposdesk_category" sequence="20"/>
-        <menuitem id="menu_category_suppliers" name="Categories" parent="menu_suppliers_master" action="action_havanoposdesk_category" sequence="20"/>
     </data>
 </odoo>

@@ -5,10 +5,10 @@
             <field name="name">havanoposdesk.uom.tree</field>
             <field name="model">havanoposdesk.uom</field>
             <field name="arch" type="xml">
-                <list string="Units of Measure">
-                    <field name="name"/>
+                <list  string="UOM">
+                    <field  name="name"/>
 
-                    <field name="tenant_id" column_invisible="1"/>
+                    <field  name="tenant_id" column_invisible="1"/>
                 </list>
             </field>
         </record>
@@ -18,7 +18,7 @@
             <field name="name">havanoposdesk.uom.form</field>
             <field name="model">havanoposdesk.uom</field>
             <field name="arch" type="xml">
-                <form string="Unit of Measure">
+                <form string="UOM">
                     <sheet>
                         <div class="oe_title">
                             <label for="name" class="oe_edit_only" string="UOM Name"/>
@@ -37,13 +37,11 @@
         </record>
 
         <record id="action_havanoposdesk_uom" model="ir.actions.act_window">
-            <field name="name">Units of Measure</field>
+            <field name="name">UOM</field>
             <field name="res_model">havanoposdesk.uom</field>
             <field name="view_mode">list,form</field>
         </record>
 
-        <menuitem id="menu_uom_inventory" name="Units of Measure" parent="menu_inventory_master" action="action_havanoposdesk_uom" sequence="30"/>
-        <menuitem id="menu_uom_sales" name="Units of Measure" parent="menu_sales_master" action="action_havanoposdesk_uom" sequence="30"/>
-        <menuitem id="menu_uom_suppliers" name="Units of Measure" parent="menu_suppliers_master" action="action_havanoposdesk_uom" sequence="30"/>
+        <menuitem id="menu_uom_inventory" name="UOM" parent="menu_inventory_master" action="action_havanoposdesk_uom" sequence="30"/>
     </data>
 </odoo>

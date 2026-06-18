@@ -34,13 +34,13 @@
                         <notebook>
                             <page string="Items">
                                 <field name="line_ids">
-                                    <list editable="bottom">
-                                        <field name="product_id" optional="show"/>
-                                        <field name="on_hand" optional="show"/>
-                                        <field name="counted" optional="show"/>
-                                        <field name="buying_price" optional="show"/>
-                                        <field name="qty_difference" optional="show"/>
-                                        <field name="amount_difference" optional="show"/>
+                                    <list  editable="bottom">
+                                        <field name="product_id" width="16%" optional="show"/>
+                                        <field name="on_hand" width="16%" optional="show"/>
+                                        <field name="counted" width="16%" optional="show"/>
+                                        <field name="buying_price" width="16%" optional="show"/>
+                                        <field name="qty_difference" width="16%" sum="Total Qty Diff" optional="show"/>
+                                        <field name="amount_difference" width="16%" sum="Total Amount Diff" optional="show"/>
                                     </list>
                                 </field>
                             </page>
@@ -55,10 +55,11 @@
             <field name="name">havanoposdesk.stock.adjustment.tree</field>
             <field name="model">havanoposdesk.stock.adjustment</field>
             <field name="arch" type="xml">
-                <list string="Stock Adjustments">
-                    <field name="name"/>
-                    <field name="store"/>
-                    <field name="posting_date"/>
+                <list  string="Stock Adjustments">
+                    <field  name="name" optional="show"/>
+                    <field  name="store" optional="show"/>
+                    <field  name="posting_date" optional="show"/>
+                    <field  name="posting_time" widget="float_time" optional="show"/>
                 </list>
             </field>
         </record>
