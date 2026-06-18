@@ -49,7 +49,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
 
     def action_pay(self):
         self.ensure_one()
-        provider = self.env['payment.provider'].search([('code', '=', 'havano_payments')], limit=1)
+        provider = self.env['payment.provider'].sudo().search([('code', '=', 'havano_payments')], limit=1)
         if not provider:
             raise ValidationError('Havano Payments provider is not configured. Please configure it in SaaS Config.')
 
@@ -65,7 +65,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
             'state': 'pending',
         })
 
-        payment_method_rec = self.env['payment.method'].search([('code', '=', self.payment_method)], limit=1)
+        payment_method_rec = self.env['payment.method'].sudo().search([('code', '=', self.payment_method)], limit=1)
 
         tx = self.env['payment.transaction'].sudo().create({
             'provider_id': provider.id,

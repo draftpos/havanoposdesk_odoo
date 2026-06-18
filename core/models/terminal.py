@@ -1,5 +1,6 @@
-from odoo import models, fields, api
-from odoo.exceptions import ValidationError
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError, RedirectWarning
+
 
 class HavanoposdeskPosTerminal(models.Model):
     _name = 'havanoposdesk.pos.terminal'
@@ -36,16 +37,77 @@ class HavanoposdeskPosTerminal(models.Model):
                 
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
             if tenant.subscription_state != 'active':
-                raise ValidationError('Cannot create a POS Terminal. The tenant subscription is not active.')
+                if tenant.subscription_plan_id:
+                    raise RedirectWarning(
+                        _('Cannot create a POS Terminal. The tenant subscription is not active.'),
+                        {
+                            'name': _('Pay & Activate Subscription'),
+                            'type': 'ir.actions.act_window',
+                            'res_model': 'havanoposdesk.subscription.pay.wizard',
+                            'view_mode': 'form',
+                            'views': [(False, 'form')],
+                            'target': 'new',
+                            'context': {
+                                'default_tenant_id': tenant.id,
+                                'default_subscription_plan_id': tenant.subscription_plan_id.id,
+                                'default_amount': tenant.subscription_plan_id.price,
+                            }
+                        },
+                        _('Subscribe Now')
+                    )
+                else:
+                    raise RedirectWarning(
+                        _('Cannot create a POS Terminal. Please pick a subscription plan.'),
+                        {
+                            'name': _('Select Subscription Plan'),
+                            'type': 'ir.actions.act_window',
+                            'res_model': 'havanoposdesk.tenant.upgrade.wizard',
+                            'view_mode': 'form',
+                            'views': [(False, 'form')],
+                            'target': 'new',
+                            'context': {
+                                'default_tenant_id': tenant.id,
+                            }
+                        },
+                        _('Select Plan')
+                    )
                 
             plan = tenant.subscription_plan_id
             if not plan:
-                raise ValidationError('Please pick a subscription plan to start creating POS Terminals.')
+                raise RedirectWarning(
+                    _('Please pick a subscription plan to start creating POS Terminals.'),
+                    {
+                        'name': _('Select Subscription Plan'),
+                        'type': 'ir.actions.act_window',
+                        'res_model': 'havanoposdesk.tenant.upgrade.wizard',
+                        'view_mode': 'form',
+                        'views': [(False, 'form')],
+                        'target': 'new',
+                        'context': {
+                            'default_tenant_id': tenant.id,
+                        }
+                    },
+                    _('Select Plan')
+                )
                 
             if plan.max_terminals and plan.max_terminals > 0:
                 current = self.search_count([('tenant_id', '=', tenant.id)])
                 if current >= plan.max_terminals:
-                    raise ValidationError(f'Maximum number of POS Terminals ({plan.max_terminals}) reached for this subscription plan.')
+                    raise RedirectWarning(
+                        _('Maximum number of POS Terminals (%s) reached for this subscription plan.') % plan.max_terminals,
+                        {
+                            'name': _('Select Subscription Plan'),
+                            'type': 'ir.actions.act_window',
+                            'res_model': 'havanoposdesk.tenant.upgrade.wizard',
+                            'view_mode': 'form',
+                            'views': [(False, 'form')],
+                            'target': 'new',
+                            'context': {
+                                'default_tenant_id': tenant.id,
+                            }
+                        },
+                        _('Upgrade Subscription')
+                    )
                     
             # Ensure the tenant_id is correctly forced
             vals['tenant_id'] = tenant_id
