@@ -15,7 +15,7 @@
                         </div>
                         <group>
                             <group>
-                                <field name="store" class="border-bottom border-dark"/>
+                                <field name="store_id" options="{'no_create': True}" class="border-bottom border-dark"/>
                                 <field name="posting_time" widget="float_time" readonly="not allow_edit_date_time" class="border-bottom border-dark"/>
                             </group>
                             <group>
@@ -35,7 +35,7 @@
                             <page string="Items">
                                 <field name="line_ids">
                                     <list  editable="bottom">
-                                        <field name="product_id" width="16%" optional="show"/>
+                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="16%" optional="show"/>
                                         <field name="on_hand" width="16%" optional="show"/>
                                         <field name="counted" width="16%" optional="show"/>
                                         <field name="buying_price" width="16%" optional="show"/>
@@ -57,7 +57,7 @@
             <field name="arch" type="xml">
                 <list  string="Stock Adjustments">
                     <field  name="name" optional="show"/>
-                    <field  name="store" optional="show"/>
+                    <field  name="store_id" optional="show"/>
                     <field  name="posting_date" optional="show"/>
                     <field  name="posting_time" widget="float_time" optional="show"/>
                 </list>

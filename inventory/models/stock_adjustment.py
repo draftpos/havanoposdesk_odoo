@@ -10,8 +10,11 @@ class StockAdjustment(models.Model):
         now_local = fields.Datetime.context_timestamp(self, now_utc)
         return now_local.hour + now_local.minute / 60.0
 
+    def _default_store_id(self):
+        return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
+
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default=lambda self: 'New')
-    store = fields.Char(string='Store')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
     allow_edit_date_time = fields.Boolean(string='Allow Edit Date & Time', default=False)
@@ -23,13 +26,15 @@ class StockAdjustment(models.Model):
     def default_get(self, fields_list):
         res = super().default_get(fields_list)
         if res.get('fetch_all_data'):
-            products = self.env['havanoposdesk.product'].search([])
+            store_id = res.get('store_id')
+            domain = [('store_id', '=', store_id)] if store_id else []
+            products = self.env['havanoposdesk.product'].search(domain)
             lines = []
             for product in products:
                 lines.append((0, 0, {
                     'product_id': product.id,
                     'on_hand': product.opening_stock,
-                    'counted': product.opening_stock,
+                    'counted': 0.0,
                 }))
             res['line_ids'] = lines
         return res
@@ -39,13 +44,14 @@ class StockAdjustment(models.Model):
     @api.onchange('fetch_all_data')
     def _onchange_fetch_all_data(self):
         if self.fetch_all_data:
-            products = self.env['havanoposdesk.product'].search([])
+            domain = [('store_id', '=', self.store_id.id)] if self.store_id else []
+            products = self.env['havanoposdesk.product'].search(domain)
             lines = [(5, 0, 0)]
             for product in products:
                 lines.append((0, 0, {
                     'product_id': product.id,
                     'on_hand': product.opening_stock,
-                    'counted': product.opening_stock,
+                    'counted': 0.0,
                 }))
             self.line_ids = lines
             self.fetch_category_id = False
@@ -53,16 +59,37 @@ class StockAdjustment(models.Model):
     @api.onchange('fetch_category_id')
     def _onchange_fetch_category_id(self):
         if self.fetch_category_id:
-            products = self.env['havanoposdesk.product'].search([('category_id', '=', self.fetch_category_id.id)])
+            domain = [('category_id', '=', self.fetch_category_id.id)]
+            if self.store_id:
+                domain.append(('store_id', '=', self.store_id.id))
+            products = self.env['havanoposdesk.product'].search(domain)
             lines = [(5, 0, 0)]
             for product in products:
                 lines.append((0, 0, {
                     'product_id': product.id,
                     'on_hand': product.opening_stock,
-                    'counted': product.opening_stock,
+                    'counted': 0.0,
                 }))
             self.line_ids = lines
             self.fetch_all_data = False
+
+    @api.onchange('store_id')
+    def _onchange_store_id(self):
+        if self.store_id:
+            domain = [('store_id', '=', self.store_id.id)]
+            if self.fetch_category_id:
+                domain.append(('category_id', '=', self.fetch_category_id.id))
+            
+            if self.fetch_all_data or self.fetch_category_id:
+                products = self.env['havanoposdesk.product'].search(domain)
+                lines = [(5, 0, 0)]
+                for product in products:
+                    lines.append((0, 0, {
+                        'product_id': product.id,
+                        'on_hand': product.opening_stock,
+                        'counted': 0.0,
+                    }))
+                self.line_ids = lines
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -84,7 +111,7 @@ class StockAdjustment(models.Model):
                         'in_qty': line.qty_difference if line.qty_difference > 0 else 0.0,
                         'out_qty': abs(line.qty_difference) if line.qty_difference < 0 else 0.0,
                         'balance_qty': line.counted,
-                        'store': adjustment.store,
+                        'store': adjustment.store_id.name if adjustment.store_id else '',
                         'type': 'Stock Adjustment',
                         'doc_no': adjustment.name,
                     })
@@ -92,7 +119,7 @@ class StockAdjustment(models.Model):
                     # Update or Create Valuation Entry using sudo()
                     valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
                         ('product_id', '=', line.product_id.id),
-                        ('store', '=', adjustment.store)
+                        ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
                     ], limit=1)
                     
                     if valuation:
@@ -102,7 +129,7 @@ class StockAdjustment(models.Model):
                     else:
                         self.env['havanoposdesk.stock.valuation'].sudo().create({
                             'product_id': line.product_id.id,
-                            'store': adjustment.store,
+                            'store': adjustment.store_id.name if adjustment.store_id else '',
                             'on_hand_qty': line.counted,
                         })
         return adjustments
@@ -129,4 +156,4 @@ class StockAdjustmentLine(models.Model):
     def _onchange_product_id(self):
         if self.product_id:
             self.on_hand = self.product_id.opening_stock
-            self.counted = self.product_id.opening_stock
+            self.counted = 0.0
