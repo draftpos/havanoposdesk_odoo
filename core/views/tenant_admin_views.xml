@@ -9,7 +9,6 @@
             <field name="name">My Stores</field>
             <field name="res_model">havanoposdesk.store</field>
             <field name="view_mode">list,form</field>
-            <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
         </record>
         <menuitem id="menu_my_stores" name="Stores" parent="menu_my_business_root" action="action_my_stores" sequence="10"/>
 
@@ -18,7 +17,6 @@
             <field name="name">My POS Terminals</field>
             <field name="res_model">havanoposdesk.pos.terminal</field>
             <field name="view_mode">list,form</field>
-            <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
         </record>
         <menuitem id="menu_my_terminals" name="POS Terminals" parent="menu_my_business_root" action="action_my_terminals" sequence="20"/>
 
@@ -27,8 +25,8 @@
             <field name="name">My Cashiers</field>
             <field name="res_model">res.users</field>
             <field name="view_mode">list,form</field>
-            <field name="domain">[('tenant_id', '=', context.get('tenant_id')), ('havano_role', '=', 'user')]</field>
-            <field name="context">{'default_tenant_id': context.get('tenant_id'), 'default_havano_role': 'user'}</field>
+            <field name="domain">[('havano_role', '=', 'user')]</field>
+            <field name="context">{'default_havano_role': 'user'}</field>
         </record>
         <menuitem id="menu_my_cashiers" name="Cashiers" parent="menu_my_business_root" action="action_my_cashiers" sequence="30"/>
 
