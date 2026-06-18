@@ -44,7 +44,7 @@
                                 invisible="subscription_state == 'cancelled'"
                                 groups="base.group_system"/>
 
-                        <button name="action_pay_and_activate"
+                        <button name="action_pay_subscription_wizard"
                                 type="object"
                                 string="Pay &amp; Activate Plan"
                                 class="btn-success"
@@ -107,5 +107,25 @@
             </field>
         </record>
 
+        <!-- Subscription Payment Wizard View -->
+        <record id="view_havanoposdesk_subscription_pay_wizard_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.subscription.pay.wizard.form</field>
+            <field name="model">havanoposdesk.subscription.pay.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Pay Subscription">
+                    <group>
+                        <field name="tenant_id" invisible="1"/>
+                        <field name="subscription_plan_id" readonly="1"/>
+                        <field name="amount" readonly="1"/>
+                        <field name="payment_method" widget="radio"/>
+                        <field name="phone" placeholder="e.g. 0771234567" invisible="payment_method != 'ecocash'" required="payment_method == 'ecocash'"/>
+                    </group>
+                    <footer>
+                        <button string="Initiate Payment" name="action_pay" type="object" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
     </data>
 </odoo>

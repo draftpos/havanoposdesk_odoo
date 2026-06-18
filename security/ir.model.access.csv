@@ -18,3 +18,4 @@ access_havanoposdesk_subscription_plan,havanoposdesk.subscription.plan,model_hav
 access_havanoposdesk_pos_terminal,havanoposdesk.pos.terminal,model_havanoposdesk_pos_terminal,base.group_user,1,1,1,1
 access_havanoposdesk_subscription_payment,havanoposdesk.subscription.payment,model_havanoposdesk_subscription_payment,base.group_user,1,1,1,1
 access_havanoposdesk_tenant_upgrade_wizard,havanoposdesk.tenant.upgrade.wizard,model_havanoposdesk_tenant_upgrade_wizard,base.group_user,1,1,1,1
+access_havanoposdesk_subscription_pay_wizard,havanoposdesk.subscription.pay.wizard,model_havanoposdesk_subscription_pay_wizard,base.group_user,1,1,1,1

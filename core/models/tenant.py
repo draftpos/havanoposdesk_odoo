@@ -82,6 +82,22 @@ class HavanoposdeskTenant(models.Model):
             }
         }
 
+    def action_pay_subscription_wizard(self):
+        self.ensure_one()
+        return {
+            'name': 'Pay & Activate Subscription',
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.subscription.pay.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_tenant_id': self.id,
+                'default_subscription_plan_id': self.subscription_plan_id.id,
+                'default_amount': self.subscription_plan_id.price,
+            }
+        }
+
+
     def write(self, vals):
         restricted_fields = {'payment_status', 'subscription_state', 'subscription_start_date', 'subscription_end_date', 'subscription_plan_id'}
         if self.env.user.havano_role != 'super_admin' and not self.env.su:

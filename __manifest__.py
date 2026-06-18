@@ -9,7 +9,7 @@
         Provides JSON REST API for the Flutter Havano POS frontend.
     """,
     'author': 'Havano',
-    'depends': ['base', 'web', 'auth_signup'],
+    'depends': ['base', 'web', 'auth_signup', 'payment', 'havano_payments'],
     'data': [
         'security/ir.model.access.csv',
         'security/security_rules.xml',
