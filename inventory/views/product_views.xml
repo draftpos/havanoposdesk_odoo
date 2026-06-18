@@ -42,6 +42,7 @@
                                         <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark"/>
                                         <field name="tenant_id" invisible="1"/>
                                         <field name="track_qty" class="border-bottom border-dark"/>
+                                        <field name="store_id" class="border-bottom border-dark" options="{'no_create': True}"/>
                                         <field name="color" invisible="1"/>
                                     </group>
                                     <group string="Price information">

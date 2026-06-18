@@ -10,6 +10,18 @@ class HavanoposdeskStore(models.Model):
     active = fields.Boolean(string='Active', default=True)
     is_default = fields.Boolean(string='Is Default', default=False)
 
+    @api.constrains('is_default', 'tenant_id')
+    def _check_single_default_store(self):
+        for store in self:
+            if store.is_default:
+                domain = [
+                    ('tenant_id', '=', store.tenant_id.id),
+                    ('is_default', '=', True),
+                    ('id', '!=', store.id)
+                ]
+                if self.search_count(domain) > 0:
+                    raise ValidationError("Only one store can be set as the default store per tenant.")
+
     # Computed statistics fields to avoid undefined errors in list view
     terminal_count = fields.Integer(string='Terminals', compute='_compute_store_statistics')
     last_open = fields.Date(string='Last Open', compute='_compute_store_statistics')
