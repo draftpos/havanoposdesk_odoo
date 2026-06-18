@@ -27,11 +27,7 @@ class HavanoposdeskTenant(models.Model):
 
     def action_approve(self):
         for tenant in self:
-<<<<<<< HEAD
             tenant.with_context(bypass_subscription_check=True).write({
-=======
-            tenant.write({
->>>>>>> 4b8e381 (feat:updated)
                 'subscription_state': 'active',
                 'payment_status': 'paid',
                 'active': True
@@ -39,30 +35,18 @@ class HavanoposdeskTenant(models.Model):
 
     def action_expire(self):
         for tenant in self:
-<<<<<<< HEAD
             tenant.with_context(bypass_subscription_check=True).write({
-=======
-            tenant.write({
->>>>>>> 4b8e381 (feat:updated)
                 'subscription_state': 'expired'
             })
 
     def action_cancel(self):
         for tenant in self:
-<<<<<<< HEAD
             tenant.with_context(bypass_subscription_check=True).write({
-=======
-            tenant.write({
->>>>>>> 4b8e381 (feat:updated)
                 'subscription_state': 'cancelled'
             })
 
     def action_select_plan(self, plan_id):
-<<<<<<< HEAD
         self.with_context(bypass_subscription_check=True).write({
-=======
-        self.write({
->>>>>>> 4b8e381 (feat:updated)
             'subscription_plan_id': plan_id,
             'subscription_state': 'pending',
             'payment_status': 'unpaid'
@@ -76,11 +60,7 @@ class HavanoposdeskTenant(models.Model):
             duration = plan.duration_days or 30
             start_date = fields.Date.context_today(self)
             end_date = start_date + relativedelta(days=duration)
-<<<<<<< HEAD
             tenant.with_context(bypass_subscription_check=True).write({
-=======
-            tenant.write({
->>>>>>> 4b8e381 (feat:updated)
                 'payment_status': 'paid',
                 'subscription_state': 'active',
                 'subscription_start_date': start_date,
@@ -88,7 +68,6 @@ class HavanoposdeskTenant(models.Model):
                 'active': True
             })
 
-<<<<<<< HEAD
     def action_upgrade_plan(self):
         self.ensure_one()
         return {
@@ -134,5 +113,3 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
 
 
 
-=======
->>>>>>> 4b8e381 (feat:updated)
