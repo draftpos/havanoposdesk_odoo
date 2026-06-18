@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- SaaS Users List View -->
+        <record id="view_saas_users_tree" model="ir.ui.view">
+            <field name="name">saas.users.tree</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <list string="SaaS Users">
+                    <field name="name"/>
+                    <field name="login"/>
+                    <field name="havano_role"/>
+                    <field name="tenant_id"/>
+                    <field name="saas_state" widget="badge" decoration-info="saas_state == 'unverified'" decoration-success="saas_state == 'verified'" decoration-danger="saas_state == 'suspended'"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- SaaS Users Form View (Inherits Base) -->
+        <record id="view_saas_users_form" model="ir.ui.view">
+            <field name="name">saas.users.form</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="base.view_users_form"/>
+            <field name="arch" type="xml">
+                <!-- Insert Header for Status and Buttons -->
+                <xpath expr="//sheet" position="before">
+                    <header>
+                        <button name="action_verify_user" type="object" string="Verify" class="oe_highlight" invisible="saas_state == 'verified'"/>
+                        <button name="action_suspend_user" type="object" string="Suspend" class="btn-danger" invisible="saas_state == 'suspended'"/>
+                        <field name="saas_state" widget="statusbar" statusbar_visible="unverified,verified,suspended"/>
+                    </header>
+                </xpath>
+            </field>
+        </record>
+
+        <!-- Action to open SaaS Users -->
+        <record id="action_saas_users" model="ir.actions.act_window">
+            <field name="name">SaaS Users</field>
+            <field name="res_model">res.users</field>
+            <field name="view_mode">list,form</field>
+            <field name="view_id" ref="view_saas_users_tree"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new SaaS User!
+                </p>
+                <p>
+                    Manage super admins, tenant admins, and regular users here.
+                </p>
+            </field>
+        </record>
+    </data>
+</odoo>

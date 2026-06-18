@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Tree view for POS Terminals -->
+        <record id="view_pos_terminal_tree" model="ir.ui.view">
+            <field name="name">pos.terminal.tree</field>
+            <field name="model">havanoposdesk.pos.terminal</field>
+            <field name="arch" type="xml">
+                <list string="POS Terminals">
+                    <field name="name"/>
+                    <field name="shop_id"/>
+                    <field name="user_id"/>
+                    <field name="status"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Form view for POS Terminal -->
+        <record id="view_pos_terminal_form" model="ir.ui.view">
+            <field name="name">pos.terminal.form</field>
+            <field name="model">havanoposdesk.pos.terminal</field>
+            <field name="arch" type="xml">
+                <form string="POS Terminal">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                                <field name="shop_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                                <field name="user_id" domain="[('tenant_id', '=', tenant_id), ('havano_role', '=', 'user')]" options="{'no_create': True}"/>
+                            </group>
+                            <group>
+                                <field name="status"/>
+                                <field name="tenant_id" invisible="1"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Action to open terminals -->
+        <record id="action_pos_terminals" model="ir.actions.act_window">
+            <field name="name">POS Terminals</field>
+            <field name="res_model">havanoposdesk.pos.terminal</field>
+            <field name="view_mode">list,form</field>
+            <field name="view_id" ref="view_pos_terminal_tree"/>
+        </record>
+    </data>
+</odoo>

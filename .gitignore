@@ -1,0 +1,10 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDEs/Editor cache files
+.ipynb_checkpoints
+.vscode/
+.idea/
+.DS_Store

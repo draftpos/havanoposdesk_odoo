@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Subscription Plan Tree View -->
+        <record id="view_subscription_plan_tree" model="ir.ui.view">
+            <field name="name">subscription.plan.tree</field>
+            <field name="model">havanoposdesk.subscription.plan</field>
+            <field name="arch" type="xml">
+                <list string="Subscription Plans">
+                    <field name="name"/>
+                    <field name="price"/>
+                    <field name="max_shops"/>
+                    <field name="max_users"/>
+                    <field name="max_terminals"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Subscription Plan Form View -->
+        <record id="view_subscription_plan_form" model="ir.ui.view">
+            <field name="name">subscription.plan.form</field>
+            <field name="model">havanoposdesk.subscription.plan</field>
+            <field name="arch" type="xml">
+                <form string="Subscription Plan">
+                    <sheet>
+                        <group>
+                            <field name="name"/>
+                            <field name="price"/>
+                            <field name="max_shops"/>
+                            <field name="max_users"/>
+                            <field name="max_terminals"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Action to open subscription plans -->
+        <record id="action_subscription_plans" model="ir.actions.act_window">
+            <field name="name">Subscription Plans</field>
+            <field name="res_model">havanoposdesk.subscription.plan</field>
+            <field name="view_mode">list,form</field>
+            <field name="view_id" ref="view_subscription_plan_tree"/>
+        </record>
+    </data>
+</odoo>

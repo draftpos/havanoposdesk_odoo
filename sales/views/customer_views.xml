@@ -8,14 +8,16 @@
             <field name="arch" type="xml">
                 <form string="Customer">
                     <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" placeholder="e.g. John Doe" class="border-bottom border-dark"/>
+                            </h1>
+                        </div>
                         <group>
                             <group>
-                                <field name="name" class="border-bottom border-dark"/>
-                                <field name="phone" class="border-bottom border-dark"/>
+                                <field name="customer_type" class="border-bottom border-dark"/>
                             </group>
                             <group>
-                                <field name="address" class="border-bottom border-dark"/>
-                                <field name="email" class="border-bottom border-dark"/>
                             </group>
                         </group>
                     </sheet>
@@ -29,9 +31,8 @@
             <field name="model">havanoposdesk.customer</field>
             <field name="arch" type="xml">
                 <list  string="Customers">
-                    <field name="name" optional="show"/>
-                    <field name="phone" optional="show"/>
-                    <field name="email" optional="show"/>
+                    <field  name="name" optional="show"/>
+                    <field  name="customer_type" optional="show"/>
                 </list>
             </field>
         </record>
