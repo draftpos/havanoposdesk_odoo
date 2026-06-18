@@ -4,3 +4,4 @@ from . import store
 from . import subscription
 from . import terminal
 from . import payment
+from . import payment_transaction
