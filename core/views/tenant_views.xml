@@ -6,6 +6,7 @@
             <field name="model">havanoposdesk.tenant</field>
             <field name="arch" type="xml">
 <<<<<<< HEAD
+<<<<<<< HEAD
                 <list string="Tenants">
                     <field name="name"/>
                     <field name="subscription_plan_id"/>
@@ -16,6 +17,18 @@
                     <field  name="name"/>
                     <field  name="active" optional="show"/>
 >>>>>>> 55fb830 (Add Purchases, Sales, Customers, and Suppliers modules and layout fixes)
+=======
+                <list  string="Tenants">
+                    <field  name="name"/>
+                    <field  name="active" optional="show"/>
+=======
+                <list string="Tenants">
+                    <field name="name"/>
+                    <field name="subscription_plan_id"/>
+                    <field name="subscription_state" widget="badge" decoration-success="subscription_state == 'active'" decoration-warning="subscription_state == 'expired'" decoration-danger="subscription_state == 'cancelled'"/>
+                    <field name="active" optional="show"/>
+>>>>>>> fc87fa5 (feat:updated code)
+>>>>>>> 4b8e381 (feat:updated)
                 </list>
             </field>
         </record>
@@ -30,20 +43,33 @@
                         <button name="action_expire" type="object" string="Set Expired" invisible="subscription_state == 'expired'" groups="base.group_system"/>
                         <button name="action_cancel" type="object" string="Cancel Subscription" class="btn-danger" invisible="subscription_state == 'cancelled'" groups="base.group_system"/>
                         <button name="action_pay_and_activate" type="object" string="Pay &amp; Activate Plan" class="btn-success" invisible="subscription_state == 'active' or not subscription_plan_id"/>
+<<<<<<< HEAD
                         <button name="action_upgrade_plan" type="object" string="Change/Upgrade Plan" class="oe_highlight" invisible="subscription_state == 'pending'"/>
+=======
+>>>>>>> 4b8e381 (feat:updated)
                         <field name="subscription_state" widget="statusbar" statusbar_visible="active,pending,expired,cancelled"/>
                     </header>
                     <sheet>
                         <group>
                             <group string="Subscription Details">
+<<<<<<< HEAD
                                 <field name="name" readonly="not context.get('is_super_admin', False)"/>
                                 <field name="subscription_plan_id" options="{'no_create': True}" readonly="1"/>
                                 <field name="payment_status" readonly="1"/>
+=======
+                                <field name="name"/>
+                                <field name="subscription_plan_id" options="{'no_create': True}"/>
+                                <field name="payment_status"/>
+>>>>>>> 4b8e381 (feat:updated)
                             </group>
                             <group string="Duration &amp; Status">
                                 <field name="subscription_start_date" readonly="1"/>
                                 <field name="subscription_end_date" readonly="1"/>
+<<<<<<< HEAD
                                 <field name="active" readonly="not context.get('is_super_admin', False)"/>
+=======
+                                <field name="active"/>
+>>>>>>> 4b8e381 (feat:updated)
                             </group>
                         </group>
                     </sheet>
@@ -51,6 +77,7 @@
             </field>
         </record>
 
+<<<<<<< HEAD
         <!-- Tenant Upgrade Wizard View -->
         <record id="view_tenant_upgrade_wizard_form" model="ir.ui.view">
             <field name="name">havanoposdesk.tenant.upgrade.wizard.form</field>
@@ -69,5 +96,7 @@
         </record>
 
 
+=======
+>>>>>>> 4b8e381 (feat:updated)
     </data>
 </odoo>

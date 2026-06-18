@@ -5,30 +5,11 @@ access_havanoposdesk_uom,havanoposdesk.uom,model_havanoposdesk_uom,base.group_us
 access_havanoposdesk_product,havanoposdesk.product,model_havanoposdesk_product,base.group_user,1,1,1,1
 access_havanoposdesk_stock_valuation,havanoposdesk.stock.valuation,model_havanoposdesk_stock_valuation,base.group_user,1,0,0,0
 access_havanoposdesk_stock_ledger,havanoposdesk.stock.ledger,model_havanoposdesk_stock_ledger,base.group_user,1,0,0,0
-<<<<<<< HEAD
-access_havanoposdesk_shop,havanoposdesk.shop,model_havanoposdesk_shop,base.group_user,1,1,1,1
-access_havanoposdesk_sale,havanoposdesk.sale,model_havanoposdesk_sale,base.group_user,1,1,1,1
-access_havanoposdesk_purchase,havanoposdesk.purchase,model_havanoposdesk_purchase,base.group_user,1,1,1,1
-access_havanoposdesk_supplier,havanoposdesk.supplier,model_havanoposdesk_supplier,base.group_user,1,1,1,1
-access_havanoposdesk_subscription_plan,havanoposdesk.subscription.plan,model_havanoposdesk_subscription_plan,base.group_user,1,1,1,1
-access_havanoposdesk_pos_terminal,havanoposdesk.pos.terminal,model_havanoposdesk_pos_terminal,base.group_user,1,1,1,1
-access_havanoposdesk_subscription_payment,havanoposdesk.subscription.payment,model_havanoposdesk_subscription_payment,base.group_user,1,1,1,1
-access_havanoposdesk_res_users,res.users,base.model_res_users,base.group_user,1,1,1,1
-access_havanoposdesk_tenant_upgrade_wizard,havanoposdesk.tenant.upgrade.wizard,model_havanoposdesk_tenant_upgrade_wizard,base.group_user,1,1,1,1
-
-
-
-
-=======
 access_havanoposdesk_stock_adjustment,havanoposdesk.stock.adjustment,model_havanoposdesk_stock_adjustment,base.group_user,1,1,1,1
 access_havanoposdesk_stock_adjustment_line,havanoposdesk.stock.adjustment.line,model_havanoposdesk_stock_adjustment_line,base.group_user,1,1,1,1
-<<<<<<< HEAD
->>>>>>> a0b0957 (Add Stock Adjustment feature, update views with bottom borders)
-=======
 access_havanoposdesk_purchase,havanoposdesk.purchase,model_havanoposdesk_purchase,base.group_user,1,1,1,1
 access_havanoposdesk_purchase_line,havanoposdesk.purchase.line,model_havanoposdesk_purchase_line,base.group_user,1,1,1,1
 access_havanoposdesk_sale,havanoposdesk.sale,model_havanoposdesk_sale,base.group_user,1,1,1,1
 access_havanoposdesk_sale_line,havanoposdesk.sale.line,model_havanoposdesk_sale_line,base.group_user,1,1,1,1
 access_havanoposdesk_customer,havanoposdesk.customer,model_havanoposdesk_customer,base.group_user,1,1,1,1
 access_havanoposdesk_supplier,havanoposdesk.supplier,model_havanoposdesk_supplier,base.group_user,1,1,1,1
->>>>>>> 55fb830 (Add Purchases, Sales, Customers, and Suppliers modules and layout fixes)

@@ -6,20 +6,6 @@
             <field name="name">havanoposdesk.product.tree</field>
             <field name="model">havanoposdesk.product</field>
             <field name="arch" type="xml">
-<<<<<<< HEAD
-                <list string="Products">
-                    <field name="name"/>
-                    <field name="item_code" optional="show"/>
-                    <field name="category_id" optional="show"/>
-                    <field name="uom_id" optional="show"/>
-                    <field name="buying_price" optional="show"/>
-                    <field name="selling_price" optional="show"/>
-                    <field name="track_qty" optional="show"/>
-                    <field name="opening_stock" string="Stock on Hand" optional="show"/>
-                    <field name="color" column_invisible="1"/>
-                    <field name="tenant_id" column_invisible="1"/>
-                    <field name="shop_id" optional="show"/>
-=======
                 <list  string="Products">
                     <field  name="name"/>
                     <field  name="item_code" optional="show"/>
@@ -31,7 +17,6 @@
                     <field  name="opening_stock" string="On hand" optional="show"/>
                     <field  name="color" column_invisible="1"/>
                     <field  name="tenant_id" column_invisible="1"/>
->>>>>>> 55fb830 (Add Purchases, Sales, Customers, and Suppliers modules and layout fixes)
                 </list>
             </field>
         </record>

@@ -1,20 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+<<<<<<< HEAD
         <!-- Sale Form View -->
+=======
+        <!-- Sales List View -->
+        <record id="view_havanoposdesk_sale_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.tree</field>
+            <field name="model">havanoposdesk.sale</field>
+            <field name="arch" type="xml">
+                <list string="Sales" default_order="date desc">
+                    <field name="name"/>
+                    <field name="date"/>
+                    <field name="shop_id"/>
+                    <field name="salesperson_id"/>
+                    <field name="amount_total" sum="Total Sales"/>
+                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'confirmed'" decoration-success="state == 'done'"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Sales Form View -->
+>>>>>>> fc87fa5 (feat:updated code)
         <record id="view_havanoposdesk_sale_form" model="ir.ui.view">
             <field name="name">havanoposdesk.sale.form</field>
             <field name="model">havanoposdesk.sale</field>
             <field name="arch" type="xml">
                 <form string="Sale">
+<<<<<<< HEAD
                     <sheet>
                         <div class="oe_title" invisible="1">
                             <h1>
                                 <field name="name"/>
+=======
+                    <header>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,done"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1"/>
+>>>>>>> fc87fa5 (feat:updated code)
                             </h1>
                         </div>
                         <group>
                             <group>
+<<<<<<< HEAD
                                 <field name="customer" class="border-bottom border-dark"/>
                                 <field name="store" class="border-bottom border-dark"/>
                             </group>
@@ -35,11 +66,23 @@
                                 </field>
                             </page>
                         </notebook>
+=======
+                                <field name="shop_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                                <field name="date"/>
+                            </group>
+                            <group>
+                                <field name="salesperson_id" options="{'no_create': True}"/>
+                                <field name="amount_total"/>
+                                <field name="tenant_id" invisible="1"/>
+                            </group>
+                        </group>
+>>>>>>> fc87fa5 (feat:updated code)
                     </sheet>
                 </form>
             </field>
         </record>
 
+<<<<<<< HEAD
         <!-- Sale Tree View -->
         <record id="view_havanoposdesk_sale_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.sale.tree</field>
@@ -63,15 +106,65 @@
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Create a new Sale Record
+=======
+        <!-- Sales Graph View -->
+        <record id="view_havanoposdesk_sale_graph" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.graph</field>
+            <field name="model">havanoposdesk.sale</field>
+            <field name="arch" type="xml">
+                <graph string="Sales Analysis" type="bar" sample="1">
+                    <field name="date" interval="day"/>
+                    <field name="amount_total" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <!-- Sales Pivot View -->
+        <record id="view_havanoposdesk_sale_pivot" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.pivot</field>
+            <field name="model">havanoposdesk.sale</field>
+            <field name="arch" type="xml">
+                <pivot string="Sales Analysis" sample="1">
+                    <field name="date" interval="month" type="row"/>
+                    <field name="shop_id" type="col"/>
+                    <field name="amount_total" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- Action: Sales Operations -->
+        <record id="action_sales_operations" model="ir.actions.act_window">
+            <field name="name">Sales Orders</field>
+            <field name="res_model">havanoposdesk.sale</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Record your first sale!
+>>>>>>> fc87fa5 (feat:updated code)
                 </p>
             </field>
         </record>
 
+<<<<<<< HEAD
         <!-- Menu -->
         <menuitem id="menu_sales_sale" 
                   name="Sales" 
                   parent="menu_sales_master" 
                   action="action_havanoposdesk_sale" 
                   sequence="10"/>
+=======
+        <!-- Action: Sales Analytics -->
+        <record id="action_sales_analysis" model="ir.actions.act_window">
+            <field name="name">Sales Analytics</field>
+            <field name="res_model">havanoposdesk.sale</field>
+            <field name="view_mode">graph,pivot</field>
+            <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
+        </record>
+
+        <!-- Sales App Menu Connections -->
+        <menuitem id="menu_sales_orders" name="Sales Orders" parent="menu_sales_operations" action="action_sales_operations" sequence="10"/>
+        <menuitem id="menu_sales_analysis" name="Sales Analysis" parent="menu_sales_reports" action="action_sales_analysis" sequence="10"/>
+>>>>>>> fc87fa5 (feat:updated code)
     </data>
 </odoo>

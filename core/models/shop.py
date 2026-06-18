@@ -9,6 +9,7 @@ class HavanoposdeskShop(models.Model):
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
     active = fields.Boolean(string='Active', default=True)
 
+<<<<<<< HEAD
     # Computed Metrics
     terminal_count = fields.Integer(string='Terminals', compute='_compute_shop_metrics')
     last_open = fields.Datetime(string='Last Open', compute='_compute_shop_metrics')
@@ -49,6 +50,8 @@ class HavanoposdeskShop(models.Model):
             
             shop.last_open = max(dates) if dates else False
 
+=======
+>>>>>>> 4b8e381 (feat:updated)
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -78,4 +81,7 @@ class HavanoposdeskShop(models.Model):
         return super().create(vals_list)
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4b8e381 (feat:updated)

@@ -32,6 +32,7 @@
         </record>
         <menuitem id="menu_my_cashiers" name="Cashiers" parent="menu_my_business_root" action="action_my_cashiers" sequence="30"/>
 
+<<<<<<< HEAD
         <!-- My Subscription Action & Menu -->
         <record id="action_my_subscription" model="ir.actions.server">
             <field name="name">My Subscription</field>
@@ -54,3 +55,7 @@ if tenant_id:
     </data>
 </odoo>
 
+=======
+    </data>
+</odoo>
+>>>>>>> 4b8e381 (feat:updated)
