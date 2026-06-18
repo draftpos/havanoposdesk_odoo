@@ -1,5 +1,5 @@
-from odoo import models, fields, api, tools
-from odoo.exceptions import ValidationError
+from odoo import models, fields, api, tools, _
+from odoo.exceptions import ValidationError, RedirectWarning
 from odoo.tools import frozendict
 
 class ResUsers(models.Model):
@@ -39,16 +39,77 @@ class ResUsers(models.Model):
                     continue
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
                 if tenant.subscription_state != 'active':
-                    raise ValidationError('Cannot create a cashier. The tenant subscription is not active.')
+                    if tenant.subscription_plan_id:
+                        raise RedirectWarning(
+                            _('Cannot create a cashier. The tenant subscription is not active.'),
+                            {
+                                'name': _('Pay & Activate Subscription'),
+                                'type': 'ir.actions.act_window',
+                                'res_model': 'havanoposdesk.subscription.pay.wizard',
+                                'view_mode': 'form',
+                                'views': [(False, 'form')],
+                                'target': 'new',
+                                'context': {
+                                    'default_tenant_id': tenant.id,
+                                    'default_subscription_plan_id': tenant.subscription_plan_id.id,
+                                    'default_amount': tenant.subscription_plan_id.price,
+                                }
+                            },
+                            _('Subscribe Now')
+                        )
+                    else:
+                        raise RedirectWarning(
+                            _('Cannot create a cashier. Please pick a subscription plan.'),
+                            {
+                                'name': _('Select Subscription Plan'),
+                                'type': 'ir.actions.act_window',
+                                'res_model': 'havanoposdesk.tenant.upgrade.wizard',
+                                'view_mode': 'form',
+                                'views': [(False, 'form')],
+                                'target': 'new',
+                                'context': {
+                                    'default_tenant_id': tenant.id,
+                                }
+                            },
+                            _('Select Plan')
+                        )
                     
                 plan = tenant.subscription_plan_id
                 if not plan:
-                    raise ValidationError('Please pick a subscription plan to start creating cashiers.')
+                    raise RedirectWarning(
+                        _('Please pick a subscription plan to start creating cashiers.'),
+                        {
+                            'name': _('Select Subscription Plan'),
+                            'type': 'ir.actions.act_window',
+                            'res_model': 'havanoposdesk.tenant.upgrade.wizard',
+                            'view_mode': 'form',
+                            'views': [(False, 'form')],
+                            'target': 'new',
+                            'context': {
+                                'default_tenant_id': tenant.id,
+                            }
+                        },
+                        _('Select Plan')
+                    )
                     
                 if plan.max_users and plan.max_users > 0:
                     current = self.search_count([('tenant_id', '=', tenant.id), ('havano_role', '=', 'user')])
                     if current >= plan.max_users:
-                        raise ValidationError(f'Maximum number of cashiers ({plan.max_users}) reached for this subscription plan.')
+                        raise RedirectWarning(
+                            _('Maximum number of cashiers (%s) reached for this subscription plan.') % plan.max_users,
+                            {
+                                'name': _('Select Subscription Plan'),
+                                'type': 'ir.actions.act_window',
+                                'res_model': 'havanoposdesk.tenant.upgrade.wizard',
+                                'view_mode': 'form',
+                                'views': [(False, 'form')],
+                                'target': 'new',
+                                'context': {
+                                    'default_tenant_id': tenant.id,
+                                }
+                            },
+                            _('Upgrade Subscription')
+                        )
 
         # Handle delegated user creation by Tenant Admins
         if self.env.user.havano_role == 'admin':

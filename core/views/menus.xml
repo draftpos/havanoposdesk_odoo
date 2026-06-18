@@ -42,6 +42,7 @@
         <menuitem id="menu_saas_tenants" name="Tenants" parent="menu_saas_root" action="action_havanoposdesk_tenant" sequence="20"/>
         <menuitem id="menu_saas_stores" name="Stores" parent="menu_saas_root" action="action_havanoposdesk_store" sequence="30"/>
         <menuitem id="menu_saas_plans" name="Subscription Plans" parent="menu_saas_root" action="action_subscription_plans" sequence="40"/>
+        <menuitem id="menu_saas_payment_providers" name="Payment Providers" parent="menu_saas_root" action="payment.action_payment_provider" sequence="50"/>
         
         <!-- Also keep Tenants and Stores in native users menu just in case -->
         <menuitem id="menu_tenant" name="Tenants" parent="base.menu_users" action="action_havanoposdesk_tenant" sequence="100"/>
