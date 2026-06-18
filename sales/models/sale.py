@@ -1,5 +1,6 @@
 from odoo import models, fields, api
 from datetime import datetime, time
+from odoo.exceptions import ValidationError
 
 class Sale(models.Model):
     _name = 'havanoposdesk.sale'
@@ -19,6 +20,9 @@ class Sale(models.Model):
     
     line_ids = fields.One2many('havanoposdesk.sale.line', 'sale_id', string='Items')
 
+    def _default_store_id(self):
+        return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
+
     # View-required fields to avoid undefined errors
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
@@ -30,7 +34,7 @@ class Sale(models.Model):
         'havanoposdesk.store', 
         string='Store', 
         required=True, 
-        default=lambda self: self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1).id
+        default=_default_store_id
     )
     date = fields.Datetime(string='Sale Date', default=fields.Datetime.now, required=True)
     amount_total = fields.Float(string='Total Amount', compute='_compute_amount_total', store=True)
@@ -155,3 +159,21 @@ class SaleLine(models.Model):
     def _onchange_product_id(self):
         if self.product_id:
             self.rate = self.product_id.selling_price
+
+    @api.onchange('accepted_qty', 'product_id')
+    def _onchange_qty(self):
+        if self.product_id and self.accepted_qty > self.product_id.opening_stock:
+            return {
+                'warning': {
+                    'title': 'Insufficient Stock',
+                    'message': f'You only have {self.product_id.opening_stock} of {self.product_id.name} on hand.',
+                }
+            }
+
+    @api.constrains('accepted_qty')
+    def _check_stock(self):
+        for line in self:
+            if line.accepted_qty < 0:
+                raise ValidationError("Quantity cannot be negative.")
+            if line.product_id and line.accepted_qty > line.product_id.opening_stock:
+                raise ValidationError(f"You cannot sell {line.accepted_qty} of {line.product_id.name} because you only have {line.product_id.opening_stock} on hand.")
