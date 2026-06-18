@@ -78,7 +78,6 @@ class HavanoposdeskTenant(models.Model):
             'target': 'new',
             'context': {
                 'default_tenant_id': self.id,
-                'default_subscription_plan_id': self.subscription_plan_id.id,
             }
         }
 
@@ -114,10 +113,18 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='New Subscription Plan', required=True)
 
+    @api.onchange('tenant_id')
+    def _onchange_tenant_id(self):
+        if self.tenant_id and self.tenant_id.subscription_plan_id:
+            return {'domain': {'subscription_plan_id': [('id', '!=', self.tenant_id.subscription_plan_id.id)]}}
+        return {'domain': {'subscription_plan_id': []}}
+
     def action_confirm(self):
         self.ensure_one()
         if not self.tenant_id:
             raise ValidationError('No tenant associated with the user.')
+        if self.subscription_plan_id == self.tenant_id.subscription_plan_id:
+            raise ValidationError('You cannot select your current subscription plan. Please select a different plan to upgrade or downgrade.')
         self.tenant_id.with_context(bypass_subscription_check=True).write({
             'subscription_plan_id': self.subscription_plan_id.id,
             'subscription_state': 'pending',
