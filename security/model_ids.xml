@@ -25,9 +25,9 @@
         <field name="name">havanoposdesk.stock.ledger</field>
         <field name="model">x_havanoposdesk.stock.ledger</field>
     </record>
-    <record id="model_havanoposdesk_shop" model="ir.model">
-        <field name="name">havanoposdesk.shop</field>
-        <field name="model">x_havanoposdesk.shop</field>
+    <record id="model_havanoposdesk_store" model="ir.model">
+        <field name="name">havanoposdesk.store</field>
+        <field name="model">x_havanoposdesk.store</field>
     </record>
     <record id="model_havanoposdesk_sale" model="ir.model">
         <field name="name">havanoposdesk.sale</field>

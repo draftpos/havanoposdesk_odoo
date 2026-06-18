@@ -14,7 +14,7 @@
         'security/ir.model.access.csv',
         'security/security_rules.xml',
         'inventory/data/sequence.xml',
-        'core/views/shop_views.xml',
+        'core/views/store_views.xml',
         'core/views/res_users_views.xml',
         'core/views/saas_users_views.xml',
         'core/views/subscription_views.xml',

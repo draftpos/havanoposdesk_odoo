@@ -9,7 +9,7 @@
                 <list string="Sales" default_order="date desc">
                     <field name="name"/>
                     <field name="date"/>
-                    <field name="shop_id"/>
+                    <field name="store_id"/>
                     <field name="salesperson_id"/>
                     <field name="amount_total" sum="Total Sales"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'confirmed'" decoration-success="state == 'done'"/>
@@ -34,7 +34,7 @@
                         </div>
                         <group>
                             <group>
-                                <field name="shop_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                                <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
                                 <field name="date"/>
                             </group>
                             <group>
@@ -67,7 +67,7 @@
             <field name="arch" type="xml">
                 <pivot string="Sales Analysis" sample="1">
                     <field name="date" interval="month" type="row"/>
-                    <field name="shop_id" type="col"/>
+                    <field name="store_id" type="col"/>
                     <field name="amount_total" type="measure"/>
                 </pivot>
             </field>

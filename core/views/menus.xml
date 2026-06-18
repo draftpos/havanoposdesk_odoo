@@ -43,12 +43,12 @@
         <!-- SaaS Admin Navigation -->
         <menuitem id="menu_saas_users" name="Users" parent="menu_saas_root" action="action_saas_users" sequence="10"/>
         <menuitem id="menu_saas_tenants" name="Tenants" parent="menu_saas_root" action="action_havanoposdesk_tenant" sequence="20"/>
-        <menuitem id="menu_saas_shops" name="Shops" parent="menu_saas_root" action="action_havanoposdesk_shop" sequence="30"/>
+        <menuitem id="menu_saas_stores" name="Stores" parent="menu_saas_root" action="action_havanoposdesk_store" sequence="30"/>
         <menuitem id="menu_saas_plans" name="Subscription Plans" parent="menu_saas_root" action="action_subscription_plans" sequence="40"/>
         
-        <!-- Also keep Tenants and Shops in native users menu just in case -->
+        <!-- Also keep Tenants and Stores in native users menu just in case -->
         <menuitem id="menu_tenant" name="Tenants" parent="base.menu_users" action="action_havanoposdesk_tenant" sequence="100"/>
-        <menuitem id="menu_shop" name="Shops" parent="base.menu_users" action="action_havanoposdesk_shop" sequence="110"/>
+        <menuitem id="menu_store" name="Stores" parent="base.menu_users" action="action_havanoposdesk_store" sequence="110"/>
 
         <!-- Action: Purchases Analytics fallback -->
         <record id="action_purchases_analysis" model="ir.actions.act_window">

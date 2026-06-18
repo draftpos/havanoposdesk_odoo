@@ -9,7 +9,7 @@
                 <list string="Subscription Plans">
                     <field name="name"/>
                     <field name="price"/>
-                    <field name="max_shops"/>
+                    <field name="max_stores"/>
                     <field name="max_users"/>
                     <field name="max_terminals"/>
                 </list>
@@ -26,7 +26,7 @@
                         <group>
                             <field name="name"/>
                             <field name="price"/>
-                            <field name="max_shops"/>
+                            <field name="max_stores"/>
                             <field name="max_users"/>
                             <field name="max_terminals"/>
                         </group>

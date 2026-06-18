@@ -16,8 +16,8 @@ class ResUsers(models.Model):
         ('verified', 'Verified'),
         ('suspended', 'Suspended')
     ], string="SaaS State", default='unverified')
-    default_shop_id = fields.Many2one('havanoposdesk.shop', string="Default Shop")
-    shop_ids = fields.Many2many('havanoposdesk.shop', 'res_users_shop_rel', 'user_id', 'shop_id', string="Allowed Shops")
+    default_store_id = fields.Many2one('havanoposdesk.store', string="Default Store")
+    store_ids = fields.Many2many('havanoposdesk.store', 'res_users_store_rel', 'user_id', 'store_id', string="Allowed Stores")
 
     @api.model
     def check_access_rights(self, operation, raise_exception=True):

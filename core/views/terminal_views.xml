@@ -8,7 +8,7 @@
             <field name="arch" type="xml">
                 <list string="POS Terminals">
                     <field name="name"/>
-                    <field name="shop_id"/>
+                    <field name="store_id"/>
                     <field name="user_id"/>
                     <field name="status"/>
                 </list>
@@ -25,7 +25,7 @@
                         <group>
                             <group>
                                 <field name="name"/>
-                                <field name="shop_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                                <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
                                 <field name="user_id" domain="[('tenant_id', '=', tenant_id), ('havano_role', '=', 'user')]" options="{'no_create': True}"/>
                             </group>
                             <group>

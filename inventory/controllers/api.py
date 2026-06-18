@@ -45,13 +45,13 @@ class HavanoPOSDeskAPI(http.Controller):
             
         user = request.env['res.users'].sudo().browse(uid)
         
-        # Determine shops list based on role
+        # Determine stores list based on role
         if user.havano_role == 'super_admin':
-            shops = request.env['havanoposdesk.shop'].sudo().search([])
+            stores = request.env['havanoposdesk.store'].sudo().search([])
         elif user.havano_role == 'admin':
-            shops = request.env['havanoposdesk.shop'].sudo().search([('tenant_id', '=', user.tenant_id.id)]) if user.tenant_id else []
+            stores = request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', user.tenant_id.id)]) if user.tenant_id else []
         else:
-            shops = user.shop_ids
+            stores = user.store_ids
             
         res_data = {
             'success': True,
@@ -67,11 +67,11 @@ class HavanoPOSDeskAPI(http.Controller):
                     'subscription_end_date': str(user.tenant_id.subscription_end_date) if user.tenant_id.subscription_end_date else None,
                     'plan_name': user.tenant_id.subscription_plan_id.name if user.tenant_id.subscription_plan_id else None,
                 } if user.tenant_id else None,
-                'default_shop': {
-                    'id': user.default_shop_id.id,
-                    'name': user.default_shop_id.name
-                } if user.default_shop_id else None,
-                'shops': [{'id': s.id, 'name': s.name} for s in shops]
+                'default_store': {
+                    'id': user.default_store_id.id,
+                    'name': user.default_store_id.name
+                } if user.default_store_id else None,
+                'stores': [{'id': s.id, 'name': s.name} for s in stores]
             }
         }
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
@@ -93,7 +93,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
                 domain.append(('tenant_id', '=', user.tenant_id.id))
                 if user.havano_role == 'user':
-                    domain.append(('shop_id', 'in', user.shop_ids.ids))
+                    domain.append(('store_id', 'in', user.store_ids.ids))
                     
             products = request.env['havanoposdesk.product'].sudo().search(domain)
             data = []
@@ -110,7 +110,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'category': p.category_id.id if p.category_id else None,
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
-                    'shop_id': p.shop_id.id if p.shop_id else None,
+                    'store_id': p.store_id.id if p.store_id else None,
                 })
             return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
         
@@ -130,29 +130,29 @@ class HavanoPOSDeskAPI(http.Controller):
                     tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
                 tenant_id = tenant.id
                 
-            shop_id = data.get('shop_id')
+            store_id = data.get('store_id')
             if user.havano_role == 'user':
-                if shop_id and shop_id not in user.shop_ids.ids:
-                    return request.make_response(json.dumps({'error': 'Unauthorized shop access'}), headers=[('Content-Type', 'application/json')], status=403)
-                shop_id = shop_id or user.default_shop_id.id
-                if not shop_id and user.shop_ids:
-                    shop_id = user.shop_ids[0].id
+                if store_id and store_id not in user.store_ids.ids:
+                    return request.make_response(json.dumps({'error': 'Unauthorized store access'}), headers=[('Content-Type', 'application/json')], status=403)
+                store_id = store_id or user.default_store_id.id
+                if not store_id and user.store_ids:
+                    store_id = user.store_ids[0].id
             elif user.havano_role == 'admin':
-                if shop_id:
-                    shop = request.env['havanoposdesk.shop'].sudo().browse(shop_id)
-                    if shop.tenant_id.id != tenant_id:
-                        return request.make_response(json.dumps({'error': 'Shop does not belong to this tenant'}), headers=[('Content-Type', 'application/json')], status=403)
+                if store_id:
+                    store = request.env['havanoposdesk.store'].sudo().browse(store_id)
+                    if store.tenant_id.id != tenant_id:
+                        return request.make_response(json.dumps({'error': 'Store does not belong to this tenant'}), headers=[('Content-Type', 'application/json')], status=403)
                 else:
-                    first_shop = request.env['havanoposdesk.shop'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
-                    if not first_shop:
-                        first_shop = request.env['havanoposdesk.shop'].sudo().create({'name': 'Default Shop', 'tenant_id': tenant_id})
-                    shop_id = first_shop.id
+                    first_store = request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+                    if not first_store:
+                        first_store = request.env['havanoposdesk.store'].sudo().create({'name': 'Default Store', 'tenant_id': tenant_id})
+                    store_id = first_store.id
             else: # super_admin
-                if not shop_id:
-                    first_shop = request.env['havanoposdesk.shop'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
-                    if not first_shop:
-                        first_shop = request.env['havanoposdesk.shop'].sudo().create({'name': 'Default Shop', 'tenant_id': tenant_id})
-                    shop_id = first_shop.id
+                if not store_id:
+                    first_store = request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+                    if not first_store:
+                        first_store = request.env['havanoposdesk.store'].sudo().create({'name': 'Default Store', 'tenant_id': tenant_id})
+                    store_id = first_store.id
                     
             vals = {
                 'name': data.get('name'),
@@ -162,7 +162,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'color_hex': data.get('color_hex'),
                 'track_qty': data.get('track_qty', True),
                 'tenant_id': tenant_id,
-                'shop_id': shop_id,
+                'store_id': store_id,
             }
             if data.get('category'):
                 vals['category_id'] = data['category']
@@ -183,7 +183,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'category': product.category_id.id if product.category_id else None,
                 'uom': product.uom_id.id if product.uom_id else None,
                 'tenant_id': product.tenant_id.id,
-                'shop_id': product.shop_id.id,
+                'store_id': product.store_id.id,
             }
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')], status=201)
 
@@ -285,7 +285,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'name': p.name,
                 'price': p.price,
                 'duration_days': p.duration_days,
-                'max_shops': p.max_shops,
+                'max_stores': p.max_stores,
                 'max_users': p.max_users,
                 'max_terminals': p.max_terminals,
             })
@@ -303,7 +303,7 @@ class HavanoPOSDeskAPI(http.Controller):
             return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
             
         # Count current usage
-        shops_count = request.env['havanoposdesk.shop'].sudo().search_count([('tenant_id', '=', tenant.id)])
+        stores_count = request.env['havanoposdesk.store'].sudo().search_count([('tenant_id', '=', tenant.id)])
         terminals_count = request.env['havanoposdesk.pos.terminal'].sudo().search_count([('tenant_id', '=', tenant.id)])
         cashiers_count = request.env['res.users'].sudo().search_count([('tenant_id', '=', tenant.id), ('havano_role', '=', 'user')])
         
@@ -320,14 +320,14 @@ class HavanoPOSDeskAPI(http.Controller):
                 'name': plan.name,
                 'price': plan.price,
                 'duration_days': plan.duration_days,
-                'max_shops': plan.max_shops,
+                'max_stores': plan.max_stores,
                 'max_users': plan.max_users,
                 'max_terminals': plan.max_terminals,
             } if plan else None,
             'usage': {
-                'shops': {
-                    'current': shops_count,
-                    'limit': plan.max_shops if plan else 0
+                'stores': {
+                    'current': stores_count,
+                    'limit': plan.max_stores if plan else 0
                 },
                 'terminals': {
                     'current': terminals_count,

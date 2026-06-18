@@ -8,7 +8,7 @@ class HavanoposdeskSubscriptionPlan(models.Model):
     name = fields.Char(string='Plan Name', required=True)
     price = fields.Float(string='Price')
     duration_days = fields.Integer(string='Duration (Days)', default=30)
-    max_shops = fields.Integer(string='Maximum Shops', default=0)  # 0 = unlimited
+    max_stores = fields.Integer(string='Maximum Stores', default=0)  # 0 = unlimited
     max_users = fields.Integer(string='Maximum Users (Cashiers)', default=0)
     max_terminals = fields.Integer(string='Maximum POS Terminals', default=0)
 

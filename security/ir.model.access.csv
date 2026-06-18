@@ -13,7 +13,7 @@ access_havanoposdesk_sale,havanoposdesk.sale,model_havanoposdesk_sale,base.group
 access_havanoposdesk_sale_line,havanoposdesk.sale.line,model_havanoposdesk_sale_line,base.group_user,1,1,1,1
 access_havanoposdesk_customer,havanoposdesk.customer,model_havanoposdesk_customer,base.group_user,1,1,1,1
 access_havanoposdesk_supplier,havanoposdesk.supplier,model_havanoposdesk_supplier,base.group_user,1,1,1,1
-access_havanoposdesk_shop,havanoposdesk.shop,model_havanoposdesk_shop,base.group_user,1,1,1,1
+access_havanoposdesk_store,havanoposdesk.store,model_havanoposdesk_store,base.group_user,1,1,1,1
 access_havanoposdesk_subscription_plan,havanoposdesk.subscription.plan,model_havanoposdesk_subscription_plan,base.group_user,1,1,1,1
 access_havanoposdesk_pos_terminal,havanoposdesk.pos.terminal,model_havanoposdesk_pos_terminal,base.group_user,1,1,1,1
 access_havanoposdesk_subscription_payment,havanoposdesk.subscription.payment,model_havanoposdesk_subscription_payment,base.group_user,1,1,1,1

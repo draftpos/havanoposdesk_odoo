@@ -4,14 +4,14 @@
         <!-- My Business Root Menu (visible to tenant admins) -->
         <menuitem id="menu_my_business_root" name="My Business" sequence="5" groups="base.group_user"/>
 
-        <!-- Shops Submenu -->
-        <record id="action_my_shops" model="ir.actions.act_window">
-            <field name="name">My Shops</field>
-            <field name="res_model">havanoposdesk.shop</field>
+        <!-- Stores Submenu -->
+        <record id="action_my_stores" model="ir.actions.act_window">
+            <field name="name">My Stores</field>
+            <field name="res_model">havanoposdesk.store</field>
             <field name="view_mode">list,form</field>
             <field name="domain">[('tenant_id', '=', context.get('tenant_id'))]</field>
         </record>
-        <menuitem id="menu_my_shops" name="Shops" parent="menu_my_business_root" action="action_my_shops" sequence="10"/>
+        <menuitem id="menu_my_stores" name="Stores" parent="menu_my_business_root" action="action_my_stores" sequence="10"/>
 
         <!-- POS Terminals Submenu -->
         <record id="action_my_terminals" model="ir.actions.act_window">

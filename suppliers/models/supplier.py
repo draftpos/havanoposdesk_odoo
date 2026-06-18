@@ -14,9 +14,9 @@ class HavanoposdeskSupplier(models.Model):
         required=True, 
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
-    shop_id = fields.Many2one(
-        'havanoposdesk.shop', 
-        string='Shop', 
+    store_id = fields.Many2one(
+        'havanoposdesk.store', 
+        string='Store', 
         required=True, 
-        default=lambda self: self.env.user.default_shop_id.id or self.env['havanoposdesk.shop'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1).id
+        default=lambda self: self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1).id
     )
