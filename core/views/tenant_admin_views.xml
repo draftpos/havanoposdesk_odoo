@@ -32,5 +32,25 @@
         </record>
         <menuitem id="menu_my_cashiers" name="Cashiers" parent="menu_my_business_root" action="action_my_cashiers" sequence="30"/>
 
+        <!-- My Subscription Action & Menu -->
+        <record id="action_my_subscription" model="ir.actions.server">
+            <field name="name">My Subscription</field>
+            <field name="model_id" ref="model_havanoposdesk_tenant"/>
+            <field name="state">code</field>
+            <field name="code">
+tenant_id = env.user.tenant_id
+if tenant_id:
+    action = {
+        'type': 'ir.actions.act_window',
+        'name': 'My Subscription',
+        'res_model': 'havanoposdesk.tenant',
+        'res_id': tenant_id.id,
+        'view_mode': 'form',
+        'target': 'current',
+    }
+            </field>
+        </record>
+        <menuitem id="menu_my_subscription" name="My Subscription" parent="menu_my_business_root" action="action_my_subscription" sequence="40"/>
     </data>
 </odoo>
+

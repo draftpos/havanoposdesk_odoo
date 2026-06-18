@@ -9,6 +9,46 @@ class HavanoposdeskShop(models.Model):
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
     active = fields.Boolean(string='Active', default=True)
 
+    # Computed Metrics
+    terminal_count = fields.Integer(string='Terminals', compute='_compute_shop_metrics')
+    last_open = fields.Datetime(string='Last Open', compute='_compute_shop_metrics')
+    sales_count = fields.Integer(string='Sales Count', compute='_compute_shop_metrics')
+    purchases_count = fields.Integer(string='Purchases Count', compute='_compute_shop_metrics')
+    sale_value = fields.Float(string='Sale Value', compute='_compute_shop_metrics')
+    users_count = fields.Integer(string='Users', compute='_compute_shop_metrics')
+
+    def _compute_shop_metrics(self):
+        for shop in self:
+            # Terminals count
+            shop.terminal_count = self.env['havanoposdesk.pos.terminal'].sudo().search_count([('shop_id', '=', shop.id)])
+            
+            # Sales metrics
+            sales = self.env['havanoposdesk.sale'].sudo().search([('shop_id', '=', shop.id)])
+            shop.sales_count = len(sales)
+            shop.sale_value = sum(sales.mapped('amount_total'))
+            
+            # Purchases metrics
+            purchases = self.env['havanoposdesk.purchase'].sudo().search([('shop_id', '=', shop.id)])
+            shop.purchases_count = len(purchases)
+            
+            # Assigned users/cashiers count
+            users = self.env['res.users'].sudo().search([
+                '|', 
+                ('default_shop_id', '=', shop.id), 
+                ('shop_ids', 'in', shop.id)
+            ])
+            shop.users_count = len(users)
+            
+            # Last Open (calculated based on latest sale, purchase, or user login)
+            dates = []
+            if sales:
+                dates.extend(d for d in sales.mapped('date') if d)
+            if purchases:
+                dates.extend(d for d in purchases.mapped('date') if d)
+            dates.extend(u.login_date for u in users if u.login_date)
+            
+            shop.last_open = max(dates) if dates else False
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -36,5 +76,6 @@ class HavanoposdeskShop(models.Model):
             vals['tenant_id'] = tenant_id
 
         return super().create(vals_list)
+
 
 
