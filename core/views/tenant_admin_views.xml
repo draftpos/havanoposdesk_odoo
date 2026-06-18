@@ -39,6 +39,10 @@
             <field name="state">code</field>
             <field name="code">
 tenant_id = env.user.tenant_id
+if not tenant_id:
+    # Fallback to the first available tenant (useful for System Admin)
+    tenant_id = env['havanoposdesk.tenant'].search([], limit=1)
+
 if tenant_id:
     action = {
         'type': 'ir.actions.act_window',
@@ -47,6 +51,17 @@ if tenant_id:
         'res_id': tenant_id.id,
         'view_mode': 'form',
         'target': 'current',
+    }
+else:
+    action = {
+        'type': 'ir.actions.client',
+        'tag': 'display_notification',
+        'params': {
+            'title': 'No Subscription',
+            'message': 'You do not belong to any tenant subscription.',
+            'type': 'danger',
+            'sticky': False,
+        }
     }
             </field>
         </record>
