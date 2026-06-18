@@ -8,7 +8,6 @@
             <field name="arch" type="xml">
                 <list string="Shops">
                     <field name="name"/>
-<<<<<<< HEAD
                     <field name="tenant_id" invisible="context.get('tenant_id')"/>
                     <field name="terminal_count"/>
                     <field name="last_open"/>
@@ -16,18 +15,11 @@
                     <field name="purchases_count"/>
                     <field name="sale_value"/>
                     <field name="users_count"/>
-=======
-                    <field name="tenant_id"/>
->>>>>>> 4b8e381 (feat:updated)
                     <field name="active" optional="show"/>
                 </list>
             </field>
         </record>
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 4b8e381 (feat:updated)
         <!-- Shop Form View -->
         <record id="view_havanoposdesk_shop_form" model="ir.ui.view">
             <field name="name">havanoposdesk.shop.form</field>

@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+inventory/models/__pycache__/
+inventory/models/__pycache__/
+inventory/models/__pycache__/
 
 # IDEs/Editor cache files
 .ipynb_checkpoints
