@@ -34,12 +34,13 @@
                         </div>
                         <group>
                             <group>
-                                <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
-                                <field name="date"/>
+                                <field name="customer" class="border-bottom border-dark"/>
+                                <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" class="border-bottom border-dark"/>
+                                <field name="date" class="border-bottom border-dark"/>
                             </group>
                             <group>
-                                <field name="salesperson_id" options="{'no_create': True}"/>
-                                <field name="amount_total"/>
+                                <field name="salesperson_id" options="{'no_create': True}" class="border-bottom border-dark"/>
+                                <field name="amount_total" class="border-bottom border-dark"/>
                                 <field name="tenant_id" invisible="1"/>
                             </group>
                         </group>
