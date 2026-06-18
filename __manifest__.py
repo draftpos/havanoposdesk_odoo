@@ -27,10 +27,10 @@
         'inventory/views/category_views.xml',
         'inventory/views/uom_views.xml',
         'inventory/views/product_views.xml',
+        'inventory/views/stock_adjustment_views.xml',
         'inventory/views/report_views.xml',
     ],
     'installable': True,
     'application': True,
     'license': 'LGPL-3',
-
 }

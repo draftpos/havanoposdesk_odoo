@@ -23,7 +23,7 @@
                         <div class="oe_title">
                             <label for="name" class="oe_edit_only" string="UOM Name"/>
                             <h1>
-                                <field name="name" placeholder="e.g. Kilogram"/>
+                                <field name="name" placeholder="e.g. Kilogram" class="border-bottom border-dark"/>
                             </h1>
                         </div>
                         <group>

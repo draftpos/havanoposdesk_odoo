@@ -37,22 +37,26 @@
                             <page string="Details">
                                 <group>
                                     <group string="Product information">
-                                        <field name="name"/>
+                                        <field name="name" class="border-bottom border-dark"/>
                                         <field name="item_code" invisible="1"/>
-                                        <field name="category_id" options="{'no_create': True, 'no_create_edit': True}"/>
-                                        <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                                        <field name="category_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark"/>
+                                        <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark"/>
                                         <field name="tenant_id" invisible="1"/>
+<<<<<<< HEAD
                                         <field name="shop_id" options="{'no_create': True}"/>
                                         <field name="track_qty"/>
+=======
+                                        <field name="track_qty" class="border-bottom border-dark"/>
+>>>>>>> a0b0957 (Add Stock Adjustment feature, update views with bottom borders)
                                         <field name="color" invisible="1"/>
                                     </group>
                                     <group string="Price information">
-                                        <field name="buying_price"/>
-                                        <field name="selling_price"/>
-                                        <field name="markup"/>
+                                        <field name="buying_price" class="border-bottom border-dark"/>
+                                        <field name="selling_price" class="border-bottom border-dark"/>
+                                        <field name="markup" class="border-bottom border-dark"/>
                                         <field name="id" invisible="1"/>
-                                        <field name="opening_stock" string="Opening Stock" invisible="id"/>
-                                        <field name="opening_stock" string="Stock on Hand" invisible="not id" readonly="1"/>
+                                        <field name="opening_stock" string="Opening Stock" invisible="id" class="border-bottom border-dark"/>
+                                        <field name="opening_stock" string="Stock on Hand" invisible="not id" readonly="1" class="border-bottom border-dark"/>
                                         <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}"/>
                                     </group>
                                 </group>
@@ -60,16 +64,16 @@
                             <page string="Advanced Pricing">
                                 <group>
                                     <group>
-                                        <field name="discount_percentage"/>
-                                        <field name="tax_percentage"/>
+                                        <field name="discount_percentage" class="border-bottom border-dark"/>
+                                        <field name="tax_percentage" class="border-bottom border-dark"/>
                                     </group>
                                 </group>
                             </page>
                             <page string="Other">
                                 <group>
                                     <group>
-                                        <field name="is_active"/>
-                                        <field name="internal_notes"/>
+                                        <field name="is_active" class="border-bottom border-dark"/>
+                                        <field name="internal_notes" class="border-bottom border-dark"/>
                                     </group>
                                 </group>
                             </page>

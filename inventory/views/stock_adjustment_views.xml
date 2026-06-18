@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Stock Adjustment Form View -->
+        <record id="view_havanoposdesk_stock_adjustment_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.adjustment.form</field>
+            <field name="model">havanoposdesk.stock.adjustment</field>
+            <field name="arch" type="xml">
+                <form string="Stock Adjustment">
+                    <sheet>
+                        <div class="oe_title" invisible="1">
+                            <h1>
+                                <field name="name"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="store" class="border-bottom border-dark"/>
+                                <field name="posting_time" widget="float_time" readonly="not allow_edit_date_time" class="border-bottom border-dark"/>
+                            </group>
+                            <group>
+                                <field name="allow_edit_date_time" class="border-bottom border-dark"/>
+                                <field name="posting_date" readonly="not allow_edit_date_time" class="border-bottom border-dark"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+                                <field name="fetch_all_data" class="border-bottom border-dark"/>
+                            </group>
+                            <group>
+                                <field name="fetch_category_id" class="border-bottom border-dark"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Items">
+                                <field name="line_ids">
+                                    <list editable="bottom">
+                                        <field name="product_id" optional="show"/>
+                                        <field name="on_hand" optional="show"/>
+                                        <field name="counted" optional="show"/>
+                                        <field name="buying_price" optional="show"/>
+                                        <field name="qty_difference" optional="show"/>
+                                        <field name="amount_difference" optional="show"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Stock Adjustment Tree View -->
+        <record id="view_havanoposdesk_stock_adjustment_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.adjustment.tree</field>
+            <field name="model">havanoposdesk.stock.adjustment</field>
+            <field name="arch" type="xml">
+                <list string="Stock Adjustments">
+                    <field name="name"/>
+                    <field name="store"/>
+                    <field name="posting_date"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Stock Adjustment Action -->
+        <record id="action_havanoposdesk_stock_adjustment" model="ir.actions.act_window">
+            <field name="name">Stock Adjustment</field>
+            <field name="res_model">havanoposdesk.stock.adjustment</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new Stock Adjustment
+                </p>
+            </field>
+        </record>
+
+        <!-- Menu Item -->
+        <menuitem id="menu_inventory_stock_adjustment" 
+                  name="Stock Adjustment" 
+                  parent="menu_inventory_operations" 
+                  action="action_havanoposdesk_stock_adjustment" 
+                  sequence="10"/>
+    </data>
+</odoo>
