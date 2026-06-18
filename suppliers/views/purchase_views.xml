@@ -16,7 +16,7 @@
                         <group>
                             <group>
                                 <field name="supplier" class="border-bottom border-dark"/>
-                                <field name="store" class="border-bottom border-dark"/>
+                                <field name="store_id" options="{'no_create': True}" class="border-bottom border-dark"/>
                             </group>
                             <group>
                                 <field name="posting_date" class="border-bottom border-dark"/>
@@ -27,7 +27,8 @@
                             <page string="Items">
                                 <field name="line_ids">
                                     <list  editable="bottom">
-                                        <field name="product_id" width="25%" optional="show"/>
+                                        <field name="item_code" width="15%" optional="show"/>
+                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" optional="show"/>
                                         <field name="accepted_qty" width="25%" sum="Total Qty" optional="show"/>
                                         <field name="rate" width="25%" optional="show"/>
                                         <field name="amount" width="25%" sum="Total Amount" optional="show"/>
@@ -48,7 +49,7 @@
                 <list  string="Purchases">
                     <field  name="name" optional="show"/>
                     <field  name="supplier" optional="show"/>
-                    <field  name="store" optional="show"/>
+                    <field  name="store_id" optional="show"/>
                     <field  name="posting_date" optional="show"/>
                     <field  name="posting_time" widget="float_time" optional="show"/>
                 </list>

@@ -12,6 +12,8 @@
                             <group>
                                 <field name="name" class="border-bottom border-dark"/>
                                 <field name="phone" class="border-bottom border-dark"/>
+                                <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" class="border-bottom border-dark"/>
+                                <field name="tenant_id" invisible="1"/>
                             </group>
                             <group>
                                 <field name="address" class="border-bottom border-dark"/>
