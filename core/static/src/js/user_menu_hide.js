@@ -6,20 +6,31 @@ import "@web/webclient/user_menu/user_menu_items";
 
 const userMenuRegistry = registry.category("user_menuitems");
 
-// If the user is NOT an admin, remove standard profile dropdown items.
-if (!user.isAdmin) {
-    const itemsToRemove = [
-        "support",
-        "shortcuts",
-        "preferences",
-        "odoo_account",
-        "install_pwa",
-        "separator"
-    ];
-    
-    itemsToRemove.forEach((item) => {
-        if (userMenuRegistry.contains(item)) {
-            userMenuRegistry.remove(item);
-        }
-    });
+const itemsToRemove = [
+    "support",
+    "shortcuts",
+    "preferences",
+    "odoo_account",
+    "install_pwa",
+    "separator"
+];
+
+function removeUnwantedItems() {
+    if (!user.isAdmin) {
+        itemsToRemove.forEach((item) => {
+            if (userMenuRegistry.contains(item)) {
+                userMenuRegistry.remove(item);
+            }
+        });
+    }
 }
+
+// Remove items if they are already registered
+removeUnwantedItems();
+
+// Listen for items added later and remove them
+userMenuRegistry.addEventListener("UPDATE", (ev) => {
+    if (ev.detail.operation === "add" && !user.isAdmin && itemsToRemove.includes(ev.detail.key)) {
+        userMenuRegistry.remove(ev.detail.key);
+    }
+});
