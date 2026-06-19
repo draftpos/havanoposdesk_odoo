@@ -2,8 +2,8 @@ from . import tenant
 from . import res_users
 from . import store
 from . import terminal
-from . import tenant
 from . import subscription
 from . import payment
 from . import payment_transaction
 from . import res_config_settings
+from . import res_currency_rate
