@@ -41,7 +41,6 @@
                             </group>
                             <group>
                                 <field name="salesperson_id" options="{'no_create': True}" class="border-bottom border-dark"/>
-                                <field name="amount_total" class="border-bottom border-dark"/>
                                 <field name="tenant_id" invisible="1"/>
                             </group>
                         </group>
@@ -50,12 +49,19 @@
                                 <field name="line_ids">
                                     <list editable="bottom">
                                         <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" optional="show"/>
-                                        <field name="item_code" width="15%" optional="show"/>
-                                        <field name="accepted_qty" width="25%" sum="Total Qty" optional="show"/>
-                                        <field name="rate" width="25%" optional="show"/>
-                                        <field name="amount" width="25%" sum="Total Amount" optional="show"/>
+                                        <field name="item_code" width="10%" optional="show"/>
+                                        <field name="accepted_qty" width="15%" sum="Total Qty" optional="show"/>
+                                        <field name="rate" width="15%" optional="show"/>
+                                        <field name="tax_ids" widget="many2many_tags" width="15%" optional="show"/>
+                                        <field name="price_tax" string="Tax Amount" width="10%" sum="Total Tax" optional="show"/>
+                                        <field name="amount" width="10%" sum="Total Amount" optional="show"/>
                                     </list>
                                 </field>
+                                <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
+                                    <field name="amount_untaxed" widget="monetary" string="Total Excl"/>
+                                    <field name="amount_tax" widget="monetary" string="Total Tax"/>
+                                    <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl"/>
+                                </group>
                             </page>
                         </notebook>
                     </sheet>

@@ -24,7 +24,18 @@ class Purchase(models.Model):
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
     
+    amount_untaxed = fields.Float(string='Untaxed Amount', compute='_compute_amount_total', store=True)
+    amount_tax = fields.Float(string='Taxes', compute='_compute_amount_total', store=True)
+    amount_total = fields.Float(string='Total Amount', compute='_compute_amount_total', store=True)
+    
     line_ids = fields.One2many('havanoposdesk.purchase.line', 'purchase_id', string='Items')
+
+    @api.depends('line_ids.price_subtotal', 'line_ids.price_tax', 'line_ids.amount')
+    def _compute_amount_total(self):
+        for record in self:
+            record.amount_untaxed = sum(record.line_ids.mapped('price_subtotal'))
+            record.amount_tax = sum(record.line_ids.mapped('price_tax'))
+            record.amount_total = sum(record.line_ids.mapped('amount'))
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -84,14 +95,33 @@ class PurchaseLine(models.Model):
     item_code = fields.Char(related='product_id.item_code', string='Item Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
     rate = fields.Float(string='Rate')
-    amount = fields.Float(string='Amount', compute='_compute_amount', store=True)
+    tax_ids = fields.Many2many('havanoposdesk.tax', string='Taxes', domain="[('tax_type', '=', 'Purchases'), ('active', '=', True)]")
+    price_subtotal = fields.Float(string='Subtotal', compute='_compute_amount', store=True)
+    price_tax = fields.Float(string='Tax', compute='_compute_amount', store=True)
+    amount = fields.Float(string='Total', compute='_compute_amount', store=True)
 
-    @api.depends('accepted_qty', 'rate')
+    @api.depends('accepted_qty', 'rate', 'tax_ids')
     def _compute_amount(self):
         for record in self:
-            record.amount = record.accepted_qty * record.rate
+            base_amount = record.accepted_qty * record.rate
+            taxes = record.tax_ids
+            
+            inclusive_taxes = taxes.filtered(lambda t: t.is_inclusive)
+            exclusive_taxes = taxes.filtered(lambda t: not t.is_inclusive)
+            
+            rate_incl = sum(inclusive_taxes.mapped('rate')) / 100.0
+            rate_excl = sum(exclusive_taxes.mapped('rate')) / 100.0
+            
+            untaxed_amount = base_amount / (1.0 + rate_incl)
+            inclusive_tax_amount = base_amount - untaxed_amount
+            exclusive_tax_amount = untaxed_amount * rate_excl
+            
+            record.price_subtotal = untaxed_amount
+            record.price_tax = inclusive_tax_amount + exclusive_tax_amount
+            record.amount = record.price_subtotal + record.price_tax
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
         if self.product_id:
             self.rate = self.product_id.buying_price
+            self.tax_ids = [(6, 0, self.product_id.purchase_tax_ids.ids)]

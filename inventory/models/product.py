@@ -22,6 +22,15 @@ class HavanoposdeskProduct(models.Model):
     track_qty = fields.Boolean(string='Track Qty', default=True)
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
 
+    sale_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_sale_tax_rel', 'product_id', 'tax_id', string='Sales Taxes', domain=[('tax_type', '=', 'Sales'), ('active', '=', True)])
+    purchase_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_purchase_tax_rel', 'product_id', 'tax_id', string='Purchase Taxes', domain=[('tax_type', '=', 'Purchases'), ('active', '=', True)])
+    has_active_taxes = fields.Boolean(compute='_compute_has_active_taxes')
+
+    @api.depends()
+    def _compute_has_active_taxes(self):
+        has_taxes = bool(self.env['havanoposdesk.tax'].search([('active', '=', True)], limit=1))
+        for record in self:
+            record.has_active_taxes = has_taxes
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:

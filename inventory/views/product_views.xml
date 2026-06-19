@@ -51,6 +51,9 @@
                                         <field name="selling_price" class="border-bottom border-dark"/>
                                         <field name="markup" class="border-bottom border-dark"/>
                                         <field name="id" invisible="1"/>
+                                        <field name="has_active_taxes" invisible="1"/>
+                                        <field name="sale_tax_ids" widget="many2many_tags" invisible="not has_active_taxes" class="border-bottom border-dark"/>
+                                        <field name="purchase_tax_ids" widget="many2many_tags" invisible="not has_active_taxes" class="border-bottom border-dark"/>
                                         <field name="opening_stock" string="Opening Stock" invisible="id" class="border-bottom border-dark"/>
                                         <field name="opening_stock" string="On hand" invisible="not id" readonly="1" class="border-bottom border-dark"/>
                                         <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}"/>
