@@ -28,9 +28,9 @@
             <field name="active">True</field>
         </record>
 
-        <!-- 4. VAT 0% Purchases -->
+        <!-- 4. EXEMPT 0% Purchases -->
         <record id="tax_vat_zero_purchases" model="havanoposdesk.tax">
-            <field name="name">VAT</field>
+            <field name="name">EXEMPT</field>
             <field name="tax_type">Purchases</field>
             <field name="rate">0.0</field>
             <field name="is_inclusive">False</field>
