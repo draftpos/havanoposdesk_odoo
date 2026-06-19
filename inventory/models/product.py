@@ -25,6 +25,41 @@ class HavanoposdeskProduct(models.Model):
     sale_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_sale_tax_rel', 'product_id', 'tax_id', string='Sales Taxes', domain=[('tax_type', '=', 'Sales'), ('active', '=', True)])
     purchase_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_purchase_tax_rel', 'product_id', 'tax_id', string='Purchase Taxes', domain=[('tax_type', '=', 'Purchases'), ('active', '=', True)])
     has_active_taxes = fields.Boolean(compute='_compute_has_active_taxes')
+    buy_price_with_tax = fields.Float(string='Buy Price With Tax', compute='_compute_prices_with_tax')
+    sell_price_with_tax = fields.Float(string='Sell Price With Tax', compute='_compute_prices_with_tax')
+
+    @api.depends('buying_price', 'selling_price', 'purchase_tax_ids', 'sale_tax_ids')
+    def _compute_prices_with_tax(self):
+        for record in self:
+            # Buy Price
+            buy_price = record.buying_price
+            purchase_taxes = record.purchase_tax_ids
+            inclusive_ptaxes = purchase_taxes.filtered(lambda t: t.is_inclusive)
+            exclusive_ptaxes = purchase_taxes.filtered(lambda t: not t.is_inclusive)
+            
+            p_rate_incl = sum(inclusive_ptaxes.mapped('rate')) / 100.0
+            p_rate_excl = sum(exclusive_ptaxes.mapped('rate')) / 100.0
+            
+            if p_rate_incl > 0:
+                p_untaxed = buy_price / (1.0 + p_rate_incl)
+                record.buy_price_with_tax = buy_price + (p_untaxed * p_rate_excl)
+            else:
+                record.buy_price_with_tax = buy_price * (1.0 + p_rate_excl)
+            
+            # Sell Price
+            sell_price = record.selling_price
+            sale_taxes = record.sale_tax_ids
+            inclusive_staxes = sale_taxes.filtered(lambda t: t.is_inclusive)
+            exclusive_staxes = sale_taxes.filtered(lambda t: not t.is_inclusive)
+            
+            s_rate_incl = sum(inclusive_staxes.mapped('rate')) / 100.0
+            s_rate_excl = sum(exclusive_staxes.mapped('rate')) / 100.0
+            
+            if s_rate_incl > 0:
+                s_untaxed = sell_price / (1.0 + s_rate_incl)
+                record.sell_price_with_tax = sell_price + (s_untaxed * s_rate_excl)
+            else:
+                record.sell_price_with_tax = sell_price * (1.0 + s_rate_excl)
 
     @api.depends()
     def _compute_has_active_taxes(self):

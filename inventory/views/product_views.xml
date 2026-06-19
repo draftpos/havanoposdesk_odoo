@@ -47,8 +47,21 @@
                                         <field name="color" invisible="1"/>
                                     </group>
                                     <group string="Price information">
-                                        <field name="buying_price" class="border-bottom border-dark"/>
-                                        <field name="selling_price" class="border-bottom border-dark"/>
+                                        <label for="buying_price"/>
+                                        <div class="o_row">
+                                            <field name="buying_price" class="border-bottom border-dark"/>
+                                            <span class="text-muted ms-2" invisible="not purchase_tax_ids or not has_active_taxes">
+                                                <field name="buy_price_with_tax" nolabel="1" class="oe_inline fw-bold"/> Including Tax
+                                            </span>
+                                        </div>
+                                        
+                                        <label for="selling_price"/>
+                                        <div class="o_row">
+                                            <field name="selling_price" class="border-bottom border-dark"/>
+                                            <span class="text-muted ms-2" invisible="not sale_tax_ids or not has_active_taxes">
+                                                <field name="sell_price_with_tax" nolabel="1" class="oe_inline fw-bold"/> Including Tax
+                                            </span>
+                                        </div>
                                         <field name="markup" class="border-bottom border-dark"/>
                                         <field name="id" invisible="1"/>
                                         <field name="has_active_taxes" invisible="1"/>
