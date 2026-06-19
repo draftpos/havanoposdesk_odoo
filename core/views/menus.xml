@@ -33,6 +33,7 @@
         <menuitem id="menu_accounts_operations" name="Operations" parent="menu_accounts_root" sequence="20"/>
         <menuitem id="menu_accounts_reports" name="Reports" parent="menu_accounts_root" sequence="30"/>
         <menuitem id="menu_accounts_settings" name="Settings" parent="menu_accounts_root" action="action_havanoposdesk_settings_accounts" sequence="40"/>
+        <menuitem id="menu_accounts_taxes" name="Taxes" parent="menu_accounts_settings" action="action_havanoposdesk_tax" sequence="10"/>
         
         <!-- Accounts Submenus -->
         <menuitem id="menu_accounts_list" name="Accounts" parent="menu_accounts_master" action="action_havanoposdesk_account" sequence="10"/>

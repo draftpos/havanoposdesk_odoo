@@ -27,6 +27,8 @@
         'suppliers/views/supplier_views.xml',
         'accounts/views/account_views.xml',
         'accounts/views/expense_views.xml',
+        'accounts/views/tax_views.xml',
+        'accounts/data/tax_data.xml',
         'core/views/menus.xml',
         'inventory/views/category_views.xml',
         'inventory/views/uom_views.xml',

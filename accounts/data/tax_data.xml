@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- 1. VAT 15.5% Sales -->
+        <record id="tax_vat_sales" model="havanoposdesk.tax">
+            <field name="name">VAT</field>
+            <field name="tax_type">Sales</field>
+            <field name="rate">15.5</field>
+            <field name="is_inclusive">False</field>
+            <field name="active">True</field>
+        </record>
+
+        <!-- 2. EXEMPT 0% Sales -->
+        <record id="tax_exempt_sales" model="havanoposdesk.tax">
+            <field name="name">EXEMPT</field>
+            <field name="tax_type">Sales</field>
+            <field name="rate">0.0</field>
+            <field name="is_inclusive">False</field>
+            <field name="active">True</field>
+        </record>
+
+        <!-- 3. VAT 15.5% Purchases -->
+        <record id="tax_vat_purchases" model="havanoposdesk.tax">
+            <field name="name">VAT</field>
+            <field name="tax_type">Purchases</field>
+            <field name="rate">15.5</field>
+            <field name="is_inclusive">False</field>
+            <field name="active">True</field>
+        </record>
+
+        <!-- 4. VAT 0% Purchases -->
+        <record id="tax_vat_zero_purchases" model="havanoposdesk.tax">
+            <field name="name">VAT</field>
+            <field name="tax_type">Purchases</field>
+            <field name="rate">0.0</field>
+            <field name="is_inclusive">False</field>
+            <field name="active">True</field>
+        </record>
+    </data>
+</odoo>
