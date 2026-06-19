@@ -1,0 +1,320 @@
+{
+    "message": {
+        "products": [
+            {
+                "itemcode": "013308",
+                "itemname": "vatproduct2",
+                "groupname": "All Item Groups",
+                "maintainstock": 1,
+                "warehouses": [
+                    {
+                        "warehouse": "Stores - CP",
+                        "qtyOnHand": 0.0
+                    },
+                    {
+                        "warehouse": "Stores - AT",
+                        "qtyOnHand": 0.0
+                    }
+                ],
+                "default warehouse": "Stores - AT",
+                "prices": [
+                    {
+                        "priceName": "Standard Buying",
+                        "price": 0.5,
+                        "uom": "Nos",
+                        "type": "buying"
+                    },
+                    {
+                        "priceName": "Standard Selling",
+                        "price": 1.0,
+                        "uom": "Nos",
+                        "type": "selling"
+                    }
+                ],
+                "taxes": [
+                    {
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": "EXEMPT",
+                        "valid_from": null,
+                        "minimum_net_rate": 0.0,
+                        "maximum_net_rate": 0.0
+                    }
+                ],
+                "simple_code": null,
+                "is_sales_item": 1,
+                "uom": {
+                    "stock_uom": "Nos",
+                    "conversions": [
+                        {
+                            "uom": "Nos",
+                            "conversion_factor": 1.0
+                        }
+                    ]
+                },
+                "food_and_tourism_tax": 0,
+                "food_tax": 0,
+                "tourism_tax": 0,
+                "cumulative": 0
+            },
+            {
+                "itemcode": "014266",
+                "itemname": "sample 20",
+                "groupname": "All Item Groups",
+                "maintainstock": 0,
+                "warehouses": [
+                    {
+                        "warehouse": "Stores - AT",
+                        "qtyOnHand": 0
+                    }
+                ],
+                "default warehouse": "Stores - AT",
+                "prices": [
+                    {
+                        "priceName": "Standard Buying",
+                        "price": 1.2999,
+                        "uom": "Nos",
+                        "type": "buying"
+                    },
+                    {
+                        "priceName": "Standard Selling",
+                        "price": 0.6737,
+                        "uom": "Nos",
+                        "type": "selling"
+                    }
+                ],
+                "taxes": [],
+                "simple_code": null,
+                "is_sales_item": 1,
+                "uom": {
+                    "stock_uom": "Nos",
+                    "conversions": [
+                        {
+                            "uom": "Nos",
+                            "conversion_factor": 1.0
+                        }
+                    ]
+                },
+                "food_and_tourism_tax": 0,
+                "food_tax": 0,
+                "tourism_tax": 0,
+                "cumulative": 0
+            },
+            {
+                "itemcode": "026739",
+                "itemname": "Standard Chair",
+                "groupname": "All Item Groups",
+                "maintainstock": 1,
+                "warehouses": [
+                    {
+                        "warehouse": "Stores - CP",
+                        "qtyOnHand": 0.0
+                    },
+                    {
+                        "warehouse": "Stores - AT",
+                        "qtyOnHand": 99845.2666
+                    }
+                ],
+                "default warehouse": "Stores - AT",
+                "prices": [
+                    {
+                        "priceName": "Standard Buying",
+                        "price": 16.25,
+                        "uom": "Nos",
+                        "type": "buying"
+                    },
+                    {
+                        "priceName": "Standard Selling",
+                        "price": 25.0,
+                        "uom": "Nos",
+                        "type": "selling"
+                    }
+                ],
+                "taxes": [],
+                "simple_code": "026739",
+                "is_sales_item": 1,
+                "uom": {
+                    "stock_uom": "Nos",
+                    "conversions": [
+                        {
+                            "uom": "Nos",
+                            "conversion_factor": 1.0
+                        }
+                    ]
+                },
+                "food_and_tourism_tax": 0,
+                "food_tax": 0,
+                "tourism_tax": 0,
+                "cumulative": 0
+            },
+            {
+                "itemcode": "047634",
+                "itemname": "VatProduct1",
+                "groupname": "All Item Groups",
+                "maintainstock": 1,
+                "warehouses": [
+                    {
+                        "warehouse": "Stores - CP",
+                        "qtyOnHand": 0.0
+                    },
+                    {
+                        "warehouse": "Stores - AT",
+                        "qtyOnHand": 0.0
+                    }
+                ],
+                "default warehouse": "Stores - AT",
+                "prices": [
+                    {
+                        "priceName": "Standard Buying",
+                        "price": 0.2,
+                        "uom": "Nos",
+                        "type": "buying"
+                    },
+                    {
+                        "priceName": "Standard Selling",
+                        "price": 3.0,
+                        "uom": "Nos",
+                        "type": "selling"
+                    }
+                ],
+                "taxes": [
+                    {
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": "VAT",
+                        "valid_from": "2026-02-11",
+                        "minimum_net_rate": 15.5,
+                        "maximum_net_rate": 15.5
+                    },
+                    {
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": "Food Tax",
+                        "valid_from": "2026-02-11",
+                        "minimum_net_rate": 2.0,
+                        "maximum_net_rate": 2.0
+                    }
+                ],
+                "simple_code": null,
+                "is_sales_item": 1,
+                "uom": {
+                    "stock_uom": "Nos",
+                    "conversions": [
+                        {
+                            "uom": "Nos",
+                            "conversion_factor": 1.0
+                        }
+                    ]
+                },
+                "food_and_tourism_tax": 0,
+                "food_tax": 0,
+                "tourism_tax": 0,
+                "cumulative": 0
+            },
+            {
+                "itemcode": "066559",
+                "itemname": "sweet",
+                "groupname": "All Item Groups",
+                "maintainstock": 1,
+                "warehouses": [
+                    {
+                        "warehouse": "Stores - CP",
+                        "qtyOnHand": 0.0
+                    },
+                    {
+                        "warehouse": "Stores - AT",
+                        "qtyOnHand": 0.5
+                    }
+                ],
+                "default warehouse": "Stores - AT",
+                "prices": [
+                    {
+                        "priceName": "Standard Selling",
+                        "price": 2.0,
+                        "uom": "Nos",
+                        "type": "selling"
+                    }
+                ],
+                "taxes": [
+                    {
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": "VAT",
+                        "valid_from": null,
+                        "minimum_net_rate": 0.0,
+                        "maximum_net_rate": 0.0
+                    }
+                ],
+                "simple_code": "066559",
+                "is_sales_item": 1,
+                "uom": {
+                    "stock_uom": "Nos",
+                    "conversions": [
+                        {
+                            "uom": "Nos",
+                            "conversion_factor": 1.0
+                        }
+                    ]
+                },
+                "food_and_tourism_tax": 1,
+                "food_tax": 0,
+                "tourism_tax": 0,
+                "cumulative": 0
+            },
+            {
+                "itemcode": "090271",
+                "itemname": "magnum",
+                "groupname": "All Item Groups",
+                "maintainstock": 1,
+                "warehouses": [
+                    {
+                        "warehouse": "Stores - CP",
+                        "qtyOnHand": 0.0
+                    },
+                    {
+                        "warehouse": "Stores - AT",
+                        "qtyOnHand": 0.0
+                    }
+                ],
+                "default warehouse": "Stores - AT",
+                "prices": [
+                    {
+                        "priceName": "Standard Buying",
+                        "price": 0.01,
+                        "uom": "Nos",
+                        "type": "buying"
+                    },
+                    {
+                        "priceName": "Standard Selling",
+                        "price": 0.02,
+                        "uom": "Nos",
+                        "type": "selling"
+                    }
+                ],
+                "taxes": [],
+                "simple_code": null,
+                "is_sales_item": 1,
+                "uom": {
+                    "stock_uom": "Nos",
+                    "conversions": [
+                        {
+                            "uom": "Nos",
+                            "conversion_factor": 1.0
+                        }
+                    ]
+                },
+                "food_and_tourism_tax": 0,
+                "food_tax": 0,
+                "tourism_tax": 0,
+                "cumulative": 0
+            }
+           
+        ],
+        "pagination": {
+            "current_page": 1,
+            "limit": 1000,
+            "total_count": 178,
+            "total_pages": 1,
+            "has_next_page": false,
+            "has_prev_page": false,
+            "next_page": null,
+            "prev_page": null
+        }
+    }
+}
