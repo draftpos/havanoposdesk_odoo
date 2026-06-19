@@ -5,7 +5,7 @@ import json
 class HavanoPOSDeskAPI(http.Controller):
 
     # AUTHENTICATION
-    @http.route('/api/auth/login', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
+    @http.route(['/api/auth/login', '/api/method/saas_api.www.api.login'], auth='public', methods=['POST'], type='http', csrf=False, cors='*')
     def api_login(self, **kw):
         try:
             data = json.loads(request.httprequest.data)
@@ -13,8 +13,10 @@ class HavanoPOSDeskAPI(http.Controller):
             return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
         
         db = data.get('db') or request.db or 'odoo_db_com'
-        login = data.get('username') or data.get('login')
-        password = data.get('password')
+        login = data.get('usr') or data.get('username') or data.get('login')
+        password = data.get('pwd') or data.get('password')
+        timezone = data.get('timezone')
+        items_limit = data.get('items_limit')
         
         if not login or not password:
             return request.make_response(json.dumps({'error': 'Username and password are required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -43,35 +45,103 @@ class HavanoPOSDeskAPI(http.Controller):
         if not uid:
             return request.make_response(json.dumps({'error': 'Authentication failed'}), headers=[('Content-Type', 'application/json')], status=401)
             
-        user = request.env['res.users'].sudo().browse(uid)
+        user_env = env if 'env' in locals() else request.env
+        user = user_env['res.users'].sudo().browse(uid)
         
-        # Determine stores list based on role
-        if user.havano_role == 'super_admin':
-            stores = request.env['havanoposdesk.store'].sudo().search([])
-        elif user.havano_role == 'admin':
-            stores = request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', user.tenant_id.id)]) if user.tenant_id else []
-        else:
-            stores = user.store_ids
+        if timezone:
+            try:
+                user.write({'tz': timezone})
+            except Exception:
+                pass
+                
+        # Split full name into first and last name
+        names = (user.name or "").split(' ', 1)
+        first_name = names[0] if names else ""
+        last_name = names[1] if len(names) > 1 else ""
+        
+        # Determine store and company settings
+        store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+        store_name = store.name if store else 'Default Store'
+        
+        warehouse = user.api_warehouse or (user.tenant_id.api_warehouse if user.tenant_id else False) or store_name
+        cost_center = user.api_cost_center or (user.tenant_id.api_cost_center if user.tenant_id else False) or store_name
+        
+        # Self-healing: Ensure default customer exists
+        default_customer_name = "Havano Default"
+        default_customer = user_env['havanoposdesk.customer'].sudo().search([('name', '=', default_customer_name)], limit=1)
+        if not default_customer:
+            default_customer = user_env['havanoposdesk.customer'].sudo().create({
+                'name': default_customer_name,
+                'customer_type': 'individual',
+            })
+            
+        # Fetch customers list
+        customers_records = user_env['havanoposdesk.customer'].sudo().search([])
+        customers_data = []
+        for c in customers_records:
+            customers_data.append({
+                "name": c.name,
+                "customer_name": c.name,
+                "customer_group": c.customer_group_id.name or "All Customer Groups",
+                "territory": None,
+                "custom_cost_center": cost_center
+            })
+            
+        # Fetch warehouse items/products
+        product_domain = []
+        if user.havano_role != 'super_admin':
+            if user.tenant_id:
+                product_domain.append(('tenant_id', '=', user.tenant_id.id))
+            if user.havano_role == 'user':
+                product_domain.append(('store_id', 'in', user.store_ids.ids))
+                
+        limit_val = None
+        if items_limit is not None:
+            try:
+                limit_val = int(items_limit)
+            except Exception:
+                pass
+                
+        products = user_env['havanoposdesk.product'].sudo().search(product_domain, limit=limit_val)
+        warehouse_items = []
+        for p in products:
+            qty = p.opening_stock
+            # Try to get quantity from valuation for user's warehouse store if store exists
+            if store:
+                valuation = user_env['havanoposdesk.stock.valuation'].sudo().search([
+                    ('product_id', '=', p.id),
+                    ('store', '=', store.name)
+                ], limit=1)
+                if valuation:
+                    qty = valuation.on_hand_qty
+                    
+            warehouse_items.append({
+                "item_code": p.item_code,
+                "item_name": p.name,
+                "description": p.name,
+                "stock_uom": p.uom_id.name or "Pieces",
+                "actual_qty": qty,
+                "projected_qty": qty
+            })
             
         res_data = {
-            'success': True,
-            'session_id': request.session.sid,
-            'user': {
-                'id': user.id,
-                'name': user.name,
-                'role': user.havano_role,
-                'tenant': {
-                    'id': user.tenant_id.id,
-                    'name': user.tenant_id.name,
-                    'subscription_state': user.tenant_id.subscription_state,
-                    'subscription_end_date': str(user.tenant_id.subscription_end_date) if user.tenant_id.subscription_end_date else None,
-                    'plan_name': user.tenant_id.subscription_plan_id.name if user.tenant_id.subscription_plan_id else None,
-                } if user.tenant_id else None,
-                'default_store': {
-                    'id': user.default_store_id.id,
-                    'name': user.default_store_id.name
-                } if user.default_store_id else None,
-                'stores': [{'id': s.id, 'name': s.name} for s in stores]
+            "message": "Logged In",
+            "home_page": "/app/home",
+            "full_name": user.name or "",
+            "user": {
+                "first_name": first_name,
+                "last_name": last_name,
+                "gender": "",
+                "birth_date": "",
+                "mobile_no": user.phone or "",
+                "username": user.name or "",
+                "full_name": user.name or "",
+                "email": user.login or "",
+                "warehouse": warehouse,
+                "cost_center": cost_center,
+                "default_customer": default_customer_name,
+                "customers": customers_data,
+                "warehouse_items": warehouse_items
             }
         }
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])

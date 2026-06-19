@@ -44,7 +44,7 @@ class HavanoposdeskStore(models.Model):
             store.sales_count = len(sales)
             store.sale_value = sum(sales.mapped('line_ids.amount'))
             
-            purchases = self.env['havanoposdesk.purchase'].search([('store', '=', store.name)])
+            purchases = self.env['havanoposdesk.purchase'].search([('store_id', '=', store.id)])
             store.purchases_count = len(purchases)
             
             # Last open (from last sale date)
