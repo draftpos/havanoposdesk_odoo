@@ -15,6 +15,7 @@
                     <field  name="selling_price" optional="show"/>
                     <field  name="track_qty" optional="show"/>
                     <field  name="opening_stock" string="On hand" optional="show"/>
+                    <field  name="store_id" optional="show"/>
                     <field  name="color" column_invisible="1"/>
                     <field  name="tenant_id" column_invisible="1"/>
                 </list>
@@ -37,12 +38,12 @@
                                 <group>
                                     <group string="Product information">
                                         <field name="name" class="border-bottom border-dark"/>
-                                        <field name="item_code" invisible="1"/>
                                         <field name="category_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark"/>
                                         <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark"/>
                                         <field name="tenant_id" invisible="1"/>
                                         <field name="track_qty" class="border-bottom border-dark"/>
                                         <field name="store_id" class="border-bottom border-dark" options="{'no_create': True}"/>
+                                        <field name="item_code" readonly="1" class="border-bottom border-dark"/>
                                         <field name="color" invisible="1"/>
                                     </group>
                                     <group string="Price information">
