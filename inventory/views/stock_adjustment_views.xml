@@ -36,6 +36,7 @@
                                 <field name="line_ids">
                                     <list  editable="bottom">
                                         <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="16%" optional="show"/>
+                                        <field name="item_code" width="15%" optional="show"/>
                                         <field name="on_hand" width="16%" optional="show"/>
                                         <field name="counted" width="16%" optional="show"/>
                                         <field name="buying_price" width="16%" optional="show"/>

@@ -144,7 +144,7 @@ class SaleLine(models.Model):
     _description = 'Sale Line'
 
     sale_id = fields.Many2one('havanoposdesk.sale', string='Sale', required=True, ondelete='cascade')
-    product_id = fields.Many2one('havanoposdesk.product', string='Item Name', required=True)
+    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
     item_code = fields.Char(related='product_id.item_code', string='Item Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
     rate = fields.Float(string='Rate')

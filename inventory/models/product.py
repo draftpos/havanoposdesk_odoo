@@ -3,9 +3,18 @@ from odoo import models, fields, api
 class HavanoposdeskProduct(models.Model):
     _name = 'havanoposdesk.product'
     _description = 'Product'
+    _rec_names_search = ['name', 'item_code']
 
     name = fields.Char(string='Product Name', required=True)
     item_code = fields.Char(string='Item Code', required=True, copy=False, readonly=True, default=lambda self: 'New')
+
+    @api.depends('name', 'item_code')
+    def _compute_display_name(self):
+        for record in self:
+            if record.item_code and record.item_code != 'New':
+                record.display_name = f"[{record.item_code}] {record.name}"
+            else:
+                record.display_name = record.name
     buying_price = fields.Float(string='Buy price', default=0.0)
     selling_price = fields.Float(string='Sell price')
     markup = fields.Float(string='Markup', compute='_compute_markup')

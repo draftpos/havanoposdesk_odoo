@@ -27,8 +27,8 @@
                             <page string="Items">
                                 <field name="line_ids">
                                     <list  editable="bottom">
-                                        <field name="item_code" width="15%" optional="show"/>
                                         <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" optional="show"/>
+                                        <field name="item_code" width="15%" optional="show"/>
                                         <field name="accepted_qty" width="25%" sum="Total Qty" optional="show"/>
                                         <field name="rate" width="25%" optional="show"/>
                                         <field name="amount" width="25%" sum="Total Amount" optional="show"/>
