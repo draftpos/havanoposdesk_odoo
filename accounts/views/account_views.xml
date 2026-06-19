@@ -9,6 +9,7 @@
                 <list string="Accounts">
                     <field name="name"/>
                     <field name="type"/>
+                    <field name="balance"/>
                 </list>
             </field>
         </record>
@@ -24,6 +25,7 @@
                             <group>
                                 <field name="name"/>
                                 <field name="type"/>
+                                <field name="balance"/>
                             </group>
                         </group>
                     </sheet>

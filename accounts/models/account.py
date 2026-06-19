@@ -10,6 +10,7 @@ class Account(models.Model):
         ('Bank', 'Bank'),
         ('Expense', 'Expense')
     ], string='Account Type', required=True, default='Expense')
+    balance = fields.Float(string='Balance', default=0.0)
     
     # Store reference for multi-tenancy if applicable
     tenant_id = fields.Many2one(
