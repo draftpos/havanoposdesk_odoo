@@ -14,7 +14,7 @@ class Customer(models.Model):
     phone = fields.Char(string='Phone')
     address = fields.Char(string='Address')
     city = fields.Char(string='City')
-    country = fields.Char(string='Country')
+    country_id = fields.Many2one('res.country', string='Country')
     customer_group_id = fields.Many2one('havanoposdesk.customer.group', string='Customer Group')
     
     sale_ids = fields.One2many('havanoposdesk.sale', 'customer', string='Sales')

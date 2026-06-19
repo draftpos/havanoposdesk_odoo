@@ -20,7 +20,7 @@
                                 <field name="phone" class="border-bottom border-dark"/>
                                 <field name="address" class="border-bottom border-dark"/>
                                 <field name="city" class="border-bottom border-dark"/>
-                                <field name="country" class="border-bottom border-dark"/>
+                                <field name="country_id" options="{'no_create': True}" class="border-bottom border-dark"/>
                             </group>
                             <group>
                                 <field name="balance" readonly="1" class="border-bottom border-dark"/>
@@ -41,7 +41,7 @@
                     <field  name="phone" optional="show"/>
                     <field  name="address" optional="show"/>
                     <field  name="city" optional="show"/>
-                    <field  name="country" optional="show"/>
+                    <field  name="country_id" optional="show"/>
                     <field  name="balance" optional="show"/>
                     <field  name="customer_type" optional="show"/>
                 </list>
