@@ -12,7 +12,9 @@
                     <field name="date"/>
                     <field name="store_id"/>
                     <field name="salesperson_id"/>
-                    <field name="amount_total" sum="Total Sales"/>
+                    <field name="amount_untaxed" sum="Total Excl"/>
+                    <field name="amount_tax" sum="Total Tax"/>
+                    <field name="amount_total" sum="Total Incl"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'confirmed'" decoration-success="state == 'done'"/>
                 </list>
             </field>

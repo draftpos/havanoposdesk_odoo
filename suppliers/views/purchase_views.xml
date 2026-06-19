@@ -59,6 +59,9 @@
                     <field  name="store_id" optional="show"/>
                     <field  name="posting_date" optional="show"/>
                     <field  name="posting_time" widget="float_time" optional="show"/>
+                    <field name="amount_untaxed" sum="Total Excl"/>
+                    <field name="amount_tax" sum="Total Tax"/>
+                    <field name="amount_total" sum="Total Incl"/>
                 </list>
             </field>
         </record>
