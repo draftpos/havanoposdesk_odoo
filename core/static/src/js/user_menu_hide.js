@@ -1,12 +1,13 @@
 /** @odoo-module **/
 
 import { registry } from "@web/core/registry";
-import { session } from "@web/session";
+import { user } from "@web/core/user";
+import "@web/webclient/user_menu/user_menu_items";
 
 const userMenuRegistry = registry.category("user_menuitems");
 
-// If the user is NOT a system admin, remove standard profile dropdown items.
-if (!session.is_system) {
+// If the user is NOT an admin, remove standard profile dropdown items.
+if (!user.isAdmin) {
     const itemsToRemove = [
         "support",
         "shortcuts",
