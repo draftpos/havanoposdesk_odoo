@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Account List View -->
+        <record id="view_havanoposdesk_account_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.account.list</field>
+            <field name="model">havanoposdesk.account</field>
+            <field name="arch" type="xml">
+                <list string="Accounts">
+                    <field name="name"/>
+                    <field name="type"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Account Form View -->
+        <record id="view_havanoposdesk_account_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.account.form</field>
+            <field name="model">havanoposdesk.account</field>
+            <field name="arch" type="xml">
+                <form string="Account">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                                <field name="type"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Account Search View -->
+        <record id="view_havanoposdesk_account_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.account.search</field>
+            <field name="model">havanoposdesk.account</field>
+            <field name="arch" type="xml">
+                <search string="Accounts">
+                    <field name="name"/>
+                    <field name="type"/>
+                    <filter string="Expenses" name="filter_expense" domain="[('type','=','Expense')]"/>
+                    <filter string="Cash/Bank" name="filter_cash_bank" domain="[('type','in',['Cash','Bank'])]"/>
+                </search>
+            </field>
+        </record>
+
+        <!-- Action for Accounts -->
+        <record id="action_havanoposdesk_account" model="ir.actions.act_window">
+            <field name="name">Chart of Accounts</field>
+            <field name="res_model">havanoposdesk.account</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new Account
+                </p>
+                <p>
+                    Manage your Cash, Bank, and Expense accounts.
+                </p>
+            </field>
+        </record>
+    </data>
+</odoo>

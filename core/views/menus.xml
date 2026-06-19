@@ -8,6 +8,7 @@
         <menuitem id="menu_inventory_root" name="Stock" sequence="10" web_icon="stock,static/description/icon.png"/>
         <menuitem id="menu_sales_root" name="Sales" sequence="20" web_icon="sale,static/description/icon.png"/>
         <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="purchase,static/description/icon.png"/>
+        <menuitem id="menu_accounts_root" name="Accounts" sequence="40" web_icon="account,static/description/icon.png"/>
 
         <!-- Stock Navigation Tabs -->
         <menuitem id="menu_inventory_master" name="Master" parent="menu_inventory_root" sequence="10"/>
@@ -26,6 +27,16 @@
         <menuitem id="menu_suppliers_operations" name="Operations" parent="menu_suppliers_root" sequence="20"/>
         <menuitem id="menu_suppliers_reports" name="Reports" parent="menu_suppliers_root" sequence="30"/>
         <menuitem id="menu_suppliers_settings" name="Settings" parent="menu_suppliers_root" action="action_havanoposdesk_settings_suppliers" sequence="40"/>
+
+        <!-- Accounts Navigation Tabs -->
+        <menuitem id="menu_accounts_master" name="Master" parent="menu_accounts_root" sequence="10"/>
+        <menuitem id="menu_accounts_operations" name="Operations" parent="menu_accounts_root" sequence="20"/>
+        <menuitem id="menu_accounts_reports" name="Reports" parent="menu_accounts_root" sequence="30"/>
+        <menuitem id="menu_accounts_settings" name="Settings" parent="menu_accounts_root" action="action_havanoposdesk_settings_accounts" sequence="40"/>
+        
+        <!-- Accounts Submenus -->
+        <menuitem id="menu_accounts_list" name="Accounts" parent="menu_accounts_master" action="action_havanoposdesk_account" sequence="10"/>
+        <menuitem id="menu_expense_posting" name="Expense Posting" parent="menu_accounts_operations" action="action_havanoposdesk_expense" sequence="10"/>
 
         <!-- Actions -->
         <record id="action_havanoposdesk_tenant" model="ir.actions.act_window">
