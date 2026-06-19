@@ -2,10 +2,7 @@
 <odoo>
     <data>
         <!-- Enable Free Sign Up (B2C Registration) by default -->
-        <record id="auth_signup_uninvited_b2c" model="ir.config_parameter">
-            <field name="key">auth_signup.uninvited</field>
-            <field name="value">b2c</field>
-        </record>
+        <!-- Removed config parameters to prevent UniqueViolation error on module upgrade -->
 
         <!-- Top-level Menus acting as Apps on the Dashboard -->
         <menuitem id="menu_inventory_root" name="Stock" sequence="10" web_icon="stock,static/description/icon.png"/>

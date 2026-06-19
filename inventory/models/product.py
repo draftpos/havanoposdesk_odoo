@@ -18,7 +18,20 @@ class HavanoposdeskProduct(models.Model):
         for vals in vals_list:
             if vals.get('item_code', 'New') == 'New':
                 vals['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
-        return super().create(vals_list)
+        products = super().create(vals_list)
+        
+        for product in products:
+            if product.opening_stock > 0:
+                self.env['havanoposdesk.stock.adjustment'].create({
+                    'store_id': product.store_id.id if product.store_id else False,
+                    'fetch_all_data': False,
+                    'line_ids': [(0, 0, {
+                        'product_id': product.id,
+                        'on_hand': 0.0,
+                        'counted': product.opening_stock,
+                    })]
+                })
+        return products
 
     color_hex = fields.Char(string='Color Hex')
     color = fields.Selection([
