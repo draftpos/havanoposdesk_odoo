@@ -49,8 +49,8 @@
                             <page string="Order Lines">
                                 <field name="line_ids">
                                     <list editable="bottom">
-                                        <field name="item_code" width="15%" context="{'display_code_only': True}" optional="show"/>
-                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" context="{'display_name_only': True}" width="25%" optional="show"/>
+                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" optional="show"/>
+                                        <field name="item_code" width="15%" optional="show"/>
                                         <field name="accepted_qty" width="25%" sum="Total Qty" optional="show"/>
                                         <field name="rate" width="25%" optional="show"/>
                                         <field name="amount" width="25%" sum="Total Amount" optional="show"/>

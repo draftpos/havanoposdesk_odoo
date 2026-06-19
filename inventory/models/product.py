@@ -11,15 +11,10 @@ class HavanoposdeskProduct(models.Model):
     @api.depends('name', 'item_code')
     def _compute_display_name(self):
         for record in self:
-            if self.env.context.get('display_code_only'):
-                record.display_name = record.item_code or 'New'
-            elif self.env.context.get('display_name_only'):
-                record.display_name = record.name
+            if record.item_code and record.item_code != 'New':
+                record.display_name = f"[{record.item_code}] {record.name}"
             else:
-                if record.item_code and record.item_code != 'New':
-                    record.display_name = f"[{record.item_code}] {record.name}"
-                else:
-                    record.display_name = record.name
+                record.display_name = record.name
     buying_price = fields.Float(string='Buy price', default=0.0)
     selling_price = fields.Float(string='Sell price')
     markup = fields.Float(string='Markup', compute='_compute_markup')

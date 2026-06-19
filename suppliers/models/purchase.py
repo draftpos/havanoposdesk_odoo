@@ -68,8 +68,8 @@ class PurchaseLine(models.Model):
     _description = 'Purchase Line'
 
     purchase_id = fields.Many2one('havanoposdesk.purchase', string='Purchase', required=True, ondelete='cascade')
-    product_id = fields.Many2one('havanoposdesk.product', string='Item Name', required=True)
-    item_code = fields.Many2one('havanoposdesk.product', string='Item Code')
+    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    item_code = fields.Char(related='product_id.item_code', string='Item Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
     rate = fields.Float(string='Rate')
     amount = fields.Float(string='Amount', compute='_compute_amount', store=True)
@@ -79,14 +79,7 @@ class PurchaseLine(models.Model):
         for record in self:
             record.amount = record.accepted_qty * record.rate
 
-    @api.onchange('item_code')
-    def _onchange_item_code(self):
-        if self.item_code:
-            self.product_id = self.item_code
-            self.rate = self.item_code.buying_price
-
     @api.onchange('product_id')
     def _onchange_product_id(self):
         if self.product_id:
-            self.item_code = self.product_id
             self.rate = self.product_id.buying_price
