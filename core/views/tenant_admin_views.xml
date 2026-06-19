@@ -69,6 +69,19 @@ else:
         
         <menuitem id="menu_my_business_settings" name="General Settings" parent="menu_my_business_settings_parent" action="action_havanoposdesk_settings_my_business" sequence="10"/>
         <menuitem id="menu_my_business_currency" name="Currencies" parent="menu_my_business_settings_parent" action="base.action_currency_form" sequence="20"/>
+
+        <!-- Exchange Rates Action -->
+        <record id="action_havanoposdesk_exchange_rates" model="ir.actions.act_window">
+            <field name="name">Exchange Rates</field>
+            <field name="res_model">res.currency.rate</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new Exchange Rate
+                </p>
+            </field>
+        </record>
+        <menuitem id="menu_my_business_exchange_rate" name="Exchange Rates" parent="menu_my_business_settings_parent" action="action_havanoposdesk_exchange_rates" sequence="30"/>
     </data>
 </odoo>
 
