@@ -9,7 +9,7 @@
                 <list string="Taxes">
                     <field name="name"/>
                     <field name="tax_type"/>
-                    <field name="rate" widget="percentage"/>
+                    <field name="rate"/>
                     <field name="is_inclusive" widget="boolean_toggle"/>
                     <field name="active" widget="boolean_toggle"/>
                 </list>
