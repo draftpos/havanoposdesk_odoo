@@ -139,6 +139,7 @@ class StockAdjustmentLine(models.Model):
     _description = 'Stock Adjustment Line'
 
     adjustment_id = fields.Many2one('havanoposdesk.stock.adjustment', string='Stock Adjustment', required=True, ondelete='cascade')
+    item_code = fields.Char(string='Item Code')
     product_id = fields.Many2one('havanoposdesk.product', string='Item Name', required=True)
     on_hand = fields.Float(string='On Hand', readonly=True)
     counted = fields.Float(string='Counted')
@@ -152,8 +153,18 @@ class StockAdjustmentLine(models.Model):
             record.qty_difference = record.counted - record.on_hand
             record.amount_difference = record.qty_difference * record.buying_price
 
+    @api.onchange('item_code')
+    def _onchange_item_code(self):
+        if self.item_code:
+            product = self.env['havanoposdesk.product'].search([('item_code', '=', self.item_code)], limit=1)
+            if product:
+                self.product_id = product.id
+                self.on_hand = product.opening_stock
+                self.counted = 0.0
+
     @api.onchange('product_id')
     def _onchange_product_id(self):
         if self.product_id:
+            self.item_code = self.product_id.item_code
             self.on_hand = self.product_id.opening_stock
             self.counted = 0.0
