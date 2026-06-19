@@ -8,6 +8,7 @@
             <field name="arch" type="xml">
                 <list string="Sales Invoices" default_order="date desc">
                     <field name="name"/>
+                    <field name="customer"/>
                     <field name="date"/>
                     <field name="store_id"/>
                     <field name="salesperson_id"/>
