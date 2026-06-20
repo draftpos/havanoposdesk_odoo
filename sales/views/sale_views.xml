@@ -8,6 +8,8 @@
             <field name="arch" type="xml">
                 <list string="Sales Invoices" default_order="date desc">
                     <field name="name"/>
+                    <field name="is_return" optional="show" readonly="1"/>
+                    <field name="payment_status" optional="show"/>
                     <field name="customer"/>
                     <field name="date"/>
                     <field name="store_id"/>
@@ -27,6 +29,7 @@
             <field name="arch" type="xml">
                 <form string="Sales Invoice">
                     <header>
+                        <button name="%(action_havanoposdesk_sale_return_wizard)d" string="Credit Note" type="action" class="btn-primary" invisible="state != 'done' or is_return"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,done"/>
                     </header>
                     <sheet>
@@ -34,15 +37,22 @@
                             <h1>
                                 <field name="name" readonly="1"/>
                             </h1>
+                            <h2>
+                                <span invisible="not is_return" class="text-danger">Credit Note</span>
+                            </h2>
                         </div>
                         <group>
                             <group>
                                 <field name="customer" class="border-bottom border-dark"/>
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" class="border-bottom border-dark"/>
                                 <field name="date" class="border-bottom border-dark"/>
+                                <field name="is_return" invisible="1"/>
+                                <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark"/>
                             </group>
                             <group>
                                 <field name="salesperson_id" options="{'no_create': True}" class="border-bottom border-dark"/>
+                                <field name="payment_status" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}"/>
+                                <field name="account_id" invisible="payment_status != 'cash'" required="payment_status == 'cash'" class="border-bottom border-dark"/>
                                 <field name="tenant_id" invisible="1"/>
                             </group>
                         </group>

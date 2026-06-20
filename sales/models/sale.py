@@ -18,6 +18,16 @@ class Sale(models.Model):
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
     
+    is_return = fields.Boolean(string='Is Credit Note', default=False)
+    return_id = fields.Many2one('havanoposdesk.sale', string='Original Sale')
+    return_sale_ids = fields.One2many('havanoposdesk.sale', 'return_id', string='Credit Notes')
+    
+    payment_status = fields.Selection([
+        ('cash', 'Cash (Paid)'),
+        ('account', 'On Account')
+    ], string='Payment Status', default='account', required=True)
+    account_id = fields.Many2one('havanoposdesk.account', string='Deposit Account', domain="[('type', 'in', ['Cash', 'Bank'])]")
+    
     line_ids = fields.One2many('havanoposdesk.sale.line', 'sale_id', string='Items')
 
     def _default_store_id(self):
@@ -58,7 +68,16 @@ class Sale(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
-                vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale') or 'New'
+                if vals.get('is_return'):
+                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale.return') or 'New'
+                else:
+                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale') or 'New'
+            
+            # Default account_id for cash sales if not provided
+            if vals.get('payment_status') == 'cash' and not vals.get('account_id'):
+                account = self.env['havanoposdesk.account'].search([('type', 'in', ['Cash', 'Bank'])], limit=1)
+                if account:
+                    vals['account_id'] = account.id
             
             # Sync store and store_id
             if 'store' in vals and not vals.get('store_id'):
@@ -85,21 +104,47 @@ class Sale(models.Model):
         sales = super().create(vals_list)
         
         for sale in sales:
+            # Auto-create payment if cash
+            if sale.payment_status == 'cash' and sale.account_id:
+                payment_type = 'payment' if sale.is_return else 'receipt'
+                payment = self.env['havanoposdesk.payment'].create({
+                    'payment_type': payment_type,
+                    'partner_type': 'customer',
+                    'customer_id': sale.customer.id,
+                    'account_id': sale.account_id.id,
+                    'amount': sale.amount_total,
+                    'reference': sale.name,
+                })
+                payment.action_post()
+
             for line in sale.line_ids:
                 if line.accepted_qty > 0:
-                    # Update Product On Hand (opening_stock)
-                    line.product_id.opening_stock -= line.accepted_qty
-                    
-                    # Create Ledger Entry using sudo()
-                    self.env['havanoposdesk.stock.ledger'].sudo().create({
-                        'product_id': line.product_id.id,
-                        'in_qty': 0.0,
-                        'out_qty': line.accepted_qty,
-                        'balance_qty': line.product_id.opening_stock,
-                        'store': sale.store,
-                        'type': 'Sale',
-                        'doc_no': sale.name,
-                    })
+                    if sale.is_return:
+                        # Add back to stock
+                        line.product_id.opening_stock += line.accepted_qty
+                        self.env['havanoposdesk.stock.ledger'].sudo().create({
+                            'product_id': line.product_id.id,
+                            'in_qty': line.accepted_qty,
+                            'out_qty': 0.0,
+                            'balance_qty': line.product_id.opening_stock,
+                            'store': sale.store,
+                            'type': 'Credit Note',
+                            'doc_no': sale.name,
+                        })
+                    else:
+                        # Update Product On Hand (opening_stock)
+                        line.product_id.opening_stock -= line.accepted_qty
+                        
+                        # Create Ledger Entry using sudo()
+                        self.env['havanoposdesk.stock.ledger'].sudo().create({
+                            'product_id': line.product_id.id,
+                            'in_qty': 0.0,
+                            'out_qty': line.accepted_qty,
+                            'balance_qty': line.product_id.opening_stock,
+                            'store': sale.store,
+                            'type': 'Sale',
+                            'doc_no': sale.name,
+                        })
 
                     # Update or Create Valuation Entry using sudo()
                     valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
@@ -108,15 +153,23 @@ class Sale(models.Model):
                     ], limit=1)
                     
                     if valuation:
-                        valuation.write({
-                            'on_hand_qty': valuation.on_hand_qty - line.accepted_qty,
-                        })
+                        if sale.is_return:
+                            valuation.write({'on_hand_qty': valuation.on_hand_qty + line.accepted_qty})
+                        else:
+                            valuation.write({'on_hand_qty': valuation.on_hand_qty - line.accepted_qty})
                     else:
-                        self.env['havanoposdesk.stock.valuation'].sudo().create({
-                            'product_id': line.product_id.id,
-                            'store': sale.store,
-                            'on_hand_qty': -line.accepted_qty,
-                        })
+                        if sale.is_return:
+                            self.env['havanoposdesk.stock.valuation'].sudo().create({
+                                'product_id': line.product_id.id,
+                                'store': sale.store,
+                                'on_hand_qty': line.accepted_qty,
+                            })
+                        else:
+                            self.env['havanoposdesk.stock.valuation'].sudo().create({
+                                'product_id': line.product_id.id,
+                                'store': sale.store,
+                                'on_hand_qty': -line.accepted_qty,
+                            })
         return sales
 
     def write(self, vals):
