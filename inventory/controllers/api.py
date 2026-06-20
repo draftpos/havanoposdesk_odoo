@@ -971,9 +971,7 @@ class HavanoPOSDeskAPI(http.Controller):
             store_domain = []
             if user.havano_role != 'super_admin' and tenant:
                 store_domain.append(('tenant_id', '=', tenant.id))
-            class env:
-                pass
-            store = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
+            store = request.env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
         store_name = store.name if store else ''
         
         company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
@@ -1153,46 +1151,71 @@ class HavanoPOSDeskAPI(http.Controller):
             tourism_tax = 0
             cumulative = 0
             
-            if "sweet" in (p.name or "").lower():
-                food_and_tourism_tax = 1
-                taxes_data.append({
-                    "item_tax_template": "Zimbabwe Tax - AT",
-                    "tax_category": "VAT",
-                    "valid_from": None,
-                    "minimum_net_rate": 0.0,
-                    "maximum_net_rate": 0.0
-                })
-            elif "vatproduct2" in (p.name or "").lower():
-                taxes_data.append({
-                    "item_tax_template": "Zimbabwe Tax - AT",
-                    "tax_category": "EXEMPT",
-                    "valid_from": None,
-                    "minimum_net_rate": 0.0,
-                    "maximum_net_rate": 0.0
-                })
-            elif "vatproduct1" in (p.name or "").lower() or p.tax_percentage == 15.5 or p.tax_percentage == 17.5:
-                taxes_data.append({
-                    "item_tax_template": "Zimbabwe Tax - AT",
-                    "tax_category": "VAT",
-                    "valid_from": "2026-02-11",
-                    "minimum_net_rate": 15.5,
-                    "maximum_net_rate": 15.5
-                })
-                taxes_data.append({
-                    "item_tax_template": "Zimbabwe Tax - AT",
-                    "tax_category": "Food Tax",
-                    "valid_from": "2026-02-11",
-                    "minimum_net_rate": 2.0,
-                    "maximum_net_rate": 2.0
-                })
-            elif p.tax_percentage > 0.0:
-                taxes_data.append({
-                    "item_tax_template": "Zimbabwe Tax - AT",
-                    "tax_category": "VAT",
-                    "valid_from": None,
-                    "minimum_net_rate": p.tax_percentage,
-                    "maximum_net_rate": p.tax_percentage
-                })
+            if p.sale_tax_ids:
+                for tax in p.sale_tax_ids:
+                    tax_name_upper = (tax.name or '').upper()
+                    if 'EXEMPT' in tax_name_upper:
+                        tax_cat = 'EXEMPT'
+                    elif 'FOOD' in tax_name_upper:
+                        tax_cat = 'Food Tax'
+                        food_tax = 1
+                    elif 'TOURISM' in tax_name_upper:
+                        tax_cat = 'Tourism Tax'
+                        tourism_tax = 1
+                    elif 'VAT' in tax_name_upper or tax.rate == 15.5:
+                        tax_cat = 'VAT'
+                    else:
+                        tax_cat = tax.name or 'VAT'
+                    
+                    taxes_data.append({
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": tax_cat,
+                        "valid_from": "2026-02-11" if tax_cat in ["VAT", "Food Tax", "Tourism Tax"] else None,
+                        "minimum_net_rate": tax.rate,
+                        "maximum_net_rate": tax.rate
+                    })
+                if food_tax or tourism_tax:
+                    food_and_tourism_tax = 1
+            else:
+                if "sweet" in (p.name or "").lower():
+                    taxes_data.append({
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": "VAT",
+                        "valid_from": None,
+                        "minimum_net_rate": 0.0,
+                        "maximum_net_rate": 0.0
+                    })
+                elif "vatproduct2" in (p.name or "").lower():
+                    taxes_data.append({
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": "EXEMPT",
+                        "valid_from": None,
+                        "minimum_net_rate": 0.0,
+                        "maximum_net_rate": 0.0
+                    })
+                elif "vatproduct1" in (p.name or "").lower() or p.tax_percentage == 15.5 or p.tax_percentage == 17.5:
+                    taxes_data.append({
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": "VAT",
+                        "valid_from": "2026-02-11",
+                        "minimum_net_rate": 15.5,
+                        "maximum_net_rate": 15.5
+                    })
+                    taxes_data.append({
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": "Food Tax",
+                        "valid_from": "2026-02-11",
+                        "minimum_net_rate": 2.0,
+                        "maximum_net_rate": 2.0
+                    })
+                elif p.tax_percentage > 0.0:
+                    taxes_data.append({
+                        "item_tax_template": "Zimbabwe Tax - AT",
+                        "tax_category": "VAT",
+                        "valid_from": None,
+                        "minimum_net_rate": p.tax_percentage,
+                        "maximum_net_rate": p.tax_percentage
+                    })
                 
             # Simple code logic
             simple_code = None
