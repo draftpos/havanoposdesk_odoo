@@ -18,6 +18,7 @@
                             <group>
                                 <field name="address" class="border-bottom border-dark"/>
                                 <field name="email" class="border-bottom border-dark"/>
+                                <field name="balance" readonly="1" class="border-bottom border-dark"/>
                             </group>
                         </group>
                     </sheet>
@@ -34,6 +35,7 @@
                     <field name="name" optional="show"/>
                     <field name="phone" optional="show"/>
                     <field name="email" optional="show"/>
+                    <field name="balance" optional="show"/>
                 </list>
             </field>
         </record>

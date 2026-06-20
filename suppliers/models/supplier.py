@@ -1,4 +1,4 @@
-from odoo import models, fields
+from odoo import models, fields, api
 
 class HavanoposdeskSupplier(models.Model):
     _name = 'havanoposdesk.supplier'
@@ -20,3 +20,18 @@ class HavanoposdeskSupplier(models.Model):
         required=True, 
         default=lambda self: self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1).id
     )
+
+    purchase_ids = fields.One2many('havanoposdesk.purchase', 'supplier', string='Purchases')
+    payment_ids = fields.One2many('havanoposdesk.payment', 'supplier_id', string='Payments')
+    balance = fields.Float(string='Balance', compute='_compute_balance', store=False)
+
+    @api.depends('purchase_ids.amount_total', 'payment_ids.amount', 'payment_ids.payment_type', 'payment_ids.state')
+    def _compute_balance(self):
+        for record in self:
+            total_purchases = sum(record.purchase_ids.mapped('amount_total'))
+            
+            posted_payments = record.payment_ids.filtered(lambda p: p.state == 'posted')
+            payments = sum(posted_payments.filtered(lambda p: p.payment_type == 'payment').mapped('amount'))
+            refunds = sum(posted_payments.filtered(lambda p: p.payment_type == 'receipt').mapped('amount'))
+            
+            record.balance = total_purchases - payments + refunds
