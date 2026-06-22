@@ -126,7 +126,7 @@
             <field name="name">Havano Tax Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_tax"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[]</field>
         </record>
 
         <!-- Purchase Model Isolation Rule -->
