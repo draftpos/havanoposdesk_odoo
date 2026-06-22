@@ -9,5 +9,14 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        
+        <!-- Sequence for Credit Notes -->
+        <record id="seq_havanoposdesk_sale_return" model="ir.sequence">
+            <field name="name">Credit Note Sequence</field>
+            <field name="code">havanoposdesk.sale.return</field>
+            <field name="prefix">CRN/%(y)s/%(month)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

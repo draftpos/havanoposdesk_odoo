@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Sale Return Wizard Form View -->
+        <record id="view_havanoposdesk_sale_return_wizard_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.return.wizard.form</field>
+            <field name="model">havanoposdesk.sale.return.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Credit Note / Return">
+                    <sheet>
+                        <p class="text-muted">
+                            Enter the quantity of each item you wish to return. A new Credit Note will be generated, and stock will be returned to inventory.
+                        </p>
+                        <group>
+                            <field name="sale_id" readonly="1" class="border-bottom border-dark"/>
+                        </group>
+                        <field name="line_ids">
+                            <list editable="bottom" create="0" delete="0">
+                                <field name="product_id" readonly="1"/>
+                                <field name="qty_sold" readonly="1"/>
+                                <field name="qty_returned"/>
+                                <field name="rate" readonly="1"/>
+                                <field name="tax_ids" widget="many2many_tags" readonly="1"/>
+                            </list>
+                        </field>
+                    </sheet>
+                    <footer>
+                        <button name="action_confirm_return" string="Create Credit Note" type="object" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <!-- Action to open wizard -->
+        <record id="action_havanoposdesk_sale_return_wizard" model="ir.actions.act_window">
+            <field name="name">Credit Note</field>
+            <field name="res_model">havanoposdesk.sale.return.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="binding_model_id" ref="model_havanoposdesk_sale"/>
+            <field name="binding_view_types">form</field>
+        </record>
+    </data>
+</odoo>

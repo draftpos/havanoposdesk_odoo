@@ -23,7 +23,7 @@
         'core/views/tenant_views.xml',
         'core/views/res_config_settings_views.xml',
         'core/views/tenant_admin_views.xml',
-        'sales/views/sale_views.xml',
+
         'suppliers/views/supplier_views.xml',
         'accounts/views/account_views.xml',
         'accounts/views/expense_views.xml',
@@ -40,6 +40,7 @@
         'suppliers/views/purchase_views.xml',
         'suppliers/views/supplier_views.xml',
         'sales/data/sequence.xml',
+        'sales/wizard/sale_return_wizard_views.xml',
         'sales/views/sale_views.xml',
         'sales/views/customer_views.xml',
         'sales/views/item_profitability_report_views.xml',
