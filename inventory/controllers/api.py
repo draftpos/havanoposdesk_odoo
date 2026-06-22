@@ -972,7 +972,7 @@ class HavanoPOSDeskAPI(http.Controller):
             store_domain = []
             if user.havano_role != 'super_admin' and tenant:
                 store_domain.append(('tenant_id', '=', tenant.id))
-            store = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
+            store = request.env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
         store_name = store.name if store else ''
         
         company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
