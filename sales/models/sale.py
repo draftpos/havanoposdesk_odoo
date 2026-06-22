@@ -205,15 +205,23 @@ class Sale(models.Model):
                     ], limit=1)
                     
                     if valuation:
-                        valuation.write({
-                            'on_hand_qty': valuation.on_hand_qty + abs(line.accepted_qty),
-                        })
+                        if sale.is_return:
+                            valuation.write({'on_hand_qty': valuation.on_hand_qty + line.accepted_qty})
+                        else:
+                            valuation.write({'on_hand_qty': valuation.on_hand_qty - line.accepted_qty})
                     else:
-                        self.env['havanoposdesk.stock.valuation'].sudo().create({
-                            'product_id': line.product_id.id,
-                            'store': sale.store,
-                            'on_hand_qty': abs(line.accepted_qty),
-                        })
+                        if sale.is_return:
+                            self.env['havanoposdesk.stock.valuation'].sudo().create({
+                                'product_id': line.product_id.id,
+                                'store': sale.store,
+                                'on_hand_qty': line.accepted_qty,
+                            })
+                        else:
+                            self.env['havanoposdesk.stock.valuation'].sudo().create({
+                                'product_id': line.product_id.id,
+                                'store': sale.store,
+                                'on_hand_qty': -line.accepted_qty,
+                            })
         return sales
 
     def write(self, vals):
