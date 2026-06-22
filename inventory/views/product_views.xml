@@ -74,7 +74,29 @@
                                 </group>
                             </page>
                             <page string="Advanced Pricing">
-                                <group>
+                                <field name="allow_advanced_pricing" invisible="1"/>
+                                
+                                <!-- Warning if disabled -->
+                                <div invisible="allow_advanced_pricing" class="alert alert-info" role="alert" style="margin-top: 10px; margin-bottom: 20px;">
+                                    <h4 class="alert-heading">Multi-UOM &amp; Advanced Pricing is Disabled</h4>
+                                    <p>To use Wholesale and Retail prices, or to sell items in multiple units of measure (e.g. Boxes and Singles), please activate the <b>Allow Advanced Pricing &amp; Multi-UOM</b> setting.</p>
+                                    <hr/>
+                                    <p class="mb-0">Go to <b>Settings &gt; Stock</b> to activate this feature for your business.</p>
+                                </div>
+                                
+                                <!-- Table if enabled -->
+                                <group invisible="not allow_advanced_pricing">
+                                    <field name="advanced_price_ids" nolabel="1">
+                                        <list editable="bottom">
+                                            <field name="pricelist_id" options="{'no_create': True}"/>
+                                            <field name="uom_id" string="Unit of Measure" options="{'no_create': True}"/>
+                                            <field name="qty_to_be_sold" string="Qty to be Sold"/>
+                                            <field name="price"/>
+                                        </list>
+                                    </field>
+                                </group>
+                                
+                                <group string="Other Pricing Settings">
                                     <group>
                                         <field name="discount_percentage" class="border-bottom border-dark"/>
                                         <field name="tax_percentage" class="border-bottom border-dark"/>

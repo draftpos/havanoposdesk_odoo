@@ -27,3 +27,8 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.allow_multi_currency',
         readonly=False
     )
+    biz_allow_advanced_pricing = fields.Boolean(
+        string="Allow Advanced Pricing & Multi-UOM",
+        related='tenant_id.allow_advanced_pricing',
+        readonly=False
+    )

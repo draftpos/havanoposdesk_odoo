@@ -112,7 +112,10 @@ class HavanoposdeskProduct(models.Model):
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=lambda self: (self.env['havanoposdesk.uom'].search([('name', '=', 'Each')], limit=1) or self.env['havanoposdesk.uom'].create({'name': 'Each'})).id)
     
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
-    def _default_store_id(self):
+    advanced_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='Advanced Prices')
+    allow_advanced_pricing = fields.Boolean(related='tenant_id.allow_advanced_pricing', readonly=True)
+
+    def _get_default_store(self):
         tenant_id = self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
         # Look for the store explicitly marked as default for this tenant
         default_store = self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id), ('is_default', '=', True)], limit=1)
@@ -121,7 +124,7 @@ class HavanoposdeskProduct(models.Model):
         # Fallback to user's personal default or the first available store
         return self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1).id
 
-    store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True, default=_default_store_id)
+    store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True, default=_get_default_store)
 
     @api.depends('buying_price', 'selling_price')
     def _compute_markup(self):

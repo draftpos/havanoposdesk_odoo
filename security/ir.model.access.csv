@@ -27,3 +27,5 @@ access_havanoposdesk_tax_user,havanoposdesk.tax user,model_havanoposdesk_tax,bas
 access_havanoposdesk_payment_user,havanoposdesk.payment user,model_havanoposdesk_payment,base.group_user,1,1,1,1
 access_havanoposdesk_sale_return_wizard_user,havanoposdesk.sale.return.wizard user,model_havanoposdesk_sale_return_wizard,base.group_user,1,1,1,1
 access_havanoposdesk_sale_return_wizard_line_user,havanoposdesk.sale.return.wizard.line user,model_havanoposdesk_sale_return_wizard_line,base.group_user,1,1,1,1
+access_havanoposdesk_pricelist,havanoposdesk.pricelist,model_havanoposdesk_pricelist,base.group_user,1,1,1,1
+access_havanoposdesk_product_uom_price,havanoposdesk.product.uom.price,model_havanoposdesk_product_uom_price,base.group_user,1,1,1,1

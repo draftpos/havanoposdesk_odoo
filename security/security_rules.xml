@@ -25,6 +25,22 @@
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
+        <!-- Pricelist Model Isolation Rule -->
+        <record id="rule_havano_pricelist_isolation" model="ir.rule">
+            <field name="name">Havano Pricelist Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_pricelist"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Product UOM Price Model Isolation Rule -->
+        <record id="rule_havano_product_uom_price_isolation" model="ir.rule">
+            <field name="name">Havano Product UOM Price Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_product_uom_price"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
         <!-- Store Model Isolation Rule -->
         <record id="rule_havano_store_isolation" model="ir.rule">
             <field name="name">Havano Store Isolation</field>

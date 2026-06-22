@@ -67,6 +67,9 @@
                         <setting id="allow_negative_stock_setting" help="Allow selling products even when their quantity on hand is zero or less. Purchasing more will compensate the negative balance automatically.">
                             <field name="havano_allow_negative_stock" widget="boolean_toggle"/>
                         </setting>
+                        <setting id="allow_advanced_pricing_setting" help="Allow setting different prices based on pricelists (e.g. Retail, Wholesale) and multiple units of measure.">
+                            <field name="biz_allow_advanced_pricing" widget="boolean_toggle"/>
+                        </setting>
                     </block>
                 </app>
 
