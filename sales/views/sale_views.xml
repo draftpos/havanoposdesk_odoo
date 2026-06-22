@@ -130,5 +130,6 @@
         <!-- Sales App Menu Connections -->
         <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="10"/>
         <menuitem id="menu_sales_analysis" name="Sales Analysis" parent="menu_sales_reports" action="action_sales_analysis" sequence="10"/>
+        <menuitem id="menu_my_sales_analysis" name="Sales Analysis" parent="menu_my_business_analytics" action="action_sales_analysis" sequence="10"/>
     </data>
 </odoo>
