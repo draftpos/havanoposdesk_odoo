@@ -8,10 +8,11 @@
         <field name="arch" type="xml">
             <!-- Hide native General Settings tab -->
             <xpath expr="//app[@name='general_settings']" position="attributes">
-                <attribute name="invisible">1</attribute>
+                <attribute name="invisible">not is_super_user</attribute>
             </xpath>
 
             <xpath expr="//form" position="inside">
+                <field name="is_super_user" invisible="1"/>
                 <!-- SaaS Config Settings -->
                 <app logo="/Havanoposdesk_odoo/static/description/icon.png" data-string="SaaS Config" string="SaaS Config" name="havanoposdesk_saas" groups="base.group_system">
                     <block title="SaaS Administration" name="saas_config">
