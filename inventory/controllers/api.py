@@ -3870,10 +3870,31 @@ class HavanoPOSDeskAPI(http.Controller):
                 company = env['res.company'].search([], limit=1)
                 company_id = company.id if company else 1
 
+                plan = env['havanoposdesk.subscription.plan'].sudo().search([], order='id asc', limit=1)
+                if not plan:
+                    plan = env['havanoposdesk.subscription.plan'].sudo().create({
+                        'name': 'Default Plan',
+                        'price': 0.0,
+                        'duration_days': 30,
+                        'max_stores': 0,
+                        'max_users': 0,
+                        'max_terminals': 0
+                    })
+                plan_id = plan.id
+
+                import datetime
+                start_date = datetime.date.today()
+                duration = plan.duration_days or 30
+                end_date = start_date + datetime.timedelta(days=duration)
+
                 tenant_vals = {
                     'name': company_name or f"{first_name}'s Business",
                     'api_company_name': company_name or f"{first_name}'s Business",
+                    'subscription_plan_id': plan_id,
                     'subscription_state': 'active',
+                    'subscription_start_date': start_date,
+                    'subscription_end_date': end_date,
+                    'payment_status': 'paid',
                 }
                 tenant = env['havanoposdesk.tenant'].create(tenant_vals)
 
