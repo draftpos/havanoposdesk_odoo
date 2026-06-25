@@ -37,5 +37,38 @@
                 </xpath>
             </field>
         </record>
+
+        <record id="view_users_form_simple_modif_inherit_havano" model="ir.ui.view">
+            <field name="name">res.users.preferences.form.inherit.havano</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="base.view_users_form_simple_modif"/>
+            <field name="arch" type="xml">
+                <xpath expr="//notebook" position="inside">
+                    <page string="Havano SaaS" name="havano_saas">
+                        <group>
+                            <group string="SaaS Credentials">
+                                <field name="havano_role" readonly="1"/>
+                                <field name="tenant_id" readonly="1" invisible="havano_role == 'super_admin'"/>
+                            </group>
+                            <group string="Store Access" invisible="havano_role == 'super_admin'">
+                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                                <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                            </group>
+                            <group string="API &amp; Integration Settings">
+                                <field name="api_company_name"/>
+                                <field name="api_currency"/>
+                                <field name="api_cost_center" placeholder="Defaults to default store if blank"/>
+                                <field name="api_warehouse" placeholder="Defaults to default store if blank"/>
+                            </group>
+                            <group string="POS Settings">
+                                <field name="allow_discount"/>
+                                <field name="max_discount_percent"/>
+                                <field name="require_shift"/>
+                            </group>
+                        </group>
+                    </page>
+                </xpath>
+            </field>
+        </record>
     </data>
 </odoo>

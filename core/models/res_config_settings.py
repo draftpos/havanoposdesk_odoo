@@ -14,6 +14,17 @@ class ResConfigSettings(models.TransientModel):
         for record in self:
             record.is_super_user = is_super
 
+    @api.model
+    def check_access_rights(self, operation, raise_exception=True):
+        if self.env.user.havano_role in ('admin', 'super_admin') and operation in ('read', 'write', 'create', 'search'):
+            return True
+        return super().check_access_rights(operation, raise_exception=raise_exception)
+
+    def execute(self):
+        if self.env.user.havano_role in ('admin', 'super_admin'):
+            return super(ResConfigSettings, self.sudo()).execute()
+        return super().execute()
+
 
     havano_allow_negative_stock = fields.Boolean(
         string="Allow Negative Stock",
