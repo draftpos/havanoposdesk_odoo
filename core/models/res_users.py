@@ -21,6 +21,7 @@ class ResUsers(models.Model):
     store_ids = fields.Many2many('havanoposdesk.store', 'res_users_store_rel', 'user_id', 'store_id', string="Allowed Stores")
     selected_shop_id = fields.Many2one('havanoposdesk.store', string="Selected Shop")
     selected_terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string="Selected Terminal")
+    pin = fields.Char(string="PIN Code")
 
     verification_token = fields.Char(string="Verification Token", copy=False)
     verification_sent_at = fields.Datetime(string="Verification Sent At", copy=False)
