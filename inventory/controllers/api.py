@@ -181,18 +181,17 @@ class HavanoPOSDeskAPI(http.Controller):
             app_version = request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version')
             is_mobile = app_version or 'dart' in user_agent or 'havano' in user_agent or 'postman' in user_agent
 
-            if is_mobile:
+            if is_mobile or user.havano_role in ('admin', 'user'):
                 role_val = "tenant_admin" if user.havano_role == "admin" else ("cashier" if user.havano_role == "user" else user.havano_role)
                 shops_data = []
                 if user.tenant_id:
-                    shops = user_env['havanoposdesk.store'].sudo().search([('tenant_id', '=', user.tenant_id.id)])
+                    shop_domain = [('tenant_id', '=', user.tenant_id.id)]
+                    if user.havano_role == 'user' and user.store_ids:
+                        shop_domain.append(('id', 'in', user.store_ids.ids))
+                    shops = user_env['havanoposdesk.store'].sudo().search(shop_domain)
                     for s in shops:
                         terminals = user_env['havanoposdesk.pos.terminal'].sudo().search([
-                            ('store_id', '=', s.id),
-                            ('status', '!=', 'offline'),
-                            '|',
-                            ('taken_by_user_id', '=', False),
-                            ('taken_by_user_id', '=', user.id)
+                            ('store_id', '=', s.id)
                         ])
                         terminals_data = []
                         for t in terminals:
@@ -4606,14 +4605,13 @@ class HavanoPOSDeskAPI(http.Controller):
         # Get shops data
         shops_data = []
         if user.tenant_id:
-            shops = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', user.tenant_id.id)])
+            shop_domain = [('tenant_id', '=', user.tenant_id.id)]
+            if user.havano_role == 'user' and user.store_ids:
+                shop_domain.append(('id', 'in', user.store_ids.ids))
+            shops = env['havanoposdesk.store'].sudo().search(shop_domain)
             for s in shops:
                 terminals = env['havanoposdesk.pos.terminal'].sudo().search([
-                    ('store_id', '=', s.id),
-                    ('status', '!=', 'offline'),
-                    '|',
-                    ('taken_by_user_id', '=', False),
-                    ('taken_by_user_id', '=', user.id)
+                    ('store_id', '=', s.id)
                 ])
                 terminals_data = []
                 for t in terminals:
