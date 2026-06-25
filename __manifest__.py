@@ -11,10 +11,10 @@
     'author': 'Havano',
     'depends': ['base', 'web', 'base_setup', 'auth_signup', 'payment', 'havano_payments', 'mail', 'spreadsheet_dashboard', 'utm'],
     'data': [
+        'security/security_rules.xml',
+        'security/ir.model.access.csv',
         'core/views/hide_menus.xml',
         'core/data/cron.xml',
-        'security/ir.model.access.csv',
-        'security/security_rules.xml',
         'inventory/data/sequence.xml',
         'core/views/store_views.xml',
         'core/views/res_users_views.xml',
