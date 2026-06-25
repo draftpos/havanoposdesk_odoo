@@ -32,5 +32,7 @@ access_havanoposdesk_product_uom_price,havanoposdesk.product.uom.price,model_hav
 access_res_users_tenant_admin,res.users,base.model_res_users,havanoposdesk_odoo.group_tenant_admin,1,1,1,1
 access_havanoposdesk_user_rights_profile,havanoposdesk.user.rights.profile,model_havanoposdesk_user_rights_profile,base.group_user,1,1,1,1
 access_havanoposdesk_user_rights_permission,havanoposdesk.user.rights.permission,model_havanoposdesk_user_rights_permission,base.group_user,1,1,1,1
+access_havano_change_password_wizard,havano.change.password.wizard,model_havano_change_password_wizard,base.group_user,1,1,1,1
+
 
 

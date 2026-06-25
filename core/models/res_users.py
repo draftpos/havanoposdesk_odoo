@@ -326,3 +326,28 @@ class ResUsers(models.Model):
             unverified_users.action_suspend_user()
 
 
+class HavanoChangePasswordWizard(models.TransientModel):
+    _name = 'havano.change.password.wizard'
+    _description = 'Change Cashier Password'
+
+    user_id = fields.Many2one('res.users', string='Cashier', required=True)
+    new_password = fields.Char(string='New Password', required=True)
+
+    def action_change_password(self):
+        self.ensure_one()
+        if self.env.user.havano_role == 'admin' and self.user_id.tenant_id != self.env.user.tenant_id:
+            raise ValidationError('You can only change password for cashiers in your own tenant.')
+        self.user_id.sudo().write({'password': self.new_password})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Success',
+                'message': 'Password changed successfully.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+
+

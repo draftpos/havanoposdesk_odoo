@@ -191,7 +191,11 @@ class HavanoPOSDeskAPI(http.Controller):
                     shops = user_env['havanoposdesk.store'].sudo().search(shop_domain)
                     for s in shops:
                         terminals = user_env['havanoposdesk.pos.terminal'].sudo().search([
-                            ('store_id', '=', s.id)
+                            ('store_id', '=', s.id),
+                            ('status', '!=', 'offline'),
+                            '|',
+                            ('taken_by_user_id', '=', False),
+                            ('taken_by_user_id', '=', user.id)
                         ])
                         terminals_data = []
                         for t in terminals:
@@ -4154,15 +4158,51 @@ class HavanoPOSDeskAPI(http.Controller):
             last_name = data.get('last_name') or 'Account'
             role = data.get('role_profile_name') or 'User'
 
-            if not email or not password:
-                return self._make_json_response({"error": "Email and password are required"}, status=400)
-
-            existing_user = env['res.users'].search([('login', '=', email)], limit=1)
-            if existing_user:
-                return self._make_json_response({"error": "User email is already registered"}, status=400)
+            if not email:
+                return self._make_json_response({"error": "Email is required"}, status=400)
 
             current_user = env['res.users'].browse(uid)
             tenant_id = current_user.tenant_id.id if current_user.tenant_id else False
+
+            # Determine role: admin or cashier ('user')
+            is_admin = False
+            if role:
+                if role.lower() in ('admin', 'tenant admin', 'tenant_admin'):
+                    is_admin = True
+            user_role = 'admin' if is_admin else 'user'
+
+            existing_user = env['res.users'].search([('login', '=', email)], limit=1)
+            if existing_user:
+                if existing_user.tenant_id and existing_user.tenant_id.id == tenant_id:
+                    # Update existing user info
+                    user_vals = {
+                        'name': f"{first_name} {last_name}".strip(),
+                        'phone': phone_number,
+                        'pin': pin,
+                    }
+                    if password:
+                        user_vals['password'] = password
+                    
+                    if role:
+                        user_vals['havano_role'] = user_role
+                        # Let's search for the profile in this tenant
+                        profile = env['havanoposdesk.user.rights.profile'].search([
+                            ('name', '=', role),
+                            ('tenant_id', '=', tenant_id)
+                        ], limit=1)
+                        if profile:
+                            user_vals['user_rights_profile_id'] = profile.id
+
+                    existing_user.sudo().write(user_vals)
+                    return self._make_json_response({
+                        "message": "User updated successfully"
+                    })
+                else:
+                    return self._make_json_response({"error": "User email is already registered under another tenant"}, status=400)
+
+            # Create new user
+            if not password:
+                return self._make_json_response({"error": "Password is required for new users"}, status=400)
 
             company = env['res.company'].search([], limit=1)
             company_id = company.id if company else 1
@@ -4171,7 +4211,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'name': f"{first_name} {last_name}".strip(),
                 'login': email,
                 'password': password,
-                'havano_role': 'user' if role == 'User' else 'admin',
+                'havano_role': user_role,
                 'saas_state': 'verified',
                 'tenant_id': tenant_id,
                 'phone': phone_number,
@@ -4185,6 +4225,15 @@ class HavanoPOSDeskAPI(http.Controller):
                 user_vals['store_ids'] = [(4, current_user.default_store_id.id)]
                 user_vals['api_warehouse'] = current_user.default_store_id.name
                 user_vals['api_cost_center'] = current_user.default_store_id.name
+
+            # Map the profile if provided
+            if role:
+                profile = env['havanoposdesk.user.rights.profile'].search([
+                    ('name', '=', role),
+                    ('tenant_id', '=', tenant_id)
+                ], limit=1)
+                if profile:
+                    user_vals['user_rights_profile_id'] = profile.id
 
             user = env['res.users'].create(user_vals)
 
@@ -4445,7 +4494,11 @@ class HavanoPOSDeskAPI(http.Controller):
             shops_data = []
             for s in shops:
                 terminals = env['havanoposdesk.pos.terminal'].sudo().search([
-                    ('store_id', '=', s.id)
+                    ('store_id', '=', s.id),
+                    ('status', '!=', 'offline'),
+                    '|',
+                    ('taken_by_user_id', '=', False),
+                    ('taken_by_user_id', '=', user.id)
                 ])
                 terminals_data = []
                 for t in terminals:
@@ -4610,7 +4663,11 @@ class HavanoPOSDeskAPI(http.Controller):
             shops = env['havanoposdesk.store'].sudo().search(shop_domain)
             for s in shops:
                 terminals = env['havanoposdesk.pos.terminal'].sudo().search([
-                    ('store_id', '=', s.id)
+                    ('store_id', '=', s.id),
+                    ('status', '!=', 'offline'),
+                    '|',
+                    ('taken_by_user_id', '=', False),
+                    ('taken_by_user_id', '=', user.id)
                 ])
                 terminals_data = []
                 for t in terminals:

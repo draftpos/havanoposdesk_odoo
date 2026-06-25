@@ -27,6 +27,9 @@
             <field name="view_mode">list,form</field>
             <field name="domain">[('havano_role', '=', 'user')]</field>
             <field name="context">{'default_havano_role': 'user'}</field>
+            <field name="view_ids" eval="[(5, 0, 0),
+                (0, 0, {'view_mode': 'list', 'view_id': ref('view_my_cashiers_tree')}),
+                (0, 0, {'view_mode': 'form', 'view_id': ref('view_my_cashiers_form')})]"/>
         </record>
         <menuitem id="menu_my_cashiers" name="Cashiers" parent="menu_my_business_root" action="action_my_cashiers" sequence="30"/>
 
@@ -101,6 +104,95 @@ else:
             </field>
         </record>
         <menuitem id="menu_my_business_exchange_rate" name="Exchange Rates" parent="menu_my_business_settings_parent" action="action_havanoposdesk_exchange_rates" sequence="30"/>
+
+        <!-- Change Password Wizard Form View -->
+        <record id="view_havano_change_password_wizard_form" model="ir.ui.view">
+            <field name="name">havano.change.password.wizard.form</field>
+            <field name="model">havano.change.password.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Change Cashier Password">
+                    <group>
+                        <field name="user_id" readonly="1" force_save="1"/>
+                        <field name="new_password" password="True" required="1"/>
+                    </group>
+                    <footer>
+                        <button name="action_change_password" string="Change Password" type="object" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <!-- Change Password Action for wizard -->
+        <record id="action_havano_change_password_wizard" model="ir.actions.act_window">
+            <field name="name">Change Password</field>
+            <field name="res_model">havano.change.password.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+
+        <!-- Custom Tree/List View for Cashiers -->
+        <record id="view_my_cashiers_tree" model="ir.ui.view">
+            <field name="name">res.users.my.cashiers.list</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <list string="My Cashiers">
+                    <field name="name"/>
+                    <field name="login" string="Email / Username"/>
+                    <field name="phone"/>
+                    <field name="pin"/>
+                    <field name="user_rights_profile_id"/>
+                    <field name="active" widget="boolean_toggle"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Custom Form View for Cashiers -->
+        <record id="view_my_cashiers_form" model="ir.ui.view">
+            <field name="name">res.users.my.cashiers.form</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <form string="Cashier">
+                    <header>
+                        <button name="%(action_havano_change_password_wizard)d" string="Change Password" type="action" class="oe_highlight" context="{'default_user_id': id}"/>
+                    </header>
+                    <sheet>
+                        <widget name="web_ribbon" title="Archived" bg_color="text-danger" invisible="active"/>
+                        <div class="oe_title">
+                            <label for="name" class="oe_edit_only"/>
+                            <h1>
+                                <field name="name" required="1" placeholder="Cashier Name"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group string="Basic Information">
+                                <field name="login" string="Email / Username" required="1"/>
+                                <field name="phone"/>
+                                <field name="pin"/>
+                                <field name="active"/>
+                            </group>
+                            <group string="Access &amp; Permissions">
+                                <field name="user_rights_profile_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                                <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
+                                <field name="tenant_id" invisible="1"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="POS Settings" name="pos_settings">
+                                <group>
+                                    <group>
+                                        <field name="allow_discount"/>
+                                        <field name="max_discount_percent"/>
+                                        <field name="require_shift"/>
+                                    </group>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
     </data>
 </odoo>
 
