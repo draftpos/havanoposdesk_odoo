@@ -4435,18 +4435,17 @@ class HavanoPOSDeskAPI(http.Controller):
             if not user.tenant_id:
                 return self._make_json_response({"error": "No shops available for this user"}, status=400)
 
-            shops = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', user.tenant_id.id)])
+            shop_domain = [('tenant_id', '=', user.tenant_id.id)]
+            if user.havano_role == 'user' and user.store_ids:
+                shop_domain.append(('id', 'in', user.store_ids.ids))
+            shops = env['havanoposdesk.store'].sudo().search(shop_domain)
             if not shops:
                 return self._make_json_response({"error": "No shops available for this user"}, status=400)
 
             shops_data = []
             for s in shops:
                 terminals = env['havanoposdesk.pos.terminal'].sudo().search([
-                    ('store_id', '=', s.id),
-                    ('status', '!=', 'offline'),
-                    '|',
-                    ('taken_by_user_id', '=', False),
-                    ('taken_by_user_id', '=', user.id)
+                    ('store_id', '=', s.id)
                 ])
                 terminals_data = []
                 for t in terminals:
