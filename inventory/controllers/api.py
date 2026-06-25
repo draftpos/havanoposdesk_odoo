@@ -187,7 +187,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 if user.tenant_id:
                     shops = user_env['havanoposdesk.store'].sudo().search([('tenant_id', '=', user.tenant_id.id)])
                     for s in shops:
-                        terminals = user_env['havanoposdesk.pos.terminal'].sudo().search([('store_id', '=', s.id)])
+                        terminals = user_env['havanoposdesk.pos.terminal'].sudo().search([
+                            ('store_id', '=', s.id),
+                            ('status', '!=', 'offline'),
+                            '|',
+                            ('taken_by_user_id', '=', False),
+                            ('taken_by_user_id', '=', user.id)
+                        ])
                         terminals_data = []
                         for t in terminals:
                             terminals_data.append({
@@ -4435,7 +4441,13 @@ class HavanoPOSDeskAPI(http.Controller):
 
             shops_data = []
             for s in shops:
-                terminals = env['havanoposdesk.pos.terminal'].sudo().search([('store_id', '=', s.id)])
+                terminals = env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('store_id', '=', s.id),
+                    ('status', '!=', 'offline'),
+                    '|',
+                    ('taken_by_user_id', '=', False),
+                    ('taken_by_user_id', '=', user.id)
+                ])
                 terminals_data = []
                 for t in terminals:
                     terminals_data.append({
@@ -4488,7 +4500,7 @@ class HavanoPOSDeskAPI(http.Controller):
             user.sudo().write({'selected_shop_id': shop.id})
             
             user_data = self._get_user_info_dict(user, env)
-            return self._make_json_response({"user": user_data}, status=200)
+            return self._make_json_response({"message": "Shop Selected", "user": user_data}, status=200)
         except Exception as e:
             if custom_cr:
                 custom_cr.rollback()
@@ -4525,12 +4537,16 @@ class HavanoPOSDeskAPI(http.Controller):
             if not terminal.exists() or (user.tenant_id and terminal.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Terminal does not exist or does not belong to this tenant"}, status=400)
 
-            # Cashier checks: cashier can only select open terminals
+            if terminal.status == 'offline':
+                return self._make_json_response({"error": "Terminal is offline"}, status=400)
+
+            if terminal.status == 'taken' and terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
+                return self._make_json_response({"error": "Terminal is already in use by another user"}, status=400)
+
+            # Cashier checks: cashier can only select open or online terminals
             if user.havano_role != 'admin' and user.havano_role != 'super_admin':
-                if terminal.status == 'taken':
-                    return self._make_json_response({"error": "Terminal is already in use"}, status=400)
-                elif terminal.status != 'open':
-                    return self._make_json_response({"error": "No open terminals available"}, status=400)
+                if terminal.status not in ('open', 'online') and (not terminal.taken_by_user_id or terminal.taken_by_user_id.id != user.id):
+                    return self._make_json_response({"error": "Selected terminal is not available"}, status=400)
 
             # If it was previously taking a terminal, release it
             old_terminal = env['havanoposdesk.pos.terminal'].sudo().search([('taken_by_user_id', '=', user.id)])
@@ -4545,7 +4561,7 @@ class HavanoPOSDeskAPI(http.Controller):
             })
 
             user_data = self._get_user_info_dict(user, env)
-            return self._make_json_response({"user": user_data}, status=200)
+            return self._make_json_response({"message": "Terminal Selected", "user": user_data}, status=200)
         except Exception as e:
             if custom_cr:
                 custom_cr.rollback()
@@ -4591,7 +4607,13 @@ class HavanoPOSDeskAPI(http.Controller):
         if user.tenant_id:
             shops = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', user.tenant_id.id)])
             for s in shops:
-                terminals = env['havanoposdesk.pos.terminal'].sudo().search([('store_id', '=', s.id)])
+                terminals = env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('store_id', '=', s.id),
+                    ('status', '!=', 'offline'),
+                    '|',
+                    ('taken_by_user_id', '=', False),
+                    ('taken_by_user_id', '=', user.id)
+                ])
                 terminals_data = []
                 for t in terminals:
                     terminals_data.append({
