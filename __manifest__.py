@@ -9,9 +9,10 @@
         Provides JSON REST API for the Flutter Havano POS frontend.
     """,
     'author': 'Havano',
-    'depends': ['base', 'web', 'auth_signup', 'payment', 'havano_payments', 'mail', 'spreadsheet_dashboard', 'utm'],
+    'depends': ['base', 'web', 'base_setup', 'auth_signup', 'payment', 'havano_payments', 'mail', 'spreadsheet_dashboard', 'utm'],
     'data': [
         'core/views/hide_menus.xml',
+        'core/data/cron.xml',
         'security/ir.model.access.csv',
         'security/security_rules.xml',
         'inventory/data/sequence.xml',
@@ -24,7 +25,6 @@
         'core/views/res_config_settings_views.xml',
         'core/views/tenant_admin_views.xml',
 
-        'suppliers/views/supplier_views.xml',
         'accounts/views/account_views.xml',
         'accounts/views/expense_views.xml',
         'accounts/views/tax_views.xml',
@@ -51,7 +51,7 @@
     'license': 'LGPL-3',
     'assets': {
         'web.assets_backend': [
-            'Havanoposdesk_odoo/static/src/js/user_menu_hide.js',
+            'havanoposdesk_odoo/static/src/js/user_menu_hide.js',
         ],
     },
 }

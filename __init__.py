@@ -1,5 +1,6 @@
 from . import core
-from . import sales
-from . import inventory
-from . import suppliers
 from . import accounts
+from . import inventory
+from . import sales
+from . import suppliers
+

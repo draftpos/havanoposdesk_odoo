@@ -178,6 +178,38 @@ class Sale(models.Model):
                         else:
                             valuation.write({'on_hand_qty': valuation.on_hand_qty - line.accepted_qty})
                     else:
+                        self.env['havanoposdesk.stock.valuation'].sudo().create({
+                            'product_id': line.product_id.id,
+                            'store': sale.store,
+                            'on_hand_qty': -line.accepted_qty,
+                        })
+                elif line.accepted_qty < 0:
+                    # Return sale: add back to stock
+                    line.product_id.opening_stock += abs(line.accepted_qty)
+                    
+                    # Create Ledger Entry using sudo()
+                    self.env['havanoposdesk.stock.ledger'].sudo().create({
+                        'product_id': line.product_id.id,
+                        'in_qty': abs(line.accepted_qty),
+                        'out_qty': 0.0,
+                        'balance_qty': line.product_id.opening_stock,
+                        'store': sale.store,
+                        'type': 'Return',
+                        'doc_no': sale.name,
+                    })
+
+                    # Update or Create Valuation Entry using sudo()
+                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                        ('product_id', '=', line.product_id.id),
+                        ('store', '=', sale.store)
+                    ], limit=1)
+                    
+                    if valuation:
+                        if sale.is_return:
+                            valuation.write({'on_hand_qty': valuation.on_hand_qty + line.accepted_qty})
+                        else:
+                            valuation.write({'on_hand_qty': valuation.on_hand_qty - line.accepted_qty})
+                    else:
                         if sale.is_return:
                             self.env['havanoposdesk.stock.valuation'].sudo().create({
                                 'product_id': line.product_id.id,
@@ -278,6 +310,6 @@ class SaleLine(models.Model):
         allow_negative = self.env['ir.config_parameter'].sudo().get_param('havanoposdesk.allow_negative_stock', 'True') == 'True'
         for line in self:
             if line.accepted_qty < 0:
-                raise ValidationError("Quantity cannot be negative.")
-            if not allow_negative and line.product_id and line.accepted_qty > line.product_id.opening_stock:
+                continue
+            if line.product_id and line.accepted_qty > line.product_id.opening_stock:
                 raise ValidationError(f"You cannot sell {line.accepted_qty} of {line.product_id.name} because you only have {line.product_id.opening_stock} on hand.")

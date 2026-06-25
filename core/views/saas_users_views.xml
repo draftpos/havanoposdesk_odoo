@@ -27,6 +27,7 @@
                     <header>
                         <button name="action_verify_user" type="object" string="Verify" class="oe_highlight" invisible="saas_state == 'verified'"/>
                         <button name="action_suspend_user" type="object" string="Suspend" class="btn-danger" invisible="saas_state == 'suspended'"/>
+                        <button name="action_send_verification_email" type="object" string="Resend Verification Email" class="btn-secondary" invisible="saas_state != 'unverified'"/>
                         <field name="saas_state" widget="statusbar" statusbar_visible="unverified,verified,suspended"/>
                     </header>
                 </xpath>

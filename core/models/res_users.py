@@ -1,6 +1,7 @@
 from odoo import models, fields, api, tools, _
 from odoo.exceptions import ValidationError, RedirectWarning
 from odoo.tools import frozendict
+import datetime
 
 class ResUsers(models.Model):
     _inherit = "res.users"
@@ -19,10 +20,17 @@ class ResUsers(models.Model):
     default_store_id = fields.Many2one('havanoposdesk.store', string="Default Store")
     store_ids = fields.Many2many('havanoposdesk.store', 'res_users_store_rel', 'user_id', 'store_id', string="Allowed Stores")
 
+    verification_token = fields.Char(string="Verification Token", copy=False)
+    verification_sent_at = fields.Datetime(string="Verification Sent At", copy=False)
+
     api_company_name = fields.Char(string="API Company Name", default="Havano POS Company")
     api_currency = fields.Char(string="API Currency", default="USD")
     api_cost_center = fields.Char(string="API Cost Center")
     api_warehouse = fields.Char(string="API Warehouse")
+
+    allow_discount = fields.Boolean(string="Allow Discount", default=True)
+    max_discount_percent = fields.Float(string="Max Discount Percent", default=100.0)
+    require_shift = fields.Boolean(string="Require Shift", default=False)
 
     @api.model
     def check_access_rights(self, operation, raise_exception=True):
@@ -32,7 +40,12 @@ class ResUsers(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        import uuid
         for vals in vals_list:
+            if vals.get('saas_state') == 'unverified' and not vals.get('verification_token'):
+                vals['verification_token'] = str(uuid.uuid4())
+                vals['verification_sent_at'] = fields.Datetime.now()
+
             if self.env.user.havano_role == 'super_admin':
                 continue
                 
@@ -124,9 +137,15 @@ class ResUsers(models.Model):
                 vals['tenant_id'] = self.env.user.tenant_id.id
                 internal_group = self.env.ref('base.group_user')
                 vals['group_ids'] = [(4, internal_group.id, 0)]
-            return super(ResUsers, self.sudo()).create(vals_list)
+            users = super(ResUsers, self.sudo()).create(vals_list)
+        else:
+            users = super().create(vals_list)
 
-        return super().create(vals_list)
+        for user in users:
+            if user.saas_state == 'unverified' and user.verification_token:
+                user.sudo().send_verification_email()
+
+        return users
 
     def write(self, vals):
         if self.env.user.havano_role == 'admin':
@@ -181,7 +200,7 @@ class ResUsers(models.Model):
         values.update({
             'tenant_id': tenant.id,
             'havano_role': 'admin',
-            'saas_state': 'verified',
+            'saas_state': 'unverified',
         })
 
         # 3. Create the user using standard portal template copy
@@ -199,5 +218,92 @@ class ResUsers(models.Model):
         })
 
         return user
+
+    def send_verification_email(self):
+        self.ensure_one()
+        if not self.verification_token:
+            return
+        
+        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+        verification_url = f"{base_url}/web/verify_email?token={self.verification_token}"
+        
+        subject = _("Verify Your Havano POS Desk Account")
+        body_html = f"""
+            <div style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8f9fa;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e9ecef;">
+                    <tr>
+                        <td align="center" style="padding: 40px 20px; background-color: #1a252f; color: #ffffff;">
+                            <h2 style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px;">Havano POS Desk</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.8;">Unified SaaS POS Backend</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 40px 30px; color: #495057; line-height: 1.6; font-size: 16px;">
+                            <p style="margin-top: 0;">Hello <strong>{self.name}</strong>,</p>
+                            <p>Thank you for signing up with Havano POS Desk! To start using your account and prevent suspension, please verify your email address by clicking the button below:</p>
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="{verification_url}" style="background-color: #007bff; color: #ffffff; text-decoration: none; padding: 12px 30px; font-size: 16px; font-weight: 500; border-radius: 5px; display: inline-block; transition: background-color 0.2s;">
+                                    Verify Email Address
+                                </a>
+                            </div>
+                            <p style="font-size: 14px; color: #6c757d;">Or copy and paste this link into your browser:</p>
+                            <p style="font-size: 13px; color: #007bff; word-break: break-all; margin-bottom: 30px;">
+                                <a href="{verification_url}" style="color: #007bff; text-decoration: underline;">{verification_url}</a>
+                            </p>
+                            <p style="margin-bottom: 0;">Best regards,<br/>The Havano Team</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="padding: 20px; background-color: #f1f3f5; font-size: 12px; color: #6c757d; border-top: 1px solid #e9ecef;">
+                            &copy; {datetime.datetime.now().year} Havano POS Desk. All rights reserved.
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        """
+        
+        mail_values = {
+            'subject': subject,
+            'body_html': body_html,
+            'email_to': self.login,
+            'email_from': self.company_id.email or 'noreply@havanopos.com',
+        }
+        self.env['mail.mail'].sudo().create(mail_values).send()
+
+    def action_send_verification_email(self):
+        for user in self:
+            if user.saas_state == 'unverified':
+                import uuid
+                if not user.verification_token:
+                    user.verification_token = str(uuid.uuid4())
+                user.verification_sent_at = fields.Datetime.now()
+                user.send_verification_email()
+
+    @api.model
+    def cron_check_unverified_users(self):
+        ICPSudo = self.env['ir.config_parameter'].sudo()
+        try:
+            grace_number = int(ICPSudo.get_param('havanoposdesk.verification_grace_number', '24') or '24')
+        except ValueError:
+            grace_number = 24
+        grace_unit = ICPSudo.get_param('havanoposdesk.verification_grace_unit', 'hours')
+        
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        if grace_unit == 'days':
+            threshold_time = now - timedelta(days=grace_number)
+        else:
+            threshold_time = now - timedelta(hours=grace_number)
+            
+        unverified_users = self.sudo().search([
+            ('saas_state', '=', 'unverified'),
+            ('active', '=', True),
+            '|',
+            ('verification_sent_at', '<', threshold_time),
+            ('&', ('verification_sent_at', '=', False), ('create_date', '<', threshold_time))
+        ])
+        
+        if unverified_users:
+            unverified_users.action_suspend_user()
 
 

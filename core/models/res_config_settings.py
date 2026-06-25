@@ -1,7 +1,19 @@
-from odoo import models, fields
+from odoo import api, models, fields
 
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
+
+    is_super_user = fields.Boolean(
+        string="Is Super User",
+        compute="_compute_is_super_user"
+    )
+
+    @api.depends_context('uid')
+    def _compute_is_super_user(self):
+        is_super = self.env.user.havano_role == 'super_admin' or self.env.user.has_group('base.group_system') or self.env.su
+        for record in self:
+            record.is_super_user = is_super
+
 
     havano_allow_negative_stock = fields.Boolean(
         string="Allow Negative Stock",
@@ -27,8 +39,18 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.allow_multi_currency',
         readonly=False
     )
-    biz_allow_advanced_pricing = fields.Boolean(
-        string="Allow Advanced Pricing & Multi-UOM",
-        related='tenant_id.allow_advanced_pricing',
-        readonly=False
+
+    havano_verification_grace_number = fields.Integer(
+        string="Verification Grace Number",
+        config_parameter="havanoposdesk.verification_grace_number",
+        default=24,
+        help="The amount of time a user has to verify their email before their account is suspended."
+    )
+    havano_verification_grace_unit = fields.Selection([
+        ('hours', 'Hours'),
+        ('days', 'Days')
+    ], string="Verification Grace Unit",
+        config_parameter="havanoposdesk.verification_grace_unit",
+        default='hours',
+        help="Unit of time for the grace period (Hours or Days)."
     )
