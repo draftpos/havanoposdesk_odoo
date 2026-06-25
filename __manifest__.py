@@ -18,6 +18,7 @@
         'inventory/data/sequence.xml',
         'core/views/store_views.xml',
         'core/views/res_users_views.xml',
+        'core/views/user_rights_views.xml',
         'core/views/saas_users_views.xml',
         'core/views/subscription_views.xml',
         'core/views/terminal_views.xml',

@@ -182,5 +182,21 @@
             <field name="global" eval="True"/>
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
+
+        <!-- User Rights Profile Model Isolation Rule -->
+        <record id="rule_havano_user_rights_profile_isolation" model="ir.rule">
+            <field name="name">Havano User Rights Profile Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_user_rights_profile"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- User Rights Permission Model Isolation Rule -->
+        <record id="rule_havano_user_rights_permission_isolation" model="ir.rule">
+            <field name="name">Havano User Rights Permission Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_user_rights_permission"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('profile_id.tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
     </data>
 </odoo>

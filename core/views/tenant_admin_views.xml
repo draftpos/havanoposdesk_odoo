@@ -30,6 +30,9 @@
         </record>
         <menuitem id="menu_my_cashiers" name="Cashiers" parent="menu_my_business_root" action="action_my_cashiers" sequence="30"/>
 
+        <!-- User Rights Profiles Submenu -->
+        <menuitem id="menu_my_user_rights_profiles" name="User Rights Profiles" parent="menu_my_business_root" action="action_user_rights_profiles" sequence="35"/>
+
         <!-- My Subscription Action & Menu -->
         <record id="action_my_subscription" model="ir.actions.server">
             <field name="name">My Subscription</field>

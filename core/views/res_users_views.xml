@@ -32,6 +32,7 @@
                                 <field name="max_discount_percent"/>
                                 <field name="require_shift"/>
                                 <field name="pin"/>
+                                <field name="user_rights_profile_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
                             </group>
                         </group>
                     </page>
@@ -66,6 +67,7 @@
                                 <field name="max_discount_percent"/>
                                 <field name="require_shift"/>
                                 <field name="pin"/>
+                                <field name="user_rights_profile_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" readonly="1"/>
                             </group>
                         </group>
                     </page>

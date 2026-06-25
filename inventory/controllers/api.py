@@ -220,7 +220,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "tenant_id": user.tenant_id.id if user.tenant_id else None,
                     "shops": shops_data,
                     "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
-                    "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None
+                    "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None,
+                    "user_rights": self._get_user_rights_dict(user)
                 })
 
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
@@ -4639,5 +4640,94 @@ class HavanoPOSDeskAPI(http.Controller):
             "tenant_id": user.tenant_id.id if user.tenant_id else None,
             "shops": shops_data,
             "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
-            "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None
+            "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None,
+            "user_rights": self._get_user_rights_dict(user)
+        }
+
+    def _get_user_rights_dict(self, user):
+        # Fallback profile if user is a tenant admin (Full Admin rights)
+        if user.havano_role == 'admin':
+            features = [
+                'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
+                'Stock Management', 'Payment Entries', 'Reports', 'Settings', 'Printer'
+            ]
+            return {
+                "name": "Admin",
+                "profile_name": "Admin",
+                "is_additional_tax_enabled": 1,
+                "food_tax": None,
+                "tourism_tax": None,
+                "permissions": [
+                    {
+                        "feature": f,
+                        "can_read": 1,
+                        "can_create": 1,
+                        "can_update": 1,
+                        "can_delete": 1,
+                        "can_submit": 1
+                    } for f in features
+                ]
+            }
+
+        profile = user.user_rights_profile_id
+        if not profile:
+            # Safe default fallback for cashier/user with no profile assigned
+            features = [
+                'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
+                'Stock Management', 'Payment Entries', 'Reports', 'Settings', 'Printer'
+            ]
+            return {
+                "name": "Default Cashier",
+                "profile_name": "Default Cashier",
+                "is_additional_tax_enabled": 0,
+                "food_tax": None,
+                "tourism_tax": None,
+                "permissions": [
+                    {
+                        "feature": f,
+                        "can_read": 1 if f in ('POS', 'Quotations', 'Sales', 'Products') else 0,
+                        "can_create": 1 if f in ('POS', 'Quotations', 'Sales') else 0,
+                        "can_update": 1 if f in ('POS', 'Quotations', 'Sales') else 0,
+                        "can_delete": 0,
+                        "can_submit": 1 if f in ('POS', 'Quotations', 'Sales') else 0
+                    } for f in features
+                ]
+            }
+
+        # Build permissions list from DB configuration
+        permissions = []
+        for p in profile.permission_ids:
+            permissions.append({
+                "feature": p.feature,
+                "can_read": 1 if p.can_read else 0,
+                "can_create": 1 if p.can_create else 0,
+                "can_update": 1 if p.can_update else 0,
+                "can_delete": 1 if p.can_delete else 0,
+                "can_submit": 1 if p.can_submit else 0
+            })
+
+        # Ensure all 10 features exist in the permissions list (fallback defaults if missing in DB configuration)
+        existing_features = [p['feature'] for p in permissions]
+        all_features = [
+            'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
+            'Stock Management', 'Payment Entries', 'Reports', 'Settings', 'Printer'
+        ]
+        for f in all_features:
+            if f not in existing_features:
+                permissions.append({
+                    "feature": f,
+                    "can_read": 0,
+                    "can_create": 0,
+                    "can_update": 0,
+                    "can_delete": 0,
+                    "can_submit": 0
+                })
+
+        return {
+            "name": profile.name,
+            "profile_name": profile.name,
+            "is_additional_tax_enabled": 1 if profile.is_additional_tax_enabled else 0,
+            "food_tax": profile.food_tax or None,
+            "tourism_tax": profile.tourism_tax or None,
+            "permissions": permissions
         }

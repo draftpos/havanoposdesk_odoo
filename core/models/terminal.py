@@ -118,3 +118,9 @@ class HavanoposdeskPosTerminal(models.Model):
 
         return super().create(vals_list)
 
+    def write(self, vals):
+        if 'taken_by_user_id' in vals and not vals['taken_by_user_id']:
+            vals['status'] = 'open'
+        return super().write(vals)
+
+

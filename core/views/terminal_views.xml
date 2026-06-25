@@ -9,7 +9,8 @@
                 <list string="POS Terminals">
                     <field name="name"/>
                     <field name="store_id"/>
-                    <field name="user_id"/>
+                    <field name="user_id" string="Assigned User"/>
+                    <field name="taken_by_user_id" string="Taken By User"/>
                     <field name="status"/>
                 </list>
             </field>
@@ -26,10 +27,11 @@
                             <group>
                                 <field name="name"/>
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
-                                <field name="user_id" domain="[('tenant_id', '=', tenant_id), ('havano_role', '=', 'user')]" options="{'no_create': True}"/>
+                                <field name="user_id" string="Assigned User" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
                             </group>
                             <group>
                                 <field name="status"/>
+                                <field name="taken_by_user_id" string="Taken By User" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
                                 <field name="tenant_id" invisible="1"/>
                             </group>
                         </group>
