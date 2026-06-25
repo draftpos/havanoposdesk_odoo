@@ -141,7 +141,10 @@ class ResUsers(models.Model):
         else:
             users = super().create(vals_list)
 
+        tenant_admin_group = self.env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
         for user in users:
+            if user.havano_role == 'admin' and tenant_admin_group:
+                user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, tenant_admin_group.id, 0)]})
             if user.saas_state == 'unverified' and user.verification_token:
                 user.sudo().send_verification_email()
 
@@ -156,9 +159,21 @@ class ResUsers(models.Model):
             # Prevent self-promotion or tenant modifications
             vals.pop('tenant_id', None)
             vals.pop('havano_role', None)
-            return super(ResUsers, self.sudo()).write(vals)
+            res = super(ResUsers, self.sudo()).write(vals)
+        else:
+            res = super().write(vals)
 
-        return super().write(vals)
+        if ('havano_role' in vals or 'group_ids' in vals) and not self.env.context.get('bypass_sync_role_groups'):
+            tenant_admin_group = self.env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
+            if tenant_admin_group:
+                for user in self:
+                    if user.havano_role == 'admin':
+                        if tenant_admin_group not in user.group_ids:
+                            user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, tenant_admin_group.id, 0)]})
+                    else:
+                        if tenant_admin_group in user.group_ids:
+                            user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(3, tenant_admin_group.id, 0)]})
+        return res
 
     def action_verify_user(self):
         for user in self:

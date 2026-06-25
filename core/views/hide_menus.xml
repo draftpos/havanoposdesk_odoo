@@ -11,26 +11,30 @@
         <record id="utm.menu_link_tracker_root" model="ir.ui.menu">
             <field name="group_ids" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
-        <!-- Ensure Apps and Settings are also restricted -->
+        <!-- Ensure Apps is restricted to system admin only, but Settings is accessible to Tenant Admins as well -->
         <record id="base.menu_management" model="ir.ui.menu">
             <field name="group_ids" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
         <record id="base.menu_administration" model="ir.ui.menu">
-            <field name="group_ids" eval="[(6, 0, [ref('base.group_system')])]"/>
+            <field name="group_ids" eval="[(6, 0, [ref('base.group_system'), ref('havanoposdesk_odoo.group_tenant_admin')])]"/>
         </record>
 
-        <!-- Enable native Settings top menus for the super user (restricted to group_system parent menu) -->
+        <!-- Expose native Settings top menus but restrict administrative ones to the super user only -->
         <record id="base.menu_translation" model="ir.ui.menu">
             <field name="active" eval="True"/>
+            <field name="group_ids" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
         <record id="base.menu_custom" model="ir.ui.menu">
             <field name="active" eval="True"/>
+            <field name="group_ids" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
         <record id="base.menu_config" model="ir.ui.menu">
             <field name="active" eval="True"/>
+            <field name="group_ids" eval="[(6, 0, [ref('base.group_system'), ref('havanoposdesk_odoo.group_tenant_admin')])]"/>
         </record>
         <record id="base.menu_users" model="ir.ui.menu">
             <field name="active" eval="True"/>
+            <field name="group_ids" eval="[(6, 0, [ref('base.group_system')])]"/>
         </record>
     </data>
 </odoo>
