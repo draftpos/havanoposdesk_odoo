@@ -54,7 +54,7 @@
     'post_init_hook': 'post_migrate',
     'assets': {
         'web.assets_backend': [
-            'havanoposdesk_odoo/static/src/js/user_menu_hide.js',
+            'Havanoposdesk_odoo/static/src/js/user_menu_hide.js',
         ],
     },
 }
