@@ -18,11 +18,15 @@
         </record>
 
         <!--
-            Settings top-level icon (base.menu_administration):
-            group_tenant_admin now implies base.group_erp_manager, which is the
-            native group that controls Settings visibility. No override needed here —
-            the icon will appear for Tenant Admins automatically via implied groups.
+            Settings icon: grant access to Tenant Admins directly.
+            group_erp_manager is the native Odoo "Settings" group.
+            We override group_ids so that ANY of: system, erp_manager, or
+            group_tenant_admin can see the icon — this is a runtime check,
+            no migration needed.
         -->
+        <record id="base.menu_administration" model="ir.ui.menu">
+            <field name="group_ids" eval="[(6, 0, [ref('base.group_system'), ref('base.group_erp_manager'), ref('havanoposdesk_odoo.group_tenant_admin')])]"/>
+        </record>
 
         <!-- Hide "General Settings" tab inside Settings: system admin only -->
         <record id="base.menu_config" model="ir.ui.menu">
