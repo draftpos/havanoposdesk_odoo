@@ -33,9 +33,9 @@ access_res_users_tenant_admin,res.users,base.model_res_users,havanoposdesk_odoo.
 access_havanoposdesk_user_rights_profile,havanoposdesk.user.rights.profile,model_havanoposdesk_user_rights_profile,base.group_user,1,1,1,1
 access_havanoposdesk_user_rights_permission,havanoposdesk.user.rights.permission,model_havanoposdesk_user_rights_permission,base.group_user,1,1,1,1
 access_havano_change_password_wizard,havano.change.password.wizard,model_havano_change_password_wizard,base.group_user,1,1,1,1
-access_res_config_settings_tenant_admin,res.config.settings tenant admin,model_res_config_settings,havanoposdesk_odoo.group_tenant_admin,1,1,1,0
-access_ir_actions_act_window_tenant_admin,ir.actions.act_window tenant admin,model_ir_actions_act_window,havanoposdesk_odoo.group_tenant_admin,1,0,0,0
-access_ir_actions_actions_tenant_admin,ir.actions.actions tenant admin,model_ir_actions_actions,havanoposdesk_odoo.group_tenant_admin,1,0,0,0
+access_res_config_settings_tenant_admin,res.config.settings tenant admin,base.model_res_config_settings,havanoposdesk_odoo.group_tenant_admin,1,1,1,0
+access_ir_actions_act_window_tenant_admin,ir.actions.act_window tenant admin,base.model_ir_actions_act_window,havanoposdesk_odoo.group_tenant_admin,1,0,0,0
+access_ir_actions_actions_tenant_admin,ir.actions.actions tenant admin,base.model_ir_actions_actions,havanoposdesk_odoo.group_tenant_admin,1,0,0,0
 
 
 
