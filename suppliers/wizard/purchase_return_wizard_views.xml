@@ -14,11 +14,12 @@
                         <page string="Items to Return">
                             <field name="line_ids">
                                 <list editable="bottom" create="0" delete="0">
-                                    <field name="product_id"/>
-                                    <field name="qty_purchased"/>
+                                    <field name="purchase_line_id" column_invisible="True" force_save="1"/>
+                                    <field name="product_id" readonly="1" force_save="1"/>
+                                    <field name="qty_purchased" readonly="1" force_save="1"/>
                                     <field name="qty_returned"/>
-                                    <field name="rate"/>
-                                    <field name="tax_ids" widget="many2many_tags"/>
+                                    <field name="rate" readonly="1" force_save="1"/>
+                                    <field name="tax_ids" widget="many2many_tags" readonly="1" force_save="1"/>
                                 </list>
                             </field>
                         </page>

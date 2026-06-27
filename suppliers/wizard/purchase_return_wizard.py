@@ -92,8 +92,8 @@ class PurchaseReturnWizardLine(models.TransientModel):
 
     wizard_id = fields.Many2one('havanoposdesk.purchase.return.wizard', string='Wizard')
     purchase_line_id = fields.Many2one('havanoposdesk.purchase.line', string='Purchase Line')
-    product_id = fields.Many2one('havanoposdesk.product', string='Product', readonly=True)
-    qty_purchased = fields.Float(string='Qty Purchased', readonly=True)
+    product_id = fields.Many2one('havanoposdesk.product', string='Product')
+    qty_purchased = fields.Float(string='Qty Purchased')
     qty_returned = fields.Float(string='Return Qty', default=0.0)
-    rate = fields.Float(string='Rate', readonly=True)
-    tax_ids = fields.Many2many('havanoposdesk.tax', string='Taxes', readonly=True)
+    rate = fields.Float(string='Rate')
+    tax_ids = fields.Many2many('havanoposdesk.tax', string='Taxes')
