@@ -172,9 +172,8 @@ else:
         </record>
         <menuitem id="menu_my_subscription" name="My Subscription" parent="menu_my_business_root" action="action_my_subscription" sequence="40"/>
         
-        <menuitem id="menu_my_business_settings_parent" name="Settings" parent="menu_my_business_root" sequence="100"/>
+        <menuitem id="menu_my_business_settings_parent" name="Currencies" parent="menu_my_business_root" sequence="100"/>
         
-        <menuitem id="menu_my_business_settings" name="General Settings" parent="menu_my_business_settings_parent" action="action_havanoposdesk_settings_my_business" sequence="10"/>
         <menuitem id="menu_my_business_currency" name="Currencies" parent="menu_my_business_settings_parent" action="base.action_currency_form" sequence="20"/>
 
         <!-- Custom Exchange Rate List View -->
