@@ -2,29 +2,11 @@
 <odoo>
     <data noupdate="1">
         <!-- Seed default white-label system parameters (only on first install, not on upgrade) -->
-        <record id="param_web_app_name" model="ir.config_parameter">
-            <field name="key">web.web_app_name</field>
-            <field name="value">Havano</field>
-        </record>
-        <record id="param_havano_theme_color" model="ir.config_parameter">
-            <field name="key">havanoposdesk.theme_color</field>
-            <field name="value">#714B67</field>
-        </record>
-        <record id="param_havano_bot_name" model="ir.config_parameter">
-            <field name="key">havanoposdesk.bot_name</field>
-            <field name="value">HavanoBot</field>
-        </record>
-        <record id="param_havano_vendor_url" model="ir.config_parameter">
-            <field name="key">havanoposdesk.vendor_url</field>
-            <field name="value">https://havano.cloud</field>
-        </record>
-        <record id="param_havano_vendor_domain" model="ir.config_parameter">
-            <field name="key">havanoposdesk.vendor_domain</field>
-            <field name="value">havano.cloud</field>
-        </record>
-        <record id="param_havano_web_base_url" model="ir.config_parameter">
-            <field name="key">havanoposdesk.web_base_url</field>
-            <field name="value">havano</field>
-        </record>
+        <function model="ir.config_parameter" name="set_param" eval="('web.web_app_name', 'Havano')"/>
+        <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.theme_color', '#714B67')"/>
+        <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.bot_name', 'HavanoBot')"/>
+        <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.vendor_url', 'https://havano.cloud')"/>
+        <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.vendor_domain', 'havano.cloud')"/>
+        <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.web_base_url', 'havano')"/>
     </data>
 </odoo>
