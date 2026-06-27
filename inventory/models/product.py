@@ -69,16 +69,27 @@ class HavanoposdeskProduct(models.Model):
 
     @api.onchange('sale_tax_ids')
     def _onchange_sale_tax_ids(self):
+        tenant_id = self.env.user.tenant_id.id
         purchase_tax_ids = []
         for sale_tax in self.sale_tax_ids:
+            # 1. Search by name first (exact name match)
             matching_purchase_tax = self.env['havanoposdesk.tax'].search([
                 ('tax_type', '=', 'Purchases'),
                 ('active', '=', True),
                 ('name', '=', sale_tax.name),
-                ('rate', '=', sale_tax.rate),
-                ('is_inclusive', '=', sale_tax.is_inclusive),
-                ('tenant_id', '=', self.tenant_id.id or self.env.user.tenant_id.id)
+                ('tenant_id', '=', tenant_id)
             ], limit=1)
+            
+            # 2. Fallback to rate & inclusive configuration
+            if not matching_purchase_tax:
+                matching_purchase_tax = self.env['havanoposdesk.tax'].search([
+                    ('tax_type', '=', 'Purchases'),
+                    ('active', '=', True),
+                    ('rate', '=', sale_tax.rate),
+                    ('is_inclusive', '=', sale_tax.is_inclusive),
+                    ('tenant_id', '=', tenant_id)
+                ], limit=1)
+                
             if matching_purchase_tax:
                 purchase_tax_ids.append(matching_purchase_tax.id)
         self.purchase_tax_ids = [(6, 0, purchase_tax_ids)]
