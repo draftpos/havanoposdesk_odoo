@@ -19,9 +19,27 @@ class ResConfigSettings(models.TransientModel):
         for record in self:
             record.is_super_user = is_super
 
-    @api.depends_context('is_custom_configs')
+    @api.depends_context('is_custom_configs', 'uid')
     def _compute_is_custom_configs(self):
         is_custom = self.env.context.get('is_custom_configs', False)
+        if not is_custom:
+            params = self.env.context.get('params', {})
+            menu_id = params.get('menu_id')
+            if menu_id:
+                menu = self.env['ir.ui.menu'].sudo().browse(menu_id)
+                if menu.exists():
+                    native_menu_ids = []
+                    admin_menu = self.env.ref('base.menu_administration', raise_if_not_found=False)
+                    if admin_menu:
+                        native_menu_ids.append(admin_menu.id)
+                    config_menu = self.env.ref('base.menu_config', raise_if_not_found=False)
+                    if config_menu:
+                        native_menu_ids.append(config_menu.id)
+                    
+                    if menu.id in native_menu_ids or (menu.parent_id and menu.parent_id.id in native_menu_ids):
+                        is_custom = False
+                    else:
+                        is_custom = True
         for record in self:
             record.is_custom_configs = is_custom
 
