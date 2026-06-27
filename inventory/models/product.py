@@ -66,6 +66,23 @@ class HavanoposdeskProduct(models.Model):
         has_taxes = bool(self.env['havanoposdesk.tax'].search([('active', '=', True)], limit=1))
         for record in self:
             record.has_active_taxes = has_taxes
+
+    @api.onchange('sale_tax_ids')
+    def _onchange_sale_tax_ids(self):
+        purchase_tax_ids = []
+        for sale_tax in self.sale_tax_ids:
+            matching_purchase_tax = self.env['havanoposdesk.tax'].search([
+                ('tax_type', '=', 'Purchases'),
+                ('active', '=', True),
+                ('name', '=', sale_tax.name),
+                ('rate', '=', sale_tax.rate),
+                ('is_inclusive', '=', sale_tax.is_inclusive),
+                ('tenant_id', '=', self.tenant_id.id or self.env.user.tenant_id.id)
+            ], limit=1)
+            if matching_purchase_tax:
+                purchase_tax_ids.append(matching_purchase_tax.id)
+        self.purchase_tax_ids = [(6, 0, purchase_tax_ids)]
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
