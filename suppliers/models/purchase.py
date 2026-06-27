@@ -171,9 +171,40 @@ class Purchase(models.Model):
                             })
                     else:
                         # Normal Purchase
-                        # Update Product On Hand (opening_stock) using sudo()
-                        line.product_id.sudo().opening_stock += line.accepted_qty
+                        # Update Product On Hand (opening_stock) and buying_price (last updated value) using sudo()
+                        line.product_id.sudo().write({
+                            'opening_stock': line.product_id.opening_stock + line.accepted_qty,
+                            'buying_price': line.rate,
+                        })
                         
+                        # Create costing records in costing table
+                        self.env['havanoposdesk.product.costing'].sudo().create({
+                            'product_id': line.product_id.id,
+                            'purchase_line_id': line.id,
+                            'qty': line.accepted_qty,
+                            'price': line.rate,
+                            'cost_type': 'last',
+                            'date': purchase.posting_date,
+                        })
+                        
+                        # Calculate and store average cost
+                        purchase_lines = self.env['havanoposdesk.purchase.line'].search([
+                            ('product_id', '=', line.product_id.id),
+                            '|', ('purchase_id.state', '=', 'posted'), ('purchase_id', '=', purchase.id)
+                        ])
+                        total_qty = sum(purchase_lines.mapped('accepted_qty'))
+                        if total_qty > 0:
+                            total_amount = sum(pl.accepted_qty * pl.rate for pl in purchase_lines)
+                            avg_price = total_amount / total_qty
+                            self.env['havanoposdesk.product.costing'].sudo().create({
+                                'product_id': line.product_id.id,
+                                'purchase_line_id': line.id,
+                                'qty': total_qty,
+                                'price': avg_price,
+                                'cost_type': 'average',
+                                'date': purchase.posting_date,
+                            })
+
                         # Create Ledger Entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
@@ -219,6 +250,11 @@ class Purchase(models.Model):
                         payment.account_id.sudo().balance += purchase.amount_total
                 payment.write({'amount': payment.amount - purchase.amount_total})
 
+            # Remove costing records associated with this purchase's lines
+            self.env['havanoposdesk.product.costing'].sudo().search([
+                ('purchase_line_id', 'in', purchase.line_ids.ids)
+            ]).unlink()
+
             for line in purchase.line_ids:
                 if line.accepted_qty > 0:
                     if purchase.is_return:
@@ -250,6 +286,15 @@ class Purchase(models.Model):
                         # Revert: Subtract stock using sudo()
                         line.product_id.sudo().opening_stock -= line.accepted_qty
                         
+                        # Revert product buying price to the previous purchase's rate (if any)
+                        last_purchase = self.env['havanoposdesk.purchase.line'].search([
+                            ('product_id', '=', line.product_id.id),
+                            ('purchase_id.state', '=', 'posted'),
+                            ('purchase_id', '!=', purchase.id)
+                        ], order='id desc', limit=1)
+                        if last_purchase:
+                            line.product_id.sudo().buying_price = last_purchase.rate
+
                         # Create reverse ledger entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,

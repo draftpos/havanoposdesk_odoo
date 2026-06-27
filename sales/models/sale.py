@@ -208,6 +208,7 @@ class Sale(models.Model):
                             'in_qty': line.accepted_qty,
                             'out_qty': 0.0,
                             'balance_qty': line.product_id.opening_stock,
+                            'buying_price': line.cost_price,
                             'store': sale.store,
                             'type': 'Credit Note',
                             'doc_no': sale.name,
@@ -222,6 +223,7 @@ class Sale(models.Model):
                             'in_qty': 0.0,
                             'out_qty': line.accepted_qty,
                             'balance_qty': line.product_id.opening_stock,
+                            'buying_price': line.cost_price,
                             'store': sale.store,
                             'type': 'Sale',
                             'doc_no': sale.name,
@@ -314,6 +316,7 @@ class Sale(models.Model):
                         'in_qty': orig_ledger.out_qty,
                         'out_qty': orig_ledger.in_qty,
                         'balance_qty': line.product_id.opening_stock,
+                        'buying_price': orig_ledger.buying_price,
                         'store': sale.store,
                         'type': 'Sale Cancelled',
                         'doc_no': sale.name,
@@ -368,6 +371,26 @@ class SaleLine(models.Model):
     price_subtotal = fields.Float(string='Subtotal', compute='_compute_amount', store=True)
     price_tax = fields.Float(string='Tax', compute='_compute_amount', store=True)
     amount = fields.Float(string='Total', compute='_compute_amount', store=True)
+    cost_price = fields.Float(string='Cost Price', compute='_compute_cost_price', store=True, readonly=False)
+
+    @api.depends('product_id', 'rate')
+    def _compute_cost_price(self):
+        for line in self:
+            if not line.product_id:
+                line.cost_price = 0.0
+                continue
+            
+            # If user manually changed the rate (selling price)
+            if line.rate != line.product_id.selling_price:
+                # Use Average cost from costing table
+                avg_cost_rec = self.env['havanoposdesk.product.costing'].sudo().search([
+                    ('product_id', '=', line.product_id.id),
+                    ('cost_type', '=', 'average')
+                ], order='id desc', limit=1)
+                line.cost_price = avg_cost_rec.price if avg_cost_rec else (line.product_id.buying_price or line.product_id.cost_price or 0.0)
+            else:
+                # Use normal cost (product's buying_price or cost_price)
+                line.cost_price = line.product_id.buying_price or line.product_id.cost_price or 0.0
 
     @api.depends('accepted_qty', 'rate', 'tax_ids')
     def _compute_amount(self):
@@ -394,6 +417,19 @@ class SaleLine(models.Model):
         if self.product_id:
             self.rate = self.product_id.selling_price
             self.tax_ids = [(6, 0, self.product_id.sale_tax_ids.ids)]
+            self.cost_price = self.product_id.buying_price or self.product_id.cost_price or 0.0
+
+    @api.onchange('rate')
+    def _onchange_rate(self):
+        if self.product_id:
+            if self.rate != self.product_id.selling_price:
+                avg_cost_rec = self.env['havanoposdesk.product.costing'].sudo().search([
+                    ('product_id', '=', self.product_id.id),
+                    ('cost_type', '=', 'average')
+                ], order='id desc', limit=1)
+                self.cost_price = avg_cost_rec.price if avg_cost_rec else (self.product_id.buying_price or self.product_id.cost_price or 0.0)
+            else:
+                self.cost_price = self.product_id.buying_price or self.product_id.cost_price or 0.0
 
     @api.onchange('accepted_qty', 'product_id')
     def _onchange_qty(self):

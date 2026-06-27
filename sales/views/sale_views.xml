@@ -68,6 +68,7 @@
                                         <field name="item_code" width="10%" optional="show"/>
                                         <field name="accepted_qty" width="15%" sum="Total Qty" optional="show"/>
                                         <field name="rate" width="15%" optional="show"/>
+                                        <field name="cost_price" width="10%" optional="show" force_save="1"/>
                                         <field name="tax_ids" widget="many2many_tags" width="15%" optional="show"/>
                                         <field name="price_tax" string="Tax Amount" width="10%" sum="Total Tax" optional="show"/>
                                         <field name="amount" width="10%" sum="Total Amount" optional="show"/>
@@ -123,17 +124,7 @@
             </field>
         </record>
 
-        <!-- Action: Sales Analytics -->
-        <record id="action_sales_analysis" model="ir.actions.act_window">
-            <field name="name">Sales Analytics</field>
-            <field name="res_model">havanoposdesk.sale</field>
-            <field name="view_mode">graph,pivot</field>
-            <field name="domain">[]</field>
-        </record>
-
         <!-- Sales App Menu Connections -->
         <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="10"/>
-        <menuitem id="menu_sales_analysis" name="Sales Analysis" parent="menu_sales_reports" action="action_sales_analysis" sequence="10"/>
-        <menuitem id="menu_my_sales_analysis" name="Sales Analysis" parent="menu_my_business_analytics" action="action_sales_analysis" sequence="10"/>
     </data>
 </odoo>

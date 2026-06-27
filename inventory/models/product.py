@@ -170,3 +170,14 @@ class HavanoposdeskProduct(models.Model):
 
     def action_save(self):
         return True
+
+class HavanoposdeskProductCosting(models.Model):
+    _name = 'havanoposdesk.product.costing'
+    _description = 'Product Costing Table'
+
+    product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, ondelete='cascade')
+    purchase_line_id = fields.Many2one('havanoposdesk.purchase.line', string='Purchase Line', ondelete='cascade')
+    date = fields.Date(string='Date', default=fields.Date.context_today)
+    qty = fields.Float(string='Quantity')
+    price = fields.Float(string='Price/Rate')
+    cost_type = fields.Selection([('last', 'Last Purchase'), ('average', 'Average')], string='Cost Type', default='last')
