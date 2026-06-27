@@ -130,6 +130,32 @@
                             <p class="text-muted">Point of Sale and Sales settings will go here.</p>
                         </div>
                     </block>
+                    <block title="Sequence Configuration" name="sales_seq_config">
+                        <setting id="sale_seq_setting" string="Sales Orders">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Prefix:</span>
+                                    <field name="biz_sale_seq_prefix" style="width: 100px;" class="oe_inline"/>
+                                    <span>Next:</span>
+                                    <field name="biz_sale_seq_next" style="width: 100px;" class="oe_inline"/>
+                                    <span>Padding:</span>
+                                    <field name="biz_sale_seq_padding" style="width: 80px;" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting id="sale_ret_seq_setting" string="Credit Notes (Returns)">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Prefix:</span>
+                                    <field name="biz_sale_ret_seq_prefix" style="width: 100px;" class="oe_inline"/>
+                                    <span>Next:</span>
+                                    <field name="biz_sale_ret_seq_next" style="width: 100px;" class="oe_inline"/>
+                                    <span>Padding:</span>
+                                    <field name="biz_sale_ret_seq_padding" style="width: 80px;" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
                 </app>
                 
                 <!-- Stock Settings -->
@@ -142,6 +168,32 @@
                             <field name="biz_allow_advanced_pricing" widget="boolean_toggle"/>
                         </setting>
                     </block>
+                    <block title="Sequence Configuration" name="stock_seq_config">
+                        <setting id="prod_seq_setting" string="Product Item Codes">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Prefix:</span>
+                                    <field name="biz_prod_seq_prefix" style="width: 100px;" class="oe_inline"/>
+                                    <span>Next:</span>
+                                    <field name="biz_prod_seq_next" style="width: 100px;" class="oe_inline"/>
+                                    <span>Padding:</span>
+                                    <field name="biz_prod_seq_padding" style="width: 80px;" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting id="stock_adj_seq_setting" string="Stock Adjustments">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Prefix:</span>
+                                    <field name="biz_stock_adj_seq_prefix" style="width: 100px;" class="oe_inline"/>
+                                    <span>Next:</span>
+                                    <field name="biz_stock_adj_seq_next" style="width: 100px;" class="oe_inline"/>
+                                    <span>Padding:</span>
+                                    <field name="biz_stock_adj_seq_padding" style="width: 80px;" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
                 </app>
 
                 <!-- Accounts Settings -->
@@ -151,6 +203,44 @@
                             <p class="text-muted">Chart of accounts, taxes, and accounting settings will go here.</p>
                         </div>
                     </block>
+                    <block title="Sequence Configuration" name="accounts_seq_config">
+                        <setting id="pay_in_seq_setting" string="Payment Receipt (Receive Money)">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Prefix:</span>
+                                    <field name="biz_pay_in_seq_prefix" style="width: 100px;" class="oe_inline"/>
+                                    <span>Next:</span>
+                                    <field name="biz_pay_in_seq_next" style="width: 100px;" class="oe_inline"/>
+                                    <span>Padding:</span>
+                                    <field name="biz_pay_in_seq_padding" style="width: 80px;" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting id="pay_out_seq_setting" string="Payment Out (Send Money)">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Prefix:</span>
+                                    <field name="biz_pay_out_seq_prefix" style="width: 100px;" class="oe_inline"/>
+                                    <span>Next:</span>
+                                    <field name="biz_pay_out_seq_next" style="width: 100px;" class="oe_inline"/>
+                                    <span>Padding:</span>
+                                    <field name="biz_pay_out_seq_padding" style="width: 80px;" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting id="exp_seq_setting" string="Expenses">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Prefix:</span>
+                                    <field name="biz_exp_seq_prefix" style="width: 100px;" class="oe_inline"/>
+                                    <span>Next:</span>
+                                    <field name="biz_exp_seq_next" style="width: 100px;" class="oe_inline"/>
+                                    <span>Padding:</span>
+                                    <field name="biz_exp_seq_padding" style="width: 80px;" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
                 </app>
                 
                 <!-- Suppliers Settings -->
@@ -159,6 +249,20 @@
                         <div>
                             <p class="text-muted">Supplier and purchasing settings will go here.</p>
                         </div>
+                    </block>
+                    <block title="Sequence Configuration" name="suppliers_seq_config">
+                        <setting id="purch_seq_setting" string="Purchase Orders">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Prefix:</span>
+                                    <field name="biz_purch_seq_prefix" style="width: 100px;" class="oe_inline"/>
+                                    <span>Next:</span>
+                                    <field name="biz_purch_seq_next" style="width: 100px;" class="oe_inline"/>
+                                    <span>Padding:</span>
+                                    <field name="biz_purch_seq_padding" style="width: 80px;" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </setting>
                     </block>
                 </app>
 

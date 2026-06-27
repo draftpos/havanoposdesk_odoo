@@ -41,7 +41,12 @@ class Purchase(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
-                vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.purchase') or 'New'
+                tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
+                if tenant:
+                    vals['name'] = tenant._get_next_sequence('purch')
+                else:
+                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.purchase') or 'New'
         
         purchases = super().create(vals_list)
         

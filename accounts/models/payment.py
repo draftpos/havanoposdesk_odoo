@@ -44,11 +44,18 @@ class Payment(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
-                # Determine sequence prefix based on type
-                if vals.get('payment_type') == 'payment':
-                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.payment.out') or 'PAY/New'
+                tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
+                if tenant:
+                    if vals.get('payment_type') == 'payment':
+                        vals['name'] = tenant._get_next_sequence('pay_out')
+                    else:
+                        vals['name'] = tenant._get_next_sequence('pay_in')
                 else:
-                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.payment.in') or 'REC/New'
+                    if vals.get('payment_type') == 'payment':
+                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.payment.out') or 'PAY/New'
+                    else:
+                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.payment.in') or 'REC/New'
         return super().create(vals_list)
 
     def action_post(self):

@@ -70,7 +70,12 @@ class HavanoposdeskProduct(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('item_code', 'New') == 'New':
-                vals['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
+                tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
+                if tenant:
+                    vals['item_code'] = tenant._get_next_sequence('prod')
+                else:
+                    vals['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
         products = super().create(vals_list)
         
         for product in products:

@@ -31,6 +31,45 @@ class HavanoposdeskTenant(models.Model):
 
     api_company_name = fields.Char(string="API Company Name", default="Havano POS Company")
     api_currency = fields.Char(string="API Currency", default="USD")
+    # Products Sequence Config
+    prod_seq_prefix = fields.Char(string='Product Sequence Prefix', default='')
+    prod_seq_next = fields.Integer(string='Product Sequence Next Number', default=101)
+    prod_seq_padding = fields.Integer(string='Product Sequence Padding', default=0)
+
+    # Stock Adjustments Sequence Config
+    stock_adj_seq_prefix = fields.Char(string='Stock Adjustment Sequence Prefix', default='')
+    stock_adj_seq_next = fields.Integer(string='Stock Adjustment Sequence Next Number', default=1)
+    stock_adj_seq_padding = fields.Integer(string='Stock Adjustment Sequence Padding', default=5)
+
+    # Sales Sequence Config
+    sale_seq_prefix = fields.Char(string='Sale Sequence Prefix', default='')
+    sale_seq_next = fields.Integer(string='Sale Sequence Next Number', default=1)
+    sale_seq_padding = fields.Integer(string='Sale Sequence Padding', default=4)
+
+    # Sales Return (Credit Note) Sequence Config
+    sale_ret_seq_prefix = fields.Char(string='Credit Note Sequence Prefix', default='')
+    sale_ret_seq_next = fields.Integer(string='Credit Note Sequence Next Number', default=1)
+    sale_ret_seq_padding = fields.Integer(string='Credit Note Sequence Padding', default=4)
+
+    # Purchases Sequence Config
+    purch_seq_prefix = fields.Char(string='Purchase Sequence Prefix', default='')
+    purch_seq_next = fields.Integer(string='Purchase Sequence Next Number', default=1)
+    purch_seq_padding = fields.Integer(string='Purchase Sequence Padding', default=4)
+
+    # Payment In (Receipt) Sequence Config
+    pay_in_seq_prefix = fields.Char(string='Payment In Sequence Prefix', default='')
+    pay_in_seq_next = fields.Integer(string='Payment In Sequence Next Number', default=1)
+    pay_in_seq_padding = fields.Integer(string='Payment In Sequence Padding', default=4)
+
+    # Payment Out Sequence Config
+    pay_out_seq_prefix = fields.Char(string='Payment Out Sequence Prefix', default='')
+    pay_out_seq_next = fields.Integer(string='Payment Out Sequence Next Number', default=1)
+    pay_out_seq_padding = fields.Integer(string='Payment Out Sequence Padding', default=4)
+
+    # Expenses Sequence Config
+    exp_seq_prefix = fields.Char(string='Expense Sequence Prefix', default='')
+    exp_seq_next = fields.Integer(string='Expense Sequence Next Number', default=1)
+    exp_seq_padding = fields.Integer(string='Expense Sequence Padding', default=4)
     api_cost_center = fields.Char(string="API Cost Center")
     api_warehouse = fields.Char(string="API Warehouse")
 
@@ -105,6 +144,32 @@ class HavanoposdeskTenant(models.Model):
             }
         }
 
+
+    def _get_next_sequence(self, seq_type):
+        self.ensure_one()
+        # Define field name mapping
+        prefix_field = f"{seq_type}_seq_prefix"
+        next_field = f"{seq_type}_seq_next"
+        padding_field = f"{seq_type}_seq_padding"
+        
+        # Prevent concurrency issues by selecting this tenant row for update
+        self.env.cr.execute("SELECT id FROM havanoposdesk_tenant WHERE id = %s FOR UPDATE", [self.id])
+        
+        prefix = getattr(self, prefix_field) or ''
+        next_val = getattr(self, next_field) or 1
+        padding = getattr(self, padding_field) or 0
+        
+        # Format the sequence number
+        seq_str = str(next_val)
+        if padding > 0:
+            seq_str = seq_str.zfill(padding)
+            
+        formatted_seq = f"{prefix}{seq_str}"
+        
+        # Increment and update
+        self.write({next_field: next_val + 1})
+        
+        return formatted_seq
 
     def write(self, vals):
         restricted_fields = {'payment_status', 'subscription_state', 'subscription_start_date', 'subscription_end_date', 'subscription_plan_id'}

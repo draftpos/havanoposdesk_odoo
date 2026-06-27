@@ -56,6 +56,46 @@ class ResConfigSettings(models.TransientModel):
         readonly=False
     )
 
+    # Product Sequence
+    biz_prod_seq_prefix = fields.Char(string="Product Sequence Prefix", related='tenant_id.prod_seq_prefix', readonly=False)
+    biz_prod_seq_next = fields.Integer(string="Product Sequence Next Number", related='tenant_id.prod_seq_next', readonly=False)
+    biz_prod_seq_padding = fields.Integer(string="Product Sequence Padding", related='tenant_id.prod_seq_padding', readonly=False)
+
+    # Stock Adjustments Sequence
+    biz_stock_adj_seq_prefix = fields.Char(string="Stock Adjustment Sequence Prefix", related='tenant_id.stock_adj_seq_prefix', readonly=False)
+    biz_stock_adj_seq_next = fields.Integer(string="Stock Adjustment Sequence Next Number", related='tenant_id.stock_adj_seq_next', readonly=False)
+    biz_stock_adj_seq_padding = fields.Integer(string="Stock Adjustment Sequence Padding", related='tenant_id.stock_adj_seq_padding', readonly=False)
+
+    # Sales Sequence
+    biz_sale_seq_prefix = fields.Char(string="Sale Sequence Prefix", related='tenant_id.sale_seq_prefix', readonly=False)
+    biz_sale_seq_next = fields.Integer(string="Sale Sequence Next Number", related='tenant_id.sale_seq_next', readonly=False)
+    biz_sale_seq_padding = fields.Integer(string="Sale Sequence Padding", related='tenant_id.sale_seq_padding', readonly=False)
+
+    # Sales Return (Credit Note) Sequence
+    biz_sale_ret_seq_prefix = fields.Char(string="Credit Note Sequence Prefix", related='tenant_id.sale_ret_seq_prefix', readonly=False)
+    biz_sale_ret_seq_next = fields.Integer(string="Credit Note Sequence Next Number", related='tenant_id.sale_ret_seq_next', readonly=False)
+    biz_sale_ret_seq_padding = fields.Integer(string="Credit Note Sequence Padding", related='tenant_id.sale_ret_seq_padding', readonly=False)
+
+    # Purchases Sequence
+    biz_purch_seq_prefix = fields.Char(string="Purchase Sequence Prefix", related='tenant_id.purch_seq_prefix', readonly=False)
+    biz_purch_seq_next = fields.Integer(string="Purchase Sequence Next Number", related='tenant_id.purch_seq_next', readonly=False)
+    biz_purch_seq_padding = fields.Integer(string="Purchase Sequence Padding", related='tenant_id.purch_seq_padding', readonly=False)
+
+    # Payment In Sequence
+    biz_pay_in_seq_prefix = fields.Char(string="Payment In Sequence Prefix", related='tenant_id.pay_in_seq_prefix', readonly=False)
+    biz_pay_in_seq_next = fields.Integer(string="Payment In Sequence Next Number", related='tenant_id.pay_in_seq_next', readonly=False)
+    biz_pay_in_seq_padding = fields.Integer(string="Payment In Sequence Padding", related='tenant_id.pay_in_seq_padding', readonly=False)
+
+    # Payment Out Sequence
+    biz_pay_out_seq_prefix = fields.Char(string="Payment Out Sequence Prefix", related='tenant_id.pay_out_seq_prefix', readonly=False)
+    biz_pay_out_seq_next = fields.Integer(string="Payment Out Sequence Next Number", related='tenant_id.pay_out_seq_next', readonly=False)
+    biz_pay_out_seq_padding = fields.Integer(string="Payment Out Sequence Padding", related='tenant_id.pay_out_seq_padding', readonly=False)
+
+    # Expenses Sequence
+    biz_exp_seq_prefix = fields.Char(string="Expense Sequence Prefix", related='tenant_id.exp_seq_prefix', readonly=False)
+    biz_exp_seq_next = fields.Integer(string="Expense Sequence Next Number", related='tenant_id.exp_seq_next', readonly=False)
+    biz_exp_seq_padding = fields.Integer(string="Expense Sequence Padding", related='tenant_id.exp_seq_padding', readonly=False)
+
     havano_verification_grace_number = fields.Integer(
         string="Verification Grace Number",
         config_parameter="havanoposdesk.verification_grace_number",

@@ -69,10 +69,18 @@ class Sale(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
-                if vals.get('is_return'):
-                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale.return') or 'New'
+                tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
+                if tenant:
+                    if vals.get('is_return'):
+                        vals['name'] = tenant._get_next_sequence('sale_ret')
+                    else:
+                        vals['name'] = tenant._get_next_sequence('sale')
                 else:
-                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale') or 'New'
+                    if vals.get('is_return'):
+                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale.return') or 'New'
+                    else:
+                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale') or 'New'
             
             # Default account_id for cash sales if not provided
             if vals.get('payment_status') == 'cash' and not vals.get('account_id'):

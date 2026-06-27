@@ -101,7 +101,12 @@ class StockAdjustment(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
-                vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.stock.adjustment') or 'New'
+                tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
+                if tenant:
+                    vals['name'] = tenant._get_next_sequence('stock_adj')
+                else:
+                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.stock.adjustment') or 'New'
         
         adjustments = super().create(vals_list)
         

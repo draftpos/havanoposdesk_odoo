@@ -34,8 +34,12 @@ class Expense(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
-                # Generate sequence if we have one, otherwise fallback to New
-                vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.expense') or 'New'
+                tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
+                if tenant:
+                    vals['name'] = tenant._get_next_sequence('exp')
+                else:
+                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.expense') or 'New'
         return super().create(vals_list)
 
     def action_post(self):
