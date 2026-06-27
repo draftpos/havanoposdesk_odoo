@@ -7,6 +7,12 @@ class PurchaseReturnWizard(models.TransientModel):
 
     purchase_id = fields.Many2one('havanoposdesk.purchase', string='Purchase', required=True)
     line_ids = fields.One2many('havanoposdesk.purchase.return.wizard.line', 'wizard_id', string='Items to Return')
+    amount_total = fields.Float(string='Total Refund', compute='_compute_amount_total')
+
+    @api.depends('line_ids.amount')
+    def _compute_amount_total(self):
+        for record in self:
+            record.amount_total = sum(record.line_ids.mapped('amount'))
 
     @api.model
     def default_get(self, fields_list):
@@ -97,3 +103,26 @@ class PurchaseReturnWizardLine(models.TransientModel):
     qty_returned = fields.Float(string='Return Qty', default=0.0)
     rate = fields.Float(string='Rate')
     tax_ids = fields.Many2many('havanoposdesk.tax', string='Taxes')
+    price_subtotal = fields.Float(string='Subtotal', compute='_compute_amount')
+    price_tax = fields.Float(string='Tax', compute='_compute_amount')
+    amount = fields.Float(string='Total', compute='_compute_amount')
+
+    @api.depends('qty_returned', 'rate', 'tax_ids')
+    def _compute_amount(self):
+        for record in self:
+            base_amount = record.qty_returned * record.rate
+            taxes = record.tax_ids
+            
+            inclusive_taxes = taxes.filtered(lambda t: t.is_inclusive)
+            exclusive_taxes = taxes.filtered(lambda t: not t.is_inclusive)
+            
+            rate_incl = sum(inclusive_taxes.mapped('rate')) / 100.0
+            rate_excl = sum(exclusive_taxes.mapped('rate')) / 100.0
+            
+            untaxed_amount = base_amount / (1.0 + rate_incl)
+            inclusive_tax_amount = base_amount - untaxed_amount
+            exclusive_tax_amount = untaxed_amount * rate_excl
+            
+            record.price_subtotal = untaxed_amount
+            record.price_tax = inclusive_tax_amount + exclusive_tax_amount
+            record.amount = record.price_subtotal + record.price_tax
