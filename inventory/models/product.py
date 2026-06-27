@@ -108,7 +108,7 @@ class HavanoposdeskProduct(models.Model):
         
         for product in products:
             if product.opening_stock > 0:
-                self.env['havanoposdesk.stock.adjustment'].create({
+                self.env['havanoposdesk.stock.adjustment'].with_context(from_product_creation=True).create({
                     'store_id': product.store_id.id if product.store_id else False,
                     'fetch_all_data': False,
                     'line_ids': [(0, 0, {
