@@ -24,6 +24,11 @@ class StockAdjustment(models.Model):
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
     allow_edit_date_time = fields.Boolean(string='Allow Edit Date & Time', default=False)
+    state = fields.Selection([
+        ('draft', 'Draft'),
+        ('posted', 'Posted'),
+        ('cancelled', 'Cancelled')
+    ], string='Status', required=True, default='draft')
     
     fetch_all_data = fields.Boolean(string='Fetch All Items', default=True)
     fetch_category_id = fields.Many2one('havanoposdesk.category', string='Fetch Category Items')
@@ -135,47 +140,117 @@ class StockAdjustment(models.Model):
                             if product:
                                 line_vals['on_hand'] = product.opening_stock
         
-        adjustments = super().create(vals_list)
-        
-        for adjustment in adjustments:
+        return super().create(vals_list)
+
+    def write(self, vals):
+        from odoo.exceptions import ValidationError
+        for record in self:
+            if record.state != 'draft' and any(f not in ['state'] for f in vals.keys()):
+                raise ValidationError("You cannot modify a confirmed/posted stock adjustment. Please cancel it first.")
+        return super().write(vals)
+
+    def unlink(self):
+        from odoo.exceptions import ValidationError
+        for record in self:
+            if record.state != 'draft':
+                raise ValidationError("You cannot delete a confirmed/posted stock adjustment. Please cancel it first.")
+        return super().unlink()
+
+    def action_post(self):
+        for adjustment in self:
+            if adjustment.state != 'draft':
+                continue
+            is_creation = self.env.context.get('from_product_creation')
             for line in adjustment.line_ids:
-                is_creation = self.env.context.get('from_product_creation')
-                if line.qty_difference != 0 or is_creation:
-                    # Update Product On Hand (opening_stock)
-                    if not is_creation:
-                        line.product_id.opening_stock = line.counted
-                    
-                    # Create Ledger Entry using sudo() to bypass access rights
-                    in_qty = line.counted if is_creation else (line.qty_difference if line.qty_difference > 0 else 0.0)
-                    out_qty = 0.0 if is_creation else (abs(line.qty_difference) if line.qty_difference < 0 else 0.0)
-                    
+                # Update Product On Hand (opening_stock)
+                if not is_creation:
+                    line.product_id.opening_stock = line.counted
+                
+                # Create Ledger Entry using sudo() to bypass access rights
+                in_qty = line.counted if is_creation else (line.qty_difference if line.qty_difference > 0 else 0.0)
+                out_qty = 0.0 if is_creation else (abs(line.qty_difference) if line.qty_difference < 0 else 0.0)
+                
+                self.env['havanoposdesk.stock.ledger'].sudo().create({
+                    'product_id': line.product_id.id,
+                    'in_qty': in_qty,
+                    'out_qty': out_qty,
+                    'balance_qty': line.counted,
+                    'store': adjustment.store_id.name if adjustment.store_id else '',
+                    'type': 'Opening Stock' if is_creation else 'Stock Adjustment',
+                    'doc_no': adjustment.name,
+                })
+
+                # Update or Create Valuation Entry using sudo()
+                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                    ('product_id', '=', line.product_id.id),
+                    ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
+                ], limit=1)
+                
+                if valuation:
+                    valuation.write({
+                        'on_hand_qty': line.counted,
+                    })
+                else:
+                    self.env['havanoposdesk.stock.valuation'].sudo().create({
+                        'product_id': line.product_id.id,
+                        'store': adjustment.store_id.name if adjustment.store_id else '',
+                        'on_hand_qty': line.counted,
+                    })
+            adjustment.write({'state': 'posted'})
+
+    def action_cancel(self):
+        for adjustment in self:
+            if adjustment.state != 'posted':
+                continue
+            
+            # Check if this was an Opening Stock adjustment from product creation
+            is_creation = bool(self.env['havanoposdesk.stock.ledger'].sudo().search([
+                ('doc_no', '=', adjustment.name),
+                ('type', '=', 'Opening Stock')
+            ], limit=1))
+            
+            for line in adjustment.line_ids:
+                # Revert Product On Hand (opening_stock)
+                if is_creation:
+                    line.product_id.opening_stock = 0.0
+                else:
+                    line.product_id.opening_stock = line.on_hand
+                
+                # Create Reverse Ledger Entry
+                orig_ledger = self.env['havanoposdesk.stock.ledger'].sudo().search([
+                    ('doc_no', '=', adjustment.name),
+                    ('product_id', '=', line.product_id.id),
+                    ('type', 'in', ['Opening Stock', 'Stock Adjustment'])
+                ], limit=1)
+                if orig_ledger:
                     self.env['havanoposdesk.stock.ledger'].sudo().create({
                         'product_id': line.product_id.id,
-                        'in_qty': in_qty,
-                        'out_qty': out_qty,
-                        'balance_qty': line.counted,
+                        'in_qty': orig_ledger.out_qty,
+                        'out_qty': orig_ledger.in_qty,
+                        'balance_qty': line.product_id.opening_stock,
                         'store': adjustment.store_id.name if adjustment.store_id else '',
-                        'type': 'Opening Stock' if is_creation else 'Stock Adjustment',
+                        'type': 'Adjustment Cancelled',
                         'doc_no': adjustment.name,
                     })
 
-                    # Update or Create Valuation Entry using sudo()
-                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
-                        ('product_id', '=', line.product_id.id),
-                        ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
-                    ], limit=1)
-                    
-                    if valuation:
-                        valuation.write({
-                            'on_hand_qty': line.counted,
-                        })
-                    else:
-                        self.env['havanoposdesk.stock.valuation'].sudo().create({
-                            'product_id': line.product_id.id,
-                            'store': adjustment.store_id.name if adjustment.store_id else '',
-                            'on_hand_qty': line.counted,
-                        })
-        return adjustments
+                # Update Valuation Entry
+                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                    ('product_id', '=', line.product_id.id),
+                    ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
+                ], limit=1)
+                if valuation:
+                    valuation.write({
+                        'on_hand_qty': line.product_id.opening_stock,
+                    })
+            adjustment.write({'state': 'cancelled'})
+
+    def action_draft(self):
+        for adjustment in self:
+            if adjustment.state != 'cancelled':
+                continue
+            for line in adjustment.line_ids:
+                line.on_hand = line.product_id.opening_stock
+            adjustment.write({'state': 'draft'})
 
 class StockAdjustmentLine(models.Model):
     _name = 'havanoposdesk.stock.adjustment.line'
