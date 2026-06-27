@@ -88,7 +88,7 @@
         <!-- Menu -->
         <menuitem id="menu_suppliers_purchase" 
                   name="Purchases" 
-                  parent="menu_suppliers_master" 
+                  parent="menu_suppliers_operations" 
                   action="action_havanoposdesk_purchase" 
                   sequence="10"/>
     </data>

@@ -29,17 +29,17 @@
                     <field  name="item_name" optional="show"/>
                     <field  name="item_code" optional="show"/>
                     <field  name="uom_id" optional="show"/>
-                    <field  name="in_qty" optional="show"/>
-                    <field  name="out_qty" optional="show"/>
-                    <field  name="balance_qty" optional="show"/>
+                    <field  name="in_qty" sum="Total In Qty" optional="show"/>
+                    <field  name="out_qty" sum="Total Out Qty" optional="show"/>
+                    <field  name="balance_qty" sum="Total Balance Qty" optional="show"/>
                     <field  name="store" optional="show"/>
                     <field  name="category_id" optional="show"/>
-                    <field  name="in_value" optional="show"/>
-                    <field  name="out_value" optional="show"/>
+                    <field  name="in_value" sum="Total In Value" optional="show"/>
+                    <field  name="out_value" sum="Total Out Value" optional="show"/>
                     <field  name="buying_price" optional="show"/>
                     <field  name="type" optional="show"/>
                     <field  name="doc_no" optional="show"/>
-                    <field  name="balance_value" optional="show"/>
+                    <field  name="balance_value" sum="Total Balance Value" optional="show"/>
                 </list>
             </field>
         </record>
