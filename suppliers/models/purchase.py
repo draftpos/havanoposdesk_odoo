@@ -32,6 +32,9 @@ class Purchase(models.Model):
         ('posted', 'Posted'),
         ('cancelled', 'Cancelled')
     ], string='Status', required=True, default='draft')
+    is_return = fields.Boolean(string='Is Return (Debit Note)', default=False)
+    return_id = fields.Many2one('havanoposdesk.purchase', string='Original Purchase', copy=False)
+    return_purchase_ids = fields.One2many('havanoposdesk.purchase', 'return_id', string='Returned Purchases')
     
     line_ids = fields.One2many('havanoposdesk.purchase.line', 'purchase_id', string='Items')
 
@@ -49,9 +52,11 @@ class Purchase(models.Model):
                 tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
                 if tenant:
-                    vals['name'] = tenant._get_next_sequence('purch')
+                    seq_code = 'purch_ret' if vals.get('is_return') else 'purch'
+                    vals['name'] = tenant._get_next_sequence(seq_code)
                 else:
-                    vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.purchase') or 'New'
+                    seq_name = 'havanoposdesk.purchase.return' if vals.get('is_return') else 'havanoposdesk.purchase'
+                    vals['name'] = self.env['ir.sequence'].next_by_code(seq_name) or 'New'
         
         purchases = super().create(vals_list)
         
@@ -81,36 +86,69 @@ class Purchase(models.Model):
                 continue
             for line in purchase.line_ids:
                 if line.accepted_qty > 0:
-                    # Update Product On Hand (opening_stock) using sudo()
-                    line.product_id.sudo().opening_stock += line.accepted_qty
-                    
-                    # Create Ledger Entry using sudo()
-                    self.env['havanoposdesk.stock.ledger'].sudo().create({
-                        'product_id': line.product_id.id,
-                        'in_qty': line.accepted_qty,
-                        'out_qty': 0.0,
-                        'balance_qty': line.product_id.opening_stock,
-                        'store': purchase.store_id.name if purchase.store_id else '',
-                        'type': 'Purchase',
-                        'doc_no': purchase.name,
-                    })
-
-                    # Update or Create Valuation Entry using sudo()
-                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
-                        ('product_id', '=', line.product_id.id),
-                        ('store', '=', purchase.store_id.name if purchase.store_id else '')
-                    ], limit=1)
-                    
-                    if valuation:
-                        valuation.write({
-                            'on_hand_qty': valuation.on_hand_qty + line.accepted_qty,
-                        })
-                    else:
-                        self.env['havanoposdesk.stock.valuation'].sudo().create({
+                    if purchase.is_return:
+                        # Revert/Subtract stock for return
+                        line.product_id.sudo().opening_stock -= line.accepted_qty
+                        
+                        # Create Ledger Entry using sudo()
+                        self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
+                            'in_qty': 0.0,
+                            'out_qty': line.accepted_qty,
+                            'balance_qty': line.product_id.opening_stock,
                             'store': purchase.store_id.name if purchase.store_id else '',
-                            'on_hand_qty': line.accepted_qty,
+                            'type': 'Purchase Return',
+                            'doc_no': purchase.name,
                         })
+
+                        # Update or Create Valuation Entry using sudo()
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                            ('product_id', '=', line.product_id.id),
+                            ('store', '=', purchase.store_id.name if purchase.store_id else '')
+                        ], limit=1)
+                        
+                        if valuation:
+                            valuation.write({
+                                'on_hand_qty': valuation.on_hand_qty - line.accepted_qty,
+                            })
+                        else:
+                            self.env['havanoposdesk.stock.valuation'].sudo().create({
+                                'product_id': line.product_id.id,
+                                'store': purchase.store_id.name if purchase.store_id else '',
+                                'on_hand_qty': -line.accepted_qty,
+                            })
+                    else:
+                        # Normal Purchase
+                        # Update Product On Hand (opening_stock) using sudo()
+                        line.product_id.sudo().opening_stock += line.accepted_qty
+                        
+                        # Create Ledger Entry using sudo()
+                        self.env['havanoposdesk.stock.ledger'].sudo().create({
+                            'product_id': line.product_id.id,
+                            'in_qty': line.accepted_qty,
+                            'out_qty': 0.0,
+                            'balance_qty': line.product_id.opening_stock,
+                            'store': purchase.store_id.name if purchase.store_id else '',
+                            'type': 'Purchase',
+                            'doc_no': purchase.name,
+                        })
+
+                        # Update or Create Valuation Entry using sudo()
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                            ('product_id', '=', line.product_id.id),
+                            ('store', '=', purchase.store_id.name if purchase.store_id else '')
+                        ], limit=1)
+                        
+                        if valuation:
+                            valuation.write({
+                                'on_hand_qty': valuation.on_hand_qty + line.accepted_qty,
+                            })
+                        else:
+                            self.env['havanoposdesk.stock.valuation'].sudo().create({
+                                'product_id': line.product_id.id,
+                                'store': purchase.store_id.name if purchase.store_id else '',
+                                'on_hand_qty': line.accepted_qty,
+                            })
             purchase.write({'state': 'posted'})
 
     def action_cancel(self):
@@ -119,29 +157,55 @@ class Purchase(models.Model):
                 continue
             for line in purchase.line_ids:
                 if line.accepted_qty > 0:
-                    # Revert: Subtract stock using sudo()
-                    line.product_id.sudo().opening_stock -= line.accepted_qty
-                    
-                    # Create reverse ledger entry using sudo()
-                    self.env['havanoposdesk.stock.ledger'].sudo().create({
-                        'product_id': line.product_id.id,
-                        'in_qty': 0.0,
-                        'out_qty': line.accepted_qty,
-                        'balance_qty': line.product_id.opening_stock,
-                        'store': purchase.store_id.name if purchase.store_id else '',
-                        'type': 'Purchase Cancelled',
-                        'doc_no': purchase.name,
-                    })
-
-                    # Update Valuation Entry using sudo()
-                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
-                        ('product_id', '=', line.product_id.id),
-                        ('store', '=', purchase.store_id.name if purchase.store_id else '')
-                    ], limit=1)
-                    if valuation:
-                        valuation.write({
-                            'on_hand_qty': valuation.on_hand_qty - line.accepted_qty,
+                    if purchase.is_return:
+                        # Revert return: Add stock back using sudo()
+                        line.product_id.sudo().opening_stock += line.accepted_qty
+                        
+                        # Create reverse ledger entry using sudo()
+                        self.env['havanoposdesk.stock.ledger'].sudo().create({
+                            'product_id': line.product_id.id,
+                            'in_qty': line.accepted_qty,
+                            'out_qty': 0.0,
+                            'balance_qty': line.product_id.opening_stock,
+                            'store': purchase.store_id.name if purchase.store_id else '',
+                            'type': 'Purchase Return Cancelled',
+                            'doc_no': purchase.name,
                         })
+
+                        # Update Valuation Entry using sudo()
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                            ('product_id', '=', line.product_id.id),
+                            ('store', '=', purchase.store_id.name if purchase.store_id else '')
+                        ], limit=1)
+                        if valuation:
+                            valuation.write({
+                                'on_hand_qty': valuation.on_hand_qty + line.accepted_qty,
+                            })
+                    else:
+                        # Normal Purchase Cancelled
+                        # Revert: Subtract stock using sudo()
+                        line.product_id.sudo().opening_stock -= line.accepted_qty
+                        
+                        # Create reverse ledger entry using sudo()
+                        self.env['havanoposdesk.stock.ledger'].sudo().create({
+                            'product_id': line.product_id.id,
+                            'in_qty': 0.0,
+                            'out_qty': line.accepted_qty,
+                            'balance_qty': line.product_id.opening_stock,
+                            'store': purchase.store_id.name if purchase.store_id else '',
+                            'type': 'Purchase Cancelled',
+                            'doc_no': purchase.name,
+                        })
+
+                        # Update Valuation Entry using sudo()
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                            ('product_id', '=', line.product_id.id),
+                            ('store', '=', purchase.store_id.name if purchase.store_id else '')
+                        ], limit=1)
+                        if valuation:
+                            valuation.write({
+                                'on_hand_qty': valuation.on_hand_qty - line.accepted_qty,
+                            })
             purchase.write({'state': 'cancelled'})
 
     def action_draft(self):

@@ -11,6 +11,7 @@
                         <button name="action_post" string="Confirm" type="object" class="oe_highlight" invisible="state != 'draft'"/>
                         <button name="action_cancel" string="Cancel" type="object" invisible="state != 'posted'"/>
                         <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'cancelled'"/>
+                        <button name="%(action_havanoposdesk_purchase_return_wizard)d" string="Debit Note" type="action" class="btn-primary" invisible="state != 'posted' or is_return"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
                     </header>
                     <sheet>
@@ -18,11 +19,16 @@
                             <h1>
                                 <field name="name"/>
                             </h1>
+                            <h2>
+                                <span invisible="not is_return" class="text-danger">Debit Note</span>
+                            </h2>
                         </div>
                         <group>
                             <group>
                                 <field name="supplier" readonly="state != 'draft'" class="border-bottom border-dark"/>
                                 <field name="store_id" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark"/>
+                                <field name="is_return" invisible="1"/>
+                                <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark"/>
                             </group>
                             <group>
                                 <field name="posting_date" readonly="state != 'draft'" class="border-bottom border-dark"/>
@@ -61,6 +67,7 @@
             <field name="arch" type="xml">
                 <list  string="Purchases">
                     <field  name="name" optional="show"/>
+                    <field  name="is_return" optional="show" readonly="1" string="Debit Note"/>
                     <field  name="supplier" optional="show"/>
                     <field  name="store_id" optional="show"/>
                     <field  name="posting_date" optional="show"/>

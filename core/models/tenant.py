@@ -56,6 +56,11 @@ class HavanoposdeskTenant(models.Model):
     purch_seq_next = fields.Integer(string='Purchase Sequence Next Number', default=1)
     purch_seq_padding = fields.Integer(string='Purchase Sequence Padding', default=4)
 
+    # Purchase Return (Debit Note) Sequence Config
+    purch_ret_seq_prefix = fields.Char(string='Debit Note Sequence Prefix', default='')
+    purch_ret_seq_next = fields.Integer(string='Debit Note Sequence Next Number', default=1)
+    purch_ret_seq_padding = fields.Integer(string='Debit Note Sequence Padding', default=4)
+
     # Payment In (Receipt) Sequence Config
     pay_in_seq_prefix = fields.Char(string='Payment In Sequence Prefix', default='')
     pay_in_seq_next = fields.Integer(string='Payment In Sequence Next Number', default=1)

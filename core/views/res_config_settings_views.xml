@@ -263,6 +263,18 @@
                                 </div>
                             </div>
                         </setting>
+                        <setting id="purch_ret_seq_setting" string="Debit Notes (Returns)">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Prefix:</span>
+                                    <field name="biz_purch_ret_seq_prefix" style="width: 100px;" class="oe_inline"/>
+                                    <span>Next:</span>
+                                    <field name="biz_purch_ret_seq_next" style="width: 100px;" class="oe_inline"/>
+                                    <span>Padding:</span>
+                                    <field name="biz_purch_ret_seq_padding" style="width: 80px;" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </setting>
                     </block>
                 </app>
 

@@ -81,6 +81,11 @@ class ResConfigSettings(models.TransientModel):
     biz_purch_seq_next = fields.Integer(string="Purchase Sequence Next Number", related='tenant_id.purch_seq_next', readonly=False)
     biz_purch_seq_padding = fields.Integer(string="Purchase Sequence Padding", related='tenant_id.purch_seq_padding', readonly=False)
 
+    # Purchase Return (Debit Note) Sequence
+    biz_purch_ret_seq_prefix = fields.Char(string="Debit Note Sequence Prefix", related='tenant_id.purch_ret_seq_prefix', readonly=False)
+    biz_purch_ret_seq_next = fields.Integer(string="Debit Note Sequence Next Number", related='tenant_id.purch_ret_seq_next', readonly=False)
+    biz_purch_ret_seq_padding = fields.Integer(string="Debit Note Sequence Padding", related='tenant_id.purch_ret_seq_padding', readonly=False)
+
     # Payment In Sequence
     biz_pay_in_seq_prefix = fields.Char(string="Payment In Sequence Prefix", related='tenant_id.pay_in_seq_prefix', readonly=False)
     biz_pay_in_seq_next = fields.Integer(string="Payment In Sequence Next Number", related='tenant_id.pay_in_seq_next', readonly=False)

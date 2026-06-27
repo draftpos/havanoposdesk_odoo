@@ -42,6 +42,7 @@
         'inventory/views/stock_adjustment_views.xml',
         'inventory/views/report_views.xml',
         'suppliers/data/sequence.xml',
+        'suppliers/wizard/purchase_return_wizard_views.xml',
         'suppliers/views/purchase_views.xml',
         'suppliers/views/supplier_views.xml',
         'sales/data/sequence.xml',
