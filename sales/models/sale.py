@@ -68,7 +68,7 @@ class Sale(models.Model):
         ('draft', 'Draft'),
         ('confirmed', 'Confirmed'),
         ('done', 'Done')
-    ], string='Status', default='done', required=True)
+    ], string='Status', default='draft', required=True)
 
     @api.depends('line_ids.price_subtotal', 'line_ids.price_tax', 'line_ids.amount')
     def _compute_amount_total(self):
