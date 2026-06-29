@@ -45,9 +45,9 @@
                     <field name="salesperson_id"/>
                     <field name="store_id"/>
                     <separator/>
-                    <filter string="Today" name="today" domain="[('date', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                    <filter string="Today" name="today" domain="[('date', '=', 'today')]"/>
                     <filter string="My Sales" name="my_sales" domain="[('salesperson_id', '=', uid)]"/>
-                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
+                    <filter string="This Month" name="this_month" date="date" default_period="month"/>
                     <group expand="1" string="Group By">
                         <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
                         <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
