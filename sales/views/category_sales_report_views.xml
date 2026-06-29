@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Category Sales Report Tree View -->
+        <record id="view_category_sales_report_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.category.sales.report.list</field>
+            <field name="model">havanoposdesk.category.sales.report</field>
+            <field name="arch" type="xml">
+                <list string="Category Sales" create="false" edit="false" delete="false">
+                    <field name="category_id" optional="show"/>
+                    <field name="store_id" optional="show"/>
+                    <field name="qty" sum="Total Qty" optional="show"/>
+                    <field name="cost_price" widget="monetary" optional="show"/>
+                    <field name="selling_price" widget="monetary" optional="show"/>
+                    <field name="profit" sum="Total Profit" widget="monetary" decoration-danger="profit &lt; 0" decoration-success="profit &gt; 0" optional="show"/>
+                    <field name="profit_margin" widget="percentage" decoration-danger="profit_margin &lt; 0" decoration-success="profit_margin &gt; 0" optional="show"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Category Sales Report Pivot View -->
+        <record id="view_category_sales_report_pivot" model="ir.ui.view">
+            <field name="name">havanoposdesk.category.sales.report.pivot</field>
+            <field name="model">havanoposdesk.category.sales.report</field>
+            <field name="arch" type="xml">
+                <pivot string="Category Sales" disable_linking="True">
+                    <field name="category_id" type="row"/>
+                    <field name="qty" type="measure"/>
+                    <field name="profit" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- Action for Category Sales Report -->
+        <record id="action_category_sales_report" model="ir.actions.act_window">
+            <field name="name">Category Sales</field>
+            <field name="res_model">havanoposdesk.category.sales.report</field>
+            <field name="view_mode">list,pivot</field>
+        </record>
+
+        <!-- Menu Item -->
+        <menuitem id="menu_category_sales_report" name="Category Sales" parent="menu_sales_reports" action="action_category_sales_report" sequence="20"/>
+    </data>
+</odoo>

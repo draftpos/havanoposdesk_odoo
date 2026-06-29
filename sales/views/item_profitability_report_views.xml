@@ -7,14 +7,15 @@
             <field name="model">havanoposdesk.item.profitability.report</field>
             <field name="arch" type="xml">
                 <list string="Item Profitability" create="false" edit="false" delete="false">
-                    <field name="item_code"/>
-                    <field name="name"/>
-                    <field name="store_id"/>
-                    <field name="qty" sum="Total Qty"/>
-                    <field name="cost_price" widget="monetary"/>
-                    <field name="selling_price" widget="monetary"/>
-                    <field name="profit" sum="Total Profit" widget="monetary" decoration-danger="profit &lt; 0" decoration-success="profit &gt; 0"/>
-                    <field name="profit_margin" widget="percentage" decoration-danger="profit_margin &lt; 0" decoration-success="profit_margin &gt; 0"/>
+                    <field name="item_code" optional="show"/>
+                    <field name="name" optional="show"/>
+                    <field name="category_id" optional="show"/>
+                    <field name="store_id" optional="show"/>
+                    <field name="qty" sum="Total Qty" optional="show"/>
+                    <field name="cost_price" widget="monetary" optional="show"/>
+                    <field name="selling_price" widget="monetary" optional="show"/>
+                    <field name="profit" sum="Total Profit" widget="monetary" decoration-danger="profit &lt; 0" decoration-success="profit &gt; 0" optional="show"/>
+                    <field name="profit_margin" widget="percentage" decoration-danger="profit_margin &lt; 0" decoration-success="profit_margin &gt; 0" optional="show"/>
                 </list>
             </field>
         </record>
@@ -25,6 +26,7 @@
             <field name="model">havanoposdesk.item.profitability.report</field>
             <field name="arch" type="xml">
                 <pivot string="Item Profitability" disable_linking="True">
+                    <field name="category_id" type="row"/>
                     <field name="product_id" type="row"/>
                     <field name="qty" type="measure"/>
                     <field name="profit" type="measure"/>

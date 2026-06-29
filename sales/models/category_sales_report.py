@@ -1,13 +1,10 @@
 from odoo import models, fields, tools
 
-class ItemProfitabilityReport(models.Model):
-    _name = 'havanoposdesk.item.profitability.report'
-    _description = 'Item Profitability Report'
+class CategorySalesReport(models.Model):
+    _name = 'havanoposdesk.category.sales.report'
+    _description = 'Category Sales Report'
     _auto = False
 
-    product_id = fields.Many2one('havanoposdesk.product', string='Product', readonly=True)
-    item_code = fields.Char(string='Item Code', readonly=True)
-    name = fields.Char(string='Item Name', readonly=True)
     category_id = fields.Many2one('havanoposdesk.category', string='Category', readonly=True)
     qty = fields.Float(string='Qty Sold', readonly=True)
     cost_price = fields.Float(string='Buying Price', readonly=True)
@@ -23,21 +20,22 @@ class ItemProfitabilityReport(models.Model):
             CREATE OR REPLACE VIEW %s AS (
                 SELECT
                     MIN(l.id) as id,
-                    l.product_id,
                     p.category_id,
-                    p.item_code,
-                    p.name,
                     SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) as qty,
-                    p.buying_price as cost_price,
+                    CASE 
+                        WHEN SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) > 0 
+                        THEN SUM(CASE WHEN s.is_return THEN -l.accepted_qty * p.buying_price ELSE l.accepted_qty * p.buying_price END) / SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END)
+                        ELSE 0 
+                    END as cost_price,
                     CASE 
                         WHEN SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) > 0 
                         THEN SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) / SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END)
                         ELSE 0 
                     END as selling_price,
-                    SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) - (SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) * p.buying_price) as profit,
+                    SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * p.buying_price ELSE l.accepted_qty * p.buying_price END) as profit,
                     CASE 
                         WHEN SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) > 0 
-                        THEN ((SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) - (SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) * p.buying_price)) / SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END)) * 100 
+                        THEN ((SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * p.buying_price ELSE l.accepted_qty * p.buying_price END)) / SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END)) * 100 
                         ELSE 0 
                     END as profit_margin,
                     l.tenant_id,
@@ -51,7 +49,6 @@ class ItemProfitabilityReport(models.Model):
                 WHERE
                     s.state IN ('confirmed', 'done')
                 GROUP BY
-                    l.product_id, p.category_id, p.item_code, p.name, p.buying_price, l.tenant_id, s.store_id
+                    p.category_id, l.tenant_id, s.store_id
             )
         """ % (self._table,))
-
