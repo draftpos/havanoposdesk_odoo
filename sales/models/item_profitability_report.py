@@ -30,17 +30,21 @@ class ItemProfitabilityReport(models.Model):
                     p.item_code,
                     p.name,
                     SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) as qty,
-                    p.buying_price as cost_price,
                     CASE 
                         WHEN SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) > 0 
-                        THEN SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) / SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END)
+                        THEN SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END) / SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END)
+                        ELSE 0 
+                    END as cost_price,
+                    CASE 
+                        WHEN SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) > 0 
+                        THEN SUM(l.amount) / SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END)
                         ELSE 0 
                     END as selling_price,
-                    SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) as total_sales,
-                    SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) - (SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) * p.buying_price) as profit,
+                    SUM(l.amount) as total_sales,
+                    SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END) as profit,
                     CASE 
-                        WHEN SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) > 0 
-                        THEN ((SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END) - (SUM(CASE WHEN s.is_return THEN -l.accepted_qty ELSE l.accepted_qty END) * p.buying_price)) / SUM(CASE WHEN s.is_return THEN -l.amount ELSE l.amount END)) * 100 
+                        WHEN SUM(l.amount) > 0 
+                        THEN ((SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END)) / SUM(l.amount)) * 100 
                         ELSE 0 
                     END as profit_margin,
                     s.posting_date as date,
@@ -55,7 +59,7 @@ class ItemProfitabilityReport(models.Model):
                 WHERE
                     s.state IN ('confirmed', 'done')
                 GROUP BY
-                    l.product_id, p.category_id, p.item_code, p.name, p.buying_price, s.posting_date, l.tenant_id, s.store_id
+                    l.product_id, p.category_id, p.item_code, p.name, s.posting_date, l.tenant_id, s.store_id
             )
         """ % (self._table,))
 

@@ -62,6 +62,7 @@ class Sale(models.Model):
     amount_untaxed = fields.Float(string='Untaxed Amount', compute='_compute_amount_total', store=True)
     amount_tax = fields.Float(string='Taxes', compute='_compute_amount_total', store=True)
     amount_total = fields.Float(string='Total Amount', compute='_compute_amount_total', store=True)
+    total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
     salesperson_id = fields.Many2one('res.users', string='Salesperson', default=lambda self: self.env.user.id)
     state = fields.Selection([
         ('draft', 'Draft'),
@@ -75,6 +76,12 @@ class Sale(models.Model):
             record.amount_untaxed = sum(record.line_ids.mapped('price_subtotal'))
             record.amount_tax = sum(record.line_ids.mapped('price_tax'))
             record.amount_total = sum(record.line_ids.mapped('amount'))
+
+    @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
+    def _compute_total_cost(self):
+        for record in self:
+            sign = -1.0 if record.is_return else 1.0
+            record.total_cost = sum(line.cost_price * line.accepted_qty for line in record.line_ids) * sign
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -184,19 +191,16 @@ class Sale(models.Model):
                 ], limit=1)
 
                 if existing_payment:
-                    existing_payment.amount += sale.amount_total
+                    existing_payment.amount += abs(sale.amount_total)
                     if existing_payment.state == 'posted':
-                        if payment_type == 'receipt':
-                            existing_payment.account_id.sudo().balance += sale.amount_total
-                        else:
-                            existing_payment.account_id.sudo().balance -= sale.amount_total
+                        existing_payment.account_id.sudo().balance += sale.amount_total
                     sale.pos_payment_id = existing_payment.id
                 else:
                     payment = self.env['havanoposdesk.payment'].create({
                         'payment_type': payment_type,
                         'partner_type': 'customer',
                         'account_id': sale.account_id.id,
-                        'amount': sale.amount_total,
+                        'amount': abs(sale.amount_total),
                         'reference': 'POS Payments',
                         'date': fields.Date.context_today(self),
                     })
@@ -341,13 +345,9 @@ class Sale(models.Model):
             # Reverse POS Payment batch amounts and account balances
             if sale.payment_status == 'cash' and sale.pos_payment_id:
                 payment = sale.pos_payment_id
-                payment_type = 'payment' if sale.is_return else 'receipt'
                 if payment.state == 'posted':
-                    if payment_type == 'receipt':
-                        payment.account_id.sudo().balance -= sale.amount_total
-                    else:
-                        payment.account_id.sudo().balance += sale.amount_total
-                payment.write({'amount': payment.amount - sale.amount_total})
+                    payment.account_id.sudo().balance -= sale.amount_total
+                payment.write({'amount': payment.amount - abs(sale.amount_total)})
                 
             sale.write({'state': 'cancelled'})
 
@@ -397,9 +397,10 @@ class SaleLine(models.Model):
                 # Use normal cost (product's buying_price or cost_price)
                 line.cost_price = line.product_id.buying_price or line.product_id.cost_price or 0.0
 
-    @api.depends('accepted_qty', 'rate', 'tax_ids')
+    @api.depends('accepted_qty', 'rate', 'tax_ids', 'sale_id.is_return')
     def _compute_amount(self):
         for record in self:
+            sign = -1.0 if record.sale_id.is_return else 1.0
             base_amount = record.accepted_qty * record.rate
             taxes = record.tax_ids
             
@@ -413,8 +414,8 @@ class SaleLine(models.Model):
             inclusive_tax_amount = base_amount - untaxed_amount
             exclusive_tax_amount = untaxed_amount * rate_excl
             
-            record.price_subtotal = untaxed_amount
-            record.price_tax = inclusive_tax_amount + exclusive_tax_amount
+            record.price_subtotal = untaxed_amount * sign
+            record.price_tax = (inclusive_tax_amount + exclusive_tax_amount) * sign
             record.amount = record.price_subtotal + record.price_tax
 
     @api.onchange('product_id')

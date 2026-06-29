@@ -37,9 +37,7 @@ class Customer(models.Model):
     def _compute_balance(self):
         for record in self:
             account_sales = record.sale_ids.filtered(lambda s: s.payment_status == 'account')
-            normal_sales = sum(account_sales.filtered(lambda s: not s.is_return).mapped('amount_total'))
-            return_sales = sum(account_sales.filtered(lambda s: s.is_return).mapped('amount_total'))
-            total_sales = normal_sales - return_sales
+            total_sales = sum(account_sales.mapped('amount_total'))
             
             posted_payments = record.payment_ids.filtered(lambda p: p.state == 'posted')
             receipts = sum(posted_payments.filtered(lambda p: p.payment_type == 'receipt').mapped('amount'))

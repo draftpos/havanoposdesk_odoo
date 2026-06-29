@@ -7,18 +7,20 @@
             <field name="model">havanoposdesk.sale</field>
             <field name="arch" type="xml">
                 <list string="Sales Invoices" default_order="date desc">
+                    <field name="is_return" column_invisible="True"/>
                     <field name="name"/>
-                    <field name="invoice_type" string="Type" optional="show" readonly="1"/>
+                    <field name="invoice_type" string="Type" optional="show" readonly="1" decoration-danger="is_return" decoration-bf="is_return"/>
                     <field name="payment_status" optional="show"/>
                     <field name="customer"/>
                     <field name="date"/>
                     <field name="store_id"/>
                     <field name="terminal_id" optional="show"/>
                     <field name="salesperson_id"/>
+                    <field name="total_cost" string="Total Cost" sum="Total Cost" optional="show"/>
                     <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu"/>
                     <field name="amount_tax" string="Total Tax" sum="Total Tax"/>
                     <field name="amount_total" string="Total Inclu" sum="Total Inclu"/>
-                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done'" decoration-danger="state == 'cancelled'"/>
+                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return"/>
                 </list>
             </field>
         </record>
@@ -77,6 +79,7 @@
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
+                                    <field name="total_cost" widget="monetary" string="Total Cost"/>
                                     <field name="amount_untaxed" widget="monetary" string="Total Excl"/>
                                     <field name="amount_tax" widget="monetary" string="Total Tax"/>
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl"/>

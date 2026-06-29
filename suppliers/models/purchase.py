@@ -20,7 +20,34 @@ class Purchase(models.Model):
         required=True, 
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
-    supplier = fields.Many2one('havanoposdesk.supplier', string='Supplier', required=True)
+    def _default_supplier_id(self):
+        user = self.env.user
+        tenant_id = user.tenant_id.id or self.env.context.get('default_tenant_id')
+        if not tenant_id:
+            tenant = self.env['havanoposdesk.tenant'].search([], limit=1)
+            if not tenant:
+                tenant = self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})
+            tenant_id = tenant.id
+            
+        supplier = self.env['havanoposdesk.supplier'].search([
+            ('name', '=', 'General'),
+            ('tenant_id', '=', tenant_id)
+        ], limit=1)
+        if not supplier:
+            store = self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1)
+            if not store:
+                store = self.env['havanoposdesk.store'].create({
+                    'name': 'Default Store',
+                    'tenant_id': tenant_id
+                })
+            supplier = self.env['havanoposdesk.supplier'].create({
+                'name': 'General',
+                'tenant_id': tenant_id,
+                'store_id': store.id
+            })
+        return supplier.id
+
+    supplier = fields.Many2one('havanoposdesk.supplier', string='Supplier', required=True, default=_default_supplier_id)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
