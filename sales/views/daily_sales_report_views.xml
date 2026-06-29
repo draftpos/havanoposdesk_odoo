@@ -43,7 +43,7 @@
                     <separator/>
                     <filter string="Today" name="today" domain="[('date', '=', 'today')]"/>
                     <filter string="This Month" name="this_month" date="date" default_period="month"/>
-                    <group expand="1" string="Group By">
+                    <group>
                         <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
                     </group>
                 </search>
