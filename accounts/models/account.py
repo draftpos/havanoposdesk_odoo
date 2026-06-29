@@ -9,7 +9,7 @@ class Account(models.Model):
         ('Cash', 'Cash'),
         ('Bank', 'Bank'),
         ('Expense', 'Expense')
-    ], string='Account Type', required=True, default='Expense')
+    ], string='Account Type', required=True)
     balance = fields.Float(string='Balance', default=0.0)
     
     # Store reference for multi-tenancy if applicable

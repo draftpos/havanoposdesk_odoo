@@ -60,7 +60,7 @@
                             <group>
                                 <field name="salesperson_id" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark"/>
                                 <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}"/>
-                                <field name="account_id" invisible="payment_status != 'cash'" required="payment_status == 'cash'" readonly="state != 'draft'" class="border-bottom border-dark"/>
+                                <field name="account_id" invisible="payment_status != 'cash'" required="payment_status == 'cash'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark"/>
                                 <field name="tenant_id" invisible="1"/>
                             </group>
                         </group>
@@ -131,5 +131,8 @@
 
         <!-- Sales App Menu Connections -->
         <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="10"/>
+
+        <!-- Update top-level Sales app menu to default to Sales Invoices list -->
+        <menuitem id="menu_sales_root" action="action_sales_operations"/>
     </data>
 </odoo>
