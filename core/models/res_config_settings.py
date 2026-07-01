@@ -153,3 +153,45 @@ class ResConfigSettings(models.TransientModel):
         default="havano.cloud",
         help="Vendor domain shown in the login page footer."
     )
+    havano_pwa_small_icon = fields.Char(
+        string="PWA Small Icon",
+        config_parameter="havanoposdesk.pwa_small_icon",
+        default="/Havanoposdesk_odoo/static/src/img/havano-icon-192x192.png",
+    )
+    havano_pwa_large_icon = fields.Char(
+        string="PWA Large Icon",
+        config_parameter="havanoposdesk.pwa_large_icon",
+        default="/Havanoposdesk_odoo/static/src/img/havano-icon-512x512.png",
+    )
+    havano_pwa_app_icon = fields.Char(
+        string="PWA App Icon",
+        config_parameter="havanoposdesk.pwa_app_icon",
+        default="/Havanoposdesk_odoo/static/src/img/havano-icon-512x512.png",
+    )
+    havano_pwa_background_color = fields.Char(
+        string="PWA Background Color",
+        config_parameter="havanoposdesk.pwa_background_color",
+        default="#714B67",
+    )
+    havano_bot_email = fields.Char(
+        string="Bot Email",
+        config_parameter="havanoposdesk.bot_email",
+        default="bot@havano.cloud",
+    )
+    havano_favicon = fields.Char(
+        string="X Icon",
+        config_parameter="havanoposdesk.favicon",
+        default="/Havanoposdesk_odoo/static/src/img/favicon.ico",
+    )
+
+    def set_values(self):
+        super().set_values()
+        bot_name = self.env['ir.config_parameter'].sudo().get_param('havanoposdesk.bot_name', 'HavanoBot')
+        bot_email = self.env['ir.config_parameter'].sudo().get_param('havanoposdesk.bot_email', 'bot@havano.cloud')
+        # Rename OdooBot in the database
+        bot_partner = self.env.ref('base.partner_root', raise_if_not_found=False)
+        if bot_partner:
+            bot_partner.sudo().write({
+                'name': bot_name,
+                'email': bot_email,
+            })

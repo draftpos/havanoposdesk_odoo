@@ -38,6 +38,7 @@ class HavanoWebManifest(WebManifest):
         icp = request.env['ir.config_parameter'].sudo()
         web_app_name = icp.get_param('web.web_app_name', 'Havano')
         theme_color = icp.get_param('havanoposdesk.theme_color', '#714B67')
+        bg_color = icp.get_param('havanoposdesk.pwa_background_color', '#714B67')
         base_path = icp.get_param('havanoposdesk.web_base_url', 'havano')
         scope = f'/{base_path}'
 
@@ -47,30 +48,39 @@ class HavanoWebManifest(WebManifest):
             'scope': scope,
             'start_url': scope,
             'display': 'standalone',
-            'background_color': theme_color,
+            'background_color': bg_color,
             'theme_color': theme_color,
             'prefer_related_applications': False,
         }
 
-        # Use Havano icon if it exists, otherwise fall back to default
-        icon_sizes = ['192x192', '512x512']
-        try:
-            from odoo.tools import file_path
-            file_path('Havanoposdesk_odoo/static/src/img/havano-icon-192x192.png')
-            manifest['icons'] = [{
-                'src': f'/Havanoposdesk_odoo/static/src/img/havano-icon-{size}.png',
-                'sizes': size,
+        # Icons
+        small_icon = icp.get_param('havanoposdesk.pwa_small_icon', '/Havanoposdesk_odoo/static/src/img/havano-icon-192x192.png')
+        large_icon = icp.get_param('havanoposdesk.pwa_large_icon', '/Havanoposdesk_odoo/static/src/img/havano-icon-512x512.png')
+        
+        manifest['icons'] = [
+            {
+                'src': small_icon,
+                'sizes': '192x192',
                 'type': 'image/png',
-            } for size in icon_sizes]
-        except FileNotFoundError:
-            manifest['icons'] = [{
-                'src': f'/web/static/img/odoo-icon-{size}.png',
-                'sizes': size,
+            },
+            {
+                'src': large_icon,
+                'sizes': '512x512',
                 'type': 'image/png',
-            } for size in icon_sizes]
+            }
+        ]
 
         manifest['shortcuts'] = self._get_shortcuts()
         return manifest
+
+    @http.route(['/odoo/offline', '/havano/offline'], type='http', auth='public', methods=['GET'], readonly=True)
+    def offline(self):
+        """ Returns the offline page delivered by the service worker """
+        icp = request.env['ir.config_parameter'].sudo()
+        web_app_name = icp.get_param('web.web_app_name', 'Havano')
+        return request.render('Havanoposdesk_odoo.havano_offline_page', {
+            'app_name': web_app_name,
+        })
 
     @http.route('/web/service-worker.js', type='http', auth='public', methods=['GET'], readonly=True)
     def service_worker(self):
