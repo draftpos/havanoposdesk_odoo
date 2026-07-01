@@ -4275,13 +4275,15 @@ class HavanoPOSDeskAPI(http.Controller):
         env, custom_cr = self._get_env(user_id=uid)
         try:
             current_user = env['res.users'].browse(uid)
+            if current_user.havano_role not in ('admin', 'super_admin'):
+                return self._make_json_response({"error": "Access denied. Only admins can fetch users."}, status=403)
+
             tenant = current_user.tenant_id
-            
             domain = [('share', '=', False)]
             if current_user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
                 
-            odoo_users = env['res.users'].search(domain)
+            odoo_users = env['res.users'].sudo().search(domain)
             data_list = []
             for u in odoo_users:
                 names = (u.name or "").split(' ', 1)
@@ -4289,23 +4291,38 @@ class HavanoPOSDeskAPI(http.Controller):
                 last_name = names[1] if len(names) > 1 else ""
 
                 role_val = u.havano_role or ""
+                is_admin_flag = 1 if role_val in ('admin', 'super_admin') else 0
                 if role_val == "super_admin" or role_val == "admin":
                     role_val = "Admin"
                 else:
                     role_val = "User"
 
+                store = u.default_store_id or (u.store_ids[0] if u.store_ids else False)
+                store_name = store.name if store else ''
+                warehouse = u.api_warehouse or (tenant.api_warehouse if tenant else False) or store_name
+                cost_center = u.api_cost_center or (tenant.api_cost_center if tenant else False) or store_name
+                profile_name = u.user_rights_profile_id.name if u.user_rights_profile_id else "Cashier"
+
                 data_list.append({
+                    "id": u.id,
                     "pin": u.pin or "",
                     "name": u.login,
+                    "username": u.login,
                     "email": u.login,
                     "full_name": u.name or "",
                     "first_name": first_name,
                     "last_name": last_name,
                     "phone_number": u.phone or "",
-                    "cost_center": u.default_store_id.name if u.default_store_id else "",
+                    "mobile_no": u.phone or "",
+                    "warehouse": warehouse,
+                    "cost_center": cost_center,
+                    "profile_name": profile_name,
                     "enabled": 1 if u.active else 0,
+                    "is_active": 1 if u.active else 0,
                     "user_type": "System User",
-                    "role_select": role_val
+                    "role": u.havano_role or "user",
+                    "role_select": role_val,
+                    "is_admin": is_admin_flag
                 })
 
             return self._make_json_response({

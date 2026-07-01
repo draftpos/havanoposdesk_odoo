@@ -24,6 +24,18 @@ class ResUsers(models.Model):
     pin = fields.Char(string="PIN Code")
     user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
 
+    @api.constrains('pin', 'tenant_id')
+    def _check_pin_uniqueness(self):
+        for user in self:
+            if user.pin and user.pin.strip():
+                duplicate = self.search([
+                    ('tenant_id', '=', user.tenant_id.id),
+                    ('pin', '=', user.pin),
+                    ('id', '!=', user.id)
+                ], limit=1)
+                if duplicate:
+                    raise ValidationError(_("The PIN code must be unique per tenant! User '%s' already has this PIN.") % duplicate.name)
+
     verification_token = fields.Char(string="Verification Token", copy=False)
     verification_sent_at = fields.Datetime(string="Verification Sent At", copy=False)
 
