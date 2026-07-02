@@ -906,6 +906,8 @@ class HavanoPOSDeskAPI(http.Controller):
             cashier_user = request.env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
             if cashier_user:
                 user = cashier_user
+            else:
+                return request.make_response(json.dumps({'error': f"User '{user_email}' not found. Please log in again online."}), headers=[('Content-Type', 'application/json')], status=400)
         if not user:
             user = self._get_user()
             
@@ -988,7 +990,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'rate': rate or product.selling_price or 1.0,
             }))
             
-        sale = request.env['havanoposdesk.sale'].sudo().create({
+        sale = request.env['havanoposdesk.sale'].with_user(user.id).sudo().create({
             'customer': customer.id,
             'store': store.name,
             'store_id': store.id,
@@ -996,6 +998,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'terminal_id': terminal.id if terminal else False,
             'line_ids': lines,
             'state': 'done',
+            'salesperson_id': user.id,
         })
         
         res_data = {
@@ -2012,6 +2015,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
                     if cashier_user:
                         user = cashier_user
+                    else:
+                        raise Exception(f"User '{user_email}' not found. Please log in again online.")
                 if not user:
                     user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
@@ -2070,7 +2075,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if not terminal:
                     raise Exception("No terminal assigned. Please select a terminal first.")
 
-                sale = env['havanoposdesk.sale'].create({
+                sale = env['havanoposdesk.sale'].with_user(user.id).create({
                     'customer': customer.id,
                     'store': store.name,
                     'store_id': store.id,
@@ -2078,6 +2083,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'terminal_id': terminal.id if terminal else False,
                     'line_ids': lines,
                     'state': 'done',
+                    'salesperson_id': user.id,
                 })
 
                 if custom_cr:
@@ -4743,6 +4749,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
                 if cashier_user:
                     user = cashier_user
+                else:
+                    return self._make_json_response({"error": f"User '{user_email}' not found. Please log in again online."}, status=400)
             if not user:
                 user = env['res.users'].browse(uid)
 
@@ -4791,6 +4799,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
                 if cashier_user:
                     user = cashier_user
+                else:
+                    return self._make_json_response({"error": f"User '{user_email}' not found. Please log in again online."}, status=400)
             if not user:
                 user = env['res.users'].browse(uid)
 
