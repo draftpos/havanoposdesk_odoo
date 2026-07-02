@@ -185,34 +185,26 @@ export class HavanoDashboard extends Component {
                         {
                             label: 'Gross profit',
                             data: this.salesChartData.gross_profit,
-                            borderColor: '#f39c12',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            tension: 0.1
+                            backgroundColor: '#f39c12',
+                            borderRadius: 4
                         },
                         {
                             label: 'Net sales',
                             data: this.salesChartData.net_sales,
-                            borderColor: '#2ecc71',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            tension: 0.1
+                            backgroundColor: '#2ecc71',
+                            borderRadius: 4
                         },
                         {
                             label: 'Cost of sales',
                             data: this.salesChartData.cost_of_sales,
-                            borderColor: '#9b59b6',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            tension: 0.1
+                            backgroundColor: '#9b59b6',
+                            borderRadius: 4
                         },
                         {
                             label: 'Gross sales',
                             data: this.salesChartData.gross_sales,
-                            borderColor: '#3498db',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            tension: 0.1
+                            backgroundColor: '#3498db',
+                            borderRadius: 4
                         }
                     ]
                 },
@@ -274,8 +266,10 @@ export class HavanoDashboard extends Component {
         // Helper to render sparklines
         const renderSparkline = (ref, instance, data, color) => {
             if (instance) instance.destroy();
-            if (ref.el && data) {
+            if (ref.el && data && data.length > 0) {
                 const ctx = ref.el.getContext('2d');
+                const minVal = Math.min(...data);
+                const maxVal = Math.max(...data);
                 return new Chart(ctx, {
                     type: 'line',
                     data: {
@@ -297,7 +291,7 @@ export class HavanoDashboard extends Component {
                         plugins: { legend: { display: false }, tooltip: { enabled: false } },
                         scales: {
                             x: { display: false },
-                            y: { display: false, min: Math.min(...data) * 0.9, max: Math.max(...data) * 1.1 }
+                            y: { display: false, min: minVal === maxVal ? minVal - 1 : minVal * 0.9, max: minVal === maxVal ? maxVal + 1 : maxVal * 1.1 }
                         },
                         layout: { padding: 0 }
                     }
