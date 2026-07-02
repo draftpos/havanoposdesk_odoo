@@ -141,7 +141,6 @@
                 <filter name="unresolved" string="Unresolved" domain="[('is_resolved', '=', False)]"/>
                 <filter name="resolved" string="Resolved" domain="[('is_resolved', '=', True)]"/>
                 <separator/>
-                <filter name="today" string="Today" domain="[('last_seen', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
                 
                 <group string="Group By">
                     <filter name="group_site" string="Site" context="{'group_by':'site'}"/>
