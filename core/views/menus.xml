@@ -5,6 +5,7 @@
         <!-- Removed config parameters to prevent UniqueViolation error on module upgrade -->
 
         <!-- Top-level Menus acting as Apps on the Dashboard -->
+        <menuitem id="menu_dashboard_main" name="Dashboard" sequence="5" web_icon="board,static/description/icon.png" action="action_havano_dashboard"/>
         <menuitem id="menu_inventory_root" name="Stock" sequence="10" web_icon="stock,static/description/icon.png"/>
         <menuitem id="menu_sales_root" name="Sales" sequence="20" web_icon="sale,static/description/icon.png"/>
         <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="purchase,static/description/icon.png"/>
@@ -70,6 +71,5 @@
 
         <!-- My Business Analytics Navigation (visible to tenant admins / base.group_user) -->
         <menuitem id="menu_my_business_analytics" name="Analytics" parent="menu_my_business_root" sequence="40"/>
-        <menuitem id="menu_my_purchases_analysis" name="Purchases Analysis" parent="menu_my_business_analytics" action="action_purchases_analysis" sequence="20"/>
     </data>
 </odoo>
