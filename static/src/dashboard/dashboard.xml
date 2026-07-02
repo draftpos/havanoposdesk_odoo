@@ -2,9 +2,11 @@
 <templates xml:space="preserve">
 
     <t t-name="havanoposdesk_odoo.Dashboard" owl="1">
-        <div class="havano-dashboard-container o_action">
-            <div class="d-flex justify-content-between align-items-center mb-4 dashboard-header">
-                <h2 class="m-0 text-dark fw-bolder d-none d-md-block">Dashboard</h2>
+        <div class="o_action o_view_controller">
+            <div class="o_content overflow-auto bg-light w-100 h-100">
+                <div class="havano-dashboard-container p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4 dashboard-header">
+                        <h2 class="m-0 text-dark fw-bolder d-none d-md-block">Dashboard</h2>
                 
                 <!-- Period Filter Dropdown -->
                 <div class="dropdown">
@@ -20,8 +22,16 @@
                             <DropdownItem onSelected="() => this.setPeriod('last_week', 'Last week')">Last week</DropdownItem>
                             <DropdownItem onSelected="() => this.setPeriod('this_month', 'This month')">This month</DropdownItem>
                             <DropdownItem onSelected="() => this.setPeriod('last_month', 'Last month')">Last month</DropdownItem>
+                            <DropdownItem onSelected="() => this.setPeriod('custom', 'Custom Range')">Custom Range</DropdownItem>
                         </t>
                     </Dropdown>
+                </div>
+                <!-- Custom Date Inputs (only visible if custom is selected) -->
+                <div t-if="state.period === 'custom'" class="d-flex align-items-center ms-3">
+                    <input type="date" class="form-control me-2" t-model="state.customDateFrom" />
+                    <span class="me-2 text-muted">to</span>
+                    <input type="date" class="form-control me-2" t-model="state.customDateTo" />
+                    <button class="btn btn-primary" t-on-click="applyCustomDate">Apply</button>
                 </div>
             </div>
 
@@ -31,7 +41,12 @@
                     <div class="card h-100 border-0 shadow-sm rounded-3">
                         <div class="card-body position-relative overflow-hidden">
                             <div class="top-indicator bg-primary"></div>
-                            <h6 class="card-title text-muted fw-bold mb-2">Gross sales</h6>
+                            <div class="d-flex justify-content-between">
+                                <h6 class="card-title text-muted fw-bold mb-2">Gross sales</h6>
+                                <span t-attf-class="badge #{state.kpis.gross_trend >= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
+                                    <t t-if="state.kpis.gross_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.gross_trend)"/>%
+                                </span>
+                            </div>
                             <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.gross_sales)"/></h3>
                             <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
@@ -41,7 +56,12 @@
                     <div class="card h-100 border-0 shadow-sm rounded-3">
                         <div class="card-body position-relative overflow-hidden">
                             <div class="top-indicator bg-success"></div>
-                            <h6 class="card-title text-muted fw-bold mb-2">Net sales</h6>
+                            <div class="d-flex justify-content-between">
+                                <h6 class="card-title text-muted fw-bold mb-2">Net sales</h6>
+                                <span t-attf-class="badge #{state.kpis.net_trend >= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
+                                    <t t-if="state.kpis.net_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.net_trend)"/>%
+                                </span>
+                            </div>
                             <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.net_sales)"/></h3>
                             <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
@@ -51,7 +71,12 @@
                     <div class="card h-100 border-0 shadow-sm rounded-3">
                         <div class="card-body position-relative overflow-hidden">
                             <div class="top-indicator bg-purple"></div>
-                            <h6 class="card-title text-muted fw-bold mb-2">Cost of sales</h6>
+                            <div class="d-flex justify-content-between">
+                                <h6 class="card-title text-muted fw-bold mb-2">Cost of sales</h6>
+                                <span t-attf-class="badge #{state.kpis.cost_trend &lt;= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
+                                    <t t-if="state.kpis.cost_trend &lt;= 0">▼</t><t t-else="">▲</t> <t t-esc="Math.abs(state.kpis.cost_trend)"/>%
+                                </span>
+                            </div>
                             <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.cost_of_sales)"/></h3>
                             <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
@@ -61,7 +86,12 @@
                     <div class="card h-100 border-0 shadow-sm rounded-3">
                         <div class="card-body position-relative overflow-hidden">
                             <div class="top-indicator bg-warning"></div>
-                            <h6 class="card-title text-muted fw-bold mb-2">Gross profit</h6>
+                            <div class="d-flex justify-content-between">
+                                <h6 class="card-title text-muted fw-bold mb-2">Gross profit</h6>
+                                <span t-attf-class="badge #{state.kpis.profit_trend >= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
+                                    <t t-if="state.kpis.profit_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.profit_trend)"/>%
+                                </span>
+                            </div>
                             <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.gross_profit)"/></h3>
                             <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
@@ -111,6 +141,8 @@
             
             <!-- Add a slight bottom padding for mobile so it doesn't stick to edge -->
             <div class="pb-4"></div>
+                </div>
+            </div>
         </div>
     </t>
 
