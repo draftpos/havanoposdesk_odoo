@@ -5,9 +5,8 @@
         <div class="o_action o_view_controller">
             <div class="o_content overflow-auto bg-light w-100 h-100">
                 <div class="havano-dashboard-container p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-4 dashboard-header">
-                        <h2 class="m-0 text-dark fw-bolder d-none d-md-block">Dashboard</h2>
-                
+                    <div class="d-flex justify-content-end align-items-center mb-4 dashboard-header">
+                        
                 <!-- Period Filter Dropdown -->
                 <div class="dropdown">
                     <Dropdown>
