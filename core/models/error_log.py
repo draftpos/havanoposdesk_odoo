@@ -51,8 +51,8 @@ class HavanoErrorIssue(models.Model):
                     'bugsink_id': bugsink_id,
                     'name': issue_data.get('calculated_value') or 'Unknown Error',
                     'type': issue_data.get('calculated_type') or 'Unknown',
-                    'first_seen': issue_data.get('first_seen', '').replace('T', ' ').replace('Z', ''),
-                    'last_seen': issue_data.get('last_seen', '').replace('T', ' ').replace('Z', ''),
+                    'first_seen': issue_data.get('first_seen', '').split('.')[0].replace('T', ' ').replace('Z', ''),
+                    'last_seen': issue_data.get('last_seen', '').split('.')[0].replace('T', ' ').replace('Z', ''),
                     'event_count': issue_data.get('digested_event_count', 0),
                     'is_resolved': issue_data.get('is_resolved', False),
                     'transaction': issue_data.get('transaction', ''),
@@ -92,7 +92,7 @@ class HavanoErrorIssue(models.Model):
                         EventModel.create({
                             'bugsink_id': event_id,
                             'issue_id': issue.id,
-                            'timestamp': event_data.get('timestamp', '').replace('T', ' ').replace('Z', ''),
+                            'timestamp': event_data.get('timestamp', '').split('.')[0].replace('T', ' ').replace('Z', ''),
                         })
             except Exception as e:
                 _logger.error(f"Failed to sync events for issue {issue.bugsink_id}: {str(e)}")
