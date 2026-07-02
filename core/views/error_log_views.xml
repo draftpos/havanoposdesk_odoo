@@ -158,10 +158,34 @@
         </field>
     </record>
 
+    <record id="view_havano_error_issue_pivot" model="ir.ui.view">
+        <field name="name">havano.error.issue.pivot</field>
+        <field name="model">havano.error.issue</field>
+        <field name="arch" type="xml">
+            <pivot string="Error Analytics" display_quantity="True" sample="1">
+                <field name="type" type="row"/>
+                <field name="site" type="col"/>
+                <field name="event_count" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_havano_error_issue_graph" model="ir.ui.view">
+        <field name="name">havano.error.issue.graph</field>
+        <field name="model">havano.error.issue</field>
+        <field name="arch" type="xml">
+            <graph string="Error Analytics" type="bar" sample="1">
+                <field name="last_seen" type="row" interval="day"/>
+                <field name="type" type="row"/>
+                <field name="event_count" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
     <record id="action_havano_error_issue" model="ir.actions.act_window">
         <field name="name">Issues</field>
         <field name="res_model">havano.error.issue</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,pivot,graph,form</field>
         <field name="search_view_id" ref="view_havano_error_issue_search"/>
         <field name="context">{'search_default_unresolved': 1}</field>
         <field name="help" type="html">
