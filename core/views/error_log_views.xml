@@ -143,11 +143,11 @@
                 <separator/>
                 <filter name="today" string="Today" domain="[('last_seen', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
                 
-                <group expand="0" string="Group By">
-                    <filter name="group_site" string="Site" domain="[]" context="{'group_by':'site'}"/>
-                    <filter name="group_user_email" string="User Email" domain="[]" context="{'group_by':'user_email'}"/>
-                    <filter name="group_type" string="Error Type" domain="[]" context="{'group_by':'type'}"/>
-                    <filter name="group_release" string="Release" domain="[]" context="{'group_by':'app_release'}"/>
+                <group string="Group By">
+                    <filter name="group_site" string="Site" context="{'group_by':'site'}"/>
+                    <filter name="group_user_email" string="User Email" context="{'group_by':'user_email'}"/>
+                    <filter name="group_type" string="Error Type" context="{'group_by':'type'}"/>
+                    <filter name="group_release" string="Release" context="{'group_by':'app_release'}"/>
                 </group>
             </search>
         </field>
