@@ -1,5 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Views for havano.error.event -->
+    <record id="view_havano_error_event_tree" model="ir.ui.view">
+        <field name="name">havano.error.event.tree</field>
+        <field name="model">havano.error.event</field>
+        <field name="arch" type="xml">
+            <list string="Error Events" create="0" edit="0">
+                <field name="timestamp"/>
+                <field name="issue_id"/>
+                <field name="bugsink_id" string="Event ID"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_havano_error_event_form" model="ir.ui.view">
+        <field name="name">havano.error.event.form</field>
+        <field name="model">havano.error.event</field>
+        <field name="arch" type="xml">
+            <form string="Error Event" create="0" edit="0">
+                <header>
+                    <button name="action_fetch_stacktrace" type="object" string="Fetch Stacktrace" class="oe_highlight" invisible="stacktrace_md"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="issue_id"/>
+                            <field name="bugsink_id" string="Event ID"/>
+                        </group>
+                        <group>
+                            <field name="timestamp"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Stacktrace">
+                            <field name="stacktrace_md" widget="text"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_havano_error_event" model="ir.actions.act_window">
+        <field name="name">Events</field>
+        <field name="res_model">havano.error.event</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('issue_id', '=', active_id)]</field>
+    </record>
+
     <!-- Views for havano.error.issue -->
     <record id="view_havano_error_issue_tree" model="ir.ui.view">
         <field name="name">havano.error.issue.tree</field>
@@ -86,54 +134,6 @@
         <field name="code">
             model.action_sync_issues()
         </field>
-    </record>
-
-    <!-- Views for havano.error.event -->
-    <record id="view_havano_error_event_tree" model="ir.ui.view">
-        <field name="name">havano.error.event.tree</field>
-        <field name="model">havano.error.event</field>
-        <field name="arch" type="xml">
-            <list string="Error Events" create="0" edit="0">
-                <field name="timestamp"/>
-                <field name="issue_id"/>
-                <field name="bugsink_id" string="Event ID"/>
-            </list>
-        </field>
-    </record>
-
-    <record id="view_havano_error_event_form" model="ir.ui.view">
-        <field name="name">havano.error.event.form</field>
-        <field name="model">havano.error.event</field>
-        <field name="arch" type="xml">
-            <form string="Error Event" create="0" edit="0">
-                <header>
-                    <button name="action_fetch_stacktrace" type="object" string="Fetch Stacktrace" class="oe_highlight" invisible="stacktrace_md"/>
-                </header>
-                <sheet>
-                    <group>
-                        <group>
-                            <field name="issue_id"/>
-                            <field name="bugsink_id" string="Event ID"/>
-                        </group>
-                        <group>
-                            <field name="timestamp"/>
-                        </group>
-                    </group>
-                    <notebook>
-                        <page string="Stacktrace">
-                            <field name="stacktrace_md" widget="text"/>
-                        </page>
-                    </notebook>
-                </sheet>
-            </form>
-        </field>
-    </record>
-
-    <record id="action_havano_error_event" model="ir.actions.act_window">
-        <field name="name">Events</field>
-        <field name="res_model">havano.error.event</field>
-        <field name="view_mode">list,form</field>
-        <field name="domain">[('issue_id', '=', active_id)]</field>
     </record>
 
     <!-- Menus -->
