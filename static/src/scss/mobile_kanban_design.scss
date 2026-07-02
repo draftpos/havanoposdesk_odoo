@@ -399,6 +399,11 @@
         }
     }
 
+    /* Hide the Havano logo/brand in mobile view */
+    .havano_brand {
+        display: none !important;
+    }
+
     /* Rename "All Apps" to "Home" in mobile sidebar using pure CSS */
     .o_navbar_apps_menu .btn.btn-primary[href="/odoo"] span.px-2,
     .o_burger_menu_topbar .btn.btn-primary[href="/odoo"] span.px-2,
