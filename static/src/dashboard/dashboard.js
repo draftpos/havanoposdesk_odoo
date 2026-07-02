@@ -113,10 +113,18 @@ export class HavanoDashboard extends Component {
             [date_from, date_to]
         );
 
-        this.state.kpis = data.kpis;
-        this.state.stock_stats = data.stock_stats;
-        this.salesChartData = data.sales_chart;
-        this.stockChartData = data.stock_chart;
+        if (data && data.kpis) {
+            this.state.kpis = data.kpis;
+            this.state.stock_stats = data.stock_stats;
+            this.salesChartData = data.sales_chart;
+            this.stockChartData = data.stock_chart;
+        } else {
+            // Default to empty state if no tenant_id or no data returned
+            this.state.kpis = { gross_sales: 0, net_sales: 0, cost_of_sales: 0, gross_profit: 0 };
+            this.state.stock_stats = { total_valuation: 0, total_items: 0 };
+            this.salesChartData = { labels: [], datasets: [] };
+            this.stockChartData = { labels: [], valuation: [] };
+        }
     }
 
     async setPeriod(period, label) {
