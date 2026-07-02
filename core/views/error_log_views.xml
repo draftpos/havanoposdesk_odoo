@@ -5,14 +5,14 @@
         <field name="name">havano.error.issue.tree</field>
         <field name="model">havano.error.issue</field>
         <field name="arch" type="xml">
-            <tree string="System Errors" create="0" edit="0" decoration-danger="not is_resolved" decoration-success="is_resolved">
+            <list string="System Errors" create="0" edit="0" decoration-danger="not is_resolved" decoration-success="is_resolved">
                 <field name="type" string="Error Type"/>
                 <field name="name" string="Message"/>
                 <field name="first_seen" optional="show"/>
                 <field name="last_seen"/>
                 <field name="event_count" string="Events"/>
                 <field name="is_resolved" string="Resolved"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -52,10 +52,10 @@
                     <notebook>
                         <page string="Recent Events">
                             <field name="event_ids" readonly="1">
-                                <tree>
+                                <list>
                                     <field name="timestamp"/>
                                     <field name="bugsink_id" string="Event ID"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>
@@ -67,7 +67,7 @@
     <record id="action_havano_error_issue" model="ir.actions.act_window">
         <field name="name">Issues</field>
         <field name="res_model">havano.error.issue</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No system errors found!
@@ -93,11 +93,11 @@
         <field name="name">havano.error.event.tree</field>
         <field name="model">havano.error.event</field>
         <field name="arch" type="xml">
-            <tree string="Error Events" create="0" edit="0">
+            <list string="Error Events" create="0" edit="0">
                 <field name="timestamp"/>
                 <field name="issue_id"/>
                 <field name="bugsink_id" string="Event ID"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -132,7 +132,7 @@
     <record id="action_havano_error_event" model="ir.actions.act_window">
         <field name="name">Events</field>
         <field name="res_model">havano.error.event</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="domain">[('issue_id', '=', active_id)]</field>
     </record>
 
