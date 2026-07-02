@@ -5,8 +5,7 @@ import { KanbanController } from "@web/views/kanban/kanban_controller";
 import { ListController } from "@web/views/list/list_controller";
 import { onMounted, onPatched, onWillUnmount, useRef } from "@odoo/owl";
 import { useBus } from "@web/core/utils/hooks";
-import { BurgerMenu } from "@web/webclient/burger_menu/burger_menu";
-
+import { NavBar } from "@web/webclient/navbar/navbar";
 const MOBILE_MODELS = [
     'havanoposdesk.sale',
     'havanoposdesk.purchase',
@@ -168,8 +167,8 @@ patch(ListController.prototype, {
     }
 });
 
-// Patch BurgerMenu to automatically open on mobile when switching apps
-patch(BurgerMenu.prototype, {
+// Patch NavBar to automatically open the AppMenuSidebar on mobile when switching apps
+patch(NavBar.prototype, {
     setup() {
         super.setup(...arguments);
         
@@ -178,16 +177,16 @@ patch(BurgerMenu.prototype, {
         // Listen for when an app is selected from the home menu
         useBus(this.env.bus, "MENUS:APP-CHANGED", () => {
             appJustChanged = true;
-            // Clear the flag after a short delay to prevent indefinite state
+            // Clear the flag after a short delay
             setTimeout(() => { appJustChanged = false; }, 800);
         });
 
-        // Intercept the default close action and instead open the burger menu
+        // Intercept the default action load and open the App Menu Sidebar
         useBus(this.env.bus, "ACTION_MANAGER:UPDATE", () => {
             if (appJustChanged && window.innerWidth <= 768) {
-                // Ignore the default close that happens on action load and force it open
+                // Force open the App Menu Sidebar (which contains the app's modules/dropdown)
                 setTimeout(() => {
-                    this.state.isBurgerOpened = true;
+                    this.state.isAppMenuSidebarOpened = true;
                 }, 50);
                 appJustChanged = false;
             }
