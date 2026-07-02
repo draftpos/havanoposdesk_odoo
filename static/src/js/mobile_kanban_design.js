@@ -184,10 +184,14 @@ patch(NavBar.prototype, {
         // Intercept the default action load and open the App Menu Sidebar
         useBus(this.env.bus, "ACTION_MANAGER:UPDATE", () => {
             if (appJustChanged && window.innerWidth <= 768) {
-                // Force open the App Menu Sidebar (which contains the app's modules/dropdown)
-                setTimeout(() => {
-                    this.state.isAppMenuSidebarOpened = true;
-                }, 50);
+                const currentApp = this.env.services.menu && this.env.services.menu.getCurrentApp();
+                // Do not auto-open sidebar if it's the Dashboard
+                if (!currentApp || currentApp.xmlid !== "havanoposdesk_odoo.menu_dashboard_main") {
+                    // Force open the App Menu Sidebar (which contains the app's modules/dropdown)
+                    setTimeout(() => {
+                        this.state.isAppMenuSidebarOpened = true;
+                    }, 50);
+                }
                 appJustChanged = false;
             }
         });
