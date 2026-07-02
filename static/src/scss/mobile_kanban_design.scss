@@ -399,8 +399,14 @@
         }
     }
 
-    /* Hide the Havano logo/brand in mobile view */
-    .havano_brand {
+    /* Hide the Havano logo/brand and all other standard logos in ALL mobile views */
+    .havano_brand,
+    .o_menu_brand,
+    .o_logo,
+    .o_logo_edition,
+    .o_main_navbar > a.o_menu_brand,
+    .o_navbar > a.o_menu_brand,
+    .o_burger_menu_topbar > .o_menu_brand {
         display: none !important;
     }
 
