@@ -174,15 +174,41 @@ class HavanoErrorEvent(models.Model):
         base_url = base_url.rstrip('/')
         headers = {
             'Authorization': f'Bearer {token}',
-            'Accept': 'text/markdown'
+            'Content-Type': 'application/json'
         }
         
         for event in self:
-            url = f"{base_url}/api/canonical/0/events/{event.bugsink_id}/stacktrace/"
+            url = f"{base_url}/api/canonical/0/events/{event.bugsink_id}/"
             try:
                 response = requests.get(url, headers=headers, timeout=10)
                 response.raise_for_status()
-                event.write({'stacktrace_md': response.text})
+                event_data = response.json()
+                
+                payload = event_data.get('data', {})
+                stacktrace_md = ""
+                
+                exceptions = payload.get('exception', {}).get('values', [])
+                for exc in exceptions:
+                    exc_type = exc.get('type', 'Exception')
+                    exc_value = exc.get('value', '')
+                    stacktrace_md += f"**{exc_type}**: {exc_value}\n\n```\n"
+                    
+                    # Sentry formats frames from oldest to newest usually, we'll just print them as received
+                    frames = exc.get('stacktrace', {}).get('frames', [])
+                    for frame in reversed(frames):
+                        filename = frame.get('filename', 'unknown')
+                        function = frame.get('function', 'unknown')
+                        lineno = frame.get('lineno', '?')
+                        stacktrace_md += f"  File \"{filename}\", line {lineno}, in {function}\n"
+                    stacktrace_md += "```\n\n"
+                
+                if not stacktrace_md:
+                    stacktrace_md = "*No structured stacktrace available in event payload.*\n\n"
+                    # Fallback to dump some context if no stacktrace
+                    if payload.get('message'):
+                        stacktrace_md += f"**Message:** {payload.get('message')}"
+                        
+                event.write({'stacktrace_md': stacktrace_md})
             except Exception as e:
                 _logger.error(f"Failed to fetch stacktrace for event {event.bugsink_id}: {str(e)}")
                 raise UserError(f"Failed to fetch stacktrace: {str(e)}")
