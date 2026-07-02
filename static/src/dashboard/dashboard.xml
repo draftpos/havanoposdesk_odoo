@@ -167,6 +167,8 @@
             
             <!-- Add a slight bottom padding for mobile so it doesn't stick to edge -->
             <div class="pb-4"></div>
+                <!-- Modals would go here -->
+            <PwaPrompt class="d-md-none" />
                 </div>
             </div>
         </div>
