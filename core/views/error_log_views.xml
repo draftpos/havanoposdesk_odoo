@@ -142,7 +142,7 @@
                 <filter name="resolved" string="Resolved" domain="[('is_resolved', '=', True)]"/>
                 <separator/>
                 
-                <group string="Group By">
+                <group>
                     <filter name="group_site" string="Site" context="{'group_by':'site'}"/>
                     <filter name="group_user_email" string="User Email" context="{'group_by':'user_email'}"/>
                     <filter name="group_type" string="Error Type" context="{'group_by':'type'}"/>
