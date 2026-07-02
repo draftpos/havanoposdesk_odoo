@@ -4716,7 +4716,15 @@ class HavanoPOSDeskAPI(http.Controller):
             if not shop_id:
                 return self._make_json_response({"error": "shop_id is required"}, status=400)
 
-            user = env['res.users'].browse(uid)
+            user_email = data.get('user')
+            user = None
+            if user_email:
+                cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                if cashier_user:
+                    user = cashier_user
+            if not user:
+                user = env['res.users'].browse(uid)
+
             shop = env['havanoposdesk.store'].sudo().browse(shop_id)
             if not shop.exists() or (user.tenant_id and shop.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Invalid shop selection"}, status=400)
@@ -4756,7 +4764,15 @@ class HavanoPOSDeskAPI(http.Controller):
             if not terminal_id:
                 return self._make_json_response({"error": "terminal_id is required"}, status=400)
 
-            user = env['res.users'].browse(uid)
+            user_email = data.get('user')
+            user = None
+            if user_email:
+                cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                if cashier_user:
+                    user = cashier_user
+            if not user:
+                user = env['res.users'].browse(uid)
+
             terminal = env['havanoposdesk.pos.terminal'].sudo().browse(terminal_id)
             if not terminal.exists() or (user.tenant_id and terminal.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Terminal does not exist or does not belong to this tenant"}, status=400)
