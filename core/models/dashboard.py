@@ -90,6 +90,16 @@ class HavanoposdeskDashboard(models.AbstractModel):
             'gross_profit': [daily_sales_data[d]['gross_profit'] for d in sorted_days],
         }
 
+        # Sparkline Data (Individual Transactions)
+        sorted_sales = sorted(sales, key=lambda s: s.date) if sales else []
+        sparkline_data = {
+            'labels': [s.date.strftime('%H:%M') for s in sorted_sales],
+            'gross_sales': [s.amount_total or 0.0 for s in sorted_sales],
+            'net_sales': [s.amount_untaxed or 0.0 for s in sorted_sales],
+            'cost_of_sales': [s.total_cost or 0.0 for s in sorted_sales],
+            'gross_profit': [(s.amount_untaxed or 0.0) - (s.total_cost or 0.0) for s in sorted_sales],
+        }
+
         # Stock Valuation
         valuations = self.env['havanoposdesk.stock.valuation'].search(domain_val)
         
@@ -134,5 +144,6 @@ class HavanoposdeskDashboard(models.AbstractModel):
                 'total_items': total_items,
             },
             'sales_chart': sales_summary_chart,
+            'sparkline_data': sparkline_data,
             'stock_chart': stock_valuation_chart,
         }

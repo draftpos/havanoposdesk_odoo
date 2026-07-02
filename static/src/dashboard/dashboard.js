@@ -140,12 +140,14 @@ export class HavanoDashboard extends Component {
             Object.assign(this.state.stock_stats, data.stock_stats);
             this.salesChartData = data.sales_chart;
             this.stockChartData = data.stock_chart;
+            this.sparklineData = data.sparkline_data;
         } else {
             // Default to empty state if no tenant_id or no data returned
             Object.assign(this.state.kpis, { gross_sales: 0, net_sales: 0, cost_of_sales: 0, gross_profit: 0 });
             Object.assign(this.state.stock_stats, { total_valuation: 0, total_items: 0 });
             this.salesChartData = { labels: [], datasets: [] };
             this.stockChartData = { labels: [], valuation: [] };
+            this.sparklineData = { labels: [], gross_sales: [], net_sales: [], cost_of_sales: [], gross_profit: [] };
         }
     }
 
@@ -264,18 +266,22 @@ export class HavanoDashboard extends Component {
         }
 
         // Helper to render sparklines
-        const renderSparkline = (ref, instance, data, color) => {
+        const renderSparkline = (ref, instance, data, labels, color) => {
             if (instance) instance.destroy();
-            if (ref.el && data && data.length > 0) {
+            if (ref.el && data) {
+                const is_empty = data.length === 0;
+                const chartData = is_empty ? [0, 0] : data;
+                const chartLabels = is_empty ? ['', ''] : labels;
+                const minVal = Math.min(...chartData);
+                const maxVal = Math.max(...chartData);
+                
                 const ctx = ref.el.getContext('2d');
-                const minVal = Math.min(...data);
-                const maxVal = Math.max(...data);
                 return new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: this.salesChartData.labels,
+                        labels: chartLabels,
                         datasets: [{
-                            data: data,
+                            data: chartData,
                             borderColor: color,
                             borderWidth: 1.5,
                             tension: 0.1,
@@ -307,11 +313,11 @@ export class HavanoDashboard extends Component {
             return null;
         };
 
-        if (this.salesChartData) {
-            this.sparklineGrossInstance = renderSparkline(this.sparklineGrossRef, this.sparklineGrossInstance, this.salesChartData.gross_sales, '#2ecc71');
-            this.sparklineNetInstance = renderSparkline(this.sparklineNetRef, this.sparklineNetInstance, this.salesChartData.net_sales, '#2ecc71');
-            this.sparklineCostInstance = renderSparkline(this.sparklineCostRef, this.sparklineCostInstance, this.salesChartData.cost_of_sales, '#2ecc71');
-            this.sparklineProfitInstance = renderSparkline(this.sparklineProfitRef, this.sparklineProfitInstance, this.salesChartData.gross_profit, '#2ecc71');
+        if (this.sparklineData) {
+            this.sparklineGrossInstance = renderSparkline(this.sparklineGrossRef, this.sparklineGrossInstance, this.sparklineData.gross_sales, this.sparklineData.labels, '#2ecc71');
+            this.sparklineNetInstance = renderSparkline(this.sparklineNetRef, this.sparklineNetInstance, this.sparklineData.net_sales, this.sparklineData.labels, '#2ecc71');
+            this.sparklineCostInstance = renderSparkline(this.sparklineCostRef, this.sparklineCostInstance, this.sparklineData.cost_of_sales, this.sparklineData.labels, '#2ecc71');
+            this.sparklineProfitInstance = renderSparkline(this.sparklineProfitRef, this.sparklineProfitInstance, this.sparklineData.gross_profit, this.sparklineData.labels, '#2ecc71');
         }
     }
 }
