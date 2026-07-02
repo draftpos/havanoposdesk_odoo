@@ -197,3 +197,12 @@ patch(NavBar.prototype, {
         });
     }
 });
+
+// Capture PWA install prompt globally so components can use it later
+window.deferredPwaPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    window.deferredPwaPrompt = e;
+});
