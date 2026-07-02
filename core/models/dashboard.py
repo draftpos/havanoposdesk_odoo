@@ -38,10 +38,10 @@ class HavanoposdeskDashboard(models.AbstractModel):
         prev_sales = self.env['havanoposdesk.sale'].search(prev_domain_sale)
 
         def compute_kpis(sales_records):
-            gs = sum(s.amount_total for s in sales_records)
-            ns = sum((s.amount_total - (s.discount_amount or 0.0)) for s in sales_records)
-            cs = sum(sum(line.product_id.buying_price * line.qty for line in s.line_ids if line.product_id) for s in sales_records)
-            gp = ns - cs
+            gs = sum(s.gross_sales or 0.0 for s in sales_records)
+            ns = sum(s.net_sales or 0.0 for s in sales_records)
+            cs = sum(s.cost_of_sales or 0.0 for s in sales_records)
+            gp = sum(s.gross_profit or 0.0 for s in sales_records)
             return gs, ns, cs, gp
             
         def compute_trend(curr, prev):
@@ -60,10 +60,10 @@ class HavanoposdeskDashboard(models.AbstractModel):
         daily_sales_data = {}
 
         for sale in sales:
-            gross = sale.amount_total
-            net = sale.amount_total - (sale.discount_amount or 0.0)
-            cost = sum(line.product_id.buying_price * line.qty for line in sale.line_ids if line.product_id)
-            profit = net - cost
+            gross = sale.gross_sales or 0.0
+            net = sale.net_sales or 0.0
+            cost = sale.cost_of_sales or 0.0
+            profit = sale.gross_profit or 0.0
             
             # Daily grouping
             day = sale.date.strftime('%Y-%m-%d') if sale.date else 'Unknown'
