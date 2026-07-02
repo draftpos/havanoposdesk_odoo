@@ -22,6 +22,10 @@ export class HavanoDashboard extends Component {
                 cost_of_sales: 0,
                 gross_profit: 0
             },
+            stock_stats: {
+                total_valuation: 0,
+                total_items: 0
+            },
             period: 'today',
             periodLabel: 'Today'
         });
@@ -110,6 +114,7 @@ export class HavanoDashboard extends Component {
         );
 
         this.state.kpis = data.kpis;
+        this.state.stock_stats = data.stock_stats;
         this.salesChartData = data.sales_chart;
         this.stockChartData = data.stock_chart;
     }

@@ -5,7 +5,7 @@
         <!-- Removed config parameters to prevent UniqueViolation error on module upgrade -->
 
         <!-- Top-level Menus acting as Apps on the Dashboard -->
-        <menuitem id="menu_dashboard_main" name="Dashboard" sequence="5" web_icon="board,static/description/icon.png" action="action_havano_dashboard"/>
+        <menuitem id="menu_dashboard_main" name="Dashboard" sequence="5" web_icon="board,static/description/icon.png" action="action_havano_dashboard_client"/>
         <menuitem id="menu_inventory_root" name="Stock" sequence="10" web_icon="stock,static/description/icon.png"/>
         <menuitem id="menu_sales_root" name="Sales" sequence="20" web_icon="sale,static/description/icon.png"/>
         <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="purchase,static/description/icon.png"/>
@@ -75,7 +75,7 @@
         <!-- Set Dashboard as default action for users who don't have one -->
         <function model="res.users" name="write">
             <value model="res.users" search="[('action_id', '=', False)]"/>
-            <value eval="{'action_id': ref('havanoposdesk_odoo.action_havano_dashboard')}"/>
+            <value eval="{'action_id': ref('havanoposdesk_odoo.action_havano_dashboard_client')}"/>
         </function>
     </data>
 </odoo>

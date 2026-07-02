@@ -62,7 +62,7 @@
         </record>
 
         <!-- 3. Dashboard Client Action (Replaces board.board) -->
-        <record id="action_havano_dashboard" model="ir.actions.client">
+        <record id="action_havano_dashboard_client" model="ir.actions.client">
             <field name="name">Dashboard</field>
             <field name="tag">havano_dashboard_tag</field>
             <field name="usage">menu</field>

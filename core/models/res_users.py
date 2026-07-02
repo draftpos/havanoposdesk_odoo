@@ -26,7 +26,7 @@ class ResUsers(models.Model):
 
     @api.model
     def _get_default_action_id(self):
-        action = self.env.ref('havanoposdesk_odoo.action_havano_dashboard', raise_if_not_found=False)
+        action = self.env.ref('havanoposdesk_odoo.action_havano_dashboard_client', raise_if_not_found=False)
         return action.id if action else False
 
     action_id = fields.Many2one(default=_get_default_action_id)

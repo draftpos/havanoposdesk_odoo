@@ -78,11 +78,18 @@ class HavanoposdeskDashboard(models.AbstractModel):
         # need to use stock ledgers or just show current valuation per category.
         # Let's show current stock valuation grouped by Product Category.
         valuation_data = {}
+        total_valuation = 0.0
+        total_items = 0.0
+
         for val in valuations:
             cat = val.product_id.category_id.name if val.product_id.category_id else 'Uncategorized'
             if cat not in valuation_data:
                 valuation_data[cat] = 0.0
-            valuation_data[cat] += val.value_cost
+            
+            value = val.value_cost or 0.0
+            valuation_data[cat] += value
+            total_valuation += value
+            total_items += val.on_hand_qty or 0.0
 
         sorted_cats = sorted(valuation_data.keys())
         stock_valuation_chart = {
@@ -96,6 +103,10 @@ class HavanoposdeskDashboard(models.AbstractModel):
                 'net_sales': net_sales,
                 'cost_of_sales': cost_of_sales,
                 'gross_profit': gross_profit,
+            },
+            'stock_stats': {
+                'total_valuation': total_valuation,
+                'total_items': total_items,
             },
             'sales_chart': sales_summary_chart,
             'stock_chart': stock_valuation_chart,
