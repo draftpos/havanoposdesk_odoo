@@ -34,8 +34,17 @@ export class HavanoDashboard extends Component {
 
         this.salesChartRef = useRef("salesChart");
         this.stockChartRef = useRef("stockChart");
+        this.sparklineGrossRef = useRef("sparklineGross");
+        this.sparklineNetRef = useRef("sparklineNet");
+        this.sparklineCostRef = useRef("sparklineCost");
+        this.sparklineProfitRef = useRef("sparklineProfit");
+
         this.salesChartInstance = null;
         this.stockChartInstance = null;
+        this.sparklineGrossInstance = null;
+        this.sparklineNetInstance = null;
+        this.sparklineCostInstance = null;
+        this.sparklineProfitInstance = null;
 
         onWillStart(async () => {
             await loadJS("/web/static/lib/Chart/Chart.js");
@@ -51,12 +60,20 @@ export class HavanoDashboard extends Component {
             window.removeEventListener('resize', this.onResize);
             if (this.salesChartInstance) this.salesChartInstance.destroy();
             if (this.stockChartInstance) this.stockChartInstance.destroy();
+            if (this.sparklineGrossInstance) this.sparklineGrossInstance.destroy();
+            if (this.sparklineNetInstance) this.sparklineNetInstance.destroy();
+            if (this.sparklineCostInstance) this.sparklineCostInstance.destroy();
+            if (this.sparklineProfitInstance) this.sparklineProfitInstance.destroy();
         });
     }
     
     onResize = () => {
         if (this.salesChartInstance) this.salesChartInstance.resize();
         if (this.stockChartInstance) this.stockChartInstance.resize();
+        if (this.sparklineGrossInstance) this.sparklineGrossInstance.resize();
+        if (this.sparklineNetInstance) this.sparklineNetInstance.resize();
+        if (this.sparklineCostInstance) this.sparklineCostInstance.resize();
+        if (this.sparklineProfitInstance) this.sparklineProfitInstance.resize();
     }
 
     async fetchData() {
@@ -161,7 +178,7 @@ export class HavanoDashboard extends Component {
         if (this.salesChartRef.el && this.salesChartData) {
             const ctx = this.salesChartRef.el.getContext('2d');
             this.salesChartInstance = new Chart(ctx, {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: this.salesChartData.labels,
                     datasets: [
@@ -252,6 +269,48 @@ export class HavanoDashboard extends Component {
                     }
                 }
             });
+        }
+
+        // Helper to render sparklines
+        const renderSparkline = (ref, instance, data, color) => {
+            if (instance) instance.destroy();
+            if (ref.el && data) {
+                const ctx = ref.el.getContext('2d');
+                return new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: this.salesChartData.labels,
+                        datasets: [{
+                            data: data,
+                            borderColor: color,
+                            backgroundColor: color + '33', // 20% opacity hex
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0,
+                            pointHoverRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                        scales: {
+                            x: { display: false },
+                            y: { display: false, min: Math.min(...data) * 0.9, max: Math.max(...data) * 1.1 }
+                        },
+                        layout: { padding: 0 }
+                    }
+                });
+            }
+            return null;
+        };
+
+        if (this.salesChartData) {
+            this.sparklineGrossInstance = renderSparkline(this.sparklineGrossRef, this.sparklineGrossInstance, this.salesChartData.gross_sales, '#3498db');
+            this.sparklineNetInstance = renderSparkline(this.sparklineNetRef, this.sparklineNetInstance, this.salesChartData.net_sales, '#2ecc71');
+            this.sparklineCostInstance = renderSparkline(this.sparklineCostRef, this.sparklineCostInstance, this.salesChartData.cost_of_sales, '#9b59b6');
+            this.sparklineProfitInstance = renderSparkline(this.sparklineProfitRef, this.sparklineProfitInstance, this.salesChartData.gross_profit, '#f39c12');
         }
     }
 }
