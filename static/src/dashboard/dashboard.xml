@@ -48,6 +48,9 @@
                                 </span>
                             </div>
                             <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.gross_sales)"/></h3>
+                            <div style="height: 40px; width: 100%; margin-top: -10px;">
+                                <canvas t-ref="sparklineGross"></canvas>
+                            </div>
                             <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
                     </div>
@@ -63,6 +66,9 @@
                                 </span>
                             </div>
                             <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.net_sales)"/></h3>
+                            <div style="height: 40px; width: 100%; margin-top: -10px;">
+                                <canvas t-ref="sparklineNet"></canvas>
+                            </div>
                             <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
                     </div>
@@ -78,6 +84,9 @@
                                 </span>
                             </div>
                             <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.cost_of_sales)"/></h3>
+                            <div style="height: 40px; width: 100%; margin-top: -10px;">
+                                <canvas t-ref="sparklineCost"></canvas>
+                            </div>
                             <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
                     </div>
@@ -93,6 +102,9 @@
                                 </span>
                             </div>
                             <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.gross_profit)"/></h3>
+                            <div style="height: 40px; width: 100%; margin-top: -10px;">
+                                <canvas t-ref="sparklineProfit"></canvas>
+                            </div>
                             <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
                     </div>
