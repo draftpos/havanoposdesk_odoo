@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Views for havano.error.issue -->
+    <record id="view_havano_error_issue_tree" model="ir.ui.view">
+        <field name="name">havano.error.issue.tree</field>
+        <field name="model">havano.error.issue</field>
+        <field name="arch" type="xml">
+            <tree string="System Errors" create="0" edit="0" decoration-danger="not is_resolved" decoration-success="is_resolved">
+                <field name="type" string="Error Type"/>
+                <field name="name" string="Message"/>
+                <field name="first_seen" optional="show"/>
+                <field name="last_seen"/>
+                <field name="event_count" string="Events"/>
+                <field name="is_resolved" string="Resolved"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_havano_error_issue_form" model="ir.ui.view">
+        <field name="name">havano.error.issue.form</field>
+        <field name="model">havano.error.issue</field>
+        <field name="arch" type="xml">
+            <form string="System Error Issue" create="0" edit="0">
+                <header>
+                    <button name="action_sync_events" type="object" string="Fetch Latest Events" class="oe_highlight"/>
+                    <widget name="web_ribbon" title="Resolved" bg_color="bg-success" invisible="not is_resolved"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="%(action_havano_error_event)d" type="action" class="oe_stat_button" icon="fa-list"
+                                context="{'search_default_issue_id': id, 'default_issue_id': id}">
+                            <field name="event_count" widget="statinfo" string="Events"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Message"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="type" string="Error Type"/>
+                            <field name="transaction" string="Transaction"/>
+                            <field name="bugsink_id" string="Bugsink Issue ID"/>
+                        </group>
+                        <group>
+                            <field name="first_seen"/>
+                            <field name="last_seen"/>
+                            <field name="is_resolved"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Recent Events">
+                            <field name="event_ids" readonly="1">
+                                <tree>
+                                    <field name="timestamp"/>
+                                    <field name="bugsink_id" string="Event ID"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_havano_error_issue" model="ir.actions.act_window">
+        <field name="name">Issues</field>
+        <field name="res_model">havano.error.issue</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No system errors found!
+            </p>
+            <p>
+                Click "Sync Issues" to pull the latest issues from Bugsink.
+            </p>
+        </field>
+    </record>
+
+    <!-- Server Action to trigger Issue Sync -->
+    <record id="action_sync_bugsink_issues" model="ir.actions.server">
+        <field name="name">Sync Issues from Bugsink</field>
+        <field name="model_id" ref="model_havano_error_issue"/>
+        <field name="state">code</field>
+        <field name="code">
+            model.action_sync_issues()
+        </field>
+    </record>
+
+    <!-- Views for havano.error.event -->
+    <record id="view_havano_error_event_tree" model="ir.ui.view">
+        <field name="name">havano.error.event.tree</field>
+        <field name="model">havano.error.event</field>
+        <field name="arch" type="xml">
+            <tree string="Error Events" create="0" edit="0">
+                <field name="timestamp"/>
+                <field name="issue_id"/>
+                <field name="bugsink_id" string="Event ID"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_havano_error_event_form" model="ir.ui.view">
+        <field name="name">havano.error.event.form</field>
+        <field name="model">havano.error.event</field>
+        <field name="arch" type="xml">
+            <form string="Error Event" create="0" edit="0">
+                <header>
+                    <button name="action_fetch_stacktrace" type="object" string="Fetch Stacktrace" class="oe_highlight" invisible="stacktrace_md"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="issue_id"/>
+                            <field name="bugsink_id" string="Event ID"/>
+                        </group>
+                        <group>
+                            <field name="timestamp"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Stacktrace">
+                            <field name="stacktrace_md" widget="text"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_havano_error_event" model="ir.actions.act_window">
+        <field name="name">Events</field>
+        <field name="res_model">havano.error.event</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('issue_id', '=', active_id)]</field>
+    </record>
+
+    <!-- Menus -->
+    <!-- Top-level Menu visible only to system administrators -->
+    <menuitem id="menu_havano_system_logs_root" name="System Logs" sequence="100" groups="base.group_system" web_icon="havanoposdesk_odoo,static/description/icon.png"/>
+
+    <menuitem id="menu_havano_error_issues" name="Issues" parent="menu_havano_system_logs_root" sequence="10" action="action_havano_error_issue"/>
+    <menuitem id="menu_havano_sync_issues" name="Sync Issues" parent="menu_havano_system_logs_root" sequence="20" action="action_sync_bugsink_issues"/>
+    
+</odoo>

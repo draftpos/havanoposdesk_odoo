@@ -90,6 +90,37 @@
                             </div>
                         </setting>
                     </block>
+                    <block title="Bugsink Error Logging Integration" name="bugsink_config">
+                        <div class="row mt8 o_settings_container">
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_bugsink_base_url" string="Bugsink Base URL"/>
+                                    <div class="text-muted">E.g., https://bugsink.example.com</div>
+                                    <div class="content-group mt8">
+                                        <field name="havano_bugsink_base_url" class="o_light_label" placeholder="https://..."/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_bugsink_project_id" string="Project ID"/>
+                                    <div class="text-muted">The numeric Bugsink Project ID</div>
+                                    <div class="content-group mt8">
+                                        <field name="havano_bugsink_project_id" class="o_light_label"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_bugsink_api_token" string="API Token"/>
+                                    <div class="text-muted">Bearer token for Bugsink API</div>
+                                    <div class="content-group mt8">
+                                        <field name="havano_bugsink_api_token" class="o_light_label" password="True"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </block>
                 </app>
                 
                 <!-- My Business Settings -->
