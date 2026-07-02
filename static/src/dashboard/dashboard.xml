@@ -26,11 +26,13 @@
                     </Dropdown>
                 </div>
                 <!-- Custom Date Inputs (only visible if custom is selected) -->
-                <div t-if="state.period === 'custom'" class="d-flex align-items-center ms-3">
-                    <input type="date" class="form-control me-2" t-model="state.customDateFrom" />
-                    <span class="me-2 text-muted">to</span>
-                    <input type="date" class="form-control me-2" t-model="state.customDateTo" />
-                    <button class="btn btn-primary" t-on-click="applyCustomDate">Apply</button>
+                <div t-if="state.period === 'custom'" class="d-flex flex-wrap align-items-center gap-2 mt-2 mt-md-0 w-100">
+                    <div class="d-flex align-items-center gap-2 flex-grow-1">
+                        <input type="date" class="form-control w-100" t-model="state.customDateFrom" />
+                        <span class="text-muted">to</span>
+                        <input type="date" class="form-control w-100" t-model="state.customDateTo" />
+                    </div>
+                    <button class="btn btn-primary w-100 w-md-auto" t-on-click="applyCustomDate">Apply</button>
                 </div>
             </div>
 
