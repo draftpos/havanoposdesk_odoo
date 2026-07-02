@@ -277,10 +277,9 @@ export class HavanoDashboard extends Component {
                         datasets: [{
                             data: data,
                             borderColor: color,
-                            backgroundColor: color + '33', // 20% opacity hex
-                            borderWidth: 2,
-                            tension: 0.4,
-                            fill: true,
+                            borderWidth: 1.5,
+                            tension: 0.1,
+                            fill: false,
                             pointRadius: 0,
                             pointHoverRadius: 0
                         }]
@@ -290,8 +289,16 @@ export class HavanoDashboard extends Component {
                         maintainAspectRatio: false,
                         plugins: { legend: { display: false }, tooltip: { enabled: false } },
                         scales: {
-                            x: { display: false },
-                            y: { display: false, min: minVal === maxVal ? minVal - 1 : minVal * 0.9, max: minVal === maxVal ? maxVal + 1 : maxVal * 1.1 }
+                            x: { 
+                                display: true, 
+                                grid: { display: true, drawBorder: false, color: '#e0e0e0', borderDash: [2, 2] },
+                                ticks: { display: false }
+                            },
+                            y: { 
+                                display: false, 
+                                min: minVal === maxVal ? minVal - 1 : minVal * 0.9, 
+                                max: minVal === maxVal ? maxVal + 1 : maxVal * 1.1 
+                            }
                         },
                         layout: { padding: 0 }
                     }
@@ -301,10 +308,10 @@ export class HavanoDashboard extends Component {
         };
 
         if (this.salesChartData) {
-            this.sparklineGrossInstance = renderSparkline(this.sparklineGrossRef, this.sparklineGrossInstance, this.salesChartData.gross_sales, '#3498db');
+            this.sparklineGrossInstance = renderSparkline(this.sparklineGrossRef, this.sparklineGrossInstance, this.salesChartData.gross_sales, '#2ecc71');
             this.sparklineNetInstance = renderSparkline(this.sparklineNetRef, this.sparklineNetInstance, this.salesChartData.net_sales, '#2ecc71');
-            this.sparklineCostInstance = renderSparkline(this.sparklineCostRef, this.sparklineCostInstance, this.salesChartData.cost_of_sales, '#9b59b6');
-            this.sparklineProfitInstance = renderSparkline(this.sparklineProfitRef, this.sparklineProfitInstance, this.salesChartData.gross_profit, '#f39c12');
+            this.sparklineCostInstance = renderSparkline(this.sparklineCostRef, this.sparklineCostInstance, this.salesChartData.cost_of_sales, '#2ecc71');
+            this.sparklineProfitInstance = renderSparkline(this.sparklineProfitRef, this.sparklineProfitInstance, this.salesChartData.gross_profit, '#2ecc71');
         }
     }
 }
