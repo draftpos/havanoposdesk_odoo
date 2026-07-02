@@ -900,7 +900,15 @@ class HavanoPOSDeskAPI(http.Controller):
         except Exception:
             return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        user = self._get_user()
+        user_email = data.get('cashier') or data.get('owner') or data.get('user')
+        user = None
+        if user_email:
+            cashier_user = request.env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+            if cashier_user:
+                user = cashier_user
+        if not user:
+            user = self._get_user()
+            
         tenant = user.tenant_id
         if not tenant:
             tenant = request.env['havanoposdesk.tenant'].sudo().search([], limit=1)
@@ -917,6 +925,9 @@ class HavanoPOSDeskAPI(http.Controller):
             ], limit=1)
         if not terminal and user:
             terminal = user.selected_terminal_id
+            
+        if not terminal:
+            return request.make_response(json.dumps({'error': 'No terminal assigned. Please select a terminal first.'}), headers=[('Content-Type', 'application/json')], status=400)
             
         store = False
         if terminal:
@@ -1995,7 +2006,14 @@ class HavanoPOSDeskAPI(http.Controller):
 
             env, custom_cr = self._get_env(user_id=uid)
             try:
-                user = env['res.users'].browse(uid)
+                user_email = params.get('cashier') or params.get('owner') or params.get('user')
+                user = None
+                if user_email:
+                    cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                    if cashier_user:
+                        user = cashier_user
+                if not user:
+                    user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
 
                 customer_name = params.get('customer') or "Walk-in Customer"
@@ -2049,6 +2067,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     }))
 
                 terminal = user.selected_terminal_id
+                if not terminal:
+                    raise Exception("No terminal assigned. Please select a terminal first.")
+
                 sale = env['havanoposdesk.sale'].create({
                     'customer': customer.id,
                     'store': store.name,
