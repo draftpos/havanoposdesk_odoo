@@ -111,4 +111,11 @@
         </record>
 
     </data>
+
+        <record id="action_purchase_operations_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="100"/>
+            <field name="view_mode">kanban</field>
+            <field name="view_id" ref="view_havanoposdesk_purchase_kanban_mobile"/>
+            <field name="act_window_id" ref="action_havanoposdesk_purchase"/>
+        </record>
 </odoo>
