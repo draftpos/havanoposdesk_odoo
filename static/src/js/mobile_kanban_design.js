@@ -4,6 +4,8 @@ import { patch } from "@web/core/utils/patch";
 import { KanbanController } from "@web/views/kanban/kanban_controller";
 import { ListController } from "@web/views/list/list_controller";
 import { onMounted, onPatched, onWillUnmount, useRef } from "@odoo/owl";
+import { useBus } from "@web/core/utils/hooks";
+import { BurgerMenu } from "@web/webclient/burger_menu/burger_menu";
 
 const MOBILE_MODELS = [
     'havanoposdesk.sale',
@@ -162,6 +164,33 @@ patch(ListController.prototype, {
         
         onWillUnmount(() => {
             window.removeEventListener('resize', this._handleListResize);
+        });
+    }
+});
+
+// Patch BurgerMenu to automatically open on mobile when switching apps
+patch(BurgerMenu.prototype, {
+    setup() {
+        super.setup(...arguments);
+        
+        let appJustChanged = false;
+
+        // Listen for when an app is selected from the home menu
+        useBus(this.env.bus, "MENUS:APP-CHANGED", () => {
+            appJustChanged = true;
+            // Clear the flag after a short delay to prevent indefinite state
+            setTimeout(() => { appJustChanged = false; }, 800);
+        });
+
+        // Intercept the default close action and instead open the burger menu
+        useBus(this.env.bus, "ACTION_MANAGER:UPDATE", () => {
+            if (appJustChanged && window.innerWidth <= 768) {
+                // Ignore the default close that happens on action load and force it open
+                setTimeout(() => {
+                    this.state.isBurgerOpened = true;
+                }, 50);
+                appJustChanged = false;
+            }
         });
     }
 });
