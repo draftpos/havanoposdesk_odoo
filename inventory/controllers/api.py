@@ -2634,6 +2634,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 if store:
                     domain.append(('store_id', '=', store.id))
             
+            from_date = data.get('from_date')
+            to_date = data.get('to_date')
+            if from_date:
+                domain.append(('posting_date', '>=', from_date))
+            if to_date:
+                domain.append(('posting_date', '<=', to_date))
+            
             sales = env['havanoposdesk.sale'].search(domain)
             income = sum(sales.mapped('amount_total'))
             
@@ -2654,6 +2661,131 @@ class HavanoPOSDeskAPI(http.Controller):
                     "report_summary": []
                 }
             })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/method/frappe.desk.query_report.run', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_query_report_run(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            try:
+                data = json.loads(request.httprequest.data)
+            except Exception:
+                return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+
+            report_name = data.get('report_name')
+            filters = data.get('filters', {})
+
+            user_rec = env['res.users'].browse(uid)
+            tenant = user_rec.tenant_id
+
+            domain = []
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+
+            if report_name == 'Profitability Analysis':
+                cost_center = filters.get('cost_center')
+                from_date = filters.get('from_date')
+                to_date = filters.get('to_date')
+
+                if cost_center:
+                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    if store:
+                        domain.append(('store_id', '=', store.id))
+
+                if from_date:
+                    domain.append(('posting_date', '>=', from_date))
+                if to_date:
+                    domain.append(('posting_date', '<=', to_date))
+
+                sales = env['havanoposdesk.sale'].search(domain)
+                income = sum(sales.mapped('amount_total'))
+
+                expense = 0.0
+                for sale in sales:
+                    for line in sale.line_ids:
+                        qty = line.accepted_qty or 0.0
+                        buy_price = line.product_id.buying_price or 0.0
+                        expense += qty * buy_price
+
+                gross_profit_loss = income - expense
+
+                result_list = []
+                result_list.append({
+                    "account": cost_center or "Total",
+                    "account_name": cost_center or "Total",
+                    "income": income,
+                    "expense": expense,
+                    "gross_profit_loss": gross_profit_loss,
+                    "currency": "USD"
+                })
+                if cost_center:
+                    result_list.append({
+                        "account": "Total",
+                        "account_name": "Total",
+                        "income": income,
+                        "expense": expense,
+                        "gross_profit_loss": gross_profit_loss,
+                        "currency": "USD"
+                    })
+
+                return self._make_json_response({
+                    "message": {
+                        "result": result_list
+                    }
+                })
+
+            elif report_name == 'Sales by Cashier':
+                cashier = filters.get('cashier') or filters.get('user')
+                from_date = filters.get('from_date')
+                to_date = filters.get('to_date')
+                cost_center = filters.get('cost_center')
+
+                if cashier:
+                    cashier_user = env['res.users'].search([('login', '=', cashier)], limit=1)
+                    if cashier_user:
+                        domain.append(('salesperson_id', '=', cashier_user.id))
+
+                if from_date:
+                    domain.append(('posting_date', '>=', from_date))
+                if to_date:
+                    domain.append(('posting_date', '<=', to_date))
+
+                if cost_center:
+                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    if store:
+                        domain.append(('store_id', '=', store.id))
+
+                sales = env['havanoposdesk.sale'].search(domain)
+                total_sales = sum(sales.mapped('amount_total'))
+                invoice_count = len(sales)
+
+                result_list = [{
+                    "total_sales": total_sales,
+                    "invoice_count": invoice_count
+                }]
+
+                return self._make_json_response({
+                    "message": {
+                        "result": result_list
+                    }
+                })
+
+            else:
+                return self._make_json_response({"error": f"Report '{report_name}' not supported"}, status=400)
+
         except Exception as e:
             return self._make_json_response({"error": str(e)}, status=500)
         finally:
