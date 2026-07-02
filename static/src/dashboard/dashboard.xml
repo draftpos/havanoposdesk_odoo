@@ -46,11 +46,15 @@
                                     <t t-if="state.kpis.gross_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.gross_trend)"/>%
                                 </span>
                             </div>
-                            <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.gross_sales)"/></h3>
-                            <div style="height: 40px; width: 100%; margin-top: -10px;">
-                                <canvas t-ref="sparklineGross"></canvas>
+                            <div class="d-flex justify-content-between align-items-end mt-1">
+                                <div>
+                                    <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.gross_sales)"/></h3>
+                                    <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                                </div>
+                                <div style="height: 40px; width: 80px;">
+                                    <canvas t-ref="sparklineGross"></canvas>
+                                </div>
                             </div>
-                            <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
                     </div>
                 </div>
@@ -64,11 +68,15 @@
                                     <t t-if="state.kpis.net_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.net_trend)"/>%
                                 </span>
                             </div>
-                            <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.net_sales)"/></h3>
-                            <div style="height: 40px; width: 100%; margin-top: -10px;">
-                                <canvas t-ref="sparklineNet"></canvas>
+                            <div class="d-flex justify-content-between align-items-end mt-1">
+                                <div>
+                                    <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.net_sales)"/></h3>
+                                    <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                                </div>
+                                <div style="height: 40px; width: 80px;">
+                                    <canvas t-ref="sparklineNet"></canvas>
+                                </div>
                             </div>
-                            <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
                     </div>
                 </div>
@@ -82,11 +90,15 @@
                                     <t t-if="state.kpis.cost_trend &lt;= 0">▼</t><t t-else="">▲</t> <t t-esc="Math.abs(state.kpis.cost_trend)"/>%
                                 </span>
                             </div>
-                            <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.cost_of_sales)"/></h3>
-                            <div style="height: 40px; width: 100%; margin-top: -10px;">
-                                <canvas t-ref="sparklineCost"></canvas>
+                            <div class="d-flex justify-content-between align-items-end mt-1">
+                                <div>
+                                    <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.cost_of_sales)"/></h3>
+                                    <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                                </div>
+                                <div style="height: 40px; width: 80px;">
+                                    <canvas t-ref="sparklineCost"></canvas>
+                                </div>
                             </div>
-                            <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
                     </div>
                 </div>
@@ -100,11 +112,15 @@
                                     <t t-if="state.kpis.profit_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.profit_trend)"/>%
                                 </span>
                             </div>
-                            <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.kpis.gross_profit)"/></h3>
-                            <div style="height: 40px; width: 100%; margin-top: -10px;">
-                                <canvas t-ref="sparklineProfit"></canvas>
+                            <div class="d-flex justify-content-between align-items-end mt-1">
+                                <div>
+                                    <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.gross_profit)"/></h3>
+                                    <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                                </div>
+                                <div style="height: 40px; width: 80px;">
+                                    <canvas t-ref="sparklineProfit"></canvas>
+                                </div>
                             </div>
-                            <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                         </div>
                     </div>
                 </div>
