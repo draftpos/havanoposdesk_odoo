@@ -8,7 +8,10 @@
             <list string="Error Events" create="0" edit="0">
                 <field name="timestamp"/>
                 <field name="issue_id"/>
-                <field name="bugsink_id" string="Event ID"/>
+                <field name="site" optional="show"/>
+                <field name="user_email" optional="show"/>
+                <field name="app_release" optional="hide"/>
+                <field name="bugsink_id" string="Event ID" optional="hide"/>
             </list>
         </field>
     </record>
@@ -26,9 +29,13 @@
                         <group>
                             <field name="issue_id"/>
                             <field name="bugsink_id" string="Event ID"/>
+                            <field name="timestamp"/>
                         </group>
                         <group>
-                            <field name="timestamp"/>
+                            <field name="site"/>
+                            <field name="user_email"/>
+                            <field name="app_release"/>
+                            <field name="os_name"/>
                         </group>
                     </group>
                     <notebook>
@@ -56,7 +63,9 @@
             <list string="System Errors" create="0" edit="0" decoration-danger="not is_resolved" decoration-success="is_resolved">
                 <field name="type" string="Error Type"/>
                 <field name="name" string="Message"/>
-                <field name="first_seen" optional="show"/>
+                <field name="site" optional="show"/>
+                <field name="user_email" optional="show"/>
+                <field name="first_seen" optional="hide"/>
                 <field name="last_seen"/>
                 <field name="event_count" string="Events"/>
                 <field name="is_resolved" string="Resolved"/>
@@ -90,8 +99,12 @@
                             <field name="type" string="Error Type"/>
                             <field name="transaction" string="Transaction"/>
                             <field name="bugsink_id" string="Bugsink Issue ID"/>
+                            <field name="site"/>
+                            <field name="user_email"/>
                         </group>
                         <group>
+                            <field name="app_release"/>
+                            <field name="os_name"/>
                             <field name="first_seen"/>
                             <field name="last_seen"/>
                             <field name="is_resolved"/>
@@ -102,13 +115,41 @@
                             <field name="event_ids" readonly="1">
                                 <list>
                                     <field name="timestamp"/>
-                                    <field name="bugsink_id" string="Event ID"/>
+                                    <field name="site" optional="show"/>
+                                    <field name="user_email" optional="show"/>
+                                    <field name="bugsink_id" string="Event ID" optional="hide"/>
                                 </list>
                             </field>
                         </page>
                     </notebook>
                 </sheet>
             </form>
+        </field>
+    </record>
+
+    <record id="view_havano_error_issue_search" model="ir.ui.view">
+        <field name="name">havano.error.issue.search</field>
+        <field name="model">havano.error.issue</field>
+        <field name="arch" type="xml">
+            <search string="Search Issues">
+                <field name="name" string="Message"/>
+                <field name="site"/>
+                <field name="user_email"/>
+                <field name="type" string="Error Type"/>
+                <field name="transaction" string="Transaction"/>
+                
+                <filter name="unresolved" string="Unresolved" domain="[('is_resolved', '=', False)]"/>
+                <filter name="resolved" string="Resolved" domain="[('is_resolved', '=', True)]"/>
+                <separator/>
+                <filter name="today" string="Today" domain="[('last_seen', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                
+                <group expand="0" string="Group By">
+                    <filter name="group_site" string="Site" domain="[]" context="{'group_by':'site'}"/>
+                    <filter name="group_user_email" string="User Email" domain="[]" context="{'group_by':'user_email'}"/>
+                    <filter name="group_type" string="Error Type" domain="[]" context="{'group_by':'type'}"/>
+                    <filter name="group_release" string="Release" domain="[]" context="{'group_by':'app_release'}"/>
+                </group>
+            </search>
         </field>
     </record>
 

@@ -19,6 +19,12 @@ class HavanoErrorIssue(models.Model):
     is_resolved = fields.Boolean(string='Resolved')
     transaction = fields.Char(string='Transaction')
     
+    # Metadata extracted from events
+    site = fields.Char(string='Site')
+    user_email = fields.Char(string='User Email')
+    app_release = fields.Char(string='Release')
+    os_name = fields.Char(string='OS')
+    
     event_ids = fields.One2many('havano.error.event', 'issue_id', string='Events')
 
     def _get_api_credentials(self):
@@ -85,15 +91,57 @@ class HavanoErrorIssue(models.Model):
                 data = response.json()
                 events_data = data.get('results', [])
                 
-                for event_data in events_data:
+                for event_data in events_data[:10]: # Fetch details for top 10 recent events only
                     event_id = event_data.get('id')
                     existing_event = EventModel.search([('bugsink_id', '=', event_id)], limit=1)
                     if not existing_event:
+                        # Fetch full event details to get tags and user info
+                        site, release, os_name, user_email = '', '', '', ''
+                        detail_url = f"{base_url}/api/canonical/0/events/{event_id}/"
+                        try:
+                            detail_res = requests.get(detail_url, headers=headers, timeout=10)
+                            detail_res.raise_for_status()
+                            full_event = detail_res.json()
+                            data_payload = full_event.get('data', {})
+                            tags_list = data_payload.get('tags', [])
+                            
+                            if isinstance(tags_list, dict):
+                                tags_list = [[k, v] for k, v in tags_list.items()]
+                                
+                            for tag in tags_list:
+                                if isinstance(tag, list) and len(tag) >= 2:
+                                    k, v = tag[0], tag[1]
+                                    if k == 'site': site = str(v)
+                                    elif k == 'release': release = str(v)
+                                    elif k == 'os.name': os_name = str(v)
+                                    elif k == 'user.username': user_email = str(v)
+                            
+                            user_payload = data_payload.get('user', {})
+                            if not user_email:
+                                user_email = user_payload.get('email') or user_payload.get('username') or ''
+                                
+                        except Exception as e:
+                            _logger.error(f"Failed to fetch details for event {event_id}: {str(e)}")
+
                         EventModel.create({
                             'bugsink_id': event_id,
                             'issue_id': issue.id,
                             'timestamp': event_data.get('timestamp', '').split('.')[0].replace('T', ' ').replace('Z', ''),
+                            'site': site,
+                            'app_release': release,
+                            'os_name': os_name,
+                            'user_email': user_email,
                         })
+                        
+                        # Update parent issue if these fields are not yet set
+                        issue_vals = {}
+                        if site and not issue.site: issue_vals['site'] = site
+                        if release and not issue.app_release: issue_vals['app_release'] = release
+                        if os_name and not issue.os_name: issue_vals['os_name'] = os_name
+                        if user_email and not issue.user_email: issue_vals['user_email'] = user_email
+                        if issue_vals:
+                            issue.write(issue_vals)
+                            
             except Exception as e:
                 _logger.error(f"Failed to sync events for issue {issue.bugsink_id}: {str(e)}")
 
@@ -106,6 +154,12 @@ class HavanoErrorEvent(models.Model):
     issue_id = fields.Many2one('havano.error.issue', string='Issue', ondelete='cascade')
     timestamp = fields.Datetime(string='Timestamp')
     stacktrace_md = fields.Text(string='Stacktrace')
+    
+    # Context data
+    site = fields.Char(string='Site')
+    user_email = fields.Char(string='User Email')
+    app_release = fields.Char(string='Release')
+    os_name = fields.Char(string='OS')
 
     def action_fetch_stacktrace(self):
         """Fetches the markdown stacktrace for the event."""
