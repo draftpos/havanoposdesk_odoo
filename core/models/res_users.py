@@ -24,6 +24,13 @@ class ResUsers(models.Model):
     pin = fields.Char(string="PIN Code")
     user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
 
+    @api.model
+    def _get_default_action_id(self):
+        action = self.env.ref('havanoposdesk_odoo.action_havano_dashboard', raise_if_not_found=False)
+        return action.id if action else False
+
+    action_id = fields.Many2one(default=_get_default_action_id)
+
     verification_token = fields.Char(string="Verification Token", copy=False)
     verification_sent_at = fields.Datetime(string="Verification Sent At", copy=False)
 

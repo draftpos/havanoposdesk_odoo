@@ -61,31 +61,11 @@
             <field name="view_id" ref="view_havanoposdesk_product_graph"/>
         </record>
 
-        <!-- 3. The Board Layout -->
-        <record id="board_havano_dashboard_form" model="ir.ui.view">
-            <field name="name">board.havano.dashboard.form</field>
-            <field name="model">board.board</field>
-            <field name="type">form</field>
-            <field name="arch" type="xml">
-                <form string="My Dashboard">
-                    <board style="1">
-                        <column>
-                            <action name="%(action_dashboard_sales_graph)d" string="Sales Trend"/>
-                            <action name="%(action_dashboard_purchases_graph)d" string="Purchase Trend"/>
-                            <action name="%(action_dashboard_inventory_graph)d" string="Stock Overview"/>
-                        </column>
-                    </board>
-                </form>
-            </field>
-        </record>
-
-        <!-- 4. Dashboard Menu Action -->
-        <record id="action_havano_dashboard" model="ir.actions.act_window">
+        <!-- 3. Dashboard Client Action (Replaces board.board) -->
+        <record id="action_havano_dashboard" model="ir.actions.client">
             <field name="name">Dashboard</field>
-            <field name="res_model">board.board</field>
-            <field name="view_mode">form</field>
+            <field name="tag">havano_dashboard_tag</field>
             <field name="usage">menu</field>
-            <field name="view_id" ref="board_havano_dashboard_form"/>
         </record>
 
     </data>

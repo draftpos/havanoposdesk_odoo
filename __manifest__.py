@@ -71,6 +71,9 @@
             'havanoposdesk_odoo/static/src/js/whitelabel.js',
             'havanoposdesk_odoo/static/src/scss/mobile_kanban_design.scss',
             'havanoposdesk_odoo/static/src/js/mobile_kanban_design.js',
+            'havanoposdesk_odoo/static/src/dashboard/dashboard.js',
+            'havanoposdesk_odoo/static/src/dashboard/dashboard.scss',
+            'havanoposdesk_odoo/static/src/dashboard/dashboard.xml',
         ],
     },
 }
