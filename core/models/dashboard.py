@@ -12,38 +12,59 @@ class HavanoposdeskDashboard(models.AbstractModel):
         Fetch KPI and Chart data for the dashboard.
         """
         tenant_id = self.env.user.tenant_id.id
-        if not tenant_id:
-            return {}
-
-        domain_sale = [('tenant_id', '=', tenant_id)]
-        domain_val = [('tenant_id', '=', tenant_id)]
+        domain_sale = [('tenant_id', '=', tenant_id)] if tenant_id else []
+        domain_val = [('tenant_id', '=', tenant_id)] if tenant_id else []
         
+        # Calculate previous period for trends
+        prev_domain_sale = list(domain_sale)
         if date_from and date_to:
-            # Add time to capture the entire day
+            start_date = datetime.strptime(date_from, "%Y-%m-%d").date()
+            end_date = datetime.strptime(date_to, "%Y-%m-%d").date()
+            diff_days = (end_date - start_date).days + 1
+            prev_start = start_date - timedelta(days=diff_days)
+            prev_end = end_date - timedelta(days=diff_days)
+            
             start = f"{date_from} 00:00:00"
             end = f"{date_to} 23:59:59"
             domain_sale += [('date', '>=', start), ('date', '<=', end)]
+            
+            p_start = f"{prev_start} 00:00:00"
+            p_end = f"{prev_end} 23:59:59"
+            prev_domain_sale += [('date', '>=', p_start), ('date', '<=', p_end)]
 
+        # Fetch current period data
         sales = self.env['havanoposdesk.sale'].search(domain_sale)
-        
-        gross_sales = 0.0
-        net_sales = 0.0
-        cost_of_sales = 0.0
-        gross_profit = 0.0
+        # Fetch previous period data
+        prev_sales = self.env['havanoposdesk.sale'].search(prev_domain_sale)
+
+        def compute_kpis(sales_records):
+            gs = sum(s.amount_total for s in sales_records)
+            ns = sum((s.amount_total - (s.discount_amount or 0.0)) for s in sales_records)
+            cs = sum(sum(line.product_id.buying_price * line.qty for line in s.line_ids if line.product_id) for s in sales_records)
+            gp = ns - cs
+            return gs, ns, cs, gp
+            
+        def compute_trend(curr, prev):
+            if not prev:
+                return 100.0 if curr > 0 else 0.0
+            return round(((curr - prev) / prev) * 100, 1)
+
+        gross_sales, net_sales, cost_of_sales, gross_profit = compute_kpis(sales)
+        prev_gross, prev_net, prev_cost, prev_profit = compute_kpis(prev_sales)
+
+        gross_trend = compute_trend(gross_sales, prev_gross)
+        net_trend = compute_trend(net_sales, prev_net)
+        cost_trend = compute_trend(cost_of_sales, prev_cost)
+        profit_trend = compute_trend(gross_profit, prev_profit)
         
         daily_sales_data = {}
 
         for sale in sales:
             gross = sale.amount_total
-            net = sale.amount_total - (sale.discount_amount or 0.0) # Assume discount if applicable
+            net = sale.amount_total - (sale.discount_amount or 0.0)
             cost = sum(line.product_id.buying_price * line.qty for line in sale.line_ids if line.product_id)
             profit = net - cost
             
-            gross_sales += gross
-            net_sales += net
-            cost_of_sales += cost
-            gross_profit += profit
-
             # Daily grouping
             day = sale.date.strftime('%Y-%m-%d') if sale.date else 'Unknown'
             if day not in daily_sales_data:
@@ -103,6 +124,10 @@ class HavanoposdeskDashboard(models.AbstractModel):
                 'net_sales': net_sales,
                 'cost_of_sales': cost_of_sales,
                 'gross_profit': gross_profit,
+                'gross_trend': gross_trend,
+                'net_trend': net_trend,
+                'cost_trend': cost_trend,
+                'profit_trend': profit_trend,
             },
             'stock_stats': {
                 'total_valuation': total_valuation,

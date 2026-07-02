@@ -27,7 +27,9 @@ export class HavanoDashboard extends Component {
                 total_items: 0
             },
             period: 'today',
-            periodLabel: 'Today'
+            periodLabel: 'Today',
+            customDateFrom: '',
+            customDateTo: ''
         });
 
         this.salesChartRef = useRef("salesChart");
@@ -105,6 +107,9 @@ export class HavanoDashboard extends Component {
             date_from = formatDate(m);
             const end_m = new Date(now.getFullYear(), now.getMonth(), 0);
             date_to = formatDate(end_m);
+        } else if (this.state.period === 'custom') {
+            date_from = this.state.customDateFrom;
+            date_to = this.state.customDateTo;
         }
 
         const data = await this.orm.call(
@@ -130,8 +135,18 @@ export class HavanoDashboard extends Component {
     async setPeriod(period, label) {
         this.state.period = period;
         this.state.periodLabel = label;
-        await this.fetchData();
-        this.renderCharts();
+        if (period !== 'custom') {
+            await this.fetchData();
+            this.renderCharts();
+        }
+    }
+
+    async applyCustomDate() {
+        if (this.state.customDateFrom && this.state.customDateTo) {
+            this.state.periodLabel = `${this.state.customDateFrom} to ${this.state.customDateTo}`;
+            await this.fetchData();
+            this.renderCharts();
+        }
     }
 
     formatCurrency(value) {
