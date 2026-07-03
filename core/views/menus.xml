@@ -71,5 +71,11 @@
 
         <!-- My Business Analytics Navigation (visible to tenant admins / base.group_user) -->
         <menuitem id="menu_my_business_analytics" name="Analytics" parent="menu_my_business_root" sequence="40"/>
+
+        <!-- Set Dashboard as default action for users who don't have one -->
+        <function model="res.users" name="write">
+            <value model="res.users" search="[('action_id', '=', False)]"/>
+            <value eval="{'action_id': ref('havanoposdesk_odoo.action_havano_dashboard')}"/>
+        </function>
     </data>
 </odoo>

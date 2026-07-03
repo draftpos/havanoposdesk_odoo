@@ -1,0 +1,92 @@
+.havano-dashboard-container {
+    background-color: #f5f6f8;
+    padding: 24px;
+    min-height: 100vh;
+    overflow-y: auto;
+
+    .dashboard-header {
+        .dropdown {
+            button {
+                min-width: 150px;
+                justify-content: flex-start;
+                font-weight: 500;
+                &:hover {
+                    background-color: #f8f9fa !important;
+                }
+            }
+        }
+    }
+
+    .card {
+        .top-indicator {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 40px;
+            height: 3px;
+            border-radius: 2px;
+            
+            &.bg-primary { background-color: #3498db !important; }
+            &.bg-success { background-color: #2ecc71 !important; }
+            &.bg-purple { background-color: #9b59b6 !important; }
+            &.bg-warning { background-color: #f39c12 !important; }
+        }
+
+        .card-body {
+            padding: 24px;
+            
+            h6 {
+                font-size: 13px;
+                letter-spacing: 0.5px;
+            }
+            
+            h3 {
+                font-size: 28px;
+                color: #2c3e50;
+            }
+            
+            small {
+                font-size: 12px;
+            }
+        }
+    }
+
+    .chart-container {
+        canvas {
+            user-select: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        padding: 16px;
+
+        .row.g-3 {
+            .col-6 {
+                width: 100%; // Stack cards vertically on mobile
+            }
+        }
+        
+        .dashboard-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 10px;
+            
+            h2 {
+                display: block !important;
+                font-size: 20px;
+            }
+            
+            .dropdown {
+                width: 100%;
+                button {
+                    width: 100%;
+                    justify-content: space-between;
+                }
+            }
+        }
+        
+        .chart-container {
+            height: 250px !important; // Slightly smaller on mobile
+        }
+    }
+}
