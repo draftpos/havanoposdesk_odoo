@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="havanoposdesk_odoo.Dashboard" owl="1">
+        <div class="o_action o_view_controller">
+            <div class="o_content overflow-auto bg-light w-100 h-100">
+                <div class="havano-dashboard-container p-4">
+                    <div class="d-flex justify-content-end align-items-center mb-4 dashboard-header">
+                        
+                <!-- Period Filter Dropdown -->
+                <div class="dropdown">
+                    <Dropdown>
+                        <button class="btn bg-white border shadow-sm text-dark d-flex align-items-center rounded-2 px-3 py-2">
+                            <i class="fa fa-calendar me-2 text-muted"></i>
+                            <span t-esc="state.periodLabel"></span>
+                        </button>
+                        <t t-set-slot="content">
+                            <DropdownItem onSelected="() => this.setPeriod('today', 'Today')">Today</DropdownItem>
+                            <DropdownItem onSelected="() => this.setPeriod('yesterday', 'Yesterday')">Yesterday</DropdownItem>
+                            <DropdownItem onSelected="() => this.setPeriod('this_week', 'This week')">This week</DropdownItem>
+                            <DropdownItem onSelected="() => this.setPeriod('last_week', 'Last week')">Last week</DropdownItem>
+                            <DropdownItem onSelected="() => this.setPeriod('this_month', 'This month')">This month</DropdownItem>
+                            <DropdownItem onSelected="() => this.setPeriod('last_month', 'Last month')">Last month</DropdownItem>
+                            <DropdownItem onSelected="() => this.setPeriod('custom', 'Custom Range')">Custom Range</DropdownItem>
+                        </t>
+                    </Dropdown>
+                </div>
+                <!-- Custom Date Inputs (only visible if custom is selected) -->
+                <div t-if="state.period === 'custom'" class="d-flex flex-column flex-md-row gap-2 w-100 mt-2 mt-md-0">
+                    <input type="date" class="form-control flex-grow-1" t-model="state.customDateFrom" />
+                    <input type="date" class="form-control flex-grow-1" t-model="state.customDateTo" />
+                    <button class="btn btn-primary" t-on-click="applyCustomDate">Apply</button>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="card h-100 border-0 shadow-sm rounded-3">
+                        <div class="card-body position-relative overflow-hidden">
+                            <div class="top-indicator bg-primary"></div>
+                            <div class="d-flex justify-content-between">
+                                <h6 class="card-title text-muted fw-bold mb-2">Gross sales</h6>
+                                <span t-attf-class="badge #{state.kpis.gross_trend >= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
+                                    <t t-if="state.kpis.gross_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.gross_trend)"/>%
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-end mt-1">
+                                <div>
+                                    <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.gross_sales)"/></h3>
+                                    <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                                </div>
+                                <div style="height: 40px; width: 80px;">
+                                    <canvas t-ref="sparklineGross"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card h-100 border-0 shadow-sm rounded-3">
+                        <div class="card-body position-relative overflow-hidden">
+                            <div class="top-indicator bg-success"></div>
+                            <div class="d-flex justify-content-between">
+                                <h6 class="card-title text-muted fw-bold mb-2">Net sales</h6>
+                                <span t-attf-class="badge #{state.kpis.net_trend >= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
+                                    <t t-if="state.kpis.net_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.net_trend)"/>%
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-end mt-1">
+                                <div>
+                                    <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.net_sales)"/></h3>
+                                    <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                                </div>
+                                <div style="height: 40px; width: 80px;">
+                                    <canvas t-ref="sparklineNet"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card h-100 border-0 shadow-sm rounded-3">
+                        <div class="card-body position-relative overflow-hidden">
+                            <div class="top-indicator bg-purple"></div>
+                            <div class="d-flex justify-content-between">
+                                <h6 class="card-title text-muted fw-bold mb-2">Cost of sales</h6>
+                                <span t-attf-class="badge #{state.kpis.cost_trend &lt;= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
+                                    <t t-if="state.kpis.cost_trend &lt;= 0">▼</t><t t-else="">▲</t> <t t-esc="Math.abs(state.kpis.cost_trend)"/>%
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-end mt-1">
+                                <div>
+                                    <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.cost_of_sales)"/></h3>
+                                    <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                                </div>
+                                <div style="height: 40px; width: 80px;">
+                                    <canvas t-ref="sparklineCost"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card h-100 border-0 shadow-sm rounded-3">
+                        <div class="card-body position-relative overflow-hidden">
+                            <div class="top-indicator bg-warning"></div>
+                            <div class="d-flex justify-content-between">
+                                <h6 class="card-title text-muted fw-bold mb-2">Gross profit</h6>
+                                <span t-attf-class="badge #{state.kpis.profit_trend >= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
+                                    <t t-if="state.kpis.profit_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.profit_trend)"/>%
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-end mt-1">
+                                <div>
+                                    <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.gross_profit)"/></h3>
+                                    <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                                </div>
+                                <div style="height: 40px; width: 80px;">
+                                    <canvas t-ref="sparklineProfit"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sales Summary Chart -->
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-body">
+                    <h5 class="card-title fw-bolder text-dark mb-1">Sales summary</h5>
+                    <small class="text-muted d-block mb-4"><t t-esc="state.periodLabel"/></small>
+                    <div class="chart-container" style="position: relative; height:300px; width:100%">
+                        <canvas t-ref="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Row: Other KPIs and Stock Valuation Chart -->
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-body border-bottom p-4">
+                            <h6 class="card-title text-dark fw-bold mb-2">Total Valuation</h6>
+                            <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.stock_stats.total_valuation)"/></h3>
+                            <small class="text-muted">Current Value</small>
+                        </div>
+                        <div class="card-body p-4">
+                            <h6 class="card-title text-dark fw-bold mb-2">Items on Hand</h6>
+                            <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.stock_stats.total_items)"/></h3>
+                            <small class="text-muted">Total Quantity</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-8">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bolder text-dark mb-1">Stock valuation</h5>
+                            <small class="text-muted d-block mb-4"><t t-esc="state.periodLabel"/></small>
+                            <div class="chart-container" style="position: relative; height:300px; width:100%">
+                                <canvas t-ref="stockChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add a slight bottom padding for mobile so it doesn't stick to edge -->
+            <div class="pb-4"></div>
+                <!-- Modals would go here -->
+            <PwaPrompt class="d-md-none" />
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>

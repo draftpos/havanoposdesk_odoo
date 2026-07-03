@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- 1. Graph Views -->
+        
+        <!-- Sales Graph -->
+        <record id="view_havanoposdesk_sale_graph" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.graph</field>
+            <field name="model">havanoposdesk.sale</field>
+            <field name="arch" type="xml">
+                <graph string="Sales Overview" type="line" sample="1">
+                    <field name="date" interval="day"/>
+                    <field name="amount_total" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <record id="view_havanoposdesk_purchase_graph" model="ir.ui.view">
+            <field name="name">havanoposdesk.purchase.graph</field>
+            <field name="model">havanoposdesk.purchase</field>
+            <field name="arch" type="xml">
+                <graph string="Purchases Overview" type="bar" sample="1">
+                    <field name="posting_date" interval="day"/>
+                    <field name="amount_total" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <!-- Inventory Graph -->
+        <record id="view_havanoposdesk_product_graph" model="ir.ui.view">
+            <field name="name">havanoposdesk.product.graph</field>
+            <field name="model">havanoposdesk.product</field>
+            <field name="arch" type="xml">
+                <graph string="Inventory Levels" type="pie" sample="1">
+                    <field name="name"/>
+                    <field name="opening_stock" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <!-- 2. Actions for the Board -->
+        <record id="action_dashboard_sales_graph" model="ir.actions.act_window">
+            <field name="name">Sales</field>
+            <field name="res_model">havanoposdesk.sale</field>
+            <field name="view_mode">graph</field>
+            <field name="view_id" ref="view_havanoposdesk_sale_graph"/>
+        </record>
+
+        <record id="action_dashboard_purchases_graph" model="ir.actions.act_window">
+            <field name="name">Purchases</field>
+            <field name="res_model">havanoposdesk.purchase</field>
+            <field name="view_mode">graph</field>
+            <field name="view_id" ref="view_havanoposdesk_purchase_graph"/>
+        </record>
+
+        <record id="action_dashboard_inventory_graph" model="ir.actions.act_window">
+            <field name="name">Inventory</field>
+            <field name="res_model">havanoposdesk.product</field>
+            <field name="view_mode">graph</field>
+            <field name="view_id" ref="view_havanoposdesk_product_graph"/>
+        </record>
+
+        <!-- 3. Dashboard Client Action (Replaces board.board) -->
+        <record id="action_havano_dashboard_client" model="ir.actions.client">
+            <field name="name">Dashboard</field>
+            <field name="tag">havano_dashboard_tag</field>
+        </record>
+
+    </data>
+</odoo>
