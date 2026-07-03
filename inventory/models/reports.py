@@ -46,7 +46,7 @@ class StockLedger(models.Model):
     category_id = fields.Many2one(related='product_id.category_id', string='Item Category', store=True)
     in_value = fields.Float(string='In Value', compute='_compute_values', store=True)
     out_value = fields.Float(string='Out Value', compute='_compute_values', store=True)
-    buying_price = fields.Float(string='Buy price')
+    buying_price = fields.Float(string='Cost price')
     type = fields.Char(string='Type')
     doc_no = fields.Char(string='Doc No')
     balance_value = fields.Float(string='Balance Value', compute='_compute_values', store=True)

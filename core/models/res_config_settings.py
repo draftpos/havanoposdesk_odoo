@@ -153,6 +153,76 @@ class ResConfigSettings(models.TransientModel):
         default="havano.cloud",
         help="Vendor domain shown in the login page footer."
     )
+    havano_pwa_small_icon = fields.Char(
+        string="PWA Small Icon",
+        config_parameter="havanoposdesk.pwa_small_icon",
+        default="/Havanoposdesk_odoo/static/src/img/havano-icon-192x192.png",
+    )
+    havano_pwa_large_icon = fields.Char(
+        string="PWA Large Icon",
+        config_parameter="havanoposdesk.pwa_large_icon",
+        default="/Havanoposdesk_odoo/static/src/img/havano-icon-512x512.png",
+    )
+    havano_pwa_app_icon = fields.Char(
+        string="PWA App Icon",
+        config_parameter="havanoposdesk.pwa_app_icon",
+        default="/Havanoposdesk_odoo/static/src/img/havano-icon-512x512.png",
+    )
+    havano_pwa_background_color = fields.Char(
+        string="PWA Background Color",
+        config_parameter="havanoposdesk.pwa_background_color",
+        default="#714B67",
+    )
+    havano_bot_email = fields.Char(
+        string="Bot Email",
+        config_parameter="havanoposdesk.bot_email",
+        default="bot@havano.cloud",
+    )
+    havano_favicon = fields.Char(
+        string="X Icon",
+        config_parameter="havanoposdesk.favicon",
+        default="/Havanoposdesk_odoo/static/src/img/favicon.png",
+    )
+    havano_support_phone = fields.Char(
+        string="Support Phone",
+        config_parameter="havanoposdesk.support_phone",
+        default="+263 779 9734 028",
+        help="Support phone number displayed on the login page."
+    )
+    havano_sales_phone = fields.Char(
+        string="Sales Phone",
+        config_parameter="havanoposdesk.sales_phone",
+        default="+263 778 078 440",
+        help="Sales phone number displayed on the login page."
+    )
+    havano_whatsapp_phone = fields.Char(
+        string="WhatsApp Phone",
+        config_parameter="havanoposdesk.whatsapp_phone",
+        default="+263 779 9734 028",
+        help="WhatsApp contact number displayed on the login page."
+    )
+
+    def set_values(self):
+        icp = self.env['ir.config_parameter'].sudo()
+        old_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
+        super().set_values()
+        bot_name = icp.get_param('havanoposdesk.bot_name', 'HavanoBot')
+        bot_email = icp.get_param('havanoposdesk.bot_email', 'bot@havano.cloud')
+        # Rename OdooBot in the database
+        bot_partner = self.env.ref('base.partner_root', raise_if_not_found=False)
+        if bot_partner:
+            bot_partner.sudo().write({
+                'name': bot_name,
+                'email': bot_email,
+            })
+            
+        new_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
+        if old_base != new_base:
+            return {
+                'type': 'ir.actions.act_url',
+                'url': f'/{new_base}',
+                'target': 'self',
+            }
 
     # ── Bugsink Error Logging Settings ────────────────────────────────
     havano_bugsink_base_url = fields.Char(

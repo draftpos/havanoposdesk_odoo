@@ -6,7 +6,7 @@
             <field name="name">havanoposdesk.terminal.sales.report.list</field>
             <field name="model">havanoposdesk.terminal.sales.report</field>
             <field name="arch" type="xml">
-                <list string="Terminal Sales" create="false" edit="false" delete="false">
+                <list string="Shop Profitability" create="false" edit="false" delete="false">
                     <field name="date" optional="show"/>
                     <field name="terminal_id" optional="show"/>
                     <field name="salesperson_id" optional="show"/>
@@ -26,7 +26,7 @@
             <field name="name">havanoposdesk.terminal.sales.report.pivot</field>
             <field name="model">havanoposdesk.terminal.sales.report</field>
             <field name="arch" type="xml">
-                <pivot string="Terminal Sales" disable_linking="True">
+                <pivot string="Shop Profitability" disable_linking="True">
                     <field name="terminal_id" type="row"/>
                     <field name="qty" type="measure"/>
                     <field name="total_sales" type="measure"/>
@@ -40,7 +40,7 @@
             <field name="name">havanoposdesk.terminal.sales.report.search</field>
             <field name="model">havanoposdesk.terminal.sales.report</field>
             <field name="arch" type="xml">
-                <search string="Search Terminal Sales">
+                <search string="Search Shop Profitability">
                     <field name="terminal_id"/>
                     <field name="salesperson_id"/>
                     <field name="store_id"/>
@@ -58,7 +58,7 @@
 
         <!-- Action for Terminal Sales Report -->
         <record id="action_terminal_sales_report" model="ir.actions.act_window">
-            <field name="name">Terminal Sales</field>
+            <field name="name">Shop Profitability</field>
             <field name="res_model">havanoposdesk.terminal.sales.report</field>
             <field name="view_mode">list,pivot</field>
             <field name="search_view_id" ref="view_terminal_sales_report_search"/>
@@ -66,6 +66,6 @@
         </record>
 
         <!-- Menu Item -->
-        <menuitem id="menu_terminal_sales_report" name="by Shop" parent="menu_sales_reports" action="action_terminal_sales_report" sequence="40"/>
+        <menuitem id="menu_terminal_sales_report" name="Shop Profitability" parent="menu_sales_reports" action="action_terminal_sales_report" sequence="40"/>
     </data>
 </odoo>

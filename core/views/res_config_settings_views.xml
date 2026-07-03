@@ -43,19 +43,18 @@
                             </div>
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_right_pane">
-                                    <label for="havano_theme_color" string="Theme Color"/>
-                                    <div class="text-muted">PWA theme/background color (hex, e.g. #714B67)</div>
+                                    <label for="havano_bot_name" string="Bot Name"/>
+                                    <div class="text-muted">The name of the chat assistant visible in the Discuss sidebar</div>
                                     <div class="content-group mt8">
-                                        <field name="havano_theme_color" class="o_light_label" placeholder="#714B67"/>
+                                        <field name="havano_bot_name" class="o_light_label" placeholder="HavanoBot"/>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_right_pane">
-                                    <label for="havano_bot_name" string="Bot Name"/>
-                                    <div class="text-muted">The name of the chat assistant visible in the Discuss sidebar</div>
+                                    <label for="havano_bot_email" string="Bot Email"/>
                                     <div class="content-group mt8">
-                                        <field name="havano_bot_name" class="o_light_label" placeholder="HavanoBot"/>
+                                        <field name="havano_bot_email" class="o_light_label" placeholder="bot@havano.cloud"/>
                                     </div>
                                 </div>
                             </div>
@@ -74,6 +73,42 @@
                                     <div class="text-muted">Full URL for the vendor website link in the login footer</div>
                                     <div class="content-group mt8">
                                         <field name="havano_vendor_url" class="o_light_label" placeholder="https://havano.cloud"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt8 o_settings_container">
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_favicon" string="X Icon"/>
+                                    <div class="content-group mt8">
+                                        <field name="havano_favicon" class="o_light_label" placeholder="/Havanoposdesk_odoo/static/src/img/favicon.png"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt8 o_settings_container">
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_support_phone" string="Support Phone"/>
+                                    <div class="content-group mt8">
+                                        <field name="havano_support_phone" class="o_light_label"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_sales_phone" string="Sales Phone"/>
+                                    <div class="content-group mt8">
+                                        <field name="havano_sales_phone" class="o_light_label"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_whatsapp_phone" string="WhatsApp Phone"/>
+                                    <div class="content-group mt8">
+                                        <field name="havano_whatsapp_phone" class="o_light_label"/>
                                     </div>
                                 </div>
                             </div>

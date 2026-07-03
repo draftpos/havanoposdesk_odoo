@@ -1,6 +1,6 @@
 {
     'name': 'Havano ERP (havanoposdesk_odoo)',
-    'version': '19.0.1.2',
+    'version': '19.0.1.6',
     'category': 'Sales/Point of Sale',
     'summary': 'Unified ERP backend serving Flutter POS app and Odoo UI',
     'description': """
@@ -29,6 +29,7 @@
         'core/views/res_config_settings_views.xml',
         'core/views/tenant_admin_views.xml',
         'core/views/whitelabel_templates.xml',
+        'core/views/auth_templates.xml',
         'core/views/error_log_views.xml',
 
         'accounts/views/account_views.xml',
@@ -67,7 +68,23 @@
     'license': 'LGPL-3',
     'post_init_hook': 'post_migrate',
     'assets': {
+        'web._assets_core': [
+            ('remove', 'web/static/src/core/browser/router.js'),
+            'Havanoposdesk_odoo/static/src/js/router.js',
+        ],
+        'web.assets_frontend': [
+            ('remove', 'web/static/src/core/browser/router.js'),
+            'Havanoposdesk_odoo/static/src/js/router.js',
+        ],
         'web.assets_backend': [
+            'Havanoposdesk_odoo/static/src/js/user_menu_hide.js',
+            'Havanoposdesk_odoo/static/src/js/whitelabel.js',
+            'Havanoposdesk_odoo/static/src/scss/form_fields.scss',
+            'Havanoposdesk_odoo/static/src/scss/profit_and_loss.scss',
+            'Havanoposdesk_odoo/static/src/js/profit_and_loss.js',
+            'Havanoposdesk_odoo/static/src/xml/profit_and_loss.xml',
+            'Havanoposdesk_odoo/static/src/js/custom_home_menu.js',
+            'Havanoposdesk_odoo/static/src/scss/custom_home_menu.scss',
             'havanoposdesk_odoo/static/src/js/user_menu_hide.js',
             'havanoposdesk_odoo/static/src/js/whitelabel.js',
             'havanoposdesk_odoo/static/src/scss/mobile_kanban_design.scss',

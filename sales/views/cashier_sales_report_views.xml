@@ -6,7 +6,7 @@
             <field name="name">havanoposdesk.cashier.sales.report.list</field>
             <field name="model">havanoposdesk.cashier.sales.report</field>
             <field name="arch" type="xml">
-                <list string="Cashier Sales" create="false" edit="false" delete="false">
+                <list string="Cashier Profitability" create="false" edit="false" delete="false">
                     <field name="date" optional="show"/>
                     <field name="salesperson_id" optional="show"/>
                     <field name="store_id" optional="show"/>
@@ -25,7 +25,7 @@
             <field name="name">havanoposdesk.cashier.sales.report.pivot</field>
             <field name="model">havanoposdesk.cashier.sales.report</field>
             <field name="arch" type="xml">
-                <pivot string="Cashier Sales" disable_linking="True">
+                <pivot string="Cashier Profitability" disable_linking="True">
                     <field name="salesperson_id" type="row"/>
                     <field name="qty" type="measure"/>
                     <field name="total_sales" type="measure"/>
@@ -39,7 +39,7 @@
             <field name="name">havanoposdesk.cashier.sales.report.search</field>
             <field name="model">havanoposdesk.cashier.sales.report</field>
             <field name="arch" type="xml">
-                <search string="Search Cashier Sales">
+                <search string="Search Cashier Profitability">
                     <field name="salesperson_id"/>
                     <field name="store_id"/>
                     <separator/>
@@ -47,6 +47,7 @@
                     <filter string="This Month" name="this_month" date="date" default_period="month"/>
                     <group>
                         <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
+                        <filter string="Cashier" name="group_by_cashier" context="{'group_by':'salesperson_id'}"/>
                         <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
                     </group>
                 </search>
@@ -55,13 +56,14 @@
 
         <!-- Action for Cashier Sales Report -->
         <record id="action_cashier_sales_report" model="ir.actions.act_window">
-            <field name="name">Cashier Sales</field>
+            <field name="name">Cashier Profitability</field>
             <field name="res_model">havanoposdesk.cashier.sales.report</field>
             <field name="view_mode">list,pivot</field>
             <field name="search_view_id" ref="view_cashier_sales_report_search"/>
+            <field name="context">{'search_default_group_by_cashier': 1}</field>
         </record>
 
         <!-- Menu Item -->
-        <menuitem id="menu_cashier_sales_report" name="by Cashier" parent="menu_sales_reports" action="action_cashier_sales_report" sequence="30"/>
+        <menuitem id="menu_cashier_sales_report" name="Cashier Profitability" parent="menu_sales_reports" action="action_cashier_sales_report" sequence="30"/>
     </data>
 </odoo>

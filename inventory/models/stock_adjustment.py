@@ -271,7 +271,7 @@ class StockAdjustmentLine(models.Model):
     item_code = fields.Char(related='product_id.item_code', string='Item Code', readonly=True)
     on_hand = fields.Float(string='On Hand', readonly=True)
     counted = fields.Float(string='Counted')
-    buying_price = fields.Float(related='product_id.buying_price', string='Buy price', readonly=True, store=True)
+    buying_price = fields.Float(related='product_id.buying_price', string='Cost price', readonly=True, store=True)
     qty_difference = fields.Float(string='Qty Difference', compute='_compute_differences', store=True)
     amount_difference = fields.Float(string='Amount Difference', compute='_compute_differences', store=True)
 
