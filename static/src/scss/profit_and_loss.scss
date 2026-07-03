@@ -1,0 +1,27 @@
+// SCSS for custom Profit and Loss Report
+
+.o_account_reports_body {
+    .o_account_reports_table {
+        margin-top: 15px;
+
+        thead th {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            border-top: none;
+            padding: 8px 10px;
+        }
+
+        tbody td {
+            font-size: 13px;
+            color: #444;
+            padding: 8px 10px;
+            vertical-align: middle;
+        }
+
+        .fa-caret-right, .fa-caret-down {
+            width: 15px;
+            text-align: center;
+        }
+    }
+}

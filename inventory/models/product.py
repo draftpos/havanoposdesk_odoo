@@ -5,6 +5,11 @@ class HavanoposdeskProduct(models.Model):
     _description = 'Product'
     _rec_names_search = ['name', 'item_code']
 
+    _sql_constraints = [
+        ('name_tenant_uniq', 'unique (name, tenant_id)', 'The product name must be unique per tenant!'),
+        ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The item code must be unique per tenant!')
+    ]
+
     name = fields.Char(string='Product Name', required=True)
     item_code = fields.Char(string='Item Code', required=True, copy=False, readonly=True, default=lambda self: 'New')
 
@@ -15,7 +20,7 @@ class HavanoposdeskProduct(models.Model):
                 record.display_name = f"[{record.item_code}] {record.name}"
             else:
                 record.display_name = record.name
-    buying_price = fields.Float(string='Buy price', default=0.0)
+    buying_price = fields.Float(string='Cost price', default=0.0)
     selling_price = fields.Float(string='Sell price')
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')

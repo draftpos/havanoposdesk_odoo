@@ -43,48 +43,6 @@
                             </div>
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_right_pane">
-                                    <label for="havano_pwa_small_icon" string="PWA Small Icon"/>
-                                    <div class="content-group mt8">
-                                        <field name="havano_pwa_small_icon" class="o_light_label" placeholder="/Havanoposdesk_odoo/...192x192.png"/>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_right_pane">
-                                    <label for="havano_pwa_large_icon" string="PWA Large Icon"/>
-                                    <div class="content-group mt8">
-                                        <field name="havano_pwa_large_icon" class="o_light_label" placeholder="/Havanoposdesk_odoo/...512x512.png"/>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_right_pane">
-                                    <label for="havano_pwa_app_icon" string="PWA App Icon"/>
-                                    <div class="content-group mt8">
-                                        <field name="havano_pwa_app_icon" class="o_light_label" placeholder="/Havanoposdesk_odoo/...512x512.png"/>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-
-                                <div class="o_setting_right_pane">
-                                    <label for="havano_theme_color" string="Theme Color"/>
-                                    <div class="text-muted">PWA theme/background color (hex, e.g. #714B67)</div>
-                                    <div class="content-group mt8">
-                                        <field name="havano_theme_color" class="o_light_label" placeholder="#714B67"/>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_right_pane">
-                                    <label for="havano_pwa_background_color" string="PWA Background Color"/>
-                                    <div class="content-group mt8">
-                                        <field name="havano_pwa_background_color" class="o_light_label" placeholder="#714B67"/>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_right_pane">
                                     <label for="havano_bot_name" string="Bot Name"/>
                                     <div class="text-muted">The name of the chat assistant visible in the Discuss sidebar</div>
                                     <div class="content-group mt8">
@@ -124,7 +82,33 @@
                                 <div class="o_setting_right_pane">
                                     <label for="havano_favicon" string="X Icon"/>
                                     <div class="content-group mt8">
-                                        <field name="havano_favicon" class="o_light_label" placeholder="/Havanoposdesk_odoo/static/src/img/favicon.ico"/>
+                                        <field name="havano_favicon" class="o_light_label" placeholder="/Havanoposdesk_odoo/static/src/img/favicon.png"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt8 o_settings_container">
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_support_phone" string="Support Phone"/>
+                                    <div class="content-group mt8">
+                                        <field name="havano_support_phone" class="o_light_label"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_sales_phone" string="Sales Phone"/>
+                                    <div class="content-group mt8">
+                                        <field name="havano_sales_phone" class="o_light_label"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="havano_whatsapp_phone" string="WhatsApp Phone"/>
+                                    <div class="content-group mt8">
+                                        <field name="havano_whatsapp_phone" class="o_light_label"/>
                                     </div>
                                 </div>
                             </div>

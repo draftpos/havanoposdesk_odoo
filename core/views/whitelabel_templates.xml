@@ -14,8 +14,8 @@
     <!-- 2. Override web.layout to change the favicon -->
     <template id="havano_layout_favicon" inherit_id="web.layout" name="Havano Layout Favicon">
         <xpath expr="//link[@rel='shortcut icon']" position="replace">
-            <t t-set="havano_favicon" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.favicon', '/Havanoposdesk_odoo/static/src/img/favicon.ico')"/>
-            <link type="image/x-icon" rel="shortcut icon" t-att-href="havano_favicon"/>
+            <t t-set="havano_favicon" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.favicon', '/Havanoposdesk_odoo/static/src/img/favicon.png')"/>
+            <link type="image/png" rel="shortcut icon" t-att-href="havano_favicon"/>
         </xpath>
     </template>
 

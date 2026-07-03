@@ -9,3 +9,4 @@ from . import res_config_settings
 from . import res_currency_rate
 from . import user_rights
 from . import ir_module_module
+from . import ir_http

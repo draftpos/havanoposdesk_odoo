@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="havano_auth_layout" name="Havano Auth Layout">
+        &lt;!DOCTYPE html&gt;
+        <html lang="en">
+            <head>
+                <meta charset="UTF-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+                <t t-set="havano_app_name" t-value="request.env['ir.config_parameter'].sudo().get_param('web.web_app_name', 'Havano')"/>
+                <t t-set="havano_favicon" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.favicon', '/Havanoposdesk_odoo/static/src/img/favicon.png')"/>
+                <title><t t-esc="havano_app_name"/> | Login</title>
+                <link rel="shortcut icon" t-att-href="havano_favicon" type="image/png"/>
+                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
+                    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f4f7f6; }
+                    .wrapper { position: relative; max-width: 420px; width: 100%; border-radius: 12px; padding: 25px 30px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+                    .brand-logo-container { text-align: center; margin-bottom: 15px; }
+                    .brand-logo { max-width: 120px; height: auto; }
+                    
+                    /* Form Toggle Animation */
+                    .form-container { display: none; animation: fadeIn 0.4s ease-in-out; }
+                    .form-container.active { display: block; }
+                    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+                    
+                    .form header { font-size: 22px; text-align: center; color: #333; font-weight: 600; margin-bottom: 2px; }
+                    .form .sub-header { text-align: center; font-size: 13px; color: #666; margin-bottom: 15px; }
+                    .form .sub-header span { color: #4070f4; cursor: pointer; font-weight: 500; transition: color 0.3s; }
+                    .form .sub-header span:hover { color: #265df2; text-decoration: underline; }
+                    
+                    .wrapper form { display: flex; flex-direction: column; gap: 12px; }
+                    .input-field { position: relative; width: 100%; }
+                    .input-field i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #4070f4; font-size: 16px; }
+                    form input[type="text"], form input[type="password"] { height: 48px; width: 100%; outline: none; border: 1px solid #e1e5ea; padding: 0 15px 0 45px; font-size: 14px; font-weight: 400; color: #333; border-radius: 8px; background: #fafbfc; transition: all 0.3s ease; }
+                    form input[type="text"]:focus, form input[type="password"]:focus { border: 1px solid #4070f4; box-shadow: 0 0 0 3px rgba(64,112,244,0.1); background: #fff; }
+                    
+                    .btn-submit { margin-top: 10px; font-size: 15px; font-weight: 500; cursor: pointer; width: 100%; transition: all 0.3s ease; height: 46px; border-radius: 8px; background: #4070f4; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; }
+                    .btn-submit:hover { background: #265df2; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(64,112,244,0.2); }
+                    .btn-submit:active { transform: translateY(0); }
+                    
+                    /* Custom support section styles */
+                    .support-divider { margin: 30px 0 20px; text-align: center; position: relative; }
+                    .support-divider::before { content: ""; position: absolute; left: 0; top: 50%; width: 100%; height: 1px; background: #eee; }
+                    .support-divider span { background: #fff; padding: 0 15px; color: #999; font-size: 12px; position: relative; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
+                    
+                    .support-details { text-align: center; background: #f8fafc; padding: 20px; border-radius: 10px; border: 1px solid #edf2f7; }
+                    .support-title { font-weight: 600; color: #333; font-size: 14px; margin-bottom: 4px; }
+                    .support-subtitle { font-size: 12px; color: #666; margin-bottom: 15px; }
+                    
+                    .support-list { display: flex; flex-direction: column; gap: 10px; }
+                    .support-item { display: flex; align-items: center; justify-content: center; font-size: 13px; color: #444; font-weight: 500; background: #fff; padding: 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+                    .support-item i { margin-right: 10px; font-size: 16px; width: 20px; text-align: center; }
+                    .support-item .fa-headphones { color: #4070f4; }
+                    .support-item .fa-briefcase { color: #f59e0b; }
+                    .support-item .fa-whatsapp { color: #25D366; font-size: 18px; }
+                    
+                    .alert { padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-size: 13px; }
+                    .alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+                    .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
+                </style>
+            </head>
+            <body>
+                <t t-set="support_phone" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.support_phone', '+263 779 973 4028')"/>
+                <t t-set="sales_phone" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.sales_phone', '+263 778 078 440')"/>
+                <t t-set="whatsapp_phone" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.whatsapp_phone', '+263 779 973 4028')"/>
+                
+                <t t-set="active_form" t-value="'signup' if '/web/signup' in request.httprequest.path else 'login'"/>
+                
+                <section class="wrapper">
+                    <div class="brand-logo-container">
+                        <img src="/Havanoposdesk_odoo/static/src/img/logo.png" alt="Havano Logo" class="brand-logo"/>
+                    </div>
+                    
+                    <!-- Signup Form -->
+                    <div t-attf-class="form-container form signup {{ 'active' if active_form == 'signup' else '' }}" id="signup-form">
+                        <header>Create Account</header>
+                        <div class="sub-header">Already have an account? <span onclick="toggleForms('login')">Login here</span></div>
+                        <form action="/web/signup" method="post" onsubmit="showSpinner(this)">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <input type="hidden" name="redirect" t-att-value="redirect"/>
+                            <input type="hidden" name="token" t-att-value="token"/>
+                            
+                            <t t-if="error and active_form == 'signup'">
+                                <div class="alert alert-danger" role="alert"><t t-esc="error"/></div>
+                            </t>
+                            
+                            <div class="input-field">
+                                <i class="fa fa-user"></i>
+                                <input type="text" name="name" placeholder="Full name" t-att-value="name" required="required" />
+                            </div>
+                            <div class="input-field">
+                                <i class="fa fa-envelope"></i>
+                                <input type="text" name="login" placeholder="Email address" t-att-value="login" required="required" />
+                            </div>
+                            <div class="input-field">
+                                <i class="fa fa-lock"></i>
+                                <input type="password" name="password" placeholder="Password" required="required" />
+                            </div>
+                            <div class="input-field">
+                                <i class="fa fa-lock"></i>
+                                <input type="password" name="confirm_password" placeholder="Confirm Password" required="required" />
+                            </div>
+                            
+                            <button type="submit" class="btn-submit">
+                                <span class="btn-text">Sign Up</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Login Form -->
+                    <div t-attf-class="form-container form login {{ 'active' if active_form == 'login' else '' }}" id="login-form">
+                        <header>Welcome Back</header>
+                        <div class="sub-header">New to Havano? <span onclick="toggleForms('signup')">Sign up</span></div>
+                        <form action="/web/login" method="post" onsubmit="showSpinner(this)">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <input type="hidden" name="redirect" t-att-value="redirect"/>
+                            
+                            <t t-if="error and active_form == 'login'">
+                                <div class="alert alert-danger" role="alert"><t t-esc="error"/></div>
+                            </t>
+                            <t t-if="message and active_form == 'login'">
+                                <div class="alert alert-success" role="alert"><t t-esc="message"/></div>
+                            </t>
+
+                            <div class="input-field">
+                                <i class="fa fa-envelope"></i>
+                                <input type="text" name="login" placeholder="Email address" t-att-value="login" required="required" />
+                            </div>
+                            <div class="input-field">
+                                <i class="fa fa-lock"></i>
+                                <input type="password" name="password" placeholder="Password" required="required" />
+                            </div>
+                            
+                            <button type="submit" class="btn-submit">
+                                <span class="btn-text">Login</span>
+                            </button>
+                        </form>
+                        
+                        <!-- Support Details -->
+                        <div class="support-divider"><span>Need Assistance?</span></div>
+                        <div class="support-details">
+                            <div class="support-title">Our support team is ready to help.</div>
+                            <div class="support-subtitle">Reach out to us anytime.</div>
+                            
+                            <div class="support-list">
+                                <t t-if="support_phone">
+                                    <div class="support-item"><i class="fa fa-headphones"></i> Support: <t t-esc="support_phone"/></div>
+                                </t>
+                                <t t-if="sales_phone">
+                                    <div class="support-item"><i class="fa fa-briefcase"></i> Sales: <t t-esc="sales_phone"/></div>
+                                </t>
+                                <t t-if="whatsapp_phone">
+                                    <div class="support-item"><i class="fab fa-whatsapp"></i> WhatsApp: <t t-esc="whatsapp_phone"/></div>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script>
+                        function toggleForms(target) {
+                            document.getElementById('signup-form').classList.remove('active');
+                            document.getElementById('login-form').classList.remove('active');
+                            
+                            if(target === 'login') {
+                                document.getElementById('login-form').classList.add('active');
+                                window.history.pushState({}, '', '/web/login');
+                            } else {
+                                document.getElementById('signup-form').classList.add('active');
+                                window.history.pushState({}, '', '/web/signup');
+                            }
+                        }
+                        
+                        function showSpinner(form) {
+                            const btn = form.querySelector('.btn-submit');
+                            const textSpan = btn.querySelector('.btn-text');
+                            const originalText = textSpan.innerText;
+                            
+                            // Prevent multiple clicks
+                            btn.style.pointerEvents = 'none';
+                            btn.style.opacity = '0.9';
+                            
+                            // Add spinner icon
+                            textSpan.innerHTML = '&lt;i class="fa fa-spinner fa-spin" style="margin-right: 5px;"&gt;&lt;/i&gt; ' + originalText;
+                            
+                            // Form will submit normally after this
+                            return true;
+                        }
+                    </script>
+                </section>
+            </body>
+        </html>
+    </template>
+
+    <template id="havano_web_login_layout" inherit_id="web.login_layout">
+        <xpath expr="//t[@t-call='web.frontend_layout']" position="replace">
+            <t t-call="Havanoposdesk_odoo.havano_auth_layout"/>
+        </xpath>
+    </template>
+</odoo>
