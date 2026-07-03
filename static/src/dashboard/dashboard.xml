@@ -85,14 +85,14 @@
                 <div class="col-12 col-md-4">
                     <div class="card border-0 shadow-sm rounded-3 h-100">
                         <div class="card-body border-bottom p-4">
-                            <h6 class="card-title text-dark fw-bold mb-2">Discount</h6>
-                            <h3 class="card-text fw-bolder mb-3">0.00</h3>
-                            <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                            <h6 class="card-title text-dark fw-bold mb-2">Total Valuation</h6>
+                            <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.stock_stats.total_valuation)"/></h3>
+                            <small class="text-muted">Current Value</small>
                         </div>
                         <div class="card-body p-4">
-                            <h6 class="card-title text-dark fw-bold mb-2">Cash refund</h6>
-                            <h3 class="card-text fw-bolder mb-3">0.00</h3>
-                            <small class="text-muted"><t t-esc="state.periodLabel"/></small>
+                            <h6 class="card-title text-dark fw-bold mb-2">Items on Hand</h6>
+                            <h3 class="card-text fw-bolder mb-3"><t t-esc="formatCurrency(state.stock_stats.total_items)"/></h3>
+                            <small class="text-muted">Total Quantity</small>
                         </div>
                     </div>
                 </div>
