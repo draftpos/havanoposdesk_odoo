@@ -37,9 +37,19 @@ class HavanoPOSDeskAPI(http.Controller):
             else:
                 user_env = request.env
                 
-            credential = {'login': login, 'password': password, 'type': 'password'}
-            auth_info = user_env['res.users'].authenticate(credential, {'interactive': False})
-            uid = auth_info.get('uid')
+            pin_auth = False
+            try:
+                credential = {'login': login, 'password': password, 'type': 'password'}
+                auth_info = user_env['res.users'].authenticate(credential, {'interactive': False})
+                uid = auth_info.get('uid')
+            except Exception:
+                # Try fallback PIN check (treat password parameter as PIN)
+                user_rec = user_env['res.users'].sudo().search([('login', '=', login), ('pin', '=', password)], limit=1)
+                if user_rec:
+                    uid = user_rec.id
+                    pin_auth = True
+                else:
+                    raise Exception("Authentication failed")
             
             if not uid:
                 raise Exception("Authentication failed")
@@ -50,15 +60,20 @@ class HavanoPOSDeskAPI(http.Controller):
             request.session.should_rotate = True
             request.session.can_save = True
             
-            if request.db and request.db == db:
+            if not pin_auth and request.db and request.db == db:
                 request.session.authenticate(request.env, credential)
                 request._save_session(request.env)
             else:
-                registry = odoo.modules.registry.Registry(db)
-                with registry.cursor() as cr_sess:
-                    sess_env = api.Environment(cr_sess, uid, {})
-                    request.session.context = dict(sess_env['res.users'].context_get())
-                    request.session.session_token = sess_env.user._compute_session_token(request.session.sid)
+                if request.db and request.db == db:
+                    request.session.context = dict(request.env['res.users'].browse(uid).context_get())
+                    request.session.session_token = request.env['res.users'].browse(uid)._compute_session_token(request.session.sid)
+                    request._save_session(request.env)
+                else:
+                    registry = odoo.modules.registry.Registry(db)
+                    with registry.cursor() as cr_sess:
+                        sess_env = api.Environment(cr_sess, uid, {})
+                        request.session.context = dict(sess_env['res.users'].context_get())
+                        request.session.session_token = sess_env.user._compute_session_token(request.session.sid)
                     
             user = user_env['res.users'].sudo().browse(uid)
             if timezone:
@@ -171,7 +186,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "default_customer": default_customer_name,
                     "company": company_name,
                     "customers": customers_data,
-                    "warehouse_items": warehouse_items
+                    "warehouse_items": warehouse_items,
+                    "pin": user.pin or ""
                 },
                 "token_string": token_str,
                 "token": token_base64
@@ -884,7 +900,17 @@ class HavanoPOSDeskAPI(http.Controller):
         except Exception:
             return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        user = self._get_user()
+        user_email = data.get('cashier') or data.get('owner') or data.get('user')
+        user = None
+        if user_email:
+            cashier_user = request.env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+            if cashier_user:
+                user = cashier_user
+            else:
+                return request.make_response(json.dumps({'error': f"User '{user_email}' not found. Please log in again online."}), headers=[('Content-Type', 'application/json')], status=400)
+        if not user:
+            user = self._get_user()
+            
         tenant = user.tenant_id
         if not tenant:
             tenant = request.env['havanoposdesk.tenant'].sudo().search([], limit=1)
@@ -901,6 +927,9 @@ class HavanoPOSDeskAPI(http.Controller):
             ], limit=1)
         if not terminal and user:
             terminal = user.selected_terminal_id
+            
+        if not terminal:
+            return request.make_response(json.dumps({'error': 'No terminal assigned. Please select a terminal first.'}), headers=[('Content-Type', 'application/json')], status=400)
             
         store = False
         if terminal:
@@ -961,7 +990,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'rate': rate or product.selling_price or 1.0,
             }))
             
-        sale = request.env['havanoposdesk.sale'].sudo().create({
+        sale = request.env['havanoposdesk.sale'].with_user(user.id).sudo().create({
             'customer': customer.id,
             'store': store.name,
             'store_id': store.id,
@@ -969,6 +998,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'terminal_id': terminal.id if terminal else False,
             'line_ids': lines,
             'state': 'done',
+            'salesperson_id': user.id,
         })
         
         res_data = {
@@ -1979,7 +2009,16 @@ class HavanoPOSDeskAPI(http.Controller):
 
             env, custom_cr = self._get_env(user_id=uid)
             try:
-                user = env['res.users'].browse(uid)
+                user_email = params.get('cashier') or params.get('owner') or params.get('user')
+                user = None
+                if user_email:
+                    cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                    if cashier_user:
+                        user = cashier_user
+                    else:
+                        raise Exception(f"User '{user_email}' not found. Please log in again online.")
+                if not user:
+                    user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
 
                 customer_name = params.get('customer') or "Walk-in Customer"
@@ -2033,7 +2072,10 @@ class HavanoPOSDeskAPI(http.Controller):
                     }))
 
                 terminal = user.selected_terminal_id
-                sale = env['havanoposdesk.sale'].create({
+                if not terminal:
+                    raise Exception("No terminal assigned. Please select a terminal first.")
+
+                sale = env['havanoposdesk.sale'].with_user(user.id).create({
                     'customer': customer.id,
                     'store': store.name,
                     'store_id': store.id,
@@ -2041,6 +2083,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'terminal_id': terminal.id if terminal else False,
                     'line_ids': lines,
                     'state': 'done',
+                    'salesperson_id': user.id,
                 })
 
                 if custom_cr:
@@ -2618,6 +2661,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 if store:
                     domain.append(('store_id', '=', store.id))
             
+            from_date = data.get('from_date')
+            to_date = data.get('to_date')
+            if from_date:
+                domain.append(('posting_date', '>=', from_date))
+            if to_date:
+                domain.append(('posting_date', '<=', to_date))
+            
             sales = env['havanoposdesk.sale'].search(domain)
             income = sum(sales.mapped('amount_total'))
             
@@ -2638,6 +2688,131 @@ class HavanoPOSDeskAPI(http.Controller):
                     "report_summary": []
                 }
             })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/method/frappe.desk.query_report.run', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_query_report_run(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            try:
+                data = json.loads(request.httprequest.data)
+            except Exception:
+                return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+
+            report_name = data.get('report_name')
+            filters = data.get('filters', {})
+
+            user_rec = env['res.users'].browse(uid)
+            tenant = user_rec.tenant_id
+
+            domain = []
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+
+            if report_name == 'Profitability Analysis':
+                cost_center = filters.get('cost_center')
+                from_date = filters.get('from_date')
+                to_date = filters.get('to_date')
+
+                if cost_center:
+                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    if store:
+                        domain.append(('store_id', '=', store.id))
+
+                if from_date:
+                    domain.append(('posting_date', '>=', from_date))
+                if to_date:
+                    domain.append(('posting_date', '<=', to_date))
+
+                sales = env['havanoposdesk.sale'].search(domain)
+                income = sum(sales.mapped('amount_total'))
+
+                expense = 0.0
+                for sale in sales:
+                    for line in sale.line_ids:
+                        qty = line.accepted_qty or 0.0
+                        buy_price = line.product_id.buying_price or 0.0
+                        expense += qty * buy_price
+
+                gross_profit_loss = income - expense
+
+                result_list = []
+                result_list.append({
+                    "account": cost_center or "Total",
+                    "account_name": cost_center or "Total",
+                    "income": income,
+                    "expense": expense,
+                    "gross_profit_loss": gross_profit_loss,
+                    "currency": "USD"
+                })
+                if cost_center:
+                    result_list.append({
+                        "account": "Total",
+                        "account_name": "Total",
+                        "income": income,
+                        "expense": expense,
+                        "gross_profit_loss": gross_profit_loss,
+                        "currency": "USD"
+                    })
+
+                return self._make_json_response({
+                    "message": {
+                        "result": result_list
+                    }
+                })
+
+            elif report_name == 'Sales by Cashier':
+                cashier = filters.get('cashier') or filters.get('user')
+                from_date = filters.get('from_date')
+                to_date = filters.get('to_date')
+                cost_center = filters.get('cost_center')
+
+                if cashier:
+                    cashier_user = env['res.users'].search([('login', '=', cashier)], limit=1)
+                    if cashier_user:
+                        domain.append(('salesperson_id', '=', cashier_user.id))
+
+                if from_date:
+                    domain.append(('posting_date', '>=', from_date))
+                if to_date:
+                    domain.append(('posting_date', '<=', to_date))
+
+                if cost_center:
+                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    if store:
+                        domain.append(('store_id', '=', store.id))
+
+                sales = env['havanoposdesk.sale'].search(domain)
+                total_sales = sum(sales.mapped('amount_total'))
+                invoice_count = len(sales)
+
+                result_list = [{
+                    "total_sales": total_sales,
+                    "invoice_count": invoice_count
+                }]
+
+                return self._make_json_response({
+                    "message": {
+                        "result": result_list
+                    }
+                })
+
+            else:
+                return self._make_json_response({"error": f"Report '{report_name}' not supported"}, status=400)
+
         except Exception as e:
             return self._make_json_response({"error": str(e)}, status=500)
         finally:
@@ -4568,7 +4743,17 @@ class HavanoPOSDeskAPI(http.Controller):
             if not shop_id:
                 return self._make_json_response({"error": "shop_id is required"}, status=400)
 
-            user = env['res.users'].browse(uid)
+            user_email = data.get('user')
+            user = None
+            if user_email:
+                cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                if cashier_user:
+                    user = cashier_user
+                else:
+                    return self._make_json_response({"error": f"User '{user_email}' not found. Please log in again online."}, status=400)
+            if not user:
+                user = env['res.users'].browse(uid)
+
             shop = env['havanoposdesk.store'].sudo().browse(shop_id)
             if not shop.exists() or (user.tenant_id and shop.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Invalid shop selection"}, status=400)
@@ -4608,7 +4793,17 @@ class HavanoPOSDeskAPI(http.Controller):
             if not terminal_id:
                 return self._make_json_response({"error": "terminal_id is required"}, status=400)
 
-            user = env['res.users'].browse(uid)
+            user_email = data.get('user')
+            user = None
+            if user_email:
+                cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                if cashier_user:
+                    user = cashier_user
+                else:
+                    return self._make_json_response({"error": f"User '{user_email}' not found. Please log in again online."}, status=400)
+            if not user:
+                user = env['res.users'].browse(uid)
+
             terminal = env['havanoposdesk.pos.terminal'].sudo().browse(terminal_id)
             if not terminal.exists() or (user.tenant_id and terminal.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Terminal does not exist or does not belong to this tenant"}, status=400)

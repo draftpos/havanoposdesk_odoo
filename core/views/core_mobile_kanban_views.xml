@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- ============================== -->
+        <!-- Tenant Kanban View (Mobile)    -->
+        <!-- ============================== -->
+        <record id="view_havanoposdesk_tenant_kanban_mobile" model="ir.ui.view">
+            <field name="name">havanoposdesk.tenant.kanban.mobile</field>
+            <field name="model">havanoposdesk.tenant</field>
+            <field name="arch" type="xml">
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+                    <field name="name"/>
+                    <field name="subscription_state"/>
+                    <field name="payment_status"/>
+                    <field name="subscription_plan_id"/>
+                    <templates>
+                        <t t-name="card">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
+                                <div class="havano-card-header">
+                                    <div class="customer-name">
+                                        <field name="name"/>
+                                    </div>
+                                    <div class="sale-ref">
+                                        <field name="subscription_plan_id"/>
+                                    </div>
+                                </div>
+                                <div class="havano-card-date">
+                                    Payment: <field name="payment_status"/>
+                                </div>
+                                <div t-attf-class="havano-card-badge #{record.subscription_state.raw_value == 'active' ? 'badge-paid' : 'badge-unpaid'}">
+                                    <field name="subscription_state"/>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- Override existing action for Tenants -->
+        <record id="action_havanoposdesk_tenant" model="ir.actions.act_window">
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+        
+        <record id="action_havanoposdesk_tenant_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">kanban</field>
+            <field name="view_id" ref="view_havanoposdesk_tenant_kanban_mobile"/>
+            <field name="act_window_id" ref="action_havanoposdesk_tenant"/>
+        </record>
+
+        <!-- ============================== -->
+        <!-- Store Kanban View (Mobile)     -->
+        <!-- ============================== -->
+        <record id="view_havanoposdesk_store_kanban_mobile" model="ir.ui.view">
+            <field name="name">havanoposdesk.store.kanban.mobile</field>
+            <field name="model">havanoposdesk.store</field>
+            <field name="arch" type="xml">
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+                    <field name="name"/>
+                    <field name="currency_id"/>
+                    <field name="active"/>
+                    <field name="is_default"/>
+                    <templates>
+                        <t t-name="card">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
+                                <div class="havano-card-header">
+                                    <div class="customer-name">
+                                        <field name="name"/>
+                                    </div>
+                                    <div class="sale-ref">
+                                        <t t-if="record.is_default.raw_value">Default Store</t>
+                                    </div>
+                                </div>
+                                <div class="havano-card-date">
+                                    Currency: <field name="currency_id"/>
+                                </div>
+                                <div t-attf-class="havano-card-badge #{record.active.raw_value ? 'badge-paid' : 'badge-unpaid'}">
+                                    <t t-if="record.active.raw_value">Active</t>
+                                    <t t-else="">Inactive</t>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- Override existing action for Stores -->
+        <record id="action_havanoposdesk_store" model="ir.actions.act_window">
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+        <record id="action_havanoposdesk_store_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">kanban</field>
+            <field name="view_id" ref="view_havanoposdesk_store_kanban_mobile"/>
+            <field name="act_window_id" ref="action_havanoposdesk_store"/>
+        </record>
+
+        <!-- Override existing action for My Stores -->
+        <record id="action_my_stores" model="ir.actions.act_window">
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+        <record id="action_my_stores_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">kanban</field>
+            <field name="view_id" ref="view_havanoposdesk_store_kanban_mobile"/>
+            <field name="act_window_id" ref="action_my_stores"/>
+        </record>
+
+        <!-- ============================== -->
+        <!-- POS Terminal Kanban View       -->
+        <!-- ============================== -->
+        <record id="view_havanoposdesk_pos_terminal_kanban_mobile" model="ir.ui.view">
+            <field name="name">havanoposdesk.pos.terminal.kanban.mobile</field>
+            <field name="model">havanoposdesk.pos.terminal</field>
+            <field name="arch" type="xml">
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+                    <field name="name"/>
+                    <field name="store_id"/>
+                    <field name="tenant_id"/>
+                    <templates>
+                        <t t-name="card">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
+                                <div class="havano-card-header">
+                                    <div class="customer-name">
+                                        <field name="name"/>
+                                    </div>
+                                </div>
+                                <div class="havano-card-date">
+                                    <field name="store_id"/>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- Override existing action for POS Terminals -->
+        <record id="action_pos_terminals" model="ir.actions.act_window">
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+        <record id="action_pos_terminals_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">kanban</field>
+            <field name="view_id" ref="view_havanoposdesk_pos_terminal_kanban_mobile"/>
+            <field name="act_window_id" ref="action_pos_terminals"/>
+        </record>
+
+        <!-- Override existing action for My Terminals -->
+        <record id="action_my_terminals" model="ir.actions.act_window">
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+        <record id="action_my_terminals_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">kanban</field>
+            <field name="view_id" ref="view_havanoposdesk_pos_terminal_kanban_mobile"/>
+            <field name="act_window_id" ref="action_my_terminals"/>
+        </record>
+
+        <!-- ============================== -->
+        <!-- SaaS Users Kanban View         -->
+        <!-- ============================== -->
+        <record id="view_res_users_saas_kanban_mobile" model="ir.ui.view">
+            <field name="name">res.users.saas.kanban.mobile</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+                    <field name="name"/>
+                    <field name="login"/>
+                    <field name="tenant_id"/>
+                    <templates>
+                        <t t-name="card">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
+                                <div class="havano-card-header">
+                                    <div class="customer-name">
+                                        <field name="name"/>
+                                    </div>
+                                    <div class="sale-ref">
+                                        <field name="tenant_id"/>
+                                    </div>
+                                </div>
+                                <div class="havano-card-date">
+                                    <field name="login"/>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- Override existing action for SaaS Users / Cashiers -->
+        <record id="action_saas_users" model="ir.actions.act_window">
+            <field name="view_id" ref="view_res_users_saas_kanban_mobile"/>
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+
+        <!-- Mobile specific form adjustments for SaaS Users -->
+        <record id="view_saas_users_form_mobile_inherit" model="ir.ui.view">
+            <field name="name">saas.users.form.mobile.inherit</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="havanoposdesk_odoo.view_saas_users_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//form" position="attributes">
+                    <attribute name="class" add="havano_saas_user_form" separator=" "/>
+                </xpath>
+            </field>
+        </record>
+        
+        <record id="action_my_cashiers" model="ir.actions.act_window">
+            <field name="view_id" ref="view_saas_users_form_mobile_inherit"/>
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+
+        <!-- ============================== -->
+        <!-- User Rights Profile Kanban     -->
+        <!-- ============================== -->
+        <record id="view_havanoposdesk_user_rights_profile_kanban_mobile" model="ir.ui.view">
+            <field name="name">havanoposdesk.user.rights.profile.kanban.mobile</field>
+            <field name="model">havanoposdesk.user.rights.profile</field>
+            <field name="arch" type="xml">
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+                    <field name="name"/>
+                    <field name="tenant_id"/>
+                    <templates>
+                        <t t-name="card">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
+                                <div class="havano-card-header">
+                                    <div class="customer-name">
+                                        <field name="name"/>
+                                    </div>
+                                </div>
+                                <div class="havano-card-date">
+                                    <field name="tenant_id"/>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- Override existing action for User Rights Profiles -->
+        <record id="action_user_rights_profiles" model="ir.actions.act_window">
+            <field name="view_id" ref="view_havanoposdesk_user_rights_profile_kanban_mobile"/>
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+
+        <!-- ============================== -->
+        <!-- Subscription Plan Kanban View  -->
+        <!-- ============================== -->
+        <record id="view_havanoposdesk_subscription_plan_kanban_mobile" model="ir.ui.view">
+            <field name="name">havanoposdesk.subscription.plan.kanban.mobile</field>
+            <field name="model">havanoposdesk.subscription.plan</field>
+            <field name="arch" type="xml">
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+                    <field name="name"/>
+                    <field name="price"/>
+                    <field name="duration_days"/>
+                    <templates>
+                        <t t-name="card">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
+                                <div class="havano-card-header">
+                                    <div class="customer-name">
+                                        <field name="name"/>
+                                    </div>
+                                </div>
+                                <div class="havano-card-date">
+                                    Duration: <field name="duration_days"/> Days
+                                </div>
+                                <div class="havano-card-totals mt-2">
+                                    <div>Price: $<field name="price"/></div>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- ============================== -->
+        <!-- Subscription Plans Kanban View -->
+        <!-- ============================== -->
+        <record id="view_subscription_plan_kanban_mobile" model="ir.ui.view">
+            <field name="name">subscription.plan.kanban.mobile</field>
+            <field name="model">havanoposdesk.subscription.plan</field>
+            <field name="arch" type="xml">
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+                    <field name="name"/>
+                    <field name="price"/>
+                    <field name="max_stores"/>
+                    <field name="max_users"/>
+                    <templates>
+                        <t t-name="card">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
+                                <div class="havano-card-header">
+                                    <div class="customer-name">
+                                        <field name="name"/>
+                                    </div>
+                                    <div class="sale-ref">
+                                        <field name="price"/>
+                                    </div>
+                                </div>
+                                <div class="havano-card-totals mt-2">
+                                    <div>Max Stores: <field name="max_stores"/></div>
+                                    <div>Max Users: <field name="max_users"/></div>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- Override existing action for Subscription Plans -->
+        <record id="action_subscription_plans" model="ir.actions.act_window">
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+        <record id="action_subscription_plans_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">kanban</field>
+            <field name="view_id" ref="view_subscription_plan_kanban_mobile"/>
+            <field name="act_window_id" ref="action_subscription_plans"/>
+        </record>
+
+        <!-- ============================== -->
+        <!-- Exchange Rate Kanban View      -->
+        <!-- ============================== -->
+        <record id="view_havanoposdesk_currency_rate_kanban_mobile" model="ir.ui.view">
+            <field name="name">havanoposdesk.currency.rate.kanban.mobile</field>
+            <field name="model">res.currency.rate</field>
+            <field name="arch" type="xml">
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+                    <field name="name"/>
+                    <field name="rate"/>
+                    <field name="currency_id"/>
+                    <templates>
+                        <t t-name="card">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
+                                <div class="havano-card-header">
+                                    <div class="customer-name">
+                                        <field name="currency_id"/>
+                                    </div>
+                                    <div class="sale-ref">
+                                        <field name="name"/>
+                                    </div>
+                                </div>
+                                <div class="havano-card-totals mt-2">
+                                    <div>Rate: <field name="rate"/></div>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- Override existing action for Exchange Rates -->
+        <record id="action_havanoposdesk_exchange_rates" model="ir.actions.act_window">
+            <field name="view_id" ref="view_havanoposdesk_currency_rate_kanban_mobile"/>
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+
+        <!-- Override existing action for Payment Providers -->
+        <record id="payment.action_payment_provider" model="ir.actions.act_window">
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+
+        <!-- ============================== -->
+        <!-- SaaS Users Kanban View (Mobile)-->
+        <!-- ============================== -->
+        <record id="view_saas_users_kanban_mobile" model="ir.ui.view">
+            <field name="name">saas.users.kanban.mobile</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+                    <field name="name"/>
+                    <field name="login"/>
+                    <field name="havano_role"/>
+                    <field name="tenant_id"/>
+                    <field name="saas_state"/>
+                    <templates>
+                        <t t-name="card">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
+                                <div class="havano-card-header">
+                                    <div class="customer-name">
+                                        <field name="name"/>
+                                    </div>
+                                    <div class="sale-ref">
+                                        <field name="login"/>
+                                    </div>
+                                </div>
+                                <div class="havano-card-totals mt-2">
+                                    <div>Role: <field name="havano_role"/></div>
+                                    <div>Tenant: <field name="tenant_id"/></div>
+                                </div>
+                                <div t-attf-class="havano-card-badge #{record.saas_state.raw_value == 'verified' ? 'badge-paid' : (record.saas_state.raw_value == 'unverified' ? 'badge-unpaid' : 'bg-danger')}">
+                                    <field name="saas_state"/>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <!-- Override existing action for SaaS Users -->
+        <record id="action_saas_users" model="ir.actions.act_window">
+            <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+        
+        <record id="action_saas_users_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">kanban</field>
+            <field name="view_id" ref="view_saas_users_kanban_mobile"/>
+            <field name="act_window_id" ref="action_saas_users"/>
+        </record>
+
+    </data>
+</odoo>

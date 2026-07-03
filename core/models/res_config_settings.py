@@ -223,3 +223,21 @@ class ResConfigSettings(models.TransientModel):
                 'url': f'/{new_base}',
                 'target': 'self',
             }
+
+    # ── Bugsink Error Logging Settings ────────────────────────────────
+    havano_bugsink_base_url = fields.Char(
+        string="Bugsink Base URL",
+        config_parameter="havanoposdesk.bugsink_base_url",
+        help="Base URL for your Bugsink instance (e.g. https://bugsink.example.com)"
+    )
+    havano_bugsink_project_id = fields.Integer(
+        string="Bugsink Project ID",
+        config_parameter="havanoposdesk.bugsink_project_id",
+        help="The numeric Project ID from Bugsink."
+    )
+    havano_bugsink_api_token = fields.Char(
+        string="Bugsink API Token",
+        config_parameter="havanoposdesk.bugsink_api_token",
+        help="The Bearer API token used for authenticating with Bugsink."
+    )
+

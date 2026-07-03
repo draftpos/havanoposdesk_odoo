@@ -63,6 +63,11 @@ function replaceOdooLogo() {
                  style="height:28px; width:auto; object-fit:contain;"
                  onerror="this.style.display='none'; this.nextSibling.style.display='flex'"/>
             <span style="display:none; font-weight:700; font-size:18px; color:#fff; letter-spacing:-0.5px;">${appName}</span>
+            <img src="/havanoposdesk_odoo/static/src/img/havano_logo.svg"
+                 alt="Havano"
+                 style="height:28px; width:auto; object-fit:contain;"
+                 onerror="this.style.display='none'; var s=this.nextElementSibling; if(s) s.style.display='flex';"/>
+            <span style="display:none; font-weight:700; font-size:18px; color:#fff; letter-spacing:-0.5px;">Havano</span>
         `;
         // Insert at the beginning of the navbar
         navbar.insertBefore(brand, navbar.firstChild);
