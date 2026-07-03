@@ -373,11 +373,6 @@
             <field name="mobile_view_mode">kanban</field>
         </record>
 
-        <!-- Override existing action for Purchases Analysis -->
-        <record id="action_purchases_analysis" model="ir.actions.act_window">
-            <field name="mobile_view_mode">kanban</field>
-        </record>
-
         <!-- Override existing action for Payment Providers -->
         <record id="payment.action_payment_provider" model="ir.actions.act_window">
             <field name="mobile_view_mode">kanban</field>
