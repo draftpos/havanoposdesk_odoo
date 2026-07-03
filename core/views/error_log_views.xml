@@ -10,6 +10,10 @@
                 <field name="issue_id"/>
                 <field name="site" optional="show"/>
                 <field name="user_email" optional="show"/>
+                <field name="environment" optional="show"/>
+                <field name="error_category" optional="show"/>
+                <field name="operation" optional="hide"/>
+                <field name="current_screen" optional="hide"/>
                 <field name="app_release" optional="hide"/>
                 <field name="bugsink_id" string="Event ID" optional="hide"/>
             </list>
@@ -36,6 +40,13 @@
                             <field name="user_email"/>
                             <field name="app_release"/>
                             <field name="os_name"/>
+                        </group>
+                        <group>
+                            <field name="environment"/>
+                            <field name="error_category"/>
+                            <field name="operation"/>
+                            <field name="current_screen"/>
+                            <field name="event_origin"/>
                         </group>
                     </group>
                     <notebook>
@@ -68,6 +79,9 @@
                 <field name="name" string="Message"/>
                 <field name="site" optional="show"/>
                 <field name="user_email" optional="show"/>
+                <field name="environment" optional="show"/>
+                <field name="error_category" optional="show"/>
+                <field name="operation" optional="hide"/>
                 <field name="first_seen" optional="hide"/>
                 <field name="last_seen"/>
                 <field name="event_count" string="Events"/>
@@ -112,6 +126,13 @@
                             <field name="last_seen"/>
                             <field name="is_resolved"/>
                         </group>
+                        <group>
+                            <field name="environment"/>
+                            <field name="error_category"/>
+                            <field name="operation"/>
+                            <field name="current_screen"/>
+                            <field name="event_origin"/>
+                        </group>
                     </group>
                     <notebook>
                         <page string="Recent Events">
@@ -140,12 +161,18 @@
                 <field name="user_email"/>
                 <field name="type" string="Error Type"/>
                 <field name="transaction" string="Transaction"/>
+                <field name="environment"/>
+                <field name="error_category"/>
+                <field name="operation"/>
+                <field name="current_screen"/>
                 
                 <filter name="unresolved" string="Unresolved" domain="[('is_resolved', '=', False)]"/>
                 <filter name="resolved" string="Resolved" domain="[('is_resolved', '=', True)]"/>
                 <separator/>
                 <filter name="has_events" string="Has Events" domain="[('event_count', '&gt;', 0)]"/>
                 <filter name="no_events" string="No Events" domain="[('event_count', '=', 0)]"/>
+                <filter name="is_production" string="Production" domain="[('environment', '=', 'production')]"/>
+                <filter name="is_development" string="Development" domain="[('environment', '=', 'development')]"/>
                 <separator/>
                 
                 <group>
@@ -153,6 +180,9 @@
                     <filter name="group_user_email" string="User Email" context="{'group_by':'user_email'}"/>
                     <filter name="group_type" string="Error Type" context="{'group_by':'type'}"/>
                     <filter name="group_release" string="Release" context="{'group_by':'app_release'}"/>
+                    <filter name="group_environment" string="Environment" context="{'group_by':'environment'}"/>
+                    <filter name="group_category" string="Error Category" context="{'group_by':'error_category'}"/>
+                    <filter name="group_operation" string="Operation" context="{'group_by':'operation'}"/>
                 </group>
             </search>
         </field>
