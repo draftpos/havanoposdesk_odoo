@@ -154,8 +154,9 @@ class HavanoErrorIssue(models.Model):
                         continue
 
                     existing_event = EventModel.search([('bugsink_id', '=', event_id)], limit=1)
-                    if existing_event:
-                        # Already cached — skip detail fetch
+                    
+                    # Skip if already cached AND has metadata populated
+                    if existing_event and (existing_event.site or existing_event.app_release or existing_event.environment):
                         continue
 
                     # ── Fetch full event detail (includes `data` + `stacktrace_md`) ──
@@ -175,6 +176,7 @@ class HavanoErrorIssue(models.Model):
 
                         # ── Parse all tags ──────────────────────────────────
                         tags = _parse_tags(data_payload.get('tags', []))
+                        _logger.info(f"Bugsink event {event_id} tags: {tags}")
 
                         # ── User info ────────────────────────────────────────
                         user_payload = data_payload.get('user') or {}
@@ -205,7 +207,7 @@ class HavanoErrorIssue(models.Model):
                     except Exception as ex:
                         _logger.error(f"Failed to fetch detail for event {event_id}: {ex}")
 
-                    # ── Create the Event record ──────────────────────────────
+                    # ── Create or update the Event record ───────────────────
                     event_vals = {
                         'bugsink_id': event_id,
                         'issue_id': issue.id,
@@ -221,7 +223,10 @@ class HavanoErrorIssue(models.Model):
                         'current_screen': tags.get('current_screen', ''),
                         'event_origin': tags.get('event.origin', ''),
                     }
-                    EventModel.create(event_vals)
+                    if existing_event:
+                        existing_event.write(event_vals)
+                    else:
+                        EventModel.create(event_vals)
 
                     # ── Backfill Issue metadata from the first event seen ────
                     issue_update = {}
