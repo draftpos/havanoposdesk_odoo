@@ -59,7 +59,7 @@
             <p class="o_view_nocontent_smiling_face">
                 No support tickets found!
             </p>
-        </p>
+        </field>
     </record>
 
     <!-- Expose under SaaS Config top menu for Admins -->
