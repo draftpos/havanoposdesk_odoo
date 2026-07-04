@@ -65,7 +65,7 @@
                 <t t-set="sales_phone" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.sales_phone', '+263 778 078 440')"/>
                 <t t-set="whatsapp_phone" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.whatsapp_phone', '+263 779 973 4028')"/>
                 
-                <t t-set="active_form" t-value="'signup' if '/web/signup' in request.httprequest.path else 'login'"/>
+                <t t-set="active_form" t-value="'signup' if '/web/signup' in request.httprequest.path else 'reset_password' if '/web/reset_password' in request.httprequest.path else 'login'"/>
                 
                 <section class="wrapper">
                     <div class="brand-logo-container">
@@ -131,6 +131,9 @@
                                 <i class="fa fa-lock"></i>
                                 <input type="password" name="password" placeholder="Password" required="required" />
                             </div>
+                            <div style="text-align: right; margin-top: 5px; margin-bottom: 5px;">
+                                <span onclick="toggleForms('reset')" style="color: #4070f4; cursor: pointer; font-size: 13px; font-weight: 500; transition: color 0.3s;">Forgot Password?</span>
+                            </div>
                             
                             <button type="submit" class="btn-submit">
                                 <span class="btn-text">Login</span>
@@ -157,14 +160,73 @@
                         </div>
                     </div>
 
+                    <!-- Reset Password Form -->
+                    <div t-attf-class="form-container form reset {{ 'active' if active_form == 'reset_password' else '' }}" id="reset-form">
+                        <t t-if="not token">
+                            <header>Reset Password</header>
+                            <div class="sub-header">Enter your email to receive a reset link.</div>
+                        </t>
+                        <t t-if="token and not invalid_token">
+                            <header>New Password</header>
+                            <div class="sub-header">Enter your new password below.</div>
+                        </t>
+                        <t t-if="invalid_token">
+                            <header>Invalid Link</header>
+                            <div class="sub-header">This password reset link is invalid or expired.</div>
+                        </t>
+                        
+                        <form action="/web/reset_password" method="post" onsubmit="showSpinner(this)">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <input type="hidden" name="redirect" t-att-value="redirect"/>
+                            <input type="hidden" name="token" t-att-value="token"/>
+                            
+                            <t t-if="error and active_form == 'reset_password'">
+                                <div class="alert alert-danger" role="alert"><t t-esc="error"/></div>
+                            </t>
+                            <t t-if="message and active_form == 'reset_password'">
+                                <div class="alert alert-success" role="alert"><t t-esc="message"/></div>
+                            </t>
+                            
+                            <t t-if="not token">
+                                <div class="input-field">
+                                    <i class="fa fa-envelope"></i>
+                                    <input type="text" name="login" placeholder="Email address" t-att-value="login" required="required" />
+                                </div>
+                                <button type="submit" class="btn-submit">
+                                    <span class="btn-text">Send Reset Link</span>
+                                </button>
+                            </t>
+                            
+                            <t t-if="token and not invalid_token">
+                                <div class="input-field">
+                                    <i class="fa fa-lock"></i>
+                                    <input type="password" name="password" placeholder="New Password" required="required" />
+                                </div>
+                                <div class="input-field">
+                                    <i class="fa fa-lock"></i>
+                                    <input type="password" name="confirm_password" placeholder="Confirm Password" required="required" />
+                                </div>
+                                <button type="submit" class="btn-submit">
+                                    <span class="btn-text">Reset Password</span>
+                                </button>
+                            </t>
+                        </form>
+                        
+                        <div class="sub-header" style="margin-top: 20px;">Remembered it? <span onclick="toggleForms('login')">Back to Login</span></div>
+                    </div>
+
                     <script>
                         function toggleForms(target) {
                             document.getElementById('signup-form').classList.remove('active');
                             document.getElementById('login-form').classList.remove('active');
+                            document.getElementById('reset-form').classList.remove('active');
                             
                             if(target === 'login') {
                                 document.getElementById('login-form').classList.add('active');
                                 window.history.pushState({}, '', '/web/login');
+                            } else if(target === 'reset') {
+                                document.getElementById('reset-form').classList.add('active');
+                                window.history.pushState({}, '', '/web/reset_password');
                             } else {
                                 document.getElementById('signup-form').classList.add('active');
                                 window.history.pushState({}, '', '/web/signup');
