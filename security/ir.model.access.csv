@@ -37,4 +37,5 @@ access_havanoposdesk_cashier_sales_report,havanoposdesk.cashier.sales.report use
 access_havanoposdesk_terminal_sales_report,havanoposdesk.terminal.sales.report user,model_havanoposdesk_terminal_sales_report,base.group_user,1,0,0,0
 access_havanoposdesk_daily_sales_report,havanoposdesk.daily.sales.report user,model_havanoposdesk_daily_sales_report,base.group_user,1,0,0,0
 
-
+access_wizard_clear_data,wizard.clear.data,model_wizard_clear_data,base.group_system,1,1,1,1
+access_wizard_clear_data_tenant_admin,wizard.clear.data tenant admin,model_wizard_clear_data,havanoposdesk_odoo.group_tenant_admin,1,1,1,1
