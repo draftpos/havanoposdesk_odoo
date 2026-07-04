@@ -186,14 +186,17 @@
                         
                         <form action="/web/reset_password" method="post" onsubmit="showSpinner(this)">
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                            <input type="hidden" name="redirect" t-att-value="redirect"/>
+                            <input type="hidden" name="redirect" t-att-value="redirect or '/web/login'"/>
                             <input type="hidden" name="token" t-att-value="token"/>
                             
                             <t t-if="error and active_form == 'reset_password'">
                                 <div class="alert alert-danger" role="alert"><t t-esc="error"/></div>
                             </t>
                             <t t-if="message and active_form == 'reset_password'">
-                                <div class="alert alert-success" role="alert"><t t-esc="message"/></div>
+                                <div id="reset-success-msg" class="alert alert-success" role="alert">
+                                    <t t-esc="message"/>
+                                    <br/><small style="color:#15803d;">Redirecting to login...</small>
+                                </div>
                             </t>
                             
                             <t t-if="not token">
@@ -223,6 +226,18 @@
                         
                         <div class="sub-header" style="margin-top: 20px;">Remembered it? <span onclick="toggleForms('login')">Back to Login</span></div>
                     </div>
+                    
+                    <script>
+                        // Auto-redirect to login after successful password reset
+                        (function() {
+                            var successMsg = document.getElementById('reset-success-msg');
+                            if (successMsg) {
+                                setTimeout(function() {
+                                    window.location.href = '/web/login';
+                                }, 2000);
+                            }
+                        })();
+                    </script>
 
                     <script>
                         function toggleForms(target) {
