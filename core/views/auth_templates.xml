@@ -194,7 +194,7 @@
 
     <template id="havano_web_login_layout" inherit_id="web.login_layout">
         <xpath expr="//t[@t-call='web.frontend_layout']" position="replace">
-            <t t-call="havanoposdesk_odoo.havano_auth_layout"/>
+            <t t-call="havano_auth_layout"/>
         </xpath>
     </template>
 </odoo>
