@@ -181,18 +181,14 @@
                                 <span onclick="toggleForms('reset')" style="color: #4070f4; cursor: pointer; font-size: 13px; font-weight: 500; transition: color 0.3s;">Forgot Password?</span>
                             </div>
                             
+                            <button type="submit" class="btn-submit" style="margin-top: 10px;">
+                                <span class="btn-text">Login</span>
+                            </button>
                             <t t-if="reset_password_enabled">
-                                <div style="text-align: right; margin-top: 5px; margin-bottom: 15px;">
+                                <div style="text-align: center; margin-top: 12px; margin-bottom: 5px;">
                                     <a href="/web/reset_password" style="font-size: 13px; color: #4070f4; text-decoration: none; font-weight: 500;">Forgot Password?</a>
                                 </div>
                             </t>
-                            
-                            <t t-if="not reset_password_enabled">
-                                <div style="margin-bottom: 20px;"></div>
-                            </t>
-                            <button type="submit" class="btn-submit">
-                                <span class="btn-text">Login</span>
-                            </button>
                         </form>
                         
                         <!-- Support Details -->
