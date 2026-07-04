@@ -5082,14 +5082,21 @@ class HavanoPOSDeskAPI(http.Controller):
             data = request.params
 
         subject = data.get('subject')
-        description = data.get('description')
-        email = data.get('email')
-        phone = data.get('phone')
+        description = data.get('description') or data.get('message', '')
+        email = data.get('email', '')
+        phone = data.get('phone', '')
 
-        if not subject or not description:
-            return self._make_json_response({'error': 'Subject and Description are required'}, status=400)
+        # Auto-generate subject if not provided
+        if not subject:
+            if email:
+                subject = f'[POS Support] {email}'
+            else:
+                subject = '[POS Support] New Ticket'
 
-        env = request.env(su=True)
+        if not description:
+            return self._make_json_response({'error': 'Message/Description is required'}, status=400)
+
+        env = request.env.sudo()
         try:
             ticket_vals = {
                 'name': subject,
@@ -5097,11 +5104,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 'email': email,
                 'phone': phone,
             }
-            if email and '@' in email:
-                domain = email.split('@')[-1]
-                tenant = env['havanoposdesk.tenant'].search([('company_email', 'like', domain)], limit=1)
-                if tenant:
-                    ticket_vals['tenant_id'] = tenant.id
+            # Link to tenant via authenticated user if available
+            try:
+                user = request.env.user
+                if user and hasattr(user, 'tenant_id') and user.tenant_id:
+                    ticket_vals['tenant_id'] = user.tenant_id.id
+            except Exception:
+                pass  # Not authenticated or no tenant — skip linking
 
             ticket = env['havanoposdesk.support.ticket'].create(ticket_vals)
             return self._make_json_response({
