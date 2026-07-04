@@ -14,6 +14,9 @@ def post_migrate(cr, registry):
     from odoo import api, SUPERUSER_ID
     env = api.Environment(cr, SUPERUSER_ID, {})
 
+    # Ensure all users have email set (copy from login if blank/null)
+    cr.execute("UPDATE res_users SET email = login WHERE (email IS NULL OR email = '') AND login LIKE '%@%'")
+
     erp_manager_group = env.ref('base.group_erp_manager', raise_if_not_found=False)
     tenant_admin_group = env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
     if not erp_manager_group:

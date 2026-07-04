@@ -4194,6 +4194,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 user_vals = {
                     'name': f"{first_name} {last_name}".strip(),
                     'login': email,
+                    'email': email,
                     'password': password,
                     'havano_role': 'admin',
                     'saas_state': 'unverified',
@@ -4406,6 +4407,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     user_vals = {
                         'name': f"{first_name} {last_name}".strip(),
                         'phone': phone_number,
+                        'email': email,
                         'pin': pin,
                     }
                     if password:
@@ -4438,6 +4440,7 @@ class HavanoPOSDeskAPI(http.Controller):
             user_vals = {
                 'name': f"{first_name} {last_name}".strip(),
                 'login': email,
+                'email': email,
                 'password': password,
                 'havano_role': user_role,
                 'saas_state': 'verified',
