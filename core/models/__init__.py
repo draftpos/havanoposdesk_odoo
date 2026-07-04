@@ -12,3 +12,4 @@ from . import ir_module_module
 from . import ir_http
 from . import error_log
 from . import dashboard
+from . import support_ticket

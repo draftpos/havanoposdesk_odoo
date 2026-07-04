@@ -56,6 +56,33 @@ class ResConfigSettings(models.TransientModel):
         readonly=False
     )
 
+    # SaaS backoffice-controlled related settings
+    biz_enable_quotations = fields.Boolean(
+        string="Enable Quotations",
+        related='tenant_id.enable_quotations',
+        readonly=False
+    )
+    biz_enable_uom_conversion = fields.Boolean(
+        string="Enable UOM Conversion",
+        related='tenant_id.enable_uom_conversion',
+        readonly=False
+    )
+    biz_enable_payment_entries = fields.Boolean(
+        string="Enable Payment Entries",
+        related='tenant_id.enable_payment_entries',
+        readonly=False
+    )
+    biz_show_qty_on_hand = fields.Boolean(
+        string="Show Qty on Hand in POS",
+        related='tenant_id.show_qty_on_hand',
+        readonly=False
+    )
+    biz_enable_shift = fields.Boolean(
+        string="Enable Shift Management",
+        related='tenant_id.enable_shift',
+        readonly=False
+    )
+
     # Product Sequence
     biz_prod_seq_prefix = fields.Char(string="Product Sequence Prefix", related='tenant_id.prod_seq_prefix', readonly=False)
     biz_prod_seq_next = fields.Integer(string="Product Sequence Next Number", related='tenant_id.prod_seq_next', readonly=False)

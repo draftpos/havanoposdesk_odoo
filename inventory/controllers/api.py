@@ -3107,12 +3107,24 @@ class HavanoPOSDeskAPI(http.Controller):
             max_discount_percent = getattr(user_rec, 'max_discount_percent', 100.0)
             require_shift = 1 if getattr(user_rec, 'require_shift', False) else 0
 
+            tenant = user_rec.tenant_id
+            enable_quotations = 1 if tenant and tenant.enable_quotations else 0
+            enable_uom_conversion = 1 if tenant and tenant.enable_uom_conversion else 0
+            enable_payment_entries = 1 if tenant and tenant.enable_payment_entries else 0
+            show_qty_on_hand = 1 if tenant and tenant.show_qty_on_hand else 0
+            enable_shift = 1 if tenant and tenant.enable_shift else 0
+
             return self._make_json_response({
                 "message": {
                     "settings": {
                         "allow_discount": allow_discount,
                         "max_discount_percent": max_discount_percent,
-                        "require_shift": require_shift
+                        "require_shift": require_shift,
+                        "enable_quotations": enable_quotations,
+                        "enable_uom_conversion": enable_uom_conversion,
+                        "enable_payment_entries": enable_payment_entries,
+                        "show_qty_on_hand": show_qty_on_hand,
+                        "enable_shift": enable_shift
                     }
                 }
             })
@@ -5053,3 +5065,50 @@ class HavanoPOSDeskAPI(http.Controller):
             "tourism_tax": profile.tourism_tax or None,
             "permissions": permissions
         }
+
+    @http.route('/api/support/ticket', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_create_support_ticket(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        import json
+        data = {}
+        if request.httprequest.headers.get('Content-Type', '').startswith('application/json'):
+            try:
+                data = json.loads(request.httprequest.data.decode('utf-8'))
+            except Exception:
+                pass
+        else:
+            data = request.params
+
+        subject = data.get('subject')
+        description = data.get('description')
+        email = data.get('email')
+        phone = data.get('phone')
+
+        if not subject or not description:
+            return self._make_json_response({'error': 'Subject and Description are required'}, status=400)
+
+        env = request.env(su=True)
+        try:
+            ticket_vals = {
+                'name': subject,
+                'description': description,
+                'email': email,
+                'phone': phone,
+            }
+            if email and '@' in email:
+                domain = email.split('@')[-1]
+                tenant = env['havanoposdesk.tenant'].search([('company_email', 'like', domain)], limit=1)
+                if tenant:
+                    ticket_vals['tenant_id'] = tenant.id
+
+            ticket = env['havanoposdesk.support.ticket'].create(ticket_vals)
+            return self._make_json_response({
+                'success': True,
+                'ticket_id': ticket.id,
+                'message': 'Support ticket submitted successfully'
+            })
+        except Exception as e:
+            return self._make_json_response({'error': str(e)}, status=500)
+

@@ -78,6 +78,13 @@ class HavanoposdeskTenant(models.Model):
     api_cost_center = fields.Char(string="API Cost Center")
     api_warehouse = fields.Char(string="API Warehouse")
 
+    # SaaS backoffice-controlled toggles
+    enable_quotations = fields.Boolean(string='Enable Quotations', default=False)
+    enable_uom_conversion = fields.Boolean(string='Enable UOM Conversion', default=False)
+    enable_payment_entries = fields.Boolean(string='Enable Payment Entries', default=False)
+    show_qty_on_hand = fields.Boolean(string='Show Qty on Hand in POS', default=False)
+    enable_shift = fields.Boolean(string='Enable Shift Management', default=False)
+
     def action_approve(self):
         for tenant in self:
             tenant.with_context(bypass_subscription_check=True).write({
