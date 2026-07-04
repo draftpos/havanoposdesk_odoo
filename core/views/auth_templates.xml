@@ -108,8 +108,54 @@
                         </form>
                     </div>
 
+                    <!-- Reset Password Form -->
+                    <div t-attf-class="form-container form reset_password {{ 'active' if request.httprequest.path == '/web/reset_password' else '' }}" id="reset-form">
+                        <header>Reset Password</header>
+                        <div class="sub-header">Enter your email to receive a reset link</div>
+                        <form action="/web/reset_password" method="post" onsubmit="showSpinner(this)">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <input type="hidden" name="token" t-att-value="token"/>
+                            
+                            <t t-if="error and request.httprequest.path == '/web/reset_password'">
+                                <div class="alert alert-danger" role="alert"><t t-esc="error"/></div>
+                            </t>
+                            <t t-if="message and request.httprequest.path == '/web/reset_password'">
+                                <div class="alert alert-success" role="alert"><t t-esc="message"/></div>
+                            </t>
+
+                            <t t-if="invalid_token">
+                                <div class="alert alert-danger" role="alert">Invalid password reset token.</div>
+                            </t>
+
+                            <t t-if="not token">
+                                <div class="input-field">
+                                    <i class="fa fa-envelope"></i>
+                                    <input type="text" name="login" placeholder="Email address" t-att-value="login" required="required" />
+                                </div>
+                            </t>
+                            
+                            <t t-if="token and not invalid_token">
+                                <div class="input-field">
+                                    <i class="fa fa-lock"></i>
+                                    <input type="password" name="password" placeholder="New Password" required="required" />
+                                </div>
+                                <div class="input-field">
+                                    <i class="fa fa-lock"></i>
+                                    <input type="password" name="confirm_password" placeholder="Confirm Password" required="required" />
+                                </div>
+                            </t>
+                            
+                            <button type="submit" class="btn-submit">
+                                <span class="btn-text">Confirm</span>
+                            </button>
+                            <div style="text-align: center; margin-top: 15px;">
+                                <a href="/web/login" style="font-size: 13px; color: #666; text-decoration: none;">Back to Login</a>
+                            </div>
+                        </form>
+                    </div>
+
                     <!-- Login Form -->
-                    <div t-attf-class="form-container form login {{ 'active' if active_form == 'login' else '' }}" id="login-form">
+                    <div t-attf-class="form-container form login {{ 'active' if active_form == 'login' and request.httprequest.path != '/web/reset_password' else '' }}" id="login-form">
                         <header>Welcome Back</header>
                         <div class="sub-header">New to Havano? <span onclick="toggleForms('signup')">Sign up</span></div>
                         <form action="/web/login" method="post" onsubmit="showSpinner(this)">
@@ -132,6 +178,15 @@
                                 <input type="password" name="password" placeholder="Password" required="required" />
                             </div>
                             
+                            <t t-if="reset_password_enabled">
+                                <div style="text-align: right; margin-top: 5px; margin-bottom: 15px;">
+                                    <a href="/web/reset_password" style="font-size: 13px; color: #4070f4; text-decoration: none; font-weight: 500;">Forgot Password?</a>
+                                </div>
+                            </t>
+                            
+                            <t t-if="not reset_password_enabled">
+                                <div style="margin-bottom: 20px;"></div>
+                            </t>
                             <button type="submit" class="btn-submit">
                                 <span class="btn-text">Login</span>
                             </button>
