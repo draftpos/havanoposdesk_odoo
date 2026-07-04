@@ -250,6 +250,52 @@ class HavanoPOSDeskAPI(http.Controller):
             if cr_to_close:
                 cr_to_close.close()
 
+    @http.route('/api/auth/reset_password', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_reset_password(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        try:
+            try:
+                data = json.loads(request.httprequest.data)
+            except Exception:
+                return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+
+            login = data.get('login') or data.get('email') or data.get('username')
+            db = data.get('db') or request.db or 'odoo_db_com'
+
+            if not login:
+                return self._make_json_response({"error": "Email/Login is required"}, status=400)
+
+            import odoo
+            from odoo import api
+
+            cr_to_close = None
+            try:
+                if not request.db or request.db != db:
+                    registry = odoo.modules.registry.Registry(db)
+                    cr_to_close = registry.cursor()
+                    user_env = api.Environment(cr_to_close, odoo.SUPERUSER_ID, {})
+                else:
+                    user_env = request.env
+
+                # Call Odoo's auth_signup reset_password logic
+                user_env['res.users'].sudo().reset_password(login)
+
+                return self._make_json_response({
+                    "message": "Password reset instructions have been sent to your email."
+                }, status=200)
+            except Exception as e:
+                error_msg = str(e)
+                if "No account found" in error_msg:
+                    error_msg = "No account found with that email/username."
+                return self._make_json_response({"error": error_msg}, status=400)
+            finally:
+                if cr_to_close:
+                    cr_to_close.close()
+
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
 
     # PRODUCTS
     @http.route('/api/products/', auth='public', methods=['GET', 'POST'], type='http', csrf=False, cors='*')
