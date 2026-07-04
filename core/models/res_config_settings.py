@@ -156,17 +156,17 @@ class ResConfigSettings(models.TransientModel):
     havano_pwa_small_icon = fields.Char(
         string="PWA Small Icon",
         config_parameter="havanoposdesk.pwa_small_icon",
-        default="/Havanoposdesk_odoo/static/src/img/havano-icon-192x192.png",
+        default="/havanoposdesk_odoo/static/src/img/havano-icon-192x192.png",
     )
     havano_pwa_large_icon = fields.Char(
         string="PWA Large Icon",
         config_parameter="havanoposdesk.pwa_large_icon",
-        default="/Havanoposdesk_odoo/static/src/img/havano-icon-512x512.png",
+        default="/havanoposdesk_odoo/static/src/img/havano-icon-512x512.png",
     )
     havano_pwa_app_icon = fields.Char(
         string="PWA App Icon",
         config_parameter="havanoposdesk.pwa_app_icon",
-        default="/Havanoposdesk_odoo/static/src/img/havano-icon-512x512.png",
+        default="/havanoposdesk_odoo/static/src/img/havano-icon-512x512.png",
     )
     havano_pwa_background_color = fields.Char(
         string="PWA Background Color",
@@ -181,7 +181,7 @@ class ResConfigSettings(models.TransientModel):
     havano_favicon = fields.Char(
         string="X Icon",
         config_parameter="havanoposdesk.favicon",
-        default="/Havanoposdesk_odoo/static/src/img/favicon.png",
+        default="/havanoposdesk_odoo/static/src/img/favicon.png",
     )
     havano_support_phone = fields.Char(
         string="Support Phone",

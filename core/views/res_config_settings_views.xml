@@ -15,7 +15,7 @@
             <xpath expr="//form" position="inside">
                 <field name="is_super_user" invisible="1"/>
                 <!-- SaaS Config Settings -->
-                <app logo="/Havanoposdesk_odoo/static/description/icon.png" data-string="SaaS Config" string="SaaS Config" name="havanoposdesk_saas" groups="base.group_system">
+                <app logo="/havanoposdesk_odoo/static/description/icon.png" data-string="SaaS Config" string="SaaS Config" name="havanoposdesk_saas" groups="base.group_system">
                     <block title="SaaS Administration" name="saas_config">
                         <div>
                             <p class="text-muted">Global SaaS settings, users, and tenants configuration.</p>
@@ -82,7 +82,7 @@
                                 <div class="o_setting_right_pane">
                                     <label for="havano_favicon" string="X Icon"/>
                                     <div class="content-group mt8">
-                                        <field name="havano_favicon" class="o_light_label" placeholder="/Havanoposdesk_odoo/static/src/img/favicon.png"/>
+                                        <field name="havano_favicon" class="o_light_label" placeholder="/havanoposdesk_odoo/static/src/img/favicon.png"/>
                                     </div>
                                 </div>
                             </div>
@@ -159,7 +159,7 @@
                 </app>
                 
                 <!-- My Business Settings -->
-                <app logo="/Havanoposdesk_odoo/static/description/icon.png" data-string="My Business" string="My Business" name="havanoposdesk_my_business" groups="base.group_user">
+                <app logo="/havanoposdesk_odoo/static/description/icon.png" data-string="My Business" string="My Business" name="havanoposdesk_my_business" groups="base.group_user">
                     <field name="tenant_id" invisible="1"/>
                     <div class="row mt16 o_settings_container">
                         <div class="col-12 col-lg-6 o_setting_box">

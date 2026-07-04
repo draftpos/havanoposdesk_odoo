@@ -7,7 +7,7 @@
                 <meta charset="UTF-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
                 <t t-set="havano_app_name" t-value="request.env['ir.config_parameter'].sudo().get_param('web.web_app_name', 'Havano')"/>
-                <t t-set="havano_favicon" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.favicon', '/Havanoposdesk_odoo/static/src/img/favicon.png')"/>
+                <t t-set="havano_favicon" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.favicon', '/havanoposdesk_odoo/static/src/img/favicon.png')"/>
                 <title><t t-esc="havano_app_name"/> | Login</title>
                 <link rel="shortcut icon" t-att-href="havano_favicon" type="image/png"/>
                 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
@@ -69,7 +69,7 @@
                 
                 <section class="wrapper">
                     <div class="brand-logo-container">
-                        <img src="/Havanoposdesk_odoo/static/src/img/logo.png" alt="Havano Logo" class="brand-logo"/>
+                        <img src="/havanoposdesk_odoo/static/src/img/logo.png" alt="Havano Logo" class="brand-logo"/>
                     </div>
                     
                     <!-- Signup Form -->
@@ -194,7 +194,7 @@
 
     <template id="havano_web_login_layout" inherit_id="web.login_layout">
         <xpath expr="//t[@t-call='web.frontend_layout']" position="replace">
-            <t t-call="Havanoposdesk_odoo.havano_auth_layout"/>
+            <t t-call="havanoposdesk_odoo.havano_auth_layout"/>
         </xpath>
     </template>
 </odoo>

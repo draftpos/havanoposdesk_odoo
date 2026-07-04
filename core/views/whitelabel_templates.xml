@@ -14,7 +14,7 @@
     <!-- 2. Override web.layout to change the favicon -->
     <template id="havano_layout_favicon" inherit_id="web.layout" name="Havano Layout Favicon">
         <xpath expr="//link[@rel='shortcut icon']" position="replace">
-            <t t-set="havano_favicon" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.favicon', '/Havanoposdesk_odoo/static/src/img/favicon.png')"/>
+            <t t-set="havano_favicon" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.favicon', '/havanoposdesk_odoo/static/src/img/favicon.png')"/>
             <link type="image/png" rel="shortcut icon" t-att-href="havano_favicon"/>
         </xpath>
     </template>
@@ -34,7 +34,7 @@
                     <div style="margin-bottom: 2rem; position: relative;">
                         <!-- Glowing background effect -->
                         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 60px; background: radial-gradient(circle, rgba(124, 77, 255, 0.2) 0%, rgba(0, 188, 212, 0) 70%); filter: blur(10px); animation: pulse-glow 2s infinite ease-in-out;"></div>
-                        <img src="/Havanoposdesk_odoo/static/src/img/havano_logo.svg" alt="Havano" style="height: 48px; width: auto; position: relative; z-index: 1; animation: pulse-logo 2s infinite ease-in-out;" onerror="this.style.display='none'; document.getElementById('havano-loader-fallback').style.display='block';"/>
+                        <img src="/havanoposdesk_odoo/static/src/img/havano_logo.svg" alt="Havano" style="height: 48px; width: auto; position: relative; z-index: 1; animation: pulse-logo 2s infinite ease-in-out;" onerror="this.style.display='none'; document.getElementById('havano-loader-fallback').style.display='block';"/>
                         <div id="havano-loader-fallback" style="display: none; font-size: 28px; font-weight: 800; color: #FFFFFF; font-family: 'Outfit', 'Inter', sans-serif; letter-spacing: -0.5px; position: relative; z-index: 1;">Havano</div>
                     </div>
                     

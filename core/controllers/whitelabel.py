@@ -1,6 +1,8 @@
 from odoo import http
 from odoo.http import request
+# pyrefly: ignore [missing-import]
 from odoo.addons.web.controllers.home import Home
+# pyrefly: ignore [missing-import]
 from odoo.addons.web.controllers.webmanifest import WebManifest
 
 
@@ -29,6 +31,7 @@ class HavanoHome(Home):
     @http.route('/', type='http', auth='none')
     def index(self, s_action=None, db=None, **kw):
         """Redirect root to configured base instead of /odoo."""
+        # pyrefly: ignore [missing-import]
         from odoo.addons.web.controllers.utils import is_user_internal
         icp = request.env['ir.config_parameter'].sudo()
         configured_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
@@ -67,8 +70,8 @@ class HavanoWebManifest(WebManifest):
         }
 
         # Icons
-        small_icon = icp.get_param('havanoposdesk.pwa_small_icon', '/Havanoposdesk_odoo/static/src/img/havano-icon-192x192.png')
-        large_icon = icp.get_param('havanoposdesk.pwa_large_icon', '/Havanoposdesk_odoo/static/src/img/havano-icon-512x512.png')
+        small_icon = icp.get_param('havanoposdesk.pwa_small_icon', '/havanoposdesk_odoo/static/src/img/havano-icon-192x192.png')
+        large_icon = icp.get_param('havanoposdesk.pwa_large_icon', '/havanoposdesk_odoo/static/src/img/havano-icon-512x512.png')
         
         manifest['icons'] = [
             {
@@ -91,7 +94,7 @@ class HavanoWebManifest(WebManifest):
         """ Returns the offline page delivered by the service worker """
         icp = request.env['ir.config_parameter'].sudo()
         web_app_name = icp.get_param('web.web_app_name', 'Havano')
-        return request.render('Havanoposdesk_odoo.havano_offline_page', {
+        return request.render('havanoposdesk_odoo.havano_offline_page', {
             'app_name': web_app_name,
         })
 
