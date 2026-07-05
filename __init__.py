@@ -19,6 +19,15 @@ def post_migrate(cr, registry):
 
     erp_manager_group = env.ref('base.group_erp_manager', raise_if_not_found=False)
     tenant_admin_group = env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
+    group_system = env.ref('base.group_system', raise_if_not_found=False)
+
+    # Grant Administration Settings group to all super admins
+    if group_system:
+        super_admins = env['res.users'].with_context(active_test=False).search([('havano_role', '=', 'super_admin')])
+        for user in super_admins:
+            if group_system not in user.group_ids:
+                user.sudo().write({'group_ids': [(4, group_system.id, 0)]})
+
     if not erp_manager_group:
         return
 
@@ -43,3 +52,4 @@ def post_migrate(cr, registry):
             group_cmds.append((3, tenant_admin_group.id, 0))
         if group_cmds:
             user.sudo().write({'group_ids': group_cmds})
+

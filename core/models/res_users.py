@@ -159,8 +159,14 @@ class ResUsers(models.Model):
 
         tenant_admin_group = self.env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
         erp_manager_group = self.env.ref('base.group_erp_manager', raise_if_not_found=False)
+        group_system = self.env.ref('base.group_system', raise_if_not_found=False)
+        
         for user in users:
-            if user.havano_role == 'admin':
+            if user.havano_role == 'super_admin':
+                # Super Admin: grant Administration Settings group
+                if group_system and group_system not in user.group_ids:
+                    user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, group_system.id, 0)]})
+            elif user.havano_role == 'admin':
                 # Admin: grant Tenant Admin group + Settings (group_erp_manager)
                 group_cmds = []
                 if tenant_admin_group and tenant_admin_group not in user.group_ids:
@@ -170,7 +176,7 @@ class ResUsers(models.Model):
                 if group_cmds:
                     user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
             elif user.havano_role == 'user':
-                # Cashier: ensure they don't have admin groups
+                # Cashier: ensure they don't have admin/settings groups
                 group_cmds = []
                 if erp_manager_group and erp_manager_group in user.group_ids:
                     group_cmds.append((3, erp_manager_group.id, 0))
@@ -199,8 +205,12 @@ class ResUsers(models.Model):
         if ('havano_role' in vals or 'group_ids' in vals) and not self.env.context.get('bypass_sync_role_groups'):
             tenant_admin_group = self.env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
             erp_manager_group = self.env.ref('base.group_erp_manager', raise_if_not_found=False)
+            group_system = self.env.ref('base.group_system', raise_if_not_found=False)
             for user in self:
-                if user.havano_role == 'admin':
+                if user.havano_role == 'super_admin':
+                    if group_system and group_system not in user.group_ids:
+                        user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, group_system.id, 0)]})
+                elif user.havano_role == 'admin':
                     # Admin: ensure they have both Tenant Admin group and Settings group
                     group_cmds = []
                     if tenant_admin_group and tenant_admin_group not in user.group_ids:
