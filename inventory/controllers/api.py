@@ -5068,56 +5068,63 @@ class HavanoPOSDeskAPI(http.Controller):
 
     @http.route('/api/support/ticket', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_create_support_ticket(self, **kwargs):
-        if request.httprequest.method == 'OPTIONS':
-            return self._make_json_response({}, status=200)
-
-        import json
-        data = {}
-        if request.httprequest.headers.get('Content-Type', '').startswith('application/json'):
-            try:
-                data = json.loads(request.httprequest.data.decode('utf-8'))
-            except Exception:
-                pass
-        else:
-            data = request.params
-
-        subject = data.get('subject')
-        description = data.get('description') or data.get('message', '')
-        email = data.get('email', '')
-        phone = data.get('phone', '')
-
-        # Auto-generate subject if not provided
-        if not subject:
-            if email:
-                subject = f'[POS Support] {email}'
-            else:
-                subject = '[POS Support] New Ticket'
-
-        if not description:
-            return self._make_json_response({'error': 'Message/Description is required'}, status=400)
-
-        env = request.env.sudo()
+        # Top-level guard — any unhandled exception returns JSON, never raw HTML 500
         try:
+            if request.httprequest.method == 'OPTIONS':
+                return self._make_json_response({}, status=200)
+
+            data = {}
+            content_type = request.httprequest.headers.get('Content-Type', '')
+            if 'application/json' in content_type:
+                try:
+                    data = json.loads(request.httprequest.data.decode('utf-8'))
+                except Exception:
+                    return self._make_json_response({'error': 'Invalid JSON body'}, status=400)
+            else:
+                data = request.params
+
+            subject = data.get('subject', '').strip()
+            description = (data.get('description') or data.get('message', '')).strip()
+            email = data.get('email', '').strip()
+            phone = data.get('phone', '').strip()
+
+            # Auto-generate subject if not provided
+            if not subject:
+                subject = f'[POS Support] {email}' if email else '[POS Support] New Ticket'
+
+            if not description:
+                return self._make_json_response({'error': 'Message/Description is required'}, status=400)
+
+            env = request.env.sudo()
+
             ticket_vals = {
                 'name': subject,
                 'description': description,
                 'email': email,
                 'phone': phone,
             }
-            # Link to tenant via authenticated user if available
+
+            # Link to tenant via authenticated user's tenant if available
             try:
-                user = request.env.user
-                if user and hasattr(user, 'tenant_id') and user.tenant_id:
-                    ticket_vals['tenant_id'] = user.tenant_id.id
+                uid = request.session.uid
+                if uid:
+                    user = env['res.users'].browse(uid)
+                    if user and hasattr(user, 'tenant_id') and user.tenant_id:
+                        ticket_vals['tenant_id'] = user.tenant_id.id
             except Exception:
-                pass  # Not authenticated or no tenant — skip linking
+                pass  # Not authenticated or tenant field missing — skip
 
             ticket = env['havanoposdesk.support.ticket'].create(ticket_vals)
             return self._make_json_response({
                 'success': True,
                 'ticket_id': ticket.id,
-                'message': 'Support ticket submitted successfully'
+                'message': 'Support ticket submitted successfully',
             })
+
         except Exception as e:
+            import traceback
+            import logging
+            _logger = logging.getLogger(__name__)
+            _logger.error('Support ticket creation failed: %s\n%s', str(e), traceback.format_exc())
             return self._make_json_response({'error': str(e)}, status=500)
 
