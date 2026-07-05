@@ -5095,7 +5095,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if not description:
                 return self._make_json_response({'error': 'Message/Description is required'}, status=400)
 
-            env = request.env.sudo()
+            env = request.env(su=True)
 
             ticket_vals = {
                 'name': subject,
