@@ -1978,6 +1978,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 domain = []
                 if user.havano_role != 'super_admin' and tenant:
                     domain.append(('tenant_id', '=', tenant.id))
+                    if user.store_ids:
+                        domain.append(('store_id', 'in', user.store_ids.ids))
+                    elif user.default_store_id:
+                        domain.append(('store_id', '=', user.default_store_id.id))
 
                 date_from = params.get('date_from') or params.get('from_date')
                 date_to = params.get('date_to') or params.get('to_date')
@@ -2702,10 +2706,23 @@ class HavanoPOSDeskAPI(http.Controller):
                 domain.append(('tenant_id', '=', tenant.id))
             
             cost_center = data.get('cost_center')
-            if cost_center:
-                store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
-                if store:
-                    domain.append(('store_id', '=', store.id))
+            if user.havano_role != 'super_admin':
+                if cost_center:
+                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    if store:
+                        domain.append(('store_id', '=', store.id))
+                    else:
+                        domain.append(('store_id', '=', -1))
+                else:
+                    if user.store_ids:
+                        domain.append(('store_id', 'in', user.store_ids.ids))
+                    elif user.default_store_id:
+                        domain.append(('store_id', '=', user.default_store_id.id))
+            else:
+                if cost_center:
+                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    if store:
+                        domain.append(('store_id', '=', store.id))
             
             from_date = data.get('from_date')
             to_date = data.get('to_date')
@@ -2773,10 +2790,23 @@ class HavanoPOSDeskAPI(http.Controller):
                 from_date = filters.get('from_date')
                 to_date = filters.get('to_date')
 
-                if cost_center:
-                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
-                    if store:
-                        domain.append(('store_id', '=', store.id))
+                if user_rec.havano_role != 'super_admin':
+                    if cost_center:
+                        store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                        if store:
+                            domain.append(('store_id', '=', store.id))
+                        else:
+                            domain.append(('store_id', '=', -1))
+                    else:
+                        if user_rec.store_ids:
+                            domain.append(('store_id', 'in', user_rec.store_ids.ids))
+                        elif user_rec.default_store_id:
+                            domain.append(('store_id', '=', user_rec.default_store_id.id))
+                else:
+                    if cost_center:
+                        store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                        if store:
+                            domain.append(('store_id', '=', store.id))
 
                 if from_date:
                     domain.append(('posting_date', '>=', from_date))
@@ -2836,10 +2866,23 @@ class HavanoPOSDeskAPI(http.Controller):
                 if to_date:
                     domain.append(('posting_date', '<=', to_date))
 
-                if cost_center:
-                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
-                    if store:
-                        domain.append(('store_id', '=', store.id))
+                if user_rec.havano_role != 'super_admin':
+                    if cost_center:
+                        store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                        if store:
+                            domain.append(('store_id', '=', store.id))
+                        else:
+                            domain.append(('store_id', '=', -1))
+                    else:
+                        if user_rec.store_ids:
+                            domain.append(('store_id', 'in', user_rec.store_ids.ids))
+                        elif user_rec.default_store_id:
+                            domain.append(('store_id', '=', user_rec.default_store_id.id))
+                else:
+                    if cost_center:
+                        store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                        if store:
+                            domain.append(('store_id', '=', store.id))
 
                 sales = env['havanoposdesk.sale'].search(domain)
                 total_sales = sum(sales.mapped('amount_total'))
@@ -2904,10 +2947,23 @@ class HavanoPOSDeskAPI(http.Controller):
                 domain.append(('posting_date', '<=', to_date))
                 
             cost_center = data.get('cost_center')
-            if cost_center:
-                store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
-                if store:
-                    domain.append(('store_id', '=', store.id))
+            if user.havano_role != 'super_admin':
+                if cost_center:
+                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    if store:
+                        domain.append(('store_id', '=', store.id))
+                    else:
+                        domain.append(('store_id', '=', -1))
+                else:
+                    if user.store_ids:
+                        domain.append(('store_id', 'in', user.store_ids.ids))
+                    elif user.default_store_id:
+                        domain.append(('store_id', '=', user.default_store_id.id))
+            else:
+                if cost_center:
+                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    if store:
+                        domain.append(('store_id', '=', store.id))
                     
             sales = env['havanoposdesk.sale'].search(domain)
             total_amount = sum(sales.mapped('amount_total'))
