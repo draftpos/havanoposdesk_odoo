@@ -1829,6 +1829,10 @@ class HavanoPOSDeskAPI(http.Controller):
             domain = []
             if user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
+                if user.store_ids:
+                    domain.append(('store_id', 'in', user.store_ids.ids))
+                elif user.default_store_id:
+                    domain.append(('store_id', '=', user.default_store_id.id))
 
             if date_from:
                 domain.append(('posting_date', '>=', date_from))
