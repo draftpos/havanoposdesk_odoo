@@ -11,7 +11,7 @@
         <!-- 1. Verification code → the admin who triggered the wipe -->
         <record id="mail_template_clear_data_code" model="mail.template">
             <field name="name">Clear Data: Verification Code</field>
-            <field name="model_id" ref="Havanoposdesk_odoo.model_wizard_clear_data"/>
+            <field name="model_id" ref="havanoposdesk_odoo.model_wizard_clear_data"/>
             <field name="subject">Your Data Deletion Verification Code</field>
             <!-- email_to is overridden at send-time by the wizard -->
             <field name="email_to">{{ object.create_uid.partner_id.email }}</field>
@@ -36,7 +36,7 @@
         <!-- 2. Security alert → all OTHER system admins -->
         <record id="mail_template_clear_data_notify" model="mail.template">
             <field name="name">Clear Data: Admin Notification</field>
-            <field name="model_id" ref="Havanoposdesk_odoo.model_wizard_clear_data"/>
+            <field name="model_id" ref="havanoposdesk_odoo.model_wizard_clear_data"/>
             <field name="subject">SECURITY ALERT: Data Deletion Requested</field>
             <!-- email_to is overridden at send-time by the wizard -->
             <field name="email_to">{{ object.create_uid.partner_id.email }}</field>
@@ -60,7 +60,7 @@
         <!-- 3. Completion notice → ALL system admins -->
         <record id="mail_template_clear_data_complete" model="mail.template">
             <field name="name">Clear Data: Completion Status</field>
-            <field name="model_id" ref="Havanoposdesk_odoo.model_wizard_clear_data"/>
+            <field name="model_id" ref="havanoposdesk_odoo.model_wizard_clear_data"/>
             <field name="subject">Data Deletion Completed</field>
             <!-- email_to is overridden at send-time by the wizard -->
             <field name="email_to">{{ object.create_uid.partner_id.email }}</field>
