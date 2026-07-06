@@ -5,11 +5,6 @@ class StockAdjustment(models.Model):
     _name = 'havanoposdesk.stock.adjustment'
     _description = 'Stock Adjustment'
 
-    def _default_posting_time(self):
-        now_utc = fields.Datetime.now()
-        now_local = fields.Datetime.context_timestamp(self, now_utc)
-        return now_local.hour + now_local.minute / 60.0
-
     def _default_store_id(self):
         return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
 
@@ -21,8 +16,8 @@ class StockAdjustment(models.Model):
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
-    posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
-    posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
+    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
+    posting_date = fields.Datetime(string='Posting Date', default=fields.Datetime.now)
     allow_edit_date_time = fields.Boolean(string='Allow Edit Date & Time', default=False)
     state = fields.Selection([
         ('draft', 'Draft'),
@@ -267,6 +262,8 @@ class StockAdjustmentLine(models.Model):
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     adjustment_id = fields.Many2one('havanoposdesk.stock.adjustment', string='Stock Adjustment', required=True, ondelete='cascade')
+    store_id = fields.Many2one(related='adjustment_id.store_id', store=True)
+    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
     item_code = fields.Char(related='product_id.item_code', string='Item Code', readonly=True)
     on_hand = fields.Float(string='On Hand', readonly=True)

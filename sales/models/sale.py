@@ -56,6 +56,7 @@ class Sale(models.Model):
         required=True, 
         default=_default_store_id
     )
+    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     terminal_id = fields.Many2one(
         'havanoposdesk.pos.terminal', 
         string='POS Terminal', 
@@ -67,6 +68,7 @@ class Sale(models.Model):
     amount_total = fields.Float(string='Total Amount', compute='_compute_amount_total', store=True)
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
     salesperson_id = fields.Many2one('res.users', string='Salesperson', default=lambda self: self.env.user.id)
+    is_tax_enabled = fields.Boolean(related='tenant_id.enable_tax', string='Tax Enabled')
     state = fields.Selection([
         ('draft', 'Draft'),
         ('confirmed', 'Confirmed'),
@@ -371,6 +373,8 @@ class SaleLine(models.Model):
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     sale_id = fields.Many2one('havanoposdesk.sale', string='Sale', required=True, ondelete='cascade')
+    store_id = fields.Many2one(related='sale_id.store_id', store=True)
+    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
     item_code = fields.Char(related='product_id.item_code', string='Item Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)

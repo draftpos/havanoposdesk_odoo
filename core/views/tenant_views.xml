@@ -95,6 +95,11 @@
                                 <field name="api_warehouse" placeholder="Defaults to Store name if blank"/>
                             </group>
                         </group>
+                        <group string="Feature Toggles">
+                            <group>
+                                <field name="enable_tax" widget="boolean_toggle"/>
+                            </group>
+                        </group>
                     </sheet>
                 </form>
             </field>

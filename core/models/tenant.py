@@ -84,6 +84,7 @@ class HavanoposdeskTenant(models.Model):
     enable_payment_entries = fields.Boolean(string='Enable Payment Entries', default=False)
     show_qty_on_hand = fields.Boolean(string='Show Qty on Hand in POS', default=False)
     enable_shift = fields.Boolean(string='Enable Shift Management', default=False)
+    enable_tax = fields.Boolean(string='Enable Tax', default=False)
 
     def action_approve(self):
         for tenant in self:

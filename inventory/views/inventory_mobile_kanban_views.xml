@@ -166,7 +166,7 @@
                                     </div>
                                 </div>
                                 <div class="havano-card-date">
-                                    <field name="posting_date" widget="date"/>
+                                    <field name="posting_date"/>
                                 </div>
                                 <div class="havano-card-totals mt-2">
                                     <div>Variance : <field name="total_qty_difference"/></div>
@@ -261,7 +261,7 @@
         <record id="action_havanoposdesk_category_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_category_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_category_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_category"/>
         </record>
         <record id="action_havanoposdesk_category_view_kanban" model="ir.actions.act_window.view">
@@ -274,7 +274,7 @@
         <record id="action_havanoposdesk_uom_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_uom_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_uom_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_uom"/>
         </record>
         <record id="action_havanoposdesk_uom_view_kanban" model="ir.actions.act_window.view">
@@ -287,7 +287,7 @@
         <record id="action_havanoposdesk_pricelist_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_pricelist_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_pricelist_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_pricelist"/>
         </record>
         <record id="action_havanoposdesk_pricelist_view_kanban" model="ir.actions.act_window.view">
@@ -300,7 +300,7 @@
         <record id="action_havanoposdesk_product_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_product_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_product_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_product"/>
         </record>
         <record id="action_havanoposdesk_product_view_kanban" model="ir.actions.act_window.view">
@@ -313,7 +313,7 @@
         <record id="action_havanoposdesk_stock_adjustment_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_stock_adjustment_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_stock_adjustment_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_stock_adjustment"/>
         </record>
         <record id="action_havanoposdesk_stock_adjustment_view_kanban" model="ir.actions.act_window.view">
@@ -326,7 +326,7 @@
         <record id="action_havanoposdesk_stock_valuation_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_stock_valuation_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_stock_valuation_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_stock_valuation"/>
         </record>
         <record id="action_havanoposdesk_stock_valuation_view_kanban" model="ir.actions.act_window.view">
@@ -339,7 +339,7 @@
         <record id="action_havanoposdesk_stock_ledger_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_stock_ledger_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_stock_ledger_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_stock_ledger"/>
         </record>
         <record id="action_havanoposdesk_stock_ledger_view_kanban" model="ir.actions.act_window.view">

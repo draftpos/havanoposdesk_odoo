@@ -9,9 +9,10 @@
                 <list string="Expense Posting" decoration-info="state == 'Draft'" decoration-success="state == 'Posted'" decoration-danger="state == 'Cancelled'">
                     <field name="name"/>
                     <field name="date"/>
+                    <field name="currency_id" column_invisible="True"/>
                     <field name="supplier_id"/>
                     <field name="account_id"/>
-                    <field name="amount" sum="Total Expenses"/>
+                    <field name="amount" sum="Total Expenses" widget="monetary"/>
                     <field name="is_paid" widget="boolean_toggle"/>
                     <field name="state" widget="badge" decoration-info="state == 'Draft'" decoration-success="state == 'Posted'" decoration-danger="state == 'Cancelled'"/>
                 </list>
@@ -39,9 +40,10 @@
                         <group>
                             <group>
                                 <field name="date" readonly="state != 'Draft'"/>
+                                <field name="currency_id" invisible="1"/>
                                 <field name="supplier_id" readonly="state != 'Draft'"/>
                                 <field name="account_id" readonly="state != 'Draft'"/>
-                                <field name="amount" readonly="state != 'Draft'"/>
+                                <field name="amount" readonly="state != 'Draft'" widget="monetary"/>
                             </group>
                             <group>
                                 <field name="is_paid" readonly="state != 'Draft'"/>

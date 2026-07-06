@@ -25,6 +25,8 @@
                         </div>
                         <group>
                             <group>
+                                <field name="currency_id" invisible="1"/>
+                                <field name="is_tax_enabled" invisible="1"/>
                                 <field name="invoice_type" readonly="1" class="border-bottom border-dark"/>
                                 <field name="supplier" readonly="state != 'draft'" class="border-bottom border-dark"/>
                                 <field name="store_id" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark"/>
@@ -42,18 +44,19 @@
                             <page string="Items">
                                 <field name="line_ids" readonly="state != 'draft'">
                                     <list  editable="bottom">
+                                        <field name="currency_id" column_invisible="True"/>
                                         <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" optional="show"/>
                                         <field name="item_code" width="10%" optional="show"/>
                                         <field name="accepted_qty" width="15%" sum="Total Qty" optional="show"/>
-                                        <field name="rate" width="15%" optional="show"/>
-                                        <field name="tax_ids" widget="many2many_tags" width="15%" optional="show"/>
-                                        <field name="price_tax" string="Tax Amount" width="10%" sum="Total Tax" optional="show"/>
-                                        <field name="amount" width="10%" sum="Total Amount" optional="show"/>
+                                        <field name="rate" width="15%" optional="show" widget="monetary"/>
+                                        <field name="tax_ids" widget="many2many_tags" width="15%" optional="show" column_invisible="parent.is_tax_enabled == False"/>
+                                        <field name="price_tax" string="Tax Amount" width="10%" sum="Total Tax" optional="show" widget="monetary" column_invisible="parent.is_tax_enabled == False"/>
+                                        <field name="amount" width="10%" sum="Total Amount" optional="show" widget="monetary"/>
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="purchase_total">
-                                    <field name="amount_untaxed" widget="monetary" string="Total Excl"/>
-                                    <field name="amount_tax" widget="monetary" string="Total Tax"/>
+                                    <field name="amount_untaxed" widget="monetary" string="Total Excl" invisible="not is_tax_enabled"/>
+                                    <field name="amount_tax" widget="monetary" string="Total Tax" invisible="not is_tax_enabled"/>
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl"/>
                                 </group>
                             </page>
@@ -69,6 +72,8 @@
             <field name="model">havanoposdesk.purchase</field>
             <field name="arch" type="xml">
                 <list  string="Purchases">
+                    <field name="currency_id" column_invisible="True"/>
+                    <field name="is_tax_enabled" column_invisible="True"/>
                     <field  name="name" optional="show"/>
                     <field  name="invoice_type" optional="show" readonly="1" string="Type"/>
                     <field  name="payment_status" optional="show"/>
@@ -76,9 +81,9 @@
                     <field  name="store_id" optional="show"/>
                     <field  name="posting_date" optional="show"/>
                     <field  name="posting_time" widget="float_time" optional="show"/>
-                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu"/>
-                    <field name="amount_tax" string="Total Tax" sum="Total Tax"/>
-                    <field name="amount_total" string="Total Inclu" sum="Total Inclu"/>
+                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" column_invisible="not is_tax_enabled"/>
+                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" column_invisible="not is_tax_enabled"/>
+                    <field name="amount_total" string="Total Inclu" sum="Total Inclu" widget="monetary"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'" optional="show"/>
                 </list>
             </field>

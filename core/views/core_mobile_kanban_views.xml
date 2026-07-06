@@ -45,7 +45,7 @@
         <record id="action_havanoposdesk_tenant_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_tenant_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_tenant_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_tenant"/>
         </record>
         <record id="action_havanoposdesk_tenant_view_kanban" model="ir.actions.act_window.view">
@@ -100,7 +100,7 @@
         <record id="action_havanoposdesk_store_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_store_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_store_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_store"/>
         </record>
         <record id="action_havanoposdesk_store_view_kanban" model="ir.actions.act_window.view">
@@ -118,7 +118,7 @@
         <record id="action_my_stores_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_store_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_store_tree"/>
             <field name="act_window_id" ref="action_my_stores"/>
         </record>
         <record id="action_my_stores_view_kanban" model="ir.actions.act_window.view">
@@ -165,7 +165,7 @@
         <record id="action_pos_terminals_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_pos_terminal_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_pos_terminal_tree"/>
             <field name="act_window_id" ref="action_pos_terminals"/>
         </record>
         <record id="action_pos_terminals_view_kanban" model="ir.actions.act_window.view">
@@ -183,7 +183,7 @@
         <record id="action_my_terminals_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_pos_terminal_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_pos_terminal_tree"/>
             <field name="act_window_id" ref="action_my_terminals"/>
         </record>
         <record id="action_my_terminals_view_kanban" model="ir.actions.act_window.view">
@@ -235,7 +235,7 @@
         <record id="view_saas_users_form_mobile_inherit" model="ir.ui.view">
             <field name="name">saas.users.form.mobile.inherit</field>
             <field name="model">res.users</field>
-            <field name="inherit_id" ref="havanoposdesk_odoo.view_saas_users_form"/>
+            <field name="inherit_id" ref="Havanoposdesk_odoo.view_saas_users_form"/>
             <field name="arch" type="xml">
                 <xpath expr="//form" position="attributes">
                     <attribute name="class" add="havano_saas_user_form" separator=" "/>
@@ -356,7 +356,7 @@
         <record id="action_subscription_plans_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_subscription_plan_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_subscription_plan_tree"/>
             <field name="act_window_id" ref="action_subscription_plans"/>
         </record>
         <record id="action_subscription_plans_view_kanban" model="ir.actions.act_window.view">
@@ -460,7 +460,7 @@
         <record id="action_saas_users_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_my_cashiers_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_my_cashiers_tree"/>
             <field name="act_window_id" ref="action_saas_users"/>
         </record>
         <record id="action_saas_users_view_kanban" model="ir.actions.act_window.view">

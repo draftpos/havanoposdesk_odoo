@@ -49,6 +49,7 @@ class Purchase(models.Model):
 
     supplier = fields.Many2one('havanoposdesk.supplier', string='Supplier', required=True, default=_default_supplier_id)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
+    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
     
@@ -70,6 +71,7 @@ class Purchase(models.Model):
     account_id = fields.Many2one('havanoposdesk.account', string='Payment Account', domain="[('type', 'in', ['Cash', 'Bank'])]")
     pos_payment_id = fields.Many2one('havanoposdesk.payment', string='POS Payment Batch')
     invoice_type = fields.Char(string='Type', compute='_compute_invoice_type', store=True)
+    is_tax_enabled = fields.Boolean(related='tenant_id.enable_tax', string='Tax Enabled')
 
     @api.depends('is_return')
     def _compute_invoice_type(self):
@@ -361,6 +363,8 @@ class PurchaseLine(models.Model):
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     purchase_id = fields.Many2one('havanoposdesk.purchase', string='Purchase', required=True, ondelete='cascade')
+    store_id = fields.Many2one(related='purchase_id.store_id', store=True)
+    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
     item_code = fields.Char(related='product_id.item_code', string='Item Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)

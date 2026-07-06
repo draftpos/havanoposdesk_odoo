@@ -8,6 +8,8 @@
             <field name="arch" type="xml">
                 <list string="Sales Invoices" default_order="date desc">
                     <field name="is_return" column_invisible="True"/>
+                    <field name="currency_id" column_invisible="True"/>
+                    <field name="is_tax_enabled" column_invisible="True"/>
                     <field name="name"/>
                     <field name="invoice_type" string="Type" optional="show" readonly="1" decoration-danger="is_return" decoration-bf="is_return"/>
                     <field name="payment_status" optional="show"/>
@@ -16,10 +18,10 @@
                     <field name="store_id"/>
                     <field name="terminal_id" optional="show"/>
                     <field name="salesperson_id"/>
-                    <field name="total_cost" string="Total Cost" sum="Total Cost" optional="show"/>
-                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu"/>
-                    <field name="amount_tax" string="Total Tax" sum="Total Tax"/>
-                    <field name="amount_total" string="Total Inclu" sum="Total Inclu"/>
+                    <field name="total_cost" string="Total Cost" sum="Total Cost" optional="show" widget="monetary"/>
+                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" column_invisible="not is_tax_enabled"/>
+                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" column_invisible="not is_tax_enabled"/>
+                    <field name="amount_total" string="Total Inclu" sum="Total Inclu" widget="monetary"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return"/>
                 </list>
             </field>
@@ -53,6 +55,8 @@
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark"/>
                                 <field name="date" readonly="state != 'draft'" class="border-bottom border-dark"/>
                                 <field name="is_return" invisible="1"/>
+                                <field name="currency_id" invisible="1"/>
+                                <field name="is_tax_enabled" invisible="1"/>
                                 <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark"/>
                             </group>
                             <group>
@@ -65,21 +69,22 @@
                             <page string="Order Lines">
                                 <field name="line_ids" readonly="state != 'draft'">
                                     <list editable="bottom">
+                                        <field name="currency_id" column_invisible="True"/>
                                         <field name="item_code" width="15%"/>
                                         <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" string="Item Name"/>
                                         <field name="accepted_qty" string="Qty" width="10%" sum="Total Qty"/>
-                                        <field name="rate" width="15%"/>
-                                        <field name="cost_price" width="10%" optional="hide" force_save="1"/>
-                                        <field name="gross_profit" string="Gross Profit" optional="hide" sum="Total Gross Profit"/>
-                                        <field name="tax_ids" widget="many2many_tags" width="15%" optional="show"/>
-                                        <field name="price_tax" string="Tax Amount" width="10%" sum="Total Tax" optional="show"/>
-                                        <field name="amount" width="10%" sum="Total Amount"/>
+                                        <field name="rate" width="15%" widget="monetary"/>
+                                        <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary"/>
+                                        <field name="gross_profit" string="Gross Profit" optional="hide" sum="Total Gross Profit" widget="monetary"/>
+                                        <field name="tax_ids" widget="many2many_tags" width="15%" optional="show" column_invisible="parent.is_tax_enabled == False"/>
+                                        <field name="price_tax" string="Tax Amount" width="10%" sum="Total Tax" optional="show" widget="monetary" column_invisible="parent.is_tax_enabled == False"/>
+                                        <field name="amount" width="10%" sum="Total Amount" widget="monetary"/>
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
                                     <field name="total_cost" widget="monetary" string="Total Cost"/>
-                                    <field name="amount_untaxed" widget="monetary" string="Total Excl"/>
-                                    <field name="amount_tax" widget="monetary" string="Total Tax"/>
+                                    <field name="amount_untaxed" widget="monetary" string="Total Excl" invisible="not is_tax_enabled"/>
+                                    <field name="amount_tax" widget="monetary" string="Total Tax" invisible="not is_tax_enabled"/>
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl"/>
                                 </group>
                             </page>

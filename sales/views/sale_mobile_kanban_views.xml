@@ -318,7 +318,7 @@
         <record id="action_sales_operations_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_sale_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_sale_tree"/>
             <field name="act_window_id" ref="action_sales_operations"/>
         </record>
         <record id="action_sales_operations_view_kanban" model="ir.actions.act_window.view">
@@ -330,7 +330,7 @@
         <record id="action_havanoposdesk_customer_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_customer_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_customer_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_customer"/>
         </record>
         <record id="action_havanoposdesk_customer_view_kanban" model="ir.actions.act_window.view">
@@ -342,7 +342,7 @@
         <record id="action_havanoposdesk_customer_group_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_customer_group_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_customer_group_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_customer_group"/>
         </record>
         <record id="action_havanoposdesk_customer_group_view_kanban" model="ir.actions.act_window.view">
@@ -354,7 +354,7 @@
         <record id="action_cashier_sales_report_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_cashier_sales_report_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_cashier_sales_report_tree"/>
             <field name="act_window_id" ref="action_cashier_sales_report"/>
         </record>
         <record id="action_cashier_sales_report_view_kanban" model="ir.actions.act_window.view">
@@ -366,7 +366,7 @@
         <record id="action_category_sales_report_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_category_sales_report_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_category_sales_report_tree"/>
             <field name="act_window_id" ref="action_category_sales_report"/>
         </record>
         <record id="action_category_sales_report_view_kanban" model="ir.actions.act_window.view">
@@ -378,7 +378,7 @@
         <record id="action_daily_sales_report_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_daily_sales_report_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_daily_sales_report_tree"/>
             <field name="act_window_id" ref="action_daily_sales_report"/>
         </record>
         <record id="action_daily_sales_report_view_kanban" model="ir.actions.act_window.view">
@@ -390,7 +390,7 @@
         <record id="action_item_profitability_report_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_item_profitability_report_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_item_profitability_report_tree"/>
             <field name="act_window_id" ref="action_item_profitability_report"/>
         </record>
         <record id="action_item_profitability_report_view_kanban" model="ir.actions.act_window.view">
@@ -402,7 +402,7 @@
         <record id="action_terminal_sales_report_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_terminal_sales_report_tree"/>
+            <field name="view_id" ref="Havanoposdesk_odoo.view_terminal_sales_report_tree"/>
             <field name="act_window_id" ref="action_terminal_sales_report"/>
         </record>
         <record id="action_terminal_sales_report_view_kanban" model="ir.actions.act_window.view">

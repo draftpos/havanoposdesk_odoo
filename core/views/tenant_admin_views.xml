@@ -13,7 +13,7 @@
             name="Configs"
             web_icon="havanoposdesk_odoo,static/description/configs.png"
             sequence="550"
-            groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"
+            groups="Havanoposdesk_odoo.group_tenant_admin,base.group_system"
             action="action_havanoposdesk_settings_my_business"/>
 
         <!-- Stores Submenu -->

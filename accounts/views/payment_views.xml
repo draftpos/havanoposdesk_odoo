@@ -43,7 +43,8 @@
                             </group>
                             <group>
                                 <field name="account_id" options="{'no_create': True}" class="border-bottom border-dark" readonly="state != 'draft'"/>
-                                <field name="amount" class="border-bottom border-dark" readonly="state != 'draft'"/>
+                                <field name="currency_id" invisible="1"/>
+                                <field name="amount" class="border-bottom border-dark" readonly="state != 'draft'" widget="monetary"/>
                                 <field name="date" class="border-bottom border-dark" readonly="state != 'draft'"/>
                                 <field name="reference" class="border-bottom border-dark" readonly="state != 'draft'"/>
                             </group>
@@ -56,7 +57,8 @@
                                         <field name="name" string="Sale Reference"/>
                                         <field name="customer"/>
                                         <field name="store"/>
-                                        <field name="amount_total" sum="Total"/>
+                                        <field name="currency_id" column_invisible="True"/>
+                                        <field name="amount_total" sum="Total" widget="monetary"/>
                                     </list>
                                 </field>
                             </page>
@@ -72,6 +74,7 @@
             <field name="model">havanoposdesk.payment</field>
             <field name="arch" type="xml">
                 <list string="Payments" decoration-muted="state == 'cancelled'">
+                    <field name="currency_id" column_invisible="True"/>
                     <field name="date"/>
                     <field name="name" string="Number"/>
                     <field name="reference" string="Memo/Reference"/>
@@ -79,7 +82,7 @@
                     <field name="customer_id" optional="show"/>
                     <field name="supplier_id" optional="show"/>
                     <field name="account_id"/>
-                    <field name="amount" sum="Total Amount"/>
+                    <field name="amount" sum="Total Amount" widget="monetary"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'"/>
                 </list>
             </field>
