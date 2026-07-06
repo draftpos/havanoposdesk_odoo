@@ -131,16 +131,25 @@ patch(NavBar.prototype, {
             });
         }
 
-        // App cards
+        // App cards — play launch animation then navigate
         const appCards = container.querySelectorAll('.custom_home_menu_app_card');
         appCards.forEach(card => {
             card.addEventListener('click', (e) => {
                 e.preventDefault();
                 const appId = parseInt(card.dataset.appId);
                 const app = this.menuService.getApps().find(a => a.id === appId);
-                if (app) {
+                if (!app) return;
+
+                // 1. Trigger the card's own launch animation
+                card.classList.add('card-launching');
+
+                // 2. Fade the whole overlay out simultaneously
+                if (overlay) overlay.classList.add('overlay-launching');
+
+                // 3. Navigate after animation completes (match CSS duration ~350ms)
+                setTimeout(() => {
                     this.onAppClick(e, app);
-                }
+                }, 320);
             });
         });
     },
