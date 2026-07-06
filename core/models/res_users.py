@@ -862,7 +862,9 @@ class ResUsers(models.Model):
             ('active', '=', True),
             '|',
             ('verification_sent_at', '<', threshold_time),
-            ('&', ('verification_sent_at', '=', False), ('create_date', '<', threshold_time))
+            '&',
+            ('verification_sent_at', '=', False),
+            ('create_date', '<', threshold_time)
         ])
         
         if unverified_users:
