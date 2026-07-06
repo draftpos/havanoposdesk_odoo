@@ -39,12 +39,17 @@
 
         <!-- Override existing action for Tenants -->
         <record id="action_havanoposdesk_tenant" model="ir.actions.act_window">
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
-        
-        <record id="action_havanoposdesk_tenant_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_havanoposdesk_tenant_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_tenant_tree"/>
+            <field name="act_window_id" ref="action_havanoposdesk_tenant"/>
+        </record>
+        <record id="action_havanoposdesk_tenant_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_havanoposdesk_tenant_kanban_mobile"/>
             <field name="act_window_id" ref="action_havanoposdesk_tenant"/>
@@ -89,11 +94,17 @@
 
         <!-- Override existing action for Stores -->
         <record id="action_havanoposdesk_store" model="ir.actions.act_window">
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
-        <record id="action_havanoposdesk_store_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_havanoposdesk_store_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_store_tree"/>
+            <field name="act_window_id" ref="action_havanoposdesk_store"/>
+        </record>
+        <record id="action_havanoposdesk_store_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_havanoposdesk_store_kanban_mobile"/>
             <field name="act_window_id" ref="action_havanoposdesk_store"/>
@@ -101,11 +112,17 @@
 
         <!-- Override existing action for My Stores -->
         <record id="action_my_stores" model="ir.actions.act_window">
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
-        <record id="action_my_stores_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_my_stores_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_store_tree"/>
+            <field name="act_window_id" ref="action_my_stores"/>
+        </record>
+        <record id="action_my_stores_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_havanoposdesk_store_kanban_mobile"/>
             <field name="act_window_id" ref="action_my_stores"/>
@@ -142,11 +159,17 @@
 
         <!-- Override existing action for POS Terminals -->
         <record id="action_pos_terminals" model="ir.actions.act_window">
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
-        <record id="action_pos_terminals_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_pos_terminals_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_pos_terminal_tree"/>
+            <field name="act_window_id" ref="action_pos_terminals"/>
+        </record>
+        <record id="action_pos_terminals_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_havanoposdesk_pos_terminal_kanban_mobile"/>
             <field name="act_window_id" ref="action_pos_terminals"/>
@@ -154,11 +177,17 @@
 
         <!-- Override existing action for My Terminals -->
         <record id="action_my_terminals" model="ir.actions.act_window">
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
-        <record id="action_my_terminals_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_my_terminals_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_pos_terminal_tree"/>
+            <field name="act_window_id" ref="action_my_terminals"/>
+        </record>
+        <record id="action_my_terminals_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_havanoposdesk_pos_terminal_kanban_mobile"/>
             <field name="act_window_id" ref="action_my_terminals"/>
@@ -198,8 +227,7 @@
 
         <!-- Override existing action for SaaS Users / Cashiers -->
         <record id="action_saas_users" model="ir.actions.act_window">
-            <field name="view_id" ref="view_res_users_saas_kanban_mobile"/>
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
@@ -216,8 +244,7 @@
         </record>
         
         <record id="action_my_cashiers" model="ir.actions.act_window">
-            <field name="view_id" ref="view_saas_users_form_mobile_inherit"/>
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
@@ -251,8 +278,7 @@
 
         <!-- Override existing action for User Rights Profiles -->
         <record id="action_user_rights_profiles" model="ir.actions.act_window">
-            <field name="view_id" ref="view_havanoposdesk_user_rights_profile_kanban_mobile"/>
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
@@ -324,11 +350,17 @@
 
         <!-- Override existing action for Subscription Plans -->
         <record id="action_subscription_plans" model="ir.actions.act_window">
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
-        <record id="action_subscription_plans_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_subscription_plans_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_subscription_plan_tree"/>
+            <field name="act_window_id" ref="action_subscription_plans"/>
+        </record>
+        <record id="action_subscription_plans_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_subscription_plan_kanban_mobile"/>
             <field name="act_window_id" ref="action_subscription_plans"/>
@@ -368,8 +400,7 @@
 
         <!-- Override existing action for Exchange Rates -->
         <record id="action_havanoposdesk_exchange_rates" model="ir.actions.act_window">
-            <field name="view_id" ref="view_havanoposdesk_currency_rate_kanban_mobile"/>
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
@@ -423,12 +454,17 @@
 
         <!-- Override existing action for SaaS Users -->
         <record id="action_saas_users" model="ir.actions.act_window">
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
-        
-        <record id="action_saas_users_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_saas_users_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_my_cashiers_tree"/>
+            <field name="act_window_id" ref="action_saas_users"/>
+        </record>
+        <record id="action_saas_users_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_saas_users_kanban_mobile"/>
             <field name="act_window_id" ref="action_saas_users"/>
