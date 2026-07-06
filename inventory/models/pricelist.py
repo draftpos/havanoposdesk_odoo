@@ -5,7 +5,6 @@ class HavanoposdeskPricelist(models.Model):
     _description = 'Pricelist'
 
     name = fields.Char(string='Pricelist Name', required=True)
-    code = fields.Char(string='Code')
     type = fields.Selection([
         ('selling', 'Selling'),
         ('buying', 'Buying')

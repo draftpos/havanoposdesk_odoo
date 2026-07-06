@@ -2,7 +2,7 @@
 <odoo>
     <data noupdate="1">
         <record id="seq_havanoposdesk_product" model="ir.sequence">
-            <field name="name">Product Item Code</field>
+            <field name="name">Product Product Code</field>
             <field name="code">havanoposdesk.product</field>
             <field name="prefix">PRD/</field>
             <field name="padding">5</field>

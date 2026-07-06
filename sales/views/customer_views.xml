@@ -15,7 +15,8 @@
                         </div>
                         <group>
                             <group>
-                                <field name="customer_type" class="border-bottom border-dark"/>
+                                <field name="tin" class="border-bottom border-dark"/>
+                                <field name="vat" class="border-bottom border-dark"/>
                                 <field name="store_id" class="border-bottom border-dark" options="{'no_create': True}"/>
                                 <field name="customer_group_id" class="border-bottom border-dark"/>
                                 <field name="phone" class="border-bottom border-dark"/>
@@ -45,7 +46,8 @@
                     <field  name="city" optional="show"/>
                     <field  name="country_id" optional="show"/>
                     <field  name="balance" optional="show"/>
-                    <field  name="customer_type" optional="show"/>
+                    <field  name="tin" optional="show"/>
+                    <field  name="vat" optional="show"/>
                 </list>
             </field>
         </record>

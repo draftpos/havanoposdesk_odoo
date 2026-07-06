@@ -265,7 +265,7 @@ class StockAdjustmentLine(models.Model):
     store_id = fields.Many2one(related='adjustment_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
-    item_code = fields.Char(related='product_id.item_code', string='Item Code', readonly=True)
+    item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     on_hand = fields.Float(string='On Hand', readonly=True)
     counted = fields.Float(string='Counted')
     buying_price = fields.Float(related='product_id.buying_price', string='Cost price', readonly=True, store=True)

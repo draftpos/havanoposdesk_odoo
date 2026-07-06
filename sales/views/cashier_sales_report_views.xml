@@ -60,10 +60,13 @@
             <field name="res_model">havanoposdesk.cashier.sales.report</field>
             <field name="view_mode">list,pivot</field>
             <field name="search_view_id" ref="view_cashier_sales_report_search"/>
-            <field name="context">{'search_default_group_by_cashier': 1}</field>
+            <field name="context">{'search_default_group_by_cashier': 1, 'search_default_today': 1}</field>
         </record>
 
         <!-- Menu Item -->
         <menuitem id="menu_cashier_sales_report" name="Cashier Profitability" parent="menu_sales_reports" action="action_cashier_sales_report" sequence="30"/>
     </data>
 </odoo>
+
+
+

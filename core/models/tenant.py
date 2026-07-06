@@ -42,24 +42,24 @@ class HavanoposdeskTenant(models.Model):
     stock_adj_seq_padding = fields.Integer(string='Stock Adjustment Sequence Padding', default=5)
 
     # Sales Sequence Config
-    sale_seq_prefix = fields.Char(string='Sale Sequence Prefix', default='')
+    sale_seq_prefix = fields.Char(string='Sale Sequence Prefix', default='S')
     sale_seq_next = fields.Integer(string='Sale Sequence Next Number', default=1)
-    sale_seq_padding = fields.Integer(string='Sale Sequence Padding', default=4)
+    sale_seq_padding = fields.Integer(string='Sale Sequence Padding', default=3)
 
     # Sales Return (Credit Note) Sequence Config
-    sale_ret_seq_prefix = fields.Char(string='Credit Note Sequence Prefix', default='')
+    sale_ret_seq_prefix = fields.Char(string='Credit Note Sequence Prefix', default='C')
     sale_ret_seq_next = fields.Integer(string='Credit Note Sequence Next Number', default=1)
-    sale_ret_seq_padding = fields.Integer(string='Credit Note Sequence Padding', default=4)
+    sale_ret_seq_padding = fields.Integer(string='Credit Note Sequence Padding', default=3)
 
     # Purchases Sequence Config
-    purch_seq_prefix = fields.Char(string='Purchase Sequence Prefix', default='')
-    purch_seq_next = fields.Integer(string='Purchase Sequence Next Number', default=1)
-    purch_seq_padding = fields.Integer(string='Purchase Sequence Padding', default=4)
+    purch_seq_prefix = fields.Char(string='Purchase Sequence Prefix', default='PU')
+    purch_seq_next = fields.Integer(string='Purchase Sequence Next Number', default=1001)
+    purch_seq_padding = fields.Integer(string='Purchase Sequence Padding', default=0)
 
     # Purchase Return (Debit Note) Sequence Config
-    purch_ret_seq_prefix = fields.Char(string='Debit Note Sequence Prefix', default='')
-    purch_ret_seq_next = fields.Integer(string='Debit Note Sequence Next Number', default=1)
-    purch_ret_seq_padding = fields.Integer(string='Debit Note Sequence Padding', default=4)
+    purch_ret_seq_prefix = fields.Char(string='Debit Note Sequence Prefix', default='DEB')
+    purch_ret_seq_next = fields.Integer(string='Debit Note Sequence Next Number', default=1001)
+    purch_ret_seq_padding = fields.Integer(string='Debit Note Sequence Padding', default=0)
 
     # Payment In (Receipt) Sequence Config
     pay_in_seq_prefix = fields.Char(string='Payment In Sequence Prefix', default='')
@@ -85,6 +85,33 @@ class HavanoposdeskTenant(models.Model):
     show_qty_on_hand = fields.Boolean(string='Show Qty on Hand in POS', default=False)
     enable_shift = fields.Boolean(string='Enable Shift Management', default=False)
     enable_tax = fields.Boolean(string='Enable Tax', default=False)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        tenants = super().create(vals_list)
+        for tenant in tenants:
+            tenant._seed_default_data()
+        return tenants
+
+    def _seed_default_data(self):
+        self.ensure_one()
+        # 1. Customer Group
+        cg = self.env['havanoposdesk.customer.group'].sudo().create({'name': 'Default Group', 'tenant_id': self.id})
+        # 2. Supplier
+        self.env['havanoposdesk.supplier'].sudo().create({'name': 'general', 'tenant_id': self.id})
+        # 3. Default Deposit Account
+        self.env['havanoposdesk.account'].sudo().create({'name': 'cash', 'type': 'Cash', 'tenant_id': self.id})
+        # 4. Default Expenses Account
+        expenses = ['Electricity', 'Rent', 'Utilities', 'Wages & Salaries', 'Breakages', 'Council Licenses', 'Maintanences', 'Fuel']
+        for exp in expenses:
+            self.env['havanoposdesk.account'].sudo().create({'name': exp, 'type': 'Expense', 'tenant_id': self.id})
+        # 5. Default Customer
+        self.env['havanoposdesk.customer'].sudo().create({'name': 'cash customer', 'customer_group_id': cg.id, 'tenant_id': self.id})
+        # 6. Default Categories
+        self.env['havanoposdesk.category'].sudo().create({'name': 'Basic', 'tenant_id': self.id})
+        self.env['havanoposdesk.category'].sudo().create({'name': 'Beveragies', 'tenant_id': self.id})
+        # 7. Default Pricelist
+        self.env['havanoposdesk.pricelist'].sudo().create({'name': 'Retail', 'type': 'selling', 'tenant_id': self.id})
 
     def action_approve(self):
         for tenant in self:

@@ -9,12 +9,9 @@
                 <list string="Daily Sales" create="false" edit="false" delete="false">
                     <field name="date" optional="show"/>
                     <field name="store_id" optional="show"/>
-                    <field name="qty" sum="Total Qty" optional="show"/>
-                    <field name="cost_price" widget="monetary" optional="show"/>
-                    <field name="selling_price" widget="monetary" optional="show"/>
                     <field name="total_sales" sum="Total Sales" widget="monetary" optional="show"/>
+                    <field name="total_cost" sum="Total Cost" widget="monetary" optional="show"/>
                     <field name="profit" sum="Total Profit" widget="monetary" decoration-danger="profit &lt; 0" decoration-success="profit &gt; 0" optional="show"/>
-                    <field name="profit_margin" widget="percentage" decoration-danger="profit_margin &lt; 0" decoration-success="profit_margin &gt; 0" optional="show"/>
                 </list>
             </field>
         </record>
@@ -26,7 +23,7 @@
             <field name="arch" type="xml">
                 <pivot string="Daily Sales" disable_linking="True">
                     <field name="date" type="row" interval="day"/>
-                    <field name="qty" type="measure"/>
+                    <field name="store_id" type="col"/>
                     <field name="total_sales" type="measure"/>
                     <field name="profit" type="measure"/>
                 </pivot>
@@ -45,6 +42,7 @@
                     <filter string="This Month" name="this_month" date="date" default_period="month"/>
                     <group>
                         <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
+                        <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
                     </group>
                 </search>
             </field>
@@ -56,7 +54,7 @@
             <field name="res_model">havanoposdesk.daily.sales.report</field>
             <field name="view_mode">list,pivot</field>
             <field name="search_view_id" ref="view_daily_sales_report_search"/>
-            <field name="context">{'search_default_this_month': 1}</field>
+            <field name="context">{'search_default_today': 1}</field>
         </record>
 
         <!-- Menu Item -->

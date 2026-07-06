@@ -6,18 +6,20 @@
             <field name="name">havanoposdesk.product.tree</field>
             <field name="model">havanoposdesk.product</field>
             <field name="arch" type="xml">
-                <list  string="Products">
-                    <field  name="name"/>
-                    <field  name="item_code" optional="show"/>
-                    <field  name="category_id" optional="show"/>
-                    <field  name="uom_id" optional="show"/>
-                    <field  name="buying_price" optional="show"/>
-                    <field  name="selling_price" optional="show"/>
-                    <field  name="track_qty" optional="show"/>
-                    <field  name="opening_stock" string="On hand" optional="show"/>
-                    <field  name="store_id" optional="show"/>
-                    <field  name="color" column_invisible="1"/>
-                    <field  name="tenant_id" column_invisible="1"/>
+                <list string="Products">
+                    <field name="item_code" string="Product Code"/>
+                    <field name="name"/>
+                    <field name="category_id"/>
+                    <field name="uom_id" optional="hide"/>
+                    <field name="buying_price" optional="hide"/>
+                    <field name="selling_price"/>
+                    <field name="track_qty"/>
+                    <field name="opening_stock" string="QTY"/>
+                    <field name="store_id" optional="show"/>
+                    <field name="color" column_invisible="1"/>
+                    <field name="tenant_id" column_invisible="1"/>
+                    <field name="create_uid" optional="hide"/>
+                    <field name="create_date" optional="hide"/>
                 </list>
             </field>
         </record>
@@ -118,12 +120,26 @@
             <field name="arch" type="xml">
                 <search string="Search Products">
                     <field name="name"/>
-                    <field name="item_code"/>
+                    <field name="item_code" string="Product Code"/>
                     <field name="category_id"/>
-                    <field name="opening_stock" string="On hand"/>
+                    <field name="create_date"/>
+                    <field name="create_uid"/>
+                    <field name="store_id"/>
+                    <field name="track_qty"/>
                     <separator/>
                     <filter string="In Stock" name="in_stock" domain="[('opening_stock', '&gt;', 0)]"/>
                     <filter string="Out of Stock" name="out_of_stock" domain="[('opening_stock', '&lt;=', 0)]"/>
+                    <filter string="Created Today" name="created_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}"/>
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}"/>
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
+                        <filter string="Store" name="group_by_store" context="{'group_by': 'store_id'}"/>
+                        <filter string="Track QTY" name="group_by_track_qty" context="{'group_by': 'track_qty'}"/>
+                        <filter string="Product Name" name="group_by_name" context="{'group_by': 'name'}"/>
+                        <filter string="Today" name="group_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:day'}"/>
+                        <filter string="This Month" name="group_month" domain="[('create_date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:month'}"/>
+                    </group>
                 </search>
             </field>
         </record>

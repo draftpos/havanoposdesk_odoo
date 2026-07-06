@@ -69,3 +69,4 @@
         <menuitem id="menu_terminal_sales_report" name="Shop Profitability" parent="menu_sales_reports" action="action_terminal_sales_report" sequence="40"/>
     </data>
 </odoo>
+

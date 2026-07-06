@@ -7,11 +7,11 @@ class HavanoposdeskProduct(models.Model):
 
     _sql_constraints = [
         ('name_tenant_uniq', 'unique (name, tenant_id)', 'The product name must be unique per tenant!'),
-        ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The item code must be unique per tenant!')
+        ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!')
     ]
 
     name = fields.Char(string='Product Name', required=True)
-    item_code = fields.Char(string='Item Code', required=True, copy=False, readonly=True, default=lambda self: 'New')
+    item_code = fields.Char(string='Product Code', required=True, copy=False, readonly=True, default=lambda self: 'New')
 
     @api.depends('name', 'item_code')
     def _compute_display_name(self):

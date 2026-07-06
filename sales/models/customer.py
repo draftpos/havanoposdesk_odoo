@@ -28,6 +28,8 @@ class Customer(models.Model):
     city = fields.Char(string='City')
     country_id = fields.Many2one('res.country', string='Country')
     customer_group_id = fields.Many2one('havanoposdesk.customer.group', string='Customer Group')
+    tin = fields.Char(string='TIN')
+    vat = fields.Char(string='VAT')
     
     sale_ids = fields.One2many('havanoposdesk.sale', 'customer', string='Sales')
     payment_ids = fields.One2many('havanoposdesk.payment', 'customer_id', string='Payments')
@@ -46,8 +48,3 @@ class Customer(models.Model):
             
             record.balance = total_sales - receipts + refunds
 
-    customer_type = fields.Selection([
-        ('company', 'Company'),
-        ('individual', 'Individual'),
-        ('partnership', 'Partnership')
-    ], string='Customer Type', default='individual', required=True)

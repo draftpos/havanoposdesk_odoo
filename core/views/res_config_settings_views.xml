@@ -284,7 +284,7 @@
                         </setting>
                     </block>
                     <block title="Sequence Configuration" name="stock_seq_config">
-                        <setting id="prod_seq_setting" string="Product Item Codes">
+                        <setting id="prod_seq_setting" string="Product Product Codes">
                             <div class="content-group">
                                 <div class="d-flex align-items-center gap-2">
                                     <span>Prefix:</span>

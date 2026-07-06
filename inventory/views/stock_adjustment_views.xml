@@ -76,11 +76,35 @@
             </field>
         </record>
 
+        <!-- Stock Adjustment Search View -->
+        <record id="view_havanoposdesk_stock_adjustment_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.adjustment.search</field>
+            <field name="model">havanoposdesk.stock.adjustment</field>
+            <field name="arch" type="xml">
+                <search string="Search Stock Adjustments">
+                    <field name="name"/>
+                    <field name="create_uid"/>
+                    <field name="posting_date"/>
+                    <filter string="Created On" name="filter_created_on" date="create_date"/>
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
+                    <filter string="Created Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}"/>
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
+                        <filter string="Today" name="group_today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'posting_date:day'}"/>
+                        <filter string="This Month" name="group_month" domain="[('posting_date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'posting_date:month'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
         <!-- Stock Adjustment Action -->
         <record id="action_havanoposdesk_stock_adjustment" model="ir.actions.act_window">
             <field name="name">Stock Adjustment</field>
             <field name="res_model">havanoposdesk.stock.adjustment</field>
             <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_stock_adjustment_search"/>
+            <field name="context">{'search_default_today': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Create a new Stock Adjustment

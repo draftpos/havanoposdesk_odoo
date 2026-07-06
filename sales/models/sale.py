@@ -376,7 +376,7 @@ class SaleLine(models.Model):
     store_id = fields.Many2one(related='sale_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
-    item_code = fields.Char(related='product_id.item_code', string='Item Code', readonly=True)
+    item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
     rate = fields.Float(string='Rate')
     tax_ids = fields.Many2many('havanoposdesk.tax', string='Taxes', domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]")

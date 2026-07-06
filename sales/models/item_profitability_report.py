@@ -6,7 +6,7 @@ class ItemProfitabilityReport(models.Model):
     _auto = False
 
     product_id = fields.Many2one('havanoposdesk.product', string='Product', readonly=True)
-    item_code = fields.Char(string='Item Code', readonly=True)
+    item_code = fields.Char(string='Product Code', readonly=True)
     name = fields.Char(string='Item Name', readonly=True)
     category_id = fields.Many2one('havanoposdesk.category', string='Category', readonly=True)
     qty = fields.Float(string='Qty Sold', readonly=True)

@@ -10,16 +10,15 @@
                     <field name="is_return" column_invisible="True"/>
                     <field name="currency_id" column_invisible="True"/>
                     <field name="name"/>
-                    <field name="invoice_type" string="Type" optional="show" readonly="1" decoration-danger="is_return" decoration-bf="is_return"/>
+                    <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-bf="is_return"/>
                     <field name="payment_status" optional="show"/>
-                    <field name="customer"/>
-                    <field name="date"/>
-                    <field name="store_id"/>
-                    <field name="terminal_id" optional="show"/>
-                    <field name="salesperson_id"/>
-                    <field name="total_cost" string="Total Cost" sum="Total Cost" optional="show" widget="monetary"/>
-                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" optional="show"/>
-                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" optional="show"/>
+                    <field name="customer" optional="hide"/>
+                    <field name="date" string="Date"/>
+                    <field name="store_id" optional="show"/>
+                    <field name="terminal_id" optional="hide"/>
+                    <field name="salesperson_id" optional="show"/>
+                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" optional="hide"/>
+                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" optional="hide"/>
                     <field name="amount_total" string="Total Inclu" sum="Total Inclu" widget="monetary"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return"/>
                 </list>
@@ -40,7 +39,7 @@
                         <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
                     </header>
                     <sheet>
-                        <div class="oe_title">
+                        <div class="oe_title" invisible="state == 'draft'">
                             <h1>
                                 <field name="name" readonly="1"/>
                             </h1>
@@ -81,7 +80,6 @@
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
-                                    <field name="total_cost" widget="monetary" string="Total Cost"/>
                                     <field name="amount_untaxed" widget="monetary" string="Total Excl" invisible="not is_tax_enabled"/>
                                     <field name="amount_tax" widget="monetary" string="Total Tax" invisible="not is_tax_enabled"/>
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl"/>
@@ -118,13 +116,35 @@
             </field>
         </record>
 
+        <!-- Sales Search View -->
+        <record id="view_havanoposdesk_sale_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.search</field>
+            <field name="model">havanoposdesk.sale</field>
+            <field name="arch" type="xml">
+                <search string="Search Sales">
+                    <field name="name" string="Reference Number"/>
+                    <field name="customer"/>
+                    <field name="create_uid"/>
+                    <field name="date"/>
+                    <filter string="Created Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}"/>
+                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}"/>
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by': 'date:day'}"/>
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
         <!-- Action: Sales Operations -->
         <record id="action_sales_operations" model="ir.actions.act_window">
             <field name="name">Sales Invoices</field>
             <field name="res_model">havanoposdesk.sale</field>
             <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_sale_search"/>
             <field name="domain">[]</field>
-            <field name="context">{'default_payment_status': 'cash'}</field>
+            <field name="context">{'default_payment_status': 'cash', 'search_default_today': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Record your first sale!
