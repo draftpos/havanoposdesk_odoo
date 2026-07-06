@@ -103,25 +103,16 @@ class HavanoPOSDeskAPI(http.Controller):
             company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
             
             # Fetch default customer from database, or fallback/create
-            default_cust_domain = ['|', ('name', 'ilike', 'Default'), ('name', 'ilike', 'Walk-in')]
+            default_customer_name = ""
+            customers_records = []
             if store:
-                default_cust_domain = ['&'] + default_cust_domain + [('store_id', 'in', [store.id, False])]
-            default_customer = user_env['havanoposdesk.customer'].sudo().search(default_cust_domain, limit=1)
-            if not default_customer:
-                default_customer = user_env['havanoposdesk.customer'].sudo().search([('store_id', 'in', [store.id, False])] if store else [], limit=1)
-            if not default_customer:
-                default_customer = user_env['havanoposdesk.customer'].sudo().create({
-                    'name': 'Havano Default',
-                    'customer_type': 'individual',
-                    'store_id': store.id if store else False,
-                })
-            default_customer_name = default_customer.name
-                
-            # Fetch customers list
-            customers_domain = []
-            if store:
-                customers_domain = [('store_id', 'in', [store.id, False])]
-            customers_records = user_env['havanoposdesk.customer'].sudo().search(customers_domain)
+                default_cust_domain = ['&', '|', ('name', 'ilike', 'Default'), ('name', 'ilike', 'Walk-in'), ('store_id', '=', store.id)]
+                default_customer = user_env['havanoposdesk.customer'].sudo().search(default_cust_domain, limit=1)
+                if not default_customer:
+                    default_customer = user_env['havanoposdesk.customer'].sudo().search([('store_id', '=', store.id)], limit=1)
+                if default_customer:
+                    default_customer_name = default_customer.name
+                customers_records = user_env['havanoposdesk.customer'].sudo().search([('store_id', '=', store.id)])
             customers_data = []
             for c in customers_records:
                 customers_data.append({
@@ -769,10 +760,10 @@ class HavanoPOSDeskAPI(http.Controller):
         return request.env['res.users'].sudo().search([('id', '=', 2)], limit=1) or request.env.user
 
 
-    # HELPER METHOD TO GET CURRENT STORE FROM REQUEST PARAMS OR USER CONTEXT
+    # HELPER METHOD TO GET CURRENT STORE FROM REQUEST PARAMS OR USER CONTEXT (NO FALLBACKS)
     def _get_current_store(self, user, tenant, params=None):
         params = params or {}
-        store_val = params.get('store_id') or params.get('shop_id') or params.get('store') or params.get('shop')
+        store_val = params.get('store_id') or params.get('shop_id') or params.get('store') or params.get('shop') or params.get('warehouse') or params.get('set_warehouse')
         if store_val:
             try:
                 store_id = int(store_val)
@@ -780,25 +771,23 @@ class HavanoPOSDeskAPI(http.Controller):
                 if store.exists():
                     return store
             except ValueError:
-                store = request.env['havanoposdesk.store'].sudo().search([
-                    ('name', '=', store_val),
-                    ('tenant_id', '=', tenant.id) if tenant else (1, '=', 1)
-                ], limit=1)
-                if store:
-                    return store
+                pass
         
-        # Fallbacks
-        if user:
-            store = user.selected_shop_id or user.default_store_id or (user.store_ids[0] if user.store_ids else False)
-            if store:
-                return store
-        
-        # Default store for tenant
-        if tenant:
-            store = request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
-            if store:
-                return store
+        if user and user.selected_shop_id:
+            return user.selected_shop_id
                 
+        return False
+
+    def _resolve_store_from_cost_center(self, env, cost_center):
+        if not cost_center:
+            return False
+        try:
+            store_id = int(cost_center)
+            store = env['havanoposdesk.store'].browse(store_id)
+            if store.exists():
+                return store
+        except ValueError:
+            pass
         return False
 
 
@@ -824,10 +813,13 @@ class HavanoPOSDeskAPI(http.Controller):
             user = self._get_user()
             tenant = user.tenant_id
             store = self._get_current_store(user, tenant, data)
+            if not store:
+                return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
             customer = request.env['havanoposdesk.customer'].sudo().create({
                 'name': name,
                 'customer_type': customer_type,
-                'store_id': store.id if store else False,
+                'store_id': store.id,
+                'tenant_id': tenant.id if tenant else False,
             })
             
         res_data = {
@@ -846,13 +838,13 @@ class HavanoPOSDeskAPI(http.Controller):
         
         # Determine store and company settings
         store = self._get_current_store(user, tenant, kw)
-        store_name = store.name if store else ''
+        if not store:
+            return request.make_response(json.dumps({'message': []}), headers=[('Content-Type', 'application/json')])
+        store_name = store.name
         
-        domain = []
+        domain = [('store_id', '=', store.id)]
         if tenant:
             domain.append(('tenant_id', '=', tenant.id))
-        if store:
-            domain.append(('store_id', 'in', [store.id, False]))
             
         customers = request.env['havanoposdesk.customer'].sudo().search(domain)
         
@@ -1022,39 +1014,23 @@ class HavanoPOSDeskAPI(http.Controller):
         if not terminal:
             return request.make_response(json.dumps({'error': 'No terminal assigned. Please select a terminal first.'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        store = False
-        if terminal:
+        store = self._get_current_store(user, tenant, data)
+        if not store and terminal:
             store = terminal.store_id
             
         if not store:
-            # Check by set_warehouse or company name
-            store_name = data.get('set_warehouse') or data.get('company')
-            if store_name:
-                store = request.env['havanoposdesk.store'].sudo().search([
-                    ('tenant_id', '=', tenant.id),
-                    ('name', '=', store_name)
-                ], limit=1)
+            return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
                 
-        if not store:
-            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+        customer_name = data.get('customer')
+        if not customer_name:
+            return request.make_response(json.dumps({'error': 'customer is required'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        if not store:
-            store_name = data.get('set_warehouse') or data.get('company') or f"{tenant.name or 'Default Tenant'} Store"
-            store = request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
-            if not store:
-                store = request.env['havanoposdesk.store'].sudo().create({
-                    'name': store_name,
-                    'tenant_id': tenant.id
-                })
-                
-        customer_name = data.get('customer') or 'Walk-in Customer'
-        customer = request.env['havanoposdesk.customer'].sudo().search([('name', '=', customer_name)], limit=1)
+        customer = request.env['havanoposdesk.customer'].sudo().search([
+            ('name', '=', customer_name),
+            ('store_id', '=', store.id)
+        ], limit=1)
         if not customer:
-            customer = request.env['havanoposdesk.customer'].sudo().create({
-                'name': customer_name,
-                'customer_type': 'individual',
-                'store_id': store.id if store else False,
-            })
+            return request.make_response(json.dumps({'error': f"Customer '{customer_name}' not found for store '{store.name}'"}), headers=[('Content-Type', 'application/json')], status=400)
             
         lines = []
         for item in data.get('items', []):
@@ -1091,6 +1067,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'line_ids': lines,
             'state': 'done',
             'salesperson_id': user.id,
+            'payment_status': 'cash',
         })
         
         res_data = {
@@ -1680,20 +1657,14 @@ class HavanoPOSDeskAPI(http.Controller):
             
             store = self._get_current_store(user, tenant, params)
             if not store:
-                store = env['havanoposdesk.store'].search([('tenant_id', '=', tenant.id)], limit=1)
-                if not store:
-                    store = env['havanoposdesk.store'].create({
-                        'name': f"{tenant.name or 'Default Tenant'} Store",
-                        'tenant_id': tenant.id
-                    })
+                return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
 
-            customer = env['havanoposdesk.customer'].search([('name', '=', customer_name)], limit=1)
+            customer = env['havanoposdesk.customer'].search([
+                ('name', '=', customer_name),
+                ('store_id', '=', store.id)
+            ], limit=1)
             if not customer:
-                customer = env['havanoposdesk.customer'].create({
-                    'name': customer_name,
-                    'customer_type': 'individual',
-                    'store_id': store.id if store else False,
-                })
+                return self._make_json_response({"error": f"Customer '{customer_name}' not found for store '{store.name}'"}, status=400)
 
             sale_lines = []
             for line in lines:
@@ -1736,6 +1707,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'terminal_id': terminal.id if terminal else False,
                 'line_ids': sale_lines,
                 'state': 'done',
+                'payment_status': 'cash',
             })
 
             if custom_cr:
@@ -1969,15 +1941,15 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id
 
             store = self._get_current_store(user, tenant, params)
+            if not store:
+                return self._make_json_response({"message": []})
 
-            domain = []
+            domain = [('store_id', '=', store.id)]
             if search_name:
                 domain.append(('name', 'ilike', search_name))
-            if store:
-                domain.append(('store_id', 'in', [store.id, False]))
 
             partners = env['havanoposdesk.customer'].search(domain, limit=limit, order='name asc')
-            cost_center_name = user.api_cost_center or (tenant.api_cost_center if tenant else False) or (store.name if store else '')
+            cost_center_name = user.api_cost_center or (tenant.api_cost_center if tenant else False) or store.name
 
             result = []
             for p in partners:
@@ -2121,27 +2093,20 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 store = self._get_current_store(user, tenant, params)
                 if not store:
-                    store_domain = []
-                    if user.havano_role != 'super_admin' and tenant:
-                        store_domain.append(('tenant_id', '=', tenant.id))
-                    store = env['havanoposdesk.store'].search(store_domain, limit=1)
+                    raise Exception("Store/Warehouse is required")
 
-                customer_name = params.get('customer') or "Walk-in Customer"
-                customer = env['havanoposdesk.customer'].search([('name', '=', customer_name)], limit=1)
+                customer_name = params.get('customer')
+                if not customer_name:
+                    raise Exception("Customer is required")
+
+                customer = env['havanoposdesk.customer'].search([
+                    ('name', '=', customer_name),
+                    ('store_id', '=', store.id)
+                ], limit=1)
                 if not customer:
-                    customer = env['havanoposdesk.customer'].create({
-                        'name': customer_name,
-                        'customer_type': 'individual',
-                        'store_id': store.id if store else False,
-                    })
+                    raise Exception(f"Customer '{customer_name}' not found for store '{store.name}'")
                 
-                store_name = params.get('set_warehouse') or (store.name if store else '')
-                if not store:
-                    fallback_store_name = store_name or (tenant.name if tenant else "Main Store")
-                    store = env['havanoposdesk.store'].create({
-                        'name': fallback_store_name,
-                        'tenant_id': tenant.id
-                    })
+                store_name = store.name
 
                 lines = []
                 for item in params.get('items', []):
@@ -2183,6 +2148,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'line_ids': lines,
                     'state': 'done',
                     'salesperson_id': user.id,
+                    'payment_status': 'cash',
                 })
 
                 if custom_cr:
@@ -2243,11 +2209,14 @@ class HavanoPOSDeskAPI(http.Controller):
                 user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
                 store = self._get_current_store(user, tenant, params)
+                if not store:
+                    return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
                 customer = env['havanoposdesk.customer'].create({
                     'name': name,
                     'customer_type': customer_type,
                     'phone': params.get('mobile_no') or params.get('phone') or '',
-                    'store_id': store.id if store else False,
+                    'store_id': store.id,
+                    'tenant_id': tenant.id if tenant else False,
                 })
 
             if custom_cr:
@@ -2387,11 +2356,10 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
             store = self._get_current_store(user, tenant, kwargs)
+            if not store:
+                return self._make_json_response({"data": []})
             
-            domain = []
-            if store:
-                domain.append(('store_id', 'in', [store.id, False]))
-                
+            domain = [('store_id', '=', store.id)]
             partners = env['havanoposdesk.customer'].search(domain)
             result = []
             for p in partners:
@@ -2769,7 +2737,7 @@ class HavanoPOSDeskAPI(http.Controller):
             cost_center = data.get('cost_center')
             if user.havano_role != 'super_admin':
                 if cost_center:
-                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    store = self._resolve_store_from_cost_center(env, cost_center)
                     if store:
                         domain.append(('store_id', '=', store.id))
                     else:
@@ -2781,7 +2749,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         domain.append(('store_id', '=', user.default_store_id.id))
             else:
                 if cost_center:
-                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    store = self._resolve_store_from_cost_center(env, cost_center)
                     if store:
                         domain.append(('store_id', '=', store.id))
             
@@ -2853,7 +2821,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 if user_rec.havano_role != 'super_admin':
                     if cost_center:
-                        store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                        store = self._resolve_store_from_cost_center(env, cost_center)
                         if store:
                             domain.append(('store_id', '=', store.id))
                         else:
@@ -2865,7 +2833,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             domain.append(('store_id', '=', user_rec.default_store_id.id))
                 else:
                     if cost_center:
-                        store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                        store = self._resolve_store_from_cost_center(env, cost_center)
                         if store:
                             domain.append(('store_id', '=', store.id))
 
@@ -2929,7 +2897,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 if user_rec.havano_role != 'super_admin':
                     if cost_center:
-                        store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                        store = self._resolve_store_from_cost_center(env, cost_center)
                         if store:
                             domain.append(('store_id', '=', store.id))
                         else:
@@ -2941,7 +2909,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             domain.append(('store_id', '=', user_rec.default_store_id.id))
                 else:
                     if cost_center:
-                        store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                        store = self._resolve_store_from_cost_center(env, cost_center)
                         if store:
                             domain.append(('store_id', '=', store.id))
 
@@ -3010,7 +2978,7 @@ class HavanoPOSDeskAPI(http.Controller):
             cost_center = data.get('cost_center')
             if user.havano_role != 'super_admin':
                 if cost_center:
-                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    store = self._resolve_store_from_cost_center(env, cost_center)
                     if store:
                         domain.append(('store_id', '=', store.id))
                     else:
@@ -3022,7 +2990,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         domain.append(('store_id', '=', user.default_store_id.id))
             else:
                 if cost_center:
-                    store = env['havanoposdesk.store'].search([('name', '=', cost_center)], limit=1)
+                    store = self._resolve_store_from_cost_center(env, cost_center)
                     if store:
                         domain.append(('store_id', '=', store.id))
                     
@@ -3253,12 +3221,85 @@ class HavanoPOSDeskAPI(http.Controller):
     def api_get_item_profitability(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
-        return self._make_json_response({
-            "message": {
-                "status": "success",
-                "data": []
-            }
-        })
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.params
+        if not token:
+            token = params.get('token')
+
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            
+            # Retrieve store (strictly, no fallback!)
+            store = self._get_current_store(user, tenant, params)
+            if not store:
+                return self._make_json_response({
+                    "message": {
+                        "status": "success",
+                        "data": []
+                    }
+                })
+
+            domain = [('store_id', '=', store.id)]
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+
+            from_date = params.get('from_date')
+            to_date = params.get('to_date')
+            if from_date:
+                domain.append(('date', '>=', from_date))
+            if to_date:
+                domain.append(('date', '<=', to_date))
+
+            item_code = params.get('item_code')
+            if item_code:
+                domain.append(('item_code', '=', item_code))
+
+            reports = env['havanoposdesk.item.profitability.report'].search(domain)
+            
+            grouped_data = {}
+            for r in reports:
+                code = r.item_code
+                if code not in grouped_data:
+                    grouped_data[code] = {
+                        'item_code': code,
+                        'item_name': r.name,
+                        'total_qty': 0.0,
+                        'total_revenue': 0.0,
+                        'total_cost': 0.0,
+                        'profit': 0.0,
+                        'profit_margin': 0.0,
+                    }
+                g = grouped_data[code]
+                g['total_qty'] += r.qty
+                g['total_revenue'] += r.total_sales
+                g['total_cost'] += (r.qty * r.cost_price)
+                g['profit'] += r.profit
+
+            data_list = []
+            for g in grouped_data.values():
+                if g['total_revenue'] > 0:
+                    g['profit_margin'] = (g['profit'] / g['total_revenue']) * 100.0
+                else:
+                    g['profit_margin'] = 0.0
+                data_list.append(g)
+
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "data": data_list
+                }
+            })
+        finally:
+            if custom_cr:
+                custom_cr.close()
 
     # SHIFT MANAGEMENT SYSTEM
     @http.route('/api/method/saas_api.www.api.open_shift', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
@@ -3786,16 +3827,6 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
-    @http.route('/api/method/saas_api.www.api.get_item_profitability', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
-    def api_get_item_profitability(self, **kwargs):
-        if request.httprequest.method == 'OPTIONS':
-            return self._make_json_response({}, status=200)
-        return self._make_json_response({
-            "message": {
-                "status": "success",
-                "data": []
-            }
-        })
 
     # SHIFT MANAGEMENT SYSTEM
     @http.route('/api/method/saas_api.www.api.open_shift', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')

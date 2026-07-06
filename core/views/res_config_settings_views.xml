@@ -239,7 +239,7 @@
                 </app>
                 
                 <!-- Sales Settings -->
-                <app logo="/sale/static/description/icon.png" data-string="Sales" string="Sales" name="havanoposdesk_sales" groups="base.group_user">
+                <app logo="/havanoposdesk_odoo/static/description/sales.png" data-string="Sales" string="Sales" name="havanoposdesk_sales" groups="base.group_user">
                     <block title="Sales Configuration" name="sales_config">
                         <div>
                             <p class="text-muted">Point of Sale and Sales settings will go here.</p>
@@ -274,7 +274,7 @@
                 </app>
                 
                 <!-- Stock Settings -->
-                <app logo="/stock/static/description/icon.png" data-string="Stock" string="Stock" name="havanoposdesk_stock" groups="base.group_user">
+                <app logo="/havanoposdesk_odoo/static/description/stock.png" data-string="Stock" string="Stock" name="havanoposdesk_stock" groups="base.group_user">
                     <block title="Inventory Operations" name="stock_config">
                         <setting id="allow_negative_stock_setting" help="Allow selling products even when their quantity on hand is zero or less. Purchasing more will compensate the negative balance automatically.">
                             <field name="havano_allow_negative_stock" widget="boolean_toggle"/>
@@ -312,7 +312,7 @@
                 </app>
 
                 <!-- Accounts Settings -->
-                <app logo="/account/static/description/icon.png" data-string="Accounts" string="Accounts" name="havanoposdesk_accounts" groups="base.group_user">
+                <app logo="/havanoposdesk_odoo/static/description/accounts.png" data-string="Accounts" string="Accounts" name="havanoposdesk_accounts" groups="base.group_user">
                     <block title="Accounting Configuration" name="accounts_config">
                         <div>
                             <p class="text-muted">Chart of accounts, taxes, and accounting settings will go here.</p>
@@ -359,7 +359,7 @@
                 </app>
                 
                 <!-- Suppliers Settings -->
-                <app logo="/purchase/static/description/icon.png" data-string="Suppliers" string="Suppliers" name="havanoposdesk_suppliers" groups="base.group_user">
+                <app logo="/havanoposdesk_odoo/static/description/purchases.png" data-string="Suppliers" string="Suppliers" name="havanoposdesk_suppliers" groups="base.group_user">
                     <block title="Purchasing Configuration" name="suppliers_config">
                         <div>
                             <p class="text-muted">Supplier and purchasing settings will go here.</p>
@@ -438,3 +438,4 @@
         <field name="context">{'module': 'havanoposdesk_suppliers'}</field>
     </record>
 </odoo>
+

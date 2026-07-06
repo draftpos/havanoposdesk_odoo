@@ -47,17 +47,22 @@
     justify-content: flex-start;
     overflow-y: auto;
     padding: 0;
-    animation: fadeIn 0.3s ease-in-out;
+    animation: fadeIn 0.25s ease-in-out;
+}
+
+/* Overlay fade-out when app is launched */
+.custom_home_menu_overlay.overlay-launching {
+    animation: overlayFadeOut 0.35s ease-out forwards;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
+    from { opacity: 0; transform: scale(0.98); }
+    to   { opacity: 1; transform: scale(1); }
+}
 
-    to {
-        opacity: 1;
-    }
+@keyframes overlayFadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
 }
 
 .custom_home_menu_container {
@@ -76,6 +81,23 @@
     justify-items: center;
 }
 
+/* -------------------------------------------------------
+   Accent colours – one per card position (cycles every 12)
+------------------------------------------------------- */
+$palette: #FF6B6B, #4ECDC4, #7C3AED, #3B82F6, #10B981,
+          #F59E0B, #EC4899, #6366F1, #06B6D4, #EF4444,
+          #84CC16, #F97316;
+
+@for $i from 1 through 24 {
+    $color: nth($palette, (($i - 1) % 12) + 1);
+    .custom_home_menu_app_card:nth-child(#{$i}) {
+        --card-accent: #{$color};
+    }
+}
+
+/* -------------------------------------------------------
+   App card base state
+------------------------------------------------------- */
 .custom_home_menu_app_card {
     display: flex;
     flex-direction: column;
@@ -88,17 +110,67 @@
     padding: 10px 8px 8px;
     text-decoration: none;
     color: #333;
-    transition: all 0.25s ease;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
     cursor: pointer;
+    position: relative;
+    border: 2px solid transparent;
 
+    /* Smooth transitions for all animatable properties */
+    transition:
+        transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.18s ease,
+        border-color 0.18s ease,
+        background 0.15s ease;
+
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+
+    /* Hover — lift + coloured glow border */
     &:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.13);
-        background: rgba(255, 255, 255, 1);
+        transform: translateY(-5px) scale(1.04);
+        background: #fff;
+        border-color: var(--card-accent, #7C3AED);
+        box-shadow:
+            0 0 0 3px color-mix(in srgb, var(--card-accent, #7C3AED) 25%, transparent),
+            0 10px 26px rgba(0, 0, 0, 0.12);
         text-decoration: none;
         color: #222;
     }
+
+    /* Click animation — fast pop-scale then shrink */
+    &.card-launching {
+        animation: cardLaunch 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
+        pointer-events: none;
+    }
+}
+
+/* Click / launch animation */
+@keyframes cardLaunch {
+    0%   { transform: translateY(-5px) scale(1.04); opacity: 1; }
+    25%  { transform: translateY(-8px) scale(1.14); opacity: 1; }
+    60%  { transform: translateY(0px)  scale(0.92); opacity: 0.7; }
+    100% { transform: translateY(0px)  scale(0.85); opacity: 0; }
+}
+
+/* Ripple effect on click */
+.custom_home_menu_app_card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--card-accent, #7C3AED);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0s, transform 0s;
+    pointer-events: none;
+}
+
+.custom_home_menu_app_card.card-launching::after {
+    animation: rippleFade 0.35s ease-out forwards;
+}
+
+@keyframes rippleFade {
+    0%   { opacity: 0.18; transform: scale(0.7); }
+    60%  { opacity: 0.08; transform: scale(1.05); }
+    100% { opacity: 0;    transform: scale(1.1); }
 }
 
 .custom_home_menu_app_icon {
@@ -114,12 +186,20 @@
         height: 100%;
         object-fit: contain;
         border-radius: 12px;
+        transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     i {
         font-size: 44px;
         color: #7c3aed;
+        transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
+}
+
+/* Icon scales up slightly inside card on hover */
+.custom_home_menu_app_card:hover .custom_home_menu_app_icon img,
+.custom_home_menu_app_card:hover .custom_home_menu_app_icon i {
+    transform: scale(1.08);
 }
 
 .custom_home_menu_app_name {
@@ -130,9 +210,16 @@
     word-break: break-word;
     max-width: 100%;
     color: #444;
+    transition: color 0.15s ease;
 }
 
-/* Responsive design */
+.custom_home_menu_app_card:hover .custom_home_menu_app_name {
+    color: var(--card-accent, #7C3AED);
+}
+
+/* -------------------------------------------------------
+   Responsive
+------------------------------------------------------- */
 @media (max-width: 768px) {
     .custom_home_menu_grid {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -151,21 +238,16 @@
         height: 68px;
         margin-bottom: 6px;
 
-        img {
-            border-radius: 10px;
-        }
-
-        i {
-            font-size: 36px;
-        }
+        img { border-radius: 10px; }
+        i   { font-size: 36px; }
     }
 
-    .custom_home_menu_app_name {
-        font-size: 11px;
-    }
+    .custom_home_menu_app_name { font-size: 11px; }
 }
 
-/* Settings sidebar app icons - make bigger and more visible */
+/* -------------------------------------------------------
+   Settings sidebar icons
+------------------------------------------------------- */
 .o_settings_container .o_setting_menu_information .o_app_menu_icon,
 .o_settings_menu .o_app_menu_icon,
 .o_settings_menu img,
@@ -177,9 +259,8 @@
     border-radius: 8px;
 }
 
-/* Settings sidebar - increase icon size via the sidebar list */
 .o_app_settings_block img.o_app_icon,
 .o_app_settings_section img {
     width: 36px !important;
     height: 36px !important;
-}
+}

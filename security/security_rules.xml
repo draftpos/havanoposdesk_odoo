@@ -141,7 +141,7 @@
             <field name="name">Havano Customer Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_customer"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Tax Model Isolation Rule -->
@@ -198,6 +198,46 @@
             <field name="model_id" ref="model_havanoposdesk_user_rights_permission"/>
             <field name="global" eval="True"/>
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('profile_id.tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Item Profitability Report Isolation Rule -->
+        <record id="rule_havano_item_profitability_report_isolation" model="ir.rule">
+            <field name="name">Havano Item Profitability Report Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_item_profitability_report"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Category Sales Report Model Isolation Rule -->
+        <record id="rule_havano_category_sales_report_isolation" model="ir.rule">
+            <field name="name">Havano Category Sales Report Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_category_sales_report"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Cashier Sales Report Model Isolation Rule -->
+        <record id="rule_havano_cashier_sales_report_isolation" model="ir.rule">
+            <field name="name">Havano Cashier Sales Report Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_cashier_sales_report"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids), ('salesperson_id', '=', user.id)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'admin' and user.store_ids else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Terminal Sales Report Model Isolation Rule -->
+        <record id="rule_havano_terminal_sales_report_isolation" model="ir.rule">
+            <field name="name">Havano Terminal Sales Report Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_terminal_sales_report"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids), ('salesperson_id', '=', user.id)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'admin' and user.store_ids else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Daily Sales Report Model Isolation Rule -->
+        <record id="rule_havano_daily_sales_report_isolation" model="ir.rule">
+            <field name="name">Havano Daily Sales Report Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_daily_sales_report"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
     </data>
 </odoo>
