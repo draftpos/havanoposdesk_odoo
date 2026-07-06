@@ -812,6 +812,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'name': name,
                 'customer_type': customer_type,
                 'store_id': store.id,
+                'tenant_id': tenant.id if tenant else False,
             })
             
         res_data = {
@@ -2205,6 +2206,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'customer_type': customer_type,
                     'phone': params.get('mobile_no') or params.get('phone') or '',
                     'store_id': store.id,
+                    'tenant_id': tenant.id if tenant else False,
                 })
 
             if custom_cr:
