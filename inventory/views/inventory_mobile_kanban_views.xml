@@ -281,8 +281,14 @@
             <field name="view_id" ref="view_havanoposdesk_pricelist_kanban_mobile"/>
             <field name="act_window_id" ref="action_havanoposdesk_pricelist"/>
         </record>
-        <record id="action_havanoposdesk_product_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_havanoposdesk_product_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_product_tree"/>
+            <field name="act_window_id" ref="action_havanoposdesk_product"/>
+        </record>
+        <record id="action_havanoposdesk_product_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_havanoposdesk_product_kanban_mobile"/>
             <field name="act_window_id" ref="action_havanoposdesk_product"/>
