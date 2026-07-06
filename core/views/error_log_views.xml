@@ -240,7 +240,7 @@
 
     <!-- Menus -->
     <!-- Top-level Menu visible only to system administrators -->
-    <menuitem id="menu_havano_system_logs_root" name="System Logs" sequence="100" groups="base.group_system" web_icon="havanoposdesk_odoo,static/description/icon.png"/>
+    <menuitem id="menu_havano_system_logs_root" name="System Logs" sequence="100" groups="base.group_system" web_icon="havanoposdesk_odoo,static/description/logs.png"/>
 
     <menuitem id="menu_havano_error_issues" name="Issues" parent="menu_havano_system_logs_root" sequence="10" action="action_havano_error_issue"/>
     <menuitem id="menu_havano_sync_issues" name="Sync Issues" parent="menu_havano_system_logs_root" sequence="20" action="action_sync_bugsink_issues"/>
