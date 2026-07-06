@@ -207,7 +207,7 @@
         <record id="view_saas_users_form_mobile_inherit" model="ir.ui.view">
             <field name="name">saas.users.form.mobile.inherit</field>
             <field name="model">res.users</field>
-            <field name="inherit_id" ref="view_saas_users_form"/>
+            <field name="inherit_id" ref="havanoposdesk_odoo.view_saas_users_form"/>
             <field name="arch" type="xml">
                 <xpath expr="//form" position="attributes">
                     <attribute name="class" add="havano_saas_user_form" separator=" "/>
@@ -370,6 +370,11 @@
         <record id="action_havanoposdesk_exchange_rates" model="ir.actions.act_window">
             <field name="view_id" ref="view_havanoposdesk_currency_rate_kanban_mobile"/>
             <field name="view_mode">kanban,list,form</field>
+            <field name="mobile_view_mode">kanban</field>
+        </record>
+
+        <!-- Override existing action for Purchases Analysis -->
+        <record id="action_purchases_analysis" model="ir.actions.act_window">
             <field name="mobile_view_mode">kanban</field>
         </record>
 

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_clear_data_wizard_form" model="ir.ui.view">
+        <field name="name">wizard.clear.data.form</field>
+        <field name="model">wizard.clear.data</field>
+        <field name="arch" type="xml">
+            <form string="Clear Data / Factory Reset">
+                <field name="state" invisible="1"/>
+
+                <!-- ── Step 1: Request ── -->
+                <div invisible="state != 'request'">
+                    <div class="alert alert-danger" role="alert" style="margin-bottom:16px;">
+                        <strong>⚠ Warning — Irreversible Action!</strong>
+                        This will permanently delete the selected data. It cannot be undone.
+                    </div>
+                    <group>
+                        <field name="clear_type" widget="radio"/>
+                        <field name="reason"
+                               placeholder="Explain why you are wiping this data (minimum 20 characters)…"
+                               required="state == 'request'"/>
+                        <field name="confirm_loss" required="state == 'request'"/>
+                    </group>
+                </div>
+
+                <!-- ── Step 2: Verify ── -->
+                <div invisible="state != 'verify'">
+                    <div class="alert alert-warning" role="alert" style="margin-bottom:16px;">
+                        <strong>📧 Check your email.</strong>
+                        A 6-digit verification code has been sent to your registered email address.
+                        Enter it below to confirm the deletion.
+                    </div>
+                    <group>
+                        <field name="entered_code"
+                               placeholder="e.g. 032841"
+                               required="state == 'verify'"/>
+                    </group>
+                </div>
+
+                <!-- ── Step 3: Done ── -->
+                <div invisible="state != 'done'">
+                    <div class="alert alert-success" role="alert" style="margin-bottom:16px;">
+                        <strong>✅ Deletion Complete.</strong>
+                        The selected data has been permanently removed.
+                        A confirmation email has been sent to all administrators.
+                    </div>
+                    <group string="Deletion Report">
+                        <field name="result_log"
+                               widget="text"
+                               readonly="1"
+                               style="font-family: monospace; white-space: pre; font-size:13px;
+                                      background:#f8f9fa; padding:12px; border-radius:4px;
+                                      min-height:200px;"/>
+                    </group>
+                </div>
+
+                <footer>
+                    <!-- Step 1 -->
+                    <button string="Send Verification Code"
+                            type="object" name="action_send_code"
+                            class="btn-danger"
+                            invisible="state != 'request'"/>
+
+                    <!-- Step 2 -->
+                    <button string="✓ Confirm &amp; Delete Data"
+                            type="object" name="action_verify_and_delete"
+                            class="btn-danger"
+                            invisible="state != 'verify'"/>
+
+                    <!-- Step 3 -->
+                    <button string="Close"
+                            type="object" name="action_close"
+                            class="btn-primary"
+                            invisible="state != 'done'"/>
+
+                    <!-- Always visible cancel (except on done) -->
+                    <button string="Cancel"
+                            class="btn-secondary"
+                            special="cancel"
+                            invisible="state == 'done'"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_clear_data_wizard" model="ir.actions.act_window">
+        <field name="name">Clear Data / Factory Reset</field>
+        <field name="res_model">wizard.clear.data</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Under Odoo Technical > Settings (super-admin only) -->
+    <menuitem id="menu_clear_data"
+              name="Clear Data"
+              parent="base.menu_administration"
+              action="action_clear_data_wizard"
+              groups="base.group_system"
+              sequence="100"/>
+
+    <!-- Under My Business (Configs) menu — admin + super-admin -->
+    <menuitem id="menu_my_business_clear_data"
+              name="Clear Data"
+              parent="havanoposdesk_odoo.menu_my_business_root"
+              action="action_clear_data_wizard"
+              groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"
+              sequence="200"/>
+</odoo>
