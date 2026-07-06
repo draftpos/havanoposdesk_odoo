@@ -43,8 +43,7 @@
         </record>
 
         <record id="action_havanoposdesk_product" model="ir.actions.act_window">
-            <field name="view_id" ref="view_havanoposdesk_product_kanban_mobile"/>
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
