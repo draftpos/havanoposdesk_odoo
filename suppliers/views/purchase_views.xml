@@ -73,7 +73,6 @@
             <field name="arch" type="xml">
                 <list  string="Purchases">
                     <field name="currency_id" column_invisible="True"/>
-                    <field name="is_tax_enabled" column_invisible="True"/>
                     <field  name="name" optional="show"/>
                     <field  name="invoice_type" optional="show" readonly="1" string="Type"/>
                     <field  name="payment_status" optional="show"/>
@@ -81,8 +80,8 @@
                     <field  name="store_id" optional="show"/>
                     <field  name="posting_date" optional="show"/>
                     <field  name="posting_time" widget="float_time" optional="show"/>
-                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" column_invisible="not is_tax_enabled"/>
-                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" column_invisible="not is_tax_enabled"/>
+                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" optional="show"/>
+                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" optional="show"/>
                     <field name="amount_total" string="Total Inclu" sum="Total Inclu" widget="monetary"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'" optional="show"/>
                 </list>

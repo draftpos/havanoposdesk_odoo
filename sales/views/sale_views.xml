@@ -9,7 +9,6 @@
                 <list string="Sales Invoices" default_order="date desc">
                     <field name="is_return" column_invisible="True"/>
                     <field name="currency_id" column_invisible="True"/>
-                    <field name="is_tax_enabled" column_invisible="True"/>
                     <field name="name"/>
                     <field name="invoice_type" string="Type" optional="show" readonly="1" decoration-danger="is_return" decoration-bf="is_return"/>
                     <field name="payment_status" optional="show"/>
@@ -19,8 +18,8 @@
                     <field name="terminal_id" optional="show"/>
                     <field name="salesperson_id"/>
                     <field name="total_cost" string="Total Cost" sum="Total Cost" optional="show" widget="monetary"/>
-                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" column_invisible="not is_tax_enabled"/>
-                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" column_invisible="not is_tax_enabled"/>
+                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" optional="show"/>
+                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" optional="show"/>
                     <field name="amount_total" string="Total Inclu" sum="Total Inclu" widget="monetary"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return"/>
                 </list>
