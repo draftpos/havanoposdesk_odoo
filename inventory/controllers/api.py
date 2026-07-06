@@ -5345,3 +5345,62 @@ class HavanoPOSDeskAPI(http.Controller):
             _logger.error('Support ticket creation failed: %s\n%s', str(e), traceback.format_exc())
             return self._make_json_response({'error': str(e)}, status=500)
 
+    @http.route('/api/method/saas_api.www.api.update_pin', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_update_pin(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        if not uid:
+            return self._make_json_response({"error": "Unauthorized"}, status=401)
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            try:
+                data = json.loads(request.httprequest.data)
+            except Exception:
+                return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+
+            pin = data.get('pin')
+            if pin is None:
+                return self._make_json_response({"error": "PIN is required"}, status=400)
+
+            # Validate pin
+            pin = str(pin).strip()
+            if not pin:
+                return self._make_json_response({"error": "PIN cannot be empty"}, status=400)
+            if not pin.isdigit() or len(pin) != 4:
+                return self._make_json_response({"error": "PIN must be a 4-digit number"}, status=400)
+
+            current_user = env['res.users'].browse(uid)
+
+            # Check uniqueness in the tenant
+            duplicate = env['res.users'].search([
+                ('tenant_id', '=', current_user.tenant_id.id),
+                ('pin', '=', pin),
+                ('id', '!=', current_user.id)
+            ], limit=1)
+            if duplicate:
+                return self._make_json_response({"error": f"The PIN code must be unique per tenant! User '{duplicate.name}' already has this PIN."}, status=400)
+
+            current_user.sudo().write({'pin': pin})
+
+            return self._make_json_response({
+                "success": True,
+                "message": "PIN updated successfully"
+            })
+
+        except Exception as e:
+            if custom_cr:
+                custom_cr.rollback()
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+

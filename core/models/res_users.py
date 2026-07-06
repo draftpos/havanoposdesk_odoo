@@ -416,4 +416,41 @@ class HavanoChangePasswordWizard(models.TransientModel):
         }
 
 
+class HavanoChangePinWizard(models.TransientModel):
+    _name = 'havano.change.pin.wizard'
+    _description = 'Change My PIN'
+
+    new_pin = fields.Char(string='New PIN', required=True)
+
+    def action_change_pin(self):
+        self.ensure_one()
+        pin = self.new_pin.strip() if self.new_pin else ''
+        if not pin:
+            raise ValidationError(_('PIN cannot be empty.'))
+        if not pin.isdigit() or len(pin) != 4:
+            raise ValidationError(_('PIN must be a 4-digit number.'))
+
+        # Check uniqueness in the tenant
+        duplicate = self.env['res.users'].search([
+            ('tenant_id', '=', self.env.user.tenant_id.id),
+            ('pin', '=', pin),
+            ('id', '!=', self.env.user.id)
+        ], limit=1)
+        if duplicate:
+            raise ValidationError(_("The PIN code must be unique per tenant! User '%s' already has this PIN.") % duplicate.name)
+
+        self.env.user.sudo().write({'pin': pin})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Success'),
+                'message': _('PIN changed successfully.'),
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+
+
 
