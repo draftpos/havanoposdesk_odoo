@@ -100,8 +100,8 @@
     <!-- Under My Business (Configs) menu — admin + super-admin -->
     <menuitem id="menu_my_business_clear_data"
               name="Clear Data"
-              parent="Havanoposdesk_odoo.menu_my_business_root"
+              parent="havanoposdesk_odoo.menu_my_business_root"
               action="action_clear_data_wizard"
-              groups="base.group_system,Havanoposdesk_odoo.group_tenant_admin"
+              groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"
               sequence="200"/>
 </odoo>

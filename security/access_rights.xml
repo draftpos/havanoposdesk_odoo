@@ -5,7 +5,7 @@
         <record id="access_res_users_tenant_admin" model="ir.model.access">
             <field name="name">res.users tenant admin</field>
             <field name="model_id" ref="base.model_res_users"/>
-            <field name="group_id" ref="Havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="True"/>
             <field name="perm_create" eval="True"/>
@@ -15,7 +15,7 @@
         <record id="access_res_config_settings_tenant_admin" model="ir.model.access">
             <field name="name">res.config.settings tenant admin</field>
             <field name="model_id" ref="base.model_res_config_settings"/>
-            <field name="group_id" ref="Havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="True"/>
             <field name="perm_create" eval="True"/>
@@ -25,7 +25,7 @@
         <record id="access_ir_actions_act_window_tenant_admin" model="ir.model.access">
             <field name="name">ir.actions.act_window tenant admin</field>
             <field name="model_id" ref="base.model_ir_actions_act_window"/>
-            <field name="group_id" ref="Havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="False"/>
             <field name="perm_create" eval="False"/>
@@ -35,7 +35,7 @@
         <record id="access_ir_actions_actions_tenant_admin" model="ir.model.access">
             <field name="name">ir.actions.actions tenant admin</field>
             <field name="model_id" ref="base.model_ir_actions_actions"/>
-            <field name="group_id" ref="Havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="False"/>
             <field name="perm_create" eval="False"/>

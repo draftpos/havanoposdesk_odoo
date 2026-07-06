@@ -32,7 +32,7 @@
         <menuitem id="menu_accounts_taxes" name="Taxes" parent="menu_accounts_master" action="action_havanoposdesk_tax" sequence="20"/>
         
         <!-- Accounts Submenus -->
-        <menuitem id="menu_accounts_list" name="Accounts" parent="menu_accounts_master" action="action_havanoposdesk_account" sequence="10" groups="Havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_accounts_list" name="Accounts" parent="menu_accounts_master" action="action_havanoposdesk_account" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
         <menuitem id="menu_payments" name="Payments" parent="menu_accounts_operations" action="action_havanoposdesk_payment" sequence="5"/>
         <menuitem id="menu_expense_posting" name="Expense Posting" parent="menu_accounts_operations" action="action_havanoposdesk_expense" sequence="10"/>
 
@@ -41,7 +41,7 @@
             <field name="name">Profit and Loss</field>
             <field name="tag">havanoposdesk_profit_and_loss</field>
         </record>
-        <menuitem id="menu_accounts_profit_and_loss" name="Profit and Loss" parent="menu_accounts_reports" action="action_havanoposdesk_profit_and_loss" sequence="10" groups="Havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_accounts_profit_and_loss" name="Profit and Loss" parent="menu_accounts_reports" action="action_havanoposdesk_profit_and_loss" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
 
         <!-- Actions -->
         <record id="action_havanoposdesk_tenant" model="ir.actions.act_window">
