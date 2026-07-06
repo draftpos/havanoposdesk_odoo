@@ -34,7 +34,7 @@ class Sale(models.Model):
     payment_status = fields.Selection([
         ('cash', 'Cash (Paid)'),
         ('account', 'On Account')
-    ], string='Payment Status', default='account', required=True)
+    ], string='Payment Status', default='cash', required=True)
     account_id = fields.Many2one('havanoposdesk.account', string='Deposit Account', domain="[('type', 'in', ['Cash', 'Bank'])]", default=_default_account_id)
     pos_payment_id = fields.Many2one('havanoposdesk.payment', string='POS Payment Batch')
     
@@ -104,7 +104,7 @@ class Sale(models.Model):
                         vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale') or 'New'
             
             # Default account_id for cash sales if not provided
-            if vals.get('payment_status') == 'cash' and not vals.get('account_id'):
+            if vals.get('payment_status', 'cash') == 'cash' and not vals.get('account_id'):
                 account = self.env['havanoposdesk.account'].search([('type', 'in', ['Cash', 'Bank'])], limit=1)
                 if account:
                     vals['account_id'] = account.id
