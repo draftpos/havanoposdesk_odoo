@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!--
+            NOTE: email_to / email_from in these templates are intentionally
+            left as placeholders. The wizard's _send_template() method always
+            overrides them via email_values at send-time, resolving addresses
+            dynamically from partner records — no hardcoding anywhere.
+        -->
+
+        <!-- 1. Verification code → the admin who triggered the wipe -->
+        <record id="mail_template_clear_data_code" model="mail.template">
+            <field name="name">Clear Data: Verification Code</field>
+            <field name="model_id" ref="havanoposdesk_odoo.model_wizard_clear_data"/>
+            <field name="subject">Your Data Deletion Verification Code</field>
+            <!-- email_to is overridden at send-time by the wizard -->
+            <field name="email_to">{{ object.create_uid.partner_id.email }}</field>
+            <field name="body_html" type="html">
+                <div style="margin: 0px; padding: 0px;">
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        Dear <t t-out="object.create_uid.name or 'Admin'"/>,<br/><br/>
+                        You have requested to clear data in the system.<br/>
+                        Deletion type: <strong><t t-out="object.clear_type"/></strong><br/>
+                        Reason provided: <strong><t t-out="object.reason"/></strong><br/><br/>
+                        Your 6-digit verification code is:<br/>
+                        <h2 style="color: #d9534f; letter-spacing: 6px;"><t t-out="object.generated_code"/></h2>
+                        <br/>
+                        <strong>Warning:</strong> This action is irreversible.
+                        If you did not request this, please secure your account immediately.<br/><br/>
+                        Thank you.
+                    </p>
+                </div>
+            </field>
+        </record>
+
+        <!-- 2. Security alert → all OTHER system admins -->
+        <record id="mail_template_clear_data_notify" model="mail.template">
+            <field name="name">Clear Data: Admin Notification</field>
+            <field name="model_id" ref="havanoposdesk_odoo.model_wizard_clear_data"/>
+            <field name="subject">SECURITY ALERT: Data Deletion Requested</field>
+            <!-- email_to is overridden at send-time by the wizard -->
+            <field name="email_to">{{ object.create_uid.partner_id.email }}</field>
+            <field name="body_html" type="html">
+                <div style="margin: 0px; padding: 0px;">
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        Dear <t t-out="ctx.get('notify_admin_name') or 'Admin'"/>,<br/><br/>
+                        This is a security alert.<br/>
+                        Administrator <strong><t t-out="object.create_uid.name"/></strong>
+                        is requesting a data deletion.<br/>
+                        Deletion Type: <strong><t t-out="object.clear_type"/></strong><br/>
+                        Reason: <strong><t t-out="object.reason"/></strong><br/><br/>
+                        A verification code has been sent to them to confirm this action.
+                        If this is unauthorised, contact them immediately.<br/><br/>
+                        Thank you.
+                    </p>
+                </div>
+            </field>
+        </record>
+
+        <!-- 3. Completion notice → ALL system admins -->
+        <record id="mail_template_clear_data_complete" model="mail.template">
+            <field name="name">Clear Data: Completion Status</field>
+            <field name="model_id" ref="havanoposdesk_odoo.model_wizard_clear_data"/>
+            <field name="subject">Data Deletion Completed</field>
+            <!-- email_to is overridden at send-time by the wizard -->
+            <field name="email_to">{{ object.create_uid.partner_id.email }}</field>
+            <field name="body_html" type="html">
+                <div style="margin: 0px; padding: 0px;">
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        Dear <t t-out="ctx.get('notify_admin_name') or 'Admin'"/>,<br/><br/>
+                        The data deletion process has been completed by
+                        <strong><t t-out="object.create_uid.name"/></strong>.<br/>
+                        Deletion Type: <strong><t t-out="object.clear_type"/></strong><br/>
+                        Reason: <strong><t t-out="object.reason"/></strong><br/><br/>
+                        The system data has been wiped accordingly.<br/><br/>
+                        <strong>Deletion Report:</strong><br/>
+                        <pre style="background-color: #f8f9fa; padding: 12px; border-radius: 4px; font-size: 12px; white-space: pre-wrap;">
+<t t-out="object.result_log"/>
+                        </pre><br/>
+                        Thank you.
+                    </p>
+                </div>
+            </field>
+        </record>
+    </data>
+</odoo>
