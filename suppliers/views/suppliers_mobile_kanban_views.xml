@@ -50,8 +50,7 @@
 
         <!-- Override existing action for Purchases -->
         <record id="action_havanoposdesk_purchase" model="ir.actions.act_window">
-            <field name="view_id" ref="view_havanoposdesk_purchase_kanban_mobile"/>
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
@@ -93,18 +92,29 @@
 
         <!-- Override existing action for Suppliers -->
         <record id="action_havanoposdesk_supplier" model="ir.actions.act_window">
-            <field name="view_mode">kanban,list,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
-
-        <record id="action_havanoposdesk_purchase_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_havanoposdesk_purchase_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_purchase_tree"/>
+            <field name="act_window_id" ref="action_havanoposdesk_purchase"/>
+        </record>
+        <record id="action_havanoposdesk_purchase_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_havanoposdesk_purchase_kanban_mobile"/>
             <field name="act_window_id" ref="action_havanoposdesk_purchase"/>
         </record>
-        <record id="action_havanoposdesk_supplier_view_kanban" model="ir.actions.act_window.view">
+        <record id="action_havanoposdesk_supplier_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_supplier_tree"/>
+            <field name="act_window_id" ref="action_havanoposdesk_supplier"/>
+        </record>
+        <record id="action_havanoposdesk_supplier_view_kanban" model="ir.actions.act_window.view">
+            <field name="sequence" eval="20"/>
             <field name="view_mode">kanban</field>
             <field name="view_id" ref="view_havanoposdesk_supplier_kanban_mobile"/>
             <field name="act_window_id" ref="action_havanoposdesk_supplier"/>
