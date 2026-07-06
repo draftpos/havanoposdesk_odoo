@@ -2,7 +2,7 @@
 <odoo>
     <data>
         <!-- My Business Root Menu (visible to tenant admins) -->
-        <menuitem id="menu_my_business_root" name="My Business" sequence="5" groups="base.group_user"/>
+        <menuitem id="menu_my_business_root" name="My Business" sequence="5" web_icon="havanoposdesk_odoo,static/description/mybusiness.png" groups="base.group_user"/>
 
         <!--
             Settings icon for Tenant Admins.
