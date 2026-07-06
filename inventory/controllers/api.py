@@ -416,14 +416,28 @@ class HavanoPOSDeskAPI(http.Controller):
             
         user = request.env['res.users'].sudo().browse(uid)
         
+        request_params = dict(request.params or {})
+        if request.httprequest.method == 'POST':
+            try:
+                body_data = json.loads(request.httprequest.data)
+                request_params.update(body_data)
+            except Exception:
+                pass
+
+        tenant = user.tenant_id
+        store = self._get_current_store(user, tenant, request_params)
+
         if request.httprequest.method == 'GET':
-            domain = []
+            if not store:
+                return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
+
+            domain = [('store_id', '=', store.id)]
             if user.havano_role != 'super_admin':
                 if not user.tenant_id:
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
                 domain.append(('tenant_id', '=', user.tenant_id.id))
             categories = request.env['havanoposdesk.category'].sudo().search(domain)
-            data = [{'id': c.id, 'name': c.name, 'tenant_id': c.tenant_id.id} for c in categories]
+            data = [{'id': c.id, 'name': c.name, 'tenant_id': c.tenant_id.id, 'store_id': c.store_id.id if c.store_id else None} for c in categories]
             return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
         
         elif request.httprequest.method == 'POST':
@@ -432,6 +446,9 @@ class HavanoPOSDeskAPI(http.Controller):
             except Exception:
                 return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
             
+            if not store:
+                return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
+
             if user.havano_role != 'super_admin' and not user.tenant_id:
                 return request.make_response(json.dumps({'error': 'User has no tenant assigned'}), headers=[('Content-Type', 'application/json')], status=400)
                 
@@ -445,8 +462,9 @@ class HavanoPOSDeskAPI(http.Controller):
             cat = request.env['havanoposdesk.category'].sudo().create({
                 'name': data.get('name'),
                 'tenant_id': tenant_id,
+                'store_id': store.id,
             })
-            return request.make_response(json.dumps({'id': cat.id, 'name': cat.name, 'tenant_id': cat.tenant_id.id}), headers=[('Content-Type', 'application/json')], status=201)
+            return request.make_response(json.dumps({'id': cat.id, 'name': cat.name, 'tenant_id': cat.tenant_id.id, 'store_id': cat.store_id.id if cat.store_id else None}), headers=[('Content-Type', 'application/json')], status=201)
 
     # UOMS
     @http.route('/api/uoms/', auth='public', methods=['GET', 'POST'], type='http', csrf=False, cors='*')
@@ -2300,7 +2318,17 @@ class HavanoPOSDeskAPI(http.Controller):
 
         env, custom_cr = self._get_env(user_id=uid)
         try:
-            categories = env['havanoposdesk.category'].search([])
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            store = self._get_current_store(user, tenant, request.params)
+            if not store:
+                return self._make_json_response({"data": []})
+
+            domain = [('store_id', '=', store.id)]
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+
+            categories = env['havanoposdesk.category'].search(domain)
             result = []
             for c in categories:
                 if c.name in ('Basics', 'All Item Groups'):
