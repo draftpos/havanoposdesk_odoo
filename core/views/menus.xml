@@ -51,7 +51,10 @@
         </record>
 
         <!-- SaaS Configuration App (Restricted to Settings Administrator) -->
-        <menuitem id="menu_saas_root" name="SaaS Config" sequence="5" web_icon="havanoposdesk_odoo,static/description/icon.png" groups="base.group_system"/>
+        <menuitem id="menu_saas_root" name="SaaS Config" sequence="5" web_icon="havanoposdesk_odoo,static/description/saas_config.png" groups="base.group_system"/>
+
+        <!-- Override Odoo Apps Menu Icon -->
+        <menuitem id="base.menu_management" web_icon="havanoposdesk_odoo,static/description/apps.png"/>
 
         <!-- SaaS Admin Navigation -->
         <menuitem id="menu_saas_users" name="Users" parent="menu_saas_root" action="action_saas_users" sequence="10"/>
