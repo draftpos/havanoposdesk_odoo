@@ -110,13 +110,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 default_customer = user_env['havanoposdesk.customer'].sudo().search(default_cust_domain, limit=1)
                 if not default_customer:
                     default_customer = user_env['havanoposdesk.customer'].sudo().search([('store_id', '=', store.id)], limit=1)
-                if not default_customer:
-                    default_customer = user_env['havanoposdesk.customer'].sudo().create({
-                        'name': 'Havano Default',
-                        'customer_type': 'individual',
-                        'store_id': store.id,
-                    })
-                default_customer_name = default_customer.name
+                if default_customer:
+                    default_customer_name = default_customer.name
                 customers_records = user_env['havanoposdesk.customer'].sudo().search([('store_id', '=', store.id)])
             customers_data = []
             for c in customers_records:
