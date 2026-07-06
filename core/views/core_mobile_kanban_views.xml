@@ -207,7 +207,7 @@
         <record id="view_saas_users_form_mobile_inherit" model="ir.ui.view">
             <field name="name">saas.users.form.mobile.inherit</field>
             <field name="model">res.users</field>
-            <field name="inherit_id" ref="havanoposdesk_odoo.view_saas_users_form"/>
+            <field name="inherit_id" ref="Havanoposdesk_odoo.view_saas_users_form"/>
             <field name="arch" type="xml">
                 <xpath expr="//form" position="attributes">
                     <attribute name="class" add="havano_saas_user_form" separator=" "/>
