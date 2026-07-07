@@ -83,12 +83,17 @@
             <field name="arch" type="xml">
                 <search string="Search Stock Adjustments">
                     <field name="name"/>
+                    <field name="store_id"/>
                     <field name="create_uid"/>
                     <field name="posting_date"/>
                     <filter string="Created On" name="filter_created_on" date="create_date"/>
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
-                    <filter string="Created Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <group expand="0" string="Group By">
+                    <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
+                    <separator/>
+                    <filter string="Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('posting_date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <group>
+                        <filter string="Store" name="group_by_store" context="{'group_by': 'store_id'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
                         <filter string="Today" name="group_today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'posting_date:day'}"/>
@@ -120,3 +125,5 @@
                   sequence="10"/>
     </data>
 </odoo>
+
+

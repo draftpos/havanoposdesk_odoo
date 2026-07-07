@@ -454,7 +454,7 @@ class SaleLine(models.Model):
 
     @api.onchange('accepted_qty', 'product_id')
     def _onchange_qty(self):
-        allow_negative = self.env['ir.config_parameter'].sudo().get_param('havanoposdesk.allow_negative_stock', 'True') == 'True'
+        allow_negative = self.env.user.tenant_id.allow_negative_stock
         if not allow_negative and self.product_id and self.accepted_qty > self.product_id.opening_stock:
             return {
                 'warning': {
@@ -465,7 +465,7 @@ class SaleLine(models.Model):
 
     @api.constrains('accepted_qty')
     def _check_stock(self):
-        allow_negative = self.env['ir.config_parameter'].sudo().get_param('havanoposdesk.allow_negative_stock', 'True') == 'True'
+        allow_negative = self.env.user.tenant_id.allow_negative_stock
         for line in self:
             if line.accepted_qty < 0:
                 continue

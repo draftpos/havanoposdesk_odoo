@@ -8,7 +8,7 @@ class TerminalSalesReport(models.Model):
     terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string='POS Terminal', readonly=True)
     salesperson_id = fields.Many2one('res.users', string='Cashier', readonly=True)
     qty = fields.Float(string='Qty Sold', readonly=True)
-    cost_price = fields.Float(string='Buying Price', readonly=True)
+    cost_price = fields.Float(string='Cost Price', readonly=True)
     selling_price = fields.Float(string='Selling Price', readonly=True)
     total_sales = fields.Float(string='Total Sales', readonly=True)
     profit = fields.Float(string='Profit', readonly=True)
@@ -16,6 +16,9 @@ class TerminalSalesReport(models.Model):
     date = fields.Date(string='Date', readonly=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', readonly=True)
+    currency_id = fields.Many2one(related='store_id.currency_id', string='Currency', store=False)
+    create_uid = fields.Many2one('res.users', string='Created By', readonly=True)
+    create_date = fields.Datetime(string='Created On', readonly=True)
 
     def init(self):
         tools.drop_view_if_exists(self.env.cr, self._table)
@@ -44,6 +47,8 @@ class TerminalSalesReport(models.Model):
                         ELSE 0 
                     END as profit_margin,
                     s.posting_date as date,
+                    s.create_uid as create_uid,
+                    s.create_date as create_date,
                     l.tenant_id,
                     s.store_id
                 FROM
@@ -55,6 +60,6 @@ class TerminalSalesReport(models.Model):
                 WHERE
                     s.state IN ('confirmed', 'done')
                 GROUP BY
-                    s.terminal_id, s.salesperson_id, s.posting_date, l.tenant_id, s.store_id
+                    s.terminal_id, s.salesperson_id, s.posting_date, s.create_uid, s.create_date, l.tenant_id, s.store_id
             )
         """ % (self._table,))

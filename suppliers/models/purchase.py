@@ -6,9 +6,7 @@ class Purchase(models.Model):
     _description = 'Purchase'
 
     def _default_posting_time(self):
-        now_utc = fields.Datetime.now()
-        now_local = fields.Datetime.context_timestamp(self, now_utc)
-        return now_local.hour + now_local.minute / 60.0
+        return 0.0
 
     def _default_store_id(self):
         return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
@@ -50,8 +48,7 @@ class Purchase(models.Model):
     supplier = fields.Many2one('havanoposdesk.supplier', string='Supplier', required=True, default=_default_supplier_id)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
-    posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
-    posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
+    posting_date = fields.Datetime(string='Posting Date', default=fields.Datetime.now)
     
     amount_untaxed = fields.Float(string='Untaxed Amount', compute='_compute_amount_total', store=True)
     amount_tax = fields.Float(string='Taxes', compute='_compute_amount_total', store=True)

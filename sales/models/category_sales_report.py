@@ -15,6 +15,8 @@ class CategorySalesReport(models.Model):
     date = fields.Date(string='Date', readonly=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', readonly=True)
+    create_uid = fields.Many2one('res.users', string='Created By', readonly=True)
+    create_date = fields.Datetime(string='Created On', readonly=True)
 
     def init(self):
         tools.drop_view_if_exists(self.env.cr, self._table)
@@ -42,6 +44,8 @@ class CategorySalesReport(models.Model):
                         ELSE 0 
                     END as profit_margin,
                     s.posting_date as date,
+                    s.create_uid as create_uid,
+                    s.create_date as create_date,
                     l.tenant_id,
                     s.store_id
                 FROM
@@ -53,7 +57,7 @@ class CategorySalesReport(models.Model):
                 WHERE
                     s.state IN ('confirmed', 'done')
                 GROUP BY
-                    p.category_id, s.posting_date, l.tenant_id, s.store_id
+                    p.category_id, s.posting_date, s.create_uid, s.create_date, l.tenant_id, s.store_id
             )
         """ % (self._table,))
 

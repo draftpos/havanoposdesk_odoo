@@ -21,6 +21,7 @@ class ClearDataWizard(models.TransientModel):
         ('transactions', 'Clear Transactions Only'),
         ('all_data',     'Clear Transactions & Master Data'),
     ], string='Deletion Type', required=True, default='transactions')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store', help="If set, only clear data for this store.", default=lambda self: self.env.context.get('active_id') if self.env.context.get('active_model') == 'havanoposdesk.store' else False)
 
     reason       = fields.Text(string='Reason for Deletion')
     confirm_loss = fields.Boolean(
@@ -209,6 +210,19 @@ class ClearDataWizard(models.TransientModel):
                 return  # not installed here — skip without logging noise
 
             domain = list(base_domain)
+            if self.store_id:
+                model_fields = self.env[model_name]._fields
+                if 'store_id' in model_fields:
+                    domain.append(('store_id', '=', self.store_id.id))
+                elif 'store' in model_fields:
+                    domain.append(('store', '=', self.store_id.name))
+                elif 'sale_id' in model_fields:
+                    domain.append(('sale_id.store_id', '=', self.store_id.id))
+                elif 'purchase_id' in model_fields:
+                    domain.append(('purchase_id.store_id', '=', self.store_id.id))
+                elif 'adjustment_id' in model_fields:
+                    domain.append(('adjustment_id.store_id', '=', self.store_id.id))
+
             if extra_domain:
                 domain += extra_domain
 

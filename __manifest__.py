@@ -82,6 +82,7 @@
         'web.assets_backend': [
             'Havanoposdesk_odoo/static/src/js/user_menu_hide.js',
             'Havanoposdesk_odoo/static/src/js/whitelabel.js',
+            'Havanoposdesk_odoo/static/src/scss/custom_theme.scss',
             'Havanoposdesk_odoo/static/src/scss/form_fields.scss',
             'Havanoposdesk_odoo/static/src/scss/profit_and_loss.scss',
             'Havanoposdesk_odoo/static/src/js/profit_and_loss.js',

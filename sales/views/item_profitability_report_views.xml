@@ -8,13 +8,14 @@
             <field name="arch" type="xml">
                 <list string="Item Profitability" create="false" edit="false" delete="false">
                     <field name="date" optional="show"/>
-                    <field name="item_code" optional="show"/>
-                    <field name="name" optional="show"/>
+                    <field name="item_code" optional="hide"/>
+                    <field name="name" string="Item Name" optional="show"/>
                     <field name="category_id" optional="show"/>
                     <field name="store_id" optional="show"/>
-                    <field name="qty" sum="Total Qty" optional="show"/>
-                    <field name="cost_price" widget="monetary" optional="show"/>
-                    <field name="selling_price" widget="monetary" optional="show"/>
+                    <field name="qty" string="Qty Sold" optional="show"/>
+                    <field name="cost_price" string="Buy Price" widget="monetary" optional="hide"/>
+                    <field name="selling_price" string="Sell Price" widget="monetary" optional="hide"/>
+                    <field name="total_buy_price" string="Total Buy Price" widget="monetary" optional="hide"/>
                     <field name="total_sales" sum="Total Sales" widget="monetary" optional="show"/>
                     <field name="profit" sum="Total Profit" widget="monetary" decoration-danger="profit &lt; 0" decoration-success="profit &gt; 0" optional="show"/>
                     <field name="profit_margin" widget="percentage" decoration-danger="profit_margin &lt; 0" decoration-success="profit_margin &gt; 0" optional="show"/>
@@ -47,13 +48,24 @@
                     <field name="item_code"/>
                     <field name="category_id"/>
                     <field name="store_id"/>
+                    <field name="create_uid"/>
+                    <field name="create_date"/>
                     <separator/>
-                    <filter string="Today" name="today" domain="[('date', '=', 'today')]"/>
-                    <filter string="This Month" name="this_month" date="date" default_period="month"/>
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Item Code" name="filter_item_code" domain="[('item_code', '!=', False)]"/>
+                    <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
+                    <filter string="Created On" name="filter_created_on" date="create_date"/>
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
                     <group>
+                        <filter string="Item Code" name="group_by_item_code" context="{'group_by':'item_code'}"/>
                         <filter string="Category" name="group_by_category" context="{'group_by':'category_id'}"/>
                         <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
                         <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by':'create_date:day'}"/>
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by':'create_uid'}"/>
+                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}"/>
+                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}"/>
                     </group>
                 </search>
             </field>

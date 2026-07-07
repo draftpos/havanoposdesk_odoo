@@ -56,7 +56,6 @@
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
                     <field name="name"/>
-                    <field name="code"/>
                     <field name="type"/>
                     <templates>
                         <t t-name="card">
@@ -67,7 +66,6 @@
                                     </div>
                                 </div>
                                 <div class="havano-card-date">
-                                    <field name="code"/>
                                 </div>
                                 <div class="havano-card-totals mt-2">
                                     <div>Type : <field name="type"/></div>

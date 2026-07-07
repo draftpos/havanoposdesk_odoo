@@ -26,6 +26,12 @@
             <field name="model">havanoposdesk.store</field>
             <field name="arch" type="xml">
                 <form string="Store">
+                    <header>
+                        <button name="%(Havanoposdesk_odoo.action_clear_data_wizard)d" 
+                                string="Clear Data" 
+                                type="action" 
+                                class="btn-danger"/>
+                    </header>
                     <sheet>
                         <group>
                             <group>

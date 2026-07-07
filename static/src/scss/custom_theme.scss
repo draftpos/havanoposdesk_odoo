@@ -1,0 +1,64 @@
+.o_main_navbar {
+    background-color: #0E4D90 !important;
+    border-bottom: none !important;
+}
+
+/* Desktop Floating Pill Design */
+@media (min-width: 769px) {
+    .o_main_navbar {
+        margin: 10px 15px !important;
+        border-radius: 50px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15) !important;
+        width: calc(100% - 30px) !important;
+        height: 50px !important;
+    }
+    
+    .o_action_manager {
+        margin-top: 10px !important;
+    }
+}
+
+/* Floating Pill Menu Item Adjustments */
+.o_main_navbar .o_menu_sections > a, 
+.o_main_navbar .o_menu_sections > button {
+    border-radius: 20px;
+    margin: 0 4px;
+    padding: 0 15px !important;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.o_main_navbar .o_menu_sections > a:hover, 
+.o_main_navbar .o_menu_sections > button:hover {
+    background-color: rgba(255,255,255,0.1) !important;
+    transform: translateY(-1px);
+}
+
+/* Custom Icons via CSS Pseudo Elements */
+.o_main_navbar .o_menu_sections .dropdown-toggle::before,
+.o_main_navbar .o_menu_sections > a::before {
+    font-family: 'FontAwesome';
+    margin-right: 6px;
+    font-weight: normal;
+}
+
+/* Specific Icons based on menu text or XML ID */
+/* Assuming Master is cog, Operations is list, Reports is chart-pie */
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="master"]::before {
+    content: "\f013"; /* gear */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="operations"]::before {
+    content: "\f0ae"; /* tasks/list */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="reports"]::before {
+    content: "\f200"; /* pie chart */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="taxes"]::before {
+    content: "\f153"; /* dollar sign */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="list"]::before {
+    content: "\f03a"; /* list */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="profit_and_loss"]::before {
+    content: "\f080"; /* bar chart */
+}

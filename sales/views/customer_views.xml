@@ -25,7 +25,8 @@
                                 <field name="country_id" options="{'no_create': True}" class="border-bottom border-dark"/>
                             </group>
                             <group>
-                                <field name="balance" readonly="1" class="border-bottom border-dark"/>
+                                <field name="currency_id" invisible="1"/>
+                                <field name="balance" readonly="1" class="border-bottom border-dark" widget="monetary"/>
                             </group>
                         </group>
                     </sheet>
@@ -39,13 +40,14 @@
             <field name="model">havanoposdesk.customer</field>
             <field name="arch" type="xml">
                 <list  string="Customers">
+                    <field name="currency_id" column_invisible="True"/>
                     <field  name="name" optional="show"/>
                     <field  name="store_id" optional="show"/>
                     <field  name="phone" optional="show"/>
                     <field  name="address" optional="show"/>
                     <field  name="city" optional="show"/>
                     <field  name="country_id" optional="show"/>
-                    <field  name="balance" optional="show"/>
+                    <field  name="balance" optional="show" widget="monetary"/>
                     <field  name="tin" optional="show"/>
                     <field  name="vat" optional="show"/>
                 </list>

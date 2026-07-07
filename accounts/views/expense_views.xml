@@ -68,13 +68,28 @@
                 <search string="Expense Posting">
                     <field name="name"/>
                     <field name="account_id"/>
+                    <field name="store_id"/>
+                    <field name="create_uid"/>
                     <field name="date"/>
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
                     <filter string="Draft" name="draft" domain="[('state','=','Draft')]"/>
                     <filter string="Posted" name="posted" domain="[('state','=','Posted')]"/>
+                    <filter string="Account" name="filter_account" domain="[('account_id', '!=', False)]"/>
+                    <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
+                    <filter string="Created On" name="filter_created_on" date="date"/>
                     <separator/>
-                    <filter string="Account" name="group_by_account" context="{'group_by':'account_id'}"/>
-                    <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
-                    <filter string="Status" name="group_by_state" context="{'group_by':'state'}"/>
+                    <group>
+                        <filter string="Account" name="group_by_account" context="{'group_by':'account_id'}"/>
+                        <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
+                        <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
+                        <filter string="Status" name="group_by_state" context="{'group_by':'state'}"/>
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by':'create_uid'}"/>
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by':'date:day'}"/>
+                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}"/>
+                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}"/>
+                    </group>
                 </search>
             </field>
         </record>
@@ -84,7 +99,7 @@
             <field name="name">Expense Posting</field>
             <field name="res_model">havanoposdesk.expense</field>
             <field name="view_mode">list,form</field>
-            <field name="context">{'search_default_group_by_account': 1}</field>
+            <field name="context">{'search_default_today': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Create a new Expense Posting

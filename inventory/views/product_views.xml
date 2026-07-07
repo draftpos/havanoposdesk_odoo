@@ -7,12 +7,13 @@
             <field name="model">havanoposdesk.product</field>
             <field name="arch" type="xml">
                 <list string="Products">
+                    <field name="currency_id" column_invisible="True"/>
                     <field name="item_code" string="Product Code"/>
                     <field name="name"/>
-                    <field name="category_id"/>
+                    <field name="category_id" string="Category"/>
                     <field name="uom_id" optional="hide"/>
-                    <field name="buying_price" optional="hide"/>
-                    <field name="selling_price"/>
+                    <field name="buying_price" optional="hide" widget="monetary"/>
+                    <field name="selling_price" string="Sell price" widget="monetary"/>
                     <field name="track_qty"/>
                     <field name="opening_stock" string="QTY"/>
                     <field name="store_id" optional="show"/>
@@ -129,8 +130,15 @@
                     <separator/>
                     <filter string="In Stock" name="in_stock" domain="[('opening_stock', '&gt;', 0)]"/>
                     <filter string="Out of Stock" name="out_of_stock" domain="[('opening_stock', '&lt;=', 0)]"/>
-                    <filter string="Created Today" name="created_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <group expand="0" string="Group By">
+                    <filter string="Today" name="created_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('create_date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
+                    <filter string="Created On" name="filter_created_on" date="create_date"/>
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
+                    <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
+                    <filter string="Track QTY" name="filter_track_qty" domain="[('track_qty', '=', True)]"/>
+                    <filter string="Product Name" name="filter_name" domain="[('name', '!=', False)]"/>
+                    <group>
                         <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
@@ -156,3 +164,5 @@
         <menuitem id="menu_product_inventory" name="Products" parent="menu_inventory_master" action="action_havanoposdesk_product" sequence="10"/>
     </data>
 </odoo>
+
+

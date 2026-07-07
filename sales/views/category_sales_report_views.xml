@@ -42,12 +42,23 @@
                 <search string="Search Category Profitability">
                     <field name="category_id"/>
                     <field name="store_id"/>
+                    <field name="create_uid"/>
+                    <field name="create_date"/>
                     <separator/>
-                    <filter string="Today" name="today" domain="[('date', '=', 'today')]"/>
-                    <filter string="This Month" name="this_month" date="date" default_period="month"/>
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
+                    <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
+                    <filter string="Created On" name="filter_created_on" date="create_date"/>
                     <group>
+                        <filter string="Category" name="group_by_category" context="{'group_by':'category_id'}"/>
                         <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
                         <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by':'create_uid'}"/>
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by':'create_date:day'}"/>
+                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}"/>
+                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}"/>
                     </group>
                 </search>
             </field>

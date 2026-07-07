@@ -158,7 +158,7 @@
                 (0, 0, {'view_mode': 'list', 'view_id': ref('view_my_cashiers_tree')}),
                 (0, 0, {'view_mode': 'form', 'view_id': ref('view_my_cashiers_form')})]"/>
         </record>
-        <menuitem id="menu_my_cashiers" name="Cashiers" parent="menu_my_business_root" action="action_my_cashiers" sequence="30"/>
+        <menuitem id="menu_my_cashiers" name="Users" parent="menu_my_business_root" action="action_my_cashiers" sequence="30"/>
 
         <!-- User Rights Profiles Submenu -->
         <menuitem id="menu_my_user_rights_profiles" name="User Rights Profiles" parent="menu_my_business_root" action="action_user_rights_profiles" sequence="35"/>
@@ -203,7 +203,8 @@ else:
         
         <menuitem id="menu_my_business_settings_parent" name="Currencies" parent="menu_my_business_root" sequence="100"/>
         
-        <menuitem id="menu_my_business_currency" name="Currencies" parent="menu_my_business_settings_parent" action="base.action_currency_form" sequence="20"/>
+        <!-- Currency Management (Moved to Accounts Master) -->
+        <menuitem id="menu_my_business_currency" name="Currencies" parent="menu_accounts_master" action="base.action_currency_form" sequence="20"/>
 
         <!-- Custom Exchange Rate List View -->
         <record id="view_havanoposdesk_currency_rate_tree" model="ir.ui.view">
@@ -232,6 +233,7 @@ else:
                 </p>
             </field>
         </record>
-        <menuitem id="menu_my_business_exchange_rate" name="Exchange Rates" parent="menu_my_business_settings_parent" action="action_havanoposdesk_exchange_rates" sequence="30"/>
+        <!-- Exchange Rate Menu (Moved to Accounts Master) -->
+        <menuitem id="menu_my_business_exchange_rate" name="Exchange Rates" parent="menu_accounts_master" action="action_havanoposdesk_exchange_rates" sequence="30"/>
     </data>
 </odoo>

@@ -15,9 +15,9 @@
                         <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
                     </header>
                     <sheet>
-                        <div class="oe_title">
+                        <div class="oe_title" invisible="not id">
                             <h1>
-                                <field name="name"/>
+                                <field name="name" readonly="1"/>
                             </h1>
                             <h2>
                                 <span invisible="not is_return" class="text-danger">Debit Note</span>
@@ -35,7 +35,6 @@
                             </group>
                             <group>
                                 <field name="posting_date" readonly="state != 'draft'" class="border-bottom border-dark"/>
-                                <field name="posting_time" widget="float_time" readonly="state != 'draft'" class="border-bottom border-dark"/>
                                 <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}"/>
                                 <field name="account_id" invisible="payment_status != 'cash'" required="payment_status == 'cash'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark"/>
                             </group>
@@ -45,10 +44,10 @@
                                 <field name="line_ids" readonly="state != 'draft'">
                                     <list  editable="bottom">
                                         <field name="currency_id" column_invisible="True"/>
-                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" optional="show"/>
                                         <field name="item_code" width="10%" optional="show"/>
+                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" optional="show"/>
                                         <field name="accepted_qty" width="15%" sum="Total Qty" optional="show"/>
-                                        <field name="rate" width="15%" optional="show" widget="monetary"/>
+                                        <field name="rate" string="Cost Price" width="15%" optional="show" widget="monetary"/>
                                         <field name="tax_ids" widget="many2many_tags" width="15%" optional="show" column_invisible="parent.is_tax_enabled == False"/>
                                         <field name="price_tax" string="Tax Amount" width="10%" sum="Total Tax" optional="show" widget="monetary" column_invisible="parent.is_tax_enabled == False"/>
                                         <field name="amount" width="10%" sum="Total Amount" optional="show" widget="monetary"/>
@@ -73,16 +72,12 @@
             <field name="arch" type="xml">
                 <list  string="Purchases">
                     <field name="currency_id" column_invisible="True"/>
-                    <field  name="name" optional="show"/>
-                    <field  name="invoice_type" optional="show" readonly="1" string="Type"/>
-                    <field  name="payment_status" optional="show"/>
-                    <field  name="supplier" optional="show"/>
-                    <field  name="store_id" optional="show"/>
-                    <field  name="posting_date" optional="show"/>
-                    <field  name="posting_time" widget="float_time" optional="show"/>
-                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" optional="show"/>
-                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" optional="show"/>
-                    <field name="amount_total" string="Total Inclu" sum="Total Inclu" widget="monetary"/>
+                    <field name="posting_date" string="Datetime" optional="show"/>
+                    <field name="name" string="Reference" optional="show"/>
+                    <field name="supplier" optional="show"/>
+                    <field name="store_id" optional="show"/>
+                    <field name="payment_status" optional="show"/>
+                    <field name="amount_total" string="Total Incl" sum="Total Incl" widget="monetary"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'" optional="show"/>
                 </list>
             </field>
@@ -98,8 +93,12 @@
                     <field name="supplier"/>
                     <field name="create_uid"/>
                     <field name="posting_date"/>
-                    <filter string="Created Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <group expand="0" string="Group By">
+                    <filter string="Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('posting_date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Supplier" name="filter_supplier" domain="[('supplier', '!=', False)]"/>
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
+                    <filter string="Created On" name="filter_created_on" date="posting_date"/>
+                    <group>
                         <filter string="Supplier" name="group_by_supplier" context="{'group_by': 'supplier'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'posting_date:day'}"/>
@@ -132,3 +131,5 @@
                   sequence="10"/>
     </data>
 </odoo>
+
+

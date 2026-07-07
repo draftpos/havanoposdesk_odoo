@@ -26,10 +26,10 @@ class ResConfigSettings(models.TransientModel):
         return super().execute()
 
 
-    havano_allow_negative_stock = fields.Boolean(
+    biz_allow_negative_stock = fields.Boolean(
         string="Allow Negative Stock",
-        config_parameter="havanoposdesk.allow_negative_stock",
-        default=True,
+        related='tenant_id.allow_negative_stock',
+        readonly=False,
         help="If enabled, you can sell items even if their stock quantity goes below zero. Purchasing items will compensate for the negative balance."
     )
 

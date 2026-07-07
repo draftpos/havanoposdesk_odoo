@@ -10,9 +10,10 @@
                     <field name="date" optional="show"/>
                     <field name="salesperson_id" optional="show"/>
                     <field name="store_id" optional="show"/>
-                    <field name="qty" sum="Total Qty" optional="show"/>
-                    <field name="cost_price" widget="monetary" optional="show"/>
-                    <field name="selling_price" widget="monetary" optional="show"/>
+                    <field name="qty" string="Qty Sold" optional="show"/>
+                    <field name="cost_price" string="Buy Price" widget="monetary" optional="hide"/>
+                    <field name="selling_price" string="Sell Price" widget="monetary" optional="hide"/>
+                    <field name="total_buy_price" string="Total Buy Price" widget="monetary" optional="hide"/>
                     <field name="total_sales" sum="Total Sales" widget="monetary" optional="show"/>
                     <field name="profit" sum="Total Profit" widget="monetary" decoration-danger="profit &lt; 0" decoration-success="profit &gt; 0" optional="show"/>
                     <field name="profit_margin" widget="percentage" decoration-danger="profit_margin &lt; 0" decoration-success="profit_margin &gt; 0" optional="show"/>
@@ -42,13 +43,23 @@
                 <search string="Search Cashier Profitability">
                     <field name="salesperson_id"/>
                     <field name="store_id"/>
+                    <field name="create_uid"/>
+                    <field name="create_date"/>
                     <separator/>
-                    <filter string="Today" name="today" domain="[('date', '=', 'today')]"/>
-                    <filter string="This Month" name="this_month" date="date" default_period="month"/>
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Cashier" name="filter_cashier" domain="[('salesperson_id', '!=', False)]"/>
+                    <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
+                    <filter string="Created On" name="filter_created_on" date="create_date"/>
                     <group>
                         <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
                         <filter string="Cashier" name="group_by_cashier" context="{'group_by':'salesperson_id'}"/>
                         <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by':'create_uid'}"/>
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by':'create_date:day'}"/>
+                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}"/>
+                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}"/>
                     </group>
                 </search>
             </field>
@@ -60,7 +71,7 @@
             <field name="res_model">havanoposdesk.cashier.sales.report</field>
             <field name="view_mode">list,pivot</field>
             <field name="search_view_id" ref="view_cashier_sales_report_search"/>
-            <field name="context">{'search_default_group_by_cashier': 1, 'search_default_today': 1}</field>
+            <field name="context">{'search_default_today': 1}</field>
         </record>
 
         <!-- Menu Item -->

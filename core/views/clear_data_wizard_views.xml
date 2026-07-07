@@ -89,19 +89,5 @@
         <field name="target">new</field>
     </record>
 
-    <!-- Under Odoo Technical > Settings (super-admin only) -->
-    <menuitem id="menu_clear_data"
-              name="Clear Data"
-              parent="base.menu_administration"
-              action="action_clear_data_wizard"
-              groups="base.group_system"
-              sequence="100"/>
-
-    <!-- Under My Business (Configs) menu — admin + super-admin -->
-    <menuitem id="menu_my_business_clear_data"
-              name="Clear Data"
-              parent="Havanoposdesk_odoo.menu_my_business_root"
-              action="action_clear_data_wizard"
-              groups="base.group_system,Havanoposdesk_odoo.group_tenant_admin"
-              sequence="200"/>
+    <!-- Removed global menus for clear data -->
 </odoo>
