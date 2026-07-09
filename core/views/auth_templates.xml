@@ -413,9 +413,26 @@
                             btn.style.pointerEvents = 'none';
                             btn.style.opacity = '0.9';
                             
-                            // Load JSON data directly via Data URI to avoid 404s and async initialization issues
-                            const loaderDataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(loaderJson));
-                            textSpan.innerHTML = '<lottie-player src="' + loaderDataUri + '" background="transparent" speed="1" style="width: 25px; height: 25px; margin-right: 8px; display: inline-block; vertical-align: middle;" loop="true" autoplay="true"></lottie-player>' + originalText;
+                            // Use proper DOM manipulation to handle Web Component async initialization gracefully
+                            textSpan.innerHTML = '';
+                            const player = document.createElement('lottie-player');
+                            player.style.width = '25px';
+                            player.style.height = '25px';
+                            player.style.marginRight = '8px';
+                            player.style.display = 'inline-block';
+                            player.style.verticalAlign = 'middle';
+                            player.setAttribute('background', 'transparent');
+                            player.setAttribute('speed', '1');
+                            player.setAttribute('loop', 'true');
+                            player.setAttribute('autoplay', 'true');
+                            
+                            textSpan.appendChild(player);
+                            textSpan.appendChild(document.createTextNode(originalText));
+                            
+                            // Wait for the custom element to be upgraded by the browser, then load JSON directly
+                            customElements.whenDefined('lottie-player').then(() => {
+                                player.load(loaderJson);
+                            });
                             
                             // Form will submit normally after this
                             return true;
