@@ -44,20 +44,16 @@
     }
 }
 
-/* Floating Pill Menu Item Adjustments */
+/* Standard Menu Item Adjustments (No Pill Badges) */
 .o_main_navbar .o_menu_sections > a, 
 .o_main_navbar .o_menu_sections > button,
 .o_main_navbar .o_menu_sections > .dropdown > a {
-    border-radius: 50px !important;
-    margin: 4px 4px !important; /* Equal top and bottom margin */
-    padding: 0 12px !important;
-    height: 28px !important; /* Thinner height */
     display: flex !important;
     align-items: center !important;
     line-height: normal !important;
     transition: all 0.2s ease;
     font-weight: 500;
-    background-color: #125A9E !important; /* Lighter Blue */
+    background-color: transparent !important;
     color: white !important;
 }
 
@@ -65,7 +61,7 @@
 .o_main_navbar .o_menu_sections > button.active,
 .o_main_navbar .o_menu_sections > .dropdown > a.active,
 .o_main_navbar .o_menu_sections .active > a {
-    background-color: #0A3A6E !important; /* Darker Blue for active */
+    background-color: rgba(255,255,255,0.15) !important;
 }
 
 /* Fix right side systray border-radius and spacing */
