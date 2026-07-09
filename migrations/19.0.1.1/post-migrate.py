@@ -36,3 +36,4 @@ def migrate(cr, version):
             group_cmds.append((3, tenant_admin_group.id, 0))
         if group_cmds:
             user.sudo().write({'group_ids': group_cmds})
+

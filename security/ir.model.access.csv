@@ -47,3 +47,4 @@ access_havanoposdesk_user_rights_permission,havanoposdesk.user.rights.permission
 access_havanoposdesk_dashboard,havanoposdesk.dashboard,model_havanoposdesk_dashboard,base.group_user,1,1,1,1
 access_havano_change_pin_wizard,havano.change.pin.wizard,model_havano_change_pin_wizard,base.group_user,1,1,1,1
 access_havano_change_password_wizard,havano.change.password.wizard,model_havano_change_password_wizard,base.group_user,1,1,1,1
+

@@ -25,7 +25,7 @@
             no migration needed.
         -->
         <record id="base.menu_administration" model="ir.ui.menu">
-            <field name="group_ids" eval="[(6, 0, [ref('base.group_system'), ref('base.group_erp_manager'), ref('Havanoposdesk_odoo.group_tenant_admin')])]"/>
+            <field name="group_ids" eval="[(6, 0, [ref('base.group_system'), ref('base.group_erp_manager'), ref('havanoposdesk_odoo.group_tenant_admin')])]"/>
         </record>
 
         <!-- Hide "General Settings" tab inside Settings: system admin only -->
@@ -53,3 +53,4 @@
         </record>
     </data>
 </odoo>
+

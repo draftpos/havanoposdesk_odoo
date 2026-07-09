@@ -35,7 +35,7 @@
             <field name="name">Profit and Loss</field>
             <field name="tag">havanoposdesk_profit_and_loss</field>
         </record>
-        <menuitem id="menu_accounts_profit_and_loss" name="Profit and Loss" parent="menu_accounts_reports" action="action_havanoposdesk_profit_and_loss" sequence="10" groups="Havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_accounts_profit_and_loss" name="Profit and Loss" parent="menu_accounts_reports" action="action_havanoposdesk_profit_and_loss" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
 
         <!-- Actions -->
         <record id="action_havanoposdesk_tenant" model="ir.actions.act_window">
@@ -80,3 +80,4 @@
         </function>
     </data>
 </odoo>
+

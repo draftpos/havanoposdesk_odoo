@@ -112,3 +112,4 @@ class HavanoWebManifest(WebManifest):
             ]
         )
         return response
+
