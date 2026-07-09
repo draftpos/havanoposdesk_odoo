@@ -40,8 +40,8 @@
                             </group>
                         </group>
                         <notebook>
-                            <page string="Items">
-                                <field name="line_ids" readonly="state != 'draft'">
+                            <page string="Order Lines">
+                                <field name="line_ids" readonly="state != 'draft'" widget="section_and_note_one2many" mode="list,kanban">
                                     <list  editable="bottom">
                                         <field name="currency_id" column_invisible="True"/>
                                         <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="45%" string="Item"/>
