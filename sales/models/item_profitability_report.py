@@ -53,8 +53,8 @@ class ItemProfitabilityReport(models.Model):
                         ELSE 0 
                     END as profit_margin,
                     s.posting_date as date,
-                    s.create_uid as create_uid,
-                    s.create_date as create_date,
+                    MIN(s.create_uid) as create_uid,
+                    MIN(s.create_date) as create_date,
                     l.tenant_id,
                     s.store_id
                 FROM
@@ -66,7 +66,7 @@ class ItemProfitabilityReport(models.Model):
                 WHERE
                     s.state IN ('confirmed', 'done')
                 GROUP BY
-                    l.product_id, p.category_id, p.item_code, p.name, s.posting_date, s.create_uid, s.create_date, l.tenant_id, s.store_id
+                    l.product_id, p.category_id, p.item_code, p.name, s.posting_date, l.tenant_id, s.store_id
             )
         """ % (self._table,))
 
