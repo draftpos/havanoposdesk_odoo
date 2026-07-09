@@ -8,7 +8,7 @@
             <field name="arch" type="xml">
                 <list string="Stores">
                     <field name="name"/>
-                    <field name="tenant_id" invisible="context.get('tenant_id')"/>
+                    <field name="tenant_id"/>
                     <field name="terminal_count"/>
                     <field name="last_open"/>
                     <field name="sales_count"/>
@@ -27,10 +27,6 @@
             <field name="arch" type="xml">
                 <form string="Store">
                     <header>
-                        <button name="%(Havanoposdesk_odoo.action_clear_data_wizard)d" 
-                                string="Clear Data" 
-                                type="action" 
-                                class="btn-danger"/>
                     </header>
                     <sheet>
                         <group>

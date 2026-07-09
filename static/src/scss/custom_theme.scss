@@ -1,6 +1,30 @@
+/* Global Odoo Color Overrides (Purple to Blue) */
+:root {
+    --o-brand-odoo: #0E4D90;
+    --o-brand-primary: #0E4D90;
+    --primary: #0E4D90;
+}
+
+.btn-primary, .bg-primary, .badge-primary {
+    background-color: #0E4D90 !important;
+    border-color: #0E4D90 !important;
+    color: white !important;
+    border-radius: 6px !important;
+}
+
+.btn-secondary {
+    border-radius: 6px !important;
+}
+
+.text-primary {
+    color: #0E4D90 !important;
+}
+
 .o_main_navbar {
     background-color: #0E4D90 !important;
     border-bottom: none !important;
+    display: flex;
+    align-items: center;
 }
 
 /* Desktop Floating Pill Design */
@@ -9,7 +33,9 @@
         margin: 10px 15px !important;
         border-radius: 50px !important;
         box-shadow: 0 4px 15px rgba(0,0,0,0.15) !important;
-        width: calc(100% - 30px) !important;
+        width: auto !important;
+        left: 0;
+        right: 0;
         height: 50px !important;
     }
     
@@ -20,12 +46,42 @@
 
 /* Floating Pill Menu Item Adjustments */
 .o_main_navbar .o_menu_sections > a, 
-.o_main_navbar .o_menu_sections > button {
-    border-radius: 20px;
-    margin: 0 4px;
-    padding: 0 15px !important;
+.o_main_navbar .o_menu_sections > button,
+.o_main_navbar .o_menu_sections > .dropdown > a {
+    border-radius: 50px !important;
+    margin: 4px 4px !important; /* Equal top and bottom margin */
+    padding: 0 12px !important;
+    height: 28px !important; /* Thinner height */
+    display: flex !important;
+    align-items: center !important;
+    line-height: normal !important;
     transition: all 0.2s ease;
     font-weight: 500;
+    background-color: #125A9E !important; /* Lighter Blue */
+    color: white !important;
+}
+
+.o_main_navbar .o_menu_sections > a.active,
+.o_main_navbar .o_menu_sections > button.active,
+.o_main_navbar .o_menu_sections > .dropdown > a.active,
+.o_main_navbar .o_menu_sections .active > a {
+    background-color: #0A3A6E !important; /* Darker Blue for active */
+}
+
+/* Fix right side systray border-radius and spacing */
+.o_main_navbar {
+    padding-right: 15px !important;
+}
+
+.o_main_navbar .o_menu_systray > div > a,
+.o_main_navbar .o_menu_systray > li > a {
+    border-radius: 50px !important;
+    margin: auto 2px;
+}
+
+.o_main_navbar .o_menu_systray > li:last-child > a {
+    border-top-right-radius: 50px !important;
+    border-bottom-right-radius: 50px !important;
 }
 
 .o_main_navbar .o_menu_sections > a:hover, 
@@ -61,4 +117,30 @@
 }
 .o_main_navbar .o_menu_sections [data-menu-xmlid$="profit_and_loss"]::before {
     content: "\f080"; /* bar chart */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="stores"]::before,
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="store"]::before {
+    content: "\f015"; /* home / store */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="terminals"]::before {
+    content: "\f108"; /* desktop / terminal */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="users"]::before {
+    content: "\f0c0"; /* users */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="profiles"]::before {
+    content: "\f21b"; /* user-secret / shield */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="subscription"]::before {
+    content: "\f09d"; /* credit-card */
+}
+.o_main_navbar .o_menu_sections [data-menu-xmlid$="pin"]::before {
+    content: "\f084"; /* key */
+}
+
+/* Consistent dropdown radius */
+.o_main_navbar .o_menu_sections .dropdown-menu .dropdown-item {
+    border-radius: 6px !important;
+    margin: 2px 4px !important;
+    width: calc(100% - 8px) !important;
 }

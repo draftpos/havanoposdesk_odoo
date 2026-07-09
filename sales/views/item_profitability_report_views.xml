@@ -7,6 +7,7 @@
             <field name="model">havanoposdesk.item.profitability.report</field>
             <field name="arch" type="xml">
                 <list string="Item Profitability" create="false" edit="false" delete="false">
+                    <field name="currency_id" column_invisible="True"/>
                     <field name="date" optional="show"/>
                     <field name="item_code" optional="hide"/>
                     <field name="name" string="Item Name" optional="show"/>

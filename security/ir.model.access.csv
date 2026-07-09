@@ -32,12 +32,18 @@ access_havanoposdesk_product_uom_price,havanoposdesk.product.uom.price,model_hav
 access_havanoposdesk_purchase_return_wizard_user,havanoposdesk.purchase.return.wizard user,model_havanoposdesk_purchase_return_wizard,base.group_user,1,1,1,1
 access_havanoposdesk_purchase_return_wizard_line_user,havanoposdesk.purchase.return.wizard.line user,model_havanoposdesk_purchase_return_wizard_line,base.group_user,1,1,1,1
 access_havanoposdesk_product_costing_user,havanoposdesk.product.costing user,model_havanoposdesk_product_costing,base.group_user,1,1,1,1
-access_havanoposdesk_category_sales_report,havanoposdesk.category.sales.report user,model_havanoposdesk_category_sales_report,base.group_user,1,0,0,0
-access_havanoposdesk_cashier_sales_report,havanoposdesk.cashier.sales.report user,model_havanoposdesk_cashier_sales_report,base.group_user,1,0,0,0
-access_havanoposdesk_terminal_sales_report,havanoposdesk.terminal.sales.report user,model_havanoposdesk_terminal_sales_report,base.group_user,1,0,0,0
-access_havanoposdesk_daily_sales_report,havanoposdesk.daily.sales.report user,model_havanoposdesk_daily_sales_report,base.group_user,1,0,0,0
+access_havanoposdesk_category_sales_report,havanoposdesk.category.sales.report user,model_havanoposdesk_category_sales_report,base.group_user,1,1,1,1
+access_havanoposdesk_cashier_sales_report,havanoposdesk.cashier.sales.report user,model_havanoposdesk_cashier_sales_report,base.group_user,1,1,1,1
+access_havanoposdesk_terminal_sales_report,havanoposdesk.terminal.sales.report user,model_havanoposdesk_terminal_sales_report,base.group_user,1,1,1,1
+access_havanoposdesk_daily_sales_report,havanoposdesk.daily.sales.report user,model_havanoposdesk_daily_sales_report,base.group_user,1,1,1,1
 access_havano_error_issue,havano.error.issue,model_havano_error_issue,base.group_system,1,1,1,1
 access_havano_error_event,havano.error.event,model_havano_error_event,base.group_system,1,1,1,1
 access_havanoposdesk_support_ticket,havanoposdesk.support.ticket,model_havanoposdesk_support_ticket,base.group_user,1,1,1,1
 access_wizard_clear_data,wizard.clear.data,model_wizard_clear_data,base.group_system,1,1,1,1
 access_wizard_clear_data_tenant_admin,wizard.clear.data tenant admin,model_wizard_clear_data,havanoposdesk_odoo.group_tenant_admin,1,1,1,1
+access_havanoposdesk_profit_and_loss,havanoposdesk.profit.and.loss,model_havanoposdesk_profit_and_loss,base.group_user,1,1,1,1
+access_havanoposdesk_user_rights_profile,havanoposdesk.user.rights.profile,model_havanoposdesk_user_rights_profile,base.group_user,1,1,1,1
+access_havanoposdesk_user_rights_permission,havanoposdesk.user.rights.permission,model_havanoposdesk_user_rights_permission,base.group_user,1,1,1,1
+access_havanoposdesk_dashboard,havanoposdesk.dashboard,model_havanoposdesk_dashboard,base.group_user,1,1,1,1
+access_havano_change_pin_wizard,havano.change.pin.wizard,model_havano_change_pin_wizard,base.group_user,1,1,1,1
+access_havano_change_password_wizard,havano.change.password.wizard,model_havano_change_password_wizard,base.group_user,1,1,1,1

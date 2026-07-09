@@ -87,6 +87,8 @@
         <field name="res_model">wizard.clear.data</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
+        <field name="binding_model_id" ref="model_havanoposdesk_store"/>
+        <field name="binding_view_types">form</field>
     </record>
 
     <!-- Removed global menus for clear data -->

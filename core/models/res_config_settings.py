@@ -94,6 +94,7 @@ class ResConfigSettings(models.TransientModel):
     biz_stock_adj_seq_padding = fields.Integer(string="Stock Adjustment Sequence Padding", related='tenant_id.stock_adj_seq_padding', readonly=False)
 
     # Sales Sequence
+    biz_allow_credit_sales = fields.Boolean(string="Allow Sales on Credit", related='tenant_id.allow_credit_sales', readonly=False)
     biz_sale_seq_prefix = fields.Char(string="Sale Sequence Prefix", related='tenant_id.sale_seq_prefix', readonly=False)
     biz_sale_seq_next = fields.Integer(string="Sale Sequence Next Number", related='tenant_id.sale_seq_next', readonly=False)
     biz_sale_seq_padding = fields.Integer(string="Sale Sequence Padding", related='tenant_id.sale_seq_padding', readonly=False)

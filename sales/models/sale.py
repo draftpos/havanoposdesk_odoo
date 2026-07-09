@@ -228,8 +228,12 @@ class Sale(models.Model):
                             'doc_no': sale.name,
                         })
                     else:
-                        # Update Product On Hand (opening_stock)
-                        line.product_id.sudo().opening_stock -= line.accepted_qty
+                        # Update Product On Hand (opening_stock), selling_price, and buying_price
+                        line.product_id.sudo().write({
+                            'opening_stock': line.product_id.opening_stock - line.accepted_qty,
+                            'selling_price': line.rate,
+                            'buying_price': line.cost_price,
+                        })
                         
                         # Create Ledger Entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
@@ -469,5 +473,5 @@ class SaleLine(models.Model):
         for line in self:
             if line.accepted_qty < 0:
                 continue
-            if line.product_id and line.accepted_qty > line.product_id.opening_stock:
+            if not allow_negative and line.product_id and line.accepted_qty > line.product_id.opening_stock:
                 raise ValidationError(f"You cannot sell {line.accepted_qty} of {line.product_id.name} because you only have {line.product_id.opening_stock} on hand.")

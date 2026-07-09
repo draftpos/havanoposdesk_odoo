@@ -197,10 +197,14 @@ class Purchase(models.Model):
                             })
                     else:
                         # Normal Purchase
+                        # Average cost = (current_buying_price + new_rate) / 2
+                        current_cost = line.product_id.buying_price or 0.0
+                        new_buying_price = (current_cost + line.rate) / 2.0
+                        
                         # Update Product On Hand (opening_stock) and buying_price (last updated value) using sudo()
                         line.product_id.sudo().write({
                             'opening_stock': line.product_id.opening_stock + line.accepted_qty,
-                            'buying_price': line.rate,
+                            'buying_price': new_buying_price,
                         })
                         
                         # Create costing records in costing table

@@ -1,6 +1,10 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
+import logging
+import traceback
 from dateutil.relativedelta import relativedelta
+
+_logger = logging.getLogger(__name__)
 
 class HavanoposdeskTenant(models.Model):
     _name = 'havanoposdesk.tenant'
@@ -42,6 +46,7 @@ class HavanoposdeskTenant(models.Model):
     stock_adj_seq_padding = fields.Integer(string='Stock Adjustment Sequence Padding', default=5)
 
     # Sales Sequence Config
+    allow_credit_sales = fields.Boolean(string='Allow Sales on Credit', default=False)
     sale_seq_prefix = fields.Char(string='Sale Sequence Prefix', default='S')
     sale_seq_next = fields.Integer(string='Sale Sequence Next Number', default=1)
     sale_seq_padding = fields.Integer(string='Sale Sequence Padding', default=3)
@@ -89,30 +94,89 @@ class HavanoposdeskTenant(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('subscription_plan_id'):
+                plan = self.env['havanoposdesk.subscription.plan'].sudo().search([], order='id asc', limit=1)
+                if not plan:
+                    plan = self.env['havanoposdesk.subscription.plan'].sudo().create({
+                        'name': 'Default Plan',
+                        'price': 0.0,
+                        'max_users': 2,
+                        'max_stores': 1,
+                        'max_terminals': 2
+                    })
+                vals['subscription_plan_id'] = plan.id
+                
         tenants = super().create(vals_list)
         for tenant in tenants:
+            usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
+            store = self.env['havanoposdesk.store'].sudo().create({
+                'name': tenant.name,
+                'tenant_id': tenant.id,
+                'is_default': True,
+                'currency_id': usd_currency.id if usd_currency else False,
+            })
+            
+            # Auto-create a default terminal
+            self.env['havanoposdesk.pos.terminal'].sudo().create({
+                'name': 'Main Terminal',
+                'store_id': store.id,
+                'tenant_id': tenant.id,
+            })
+            
             tenant._seed_default_data()
         return tenants
 
     def _seed_default_data(self):
         self.ensure_one()
-        # 1. Customer Group
-        cg = self.env['havanoposdesk.customer.group'].sudo().create({'name': 'Default Group', 'tenant_id': self.id})
+        _logger.info("SEED_DEFAULT_DATA CALLED VIA RAW SQL FOR PERFORMANCE")
+        store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', self.id)], limit=1)
+        store_id = store.id if store else None
+        tenant_id = self.id
+        uid = self.env.uid or 1
+        now = fields.Datetime.now()
+        
+        # 1. Customer Group (need ID for Customer)
+        self.env.cr.execute("""
+            INSERT INTO havanoposdesk_customer_group (name, tenant_id, create_uid, write_uid, create_date, write_date)
+            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;
+        """, ('Default Group', tenant_id, uid, uid, now, now))
+        cg_id = self.env.cr.fetchone()[0]
+        
+        queries = []
+        params = []
+        
         # 2. Supplier
-        self.env['havanoposdesk.supplier'].sudo().create({'name': 'general', 'tenant_id': self.id})
+        queries.append("""INSERT INTO havanoposdesk_supplier (name, tenant_id, store_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
+        params.append(('general', tenant_id, store_id, uid, uid, now, now))
+        
         # 3. Default Deposit Account
-        self.env['havanoposdesk.account'].sudo().create({'name': 'cash', 'type': 'Cash', 'tenant_id': self.id})
+        queries.append("""INSERT INTO havanoposdesk_account (name, type, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
+        params.append(('cash', 'Cash', tenant_id, uid, uid, now, now))
+        
         # 4. Default Expenses Account
         expenses = ['Electricity', 'Rent', 'Utilities', 'Wages & Salaries', 'Breakages', 'Council Licenses', 'Maintanences', 'Fuel']
         for exp in expenses:
-            self.env['havanoposdesk.account'].sudo().create({'name': exp, 'type': 'Expense', 'tenant_id': self.id})
+            queries.append("""INSERT INTO havanoposdesk_account (name, type, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
+            params.append((exp, 'Expense', tenant_id, uid, uid, now, now))
+            
         # 5. Default Customer
-        self.env['havanoposdesk.customer'].sudo().create({'name': 'cash customer', 'customer_group_id': cg.id, 'tenant_id': self.id})
+        queries.append("""INSERT INTO havanoposdesk_customer (name, customer_group_id, tenant_id, store_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""")
+        params.append(('cash customer', cg_id, tenant_id, store_id, uid, uid, now, now))
+        
         # 6. Default Categories
-        self.env['havanoposdesk.category'].sudo().create({'name': 'Basic', 'tenant_id': self.id})
-        self.env['havanoposdesk.category'].sudo().create({'name': 'Beveragies', 'tenant_id': self.id})
+        queries.append("""INSERT INTO havanoposdesk_category (name, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s)""")
+        params.append(('Basic', tenant_id, uid, uid, now, now))
+        queries.append("""INSERT INTO havanoposdesk_category (name, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s)""")
+        params.append(('Beveragies', tenant_id, uid, uid, now, now))
+        
         # 7. Default Pricelist
-        self.env['havanoposdesk.pricelist'].sudo().create({'name': 'Retail', 'type': 'selling', 'tenant_id': self.id})
+        queries.append("""INSERT INTO havanoposdesk_pricelist (name, type, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
+        params.append(('Retail', 'selling', tenant_id, uid, uid, now, now))
+        
+        # Execute all inserts in a single rapid batch
+        for i, query in enumerate(queries):
+            self.env.cr.execute(query, params[i])
 
     def action_approve(self):
         for tenant in self:

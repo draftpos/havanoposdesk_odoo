@@ -158,39 +158,67 @@ class ResUsers(models.Model):
                 vals['havano_role'] = 'user'
                 vals['saas_state'] = 'verified'
                 vals['tenant_id'] = self.env.user.tenant_id.id
-                internal_group = self.env.ref('base.group_user')
-                vals['group_ids'] = [(4, internal_group.id, 0)]
+                
+                # Default User Settings: Cashier profile, 0% discount, default store
+                vals['allow_discount'] = False
+                vals['max_discount_percent'] = 0.0
+                
+                tenant_id = self.env.user.tenant_id.id
+                default_store = self.env.user.default_store_id
+                if not default_store:
+                    default_store = self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id), ('is_default', '=', True)], limit=1)
+                if not default_store:
+                    default_store = self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1)
+                
+                if default_store:
+                    vals['default_store_id'] = default_store.id
+                    if 'store_ids' not in vals:
+                        vals['store_ids'] = [(6, 0, [default_store.id])]
+                    elif isinstance(vals['store_ids'], list):
+                        vals['store_ids'].append((4, default_store.id, 0))
+        
+        # Pre-process group_ids to prevent mutual exclusivity errors on create
+        portal_group = self.env.ref('base.group_portal', raise_if_not_found=False)
+        internal_group = self.env.ref('base.group_user', raise_if_not_found=False)
+        tenant_admin_group = self.env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
+        erp_manager_group = self.env.ref('base.group_erp_manager', raise_if_not_found=False)
+        group_system = self.env.ref('base.group_system', raise_if_not_found=False)
+
+        for vals in vals_list:
+            role = vals.get('havano_role')
+            if role:
+                # Remove portal group from incoming vals if it exists
+                existing_groups = []
+                if 'group_ids' in vals and isinstance(vals['group_ids'], list):
+                    for cmd in vals['group_ids']:
+                        if cmd[0] == 6:
+                            # Filter out portal group
+                            filtered_ids = [gid for gid in cmd[2] if portal_group and gid != portal_group.id]
+                            existing_groups.append((6, 0, filtered_ids))
+                        else:
+                            existing_groups.append(cmd)
+                else:
+                    existing_groups = vals.get('group_ids', [])
+                
+                # Assign correct backend groups based on role
+                if role == 'super_admin' and group_system:
+                    existing_groups.append((4, group_system.id, 0))
+                    existing_groups.append((4, internal_group.id, 0))
+                elif role == 'admin' and tenant_admin_group and erp_manager_group:
+                    existing_groups.append((4, tenant_admin_group.id, 0))
+                    existing_groups.append((4, erp_manager_group.id, 0))
+                    existing_groups.append((4, internal_group.id, 0))
+                elif role == 'user' and internal_group:
+                    existing_groups.append((4, internal_group.id, 0))
+                
+                vals['group_ids'] = existing_groups
+
+        if self.env.user.havano_role == 'admin':
             users = super(ResUsers, self.sudo()).create(vals_list)
         else:
             users = super().create(vals_list)
 
-        tenant_admin_group = self.env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
-        erp_manager_group = self.env.ref('base.group_erp_manager', raise_if_not_found=False)
-        group_system = self.env.ref('base.group_system', raise_if_not_found=False)
-        
         for user in users:
-            if user.havano_role == 'super_admin':
-                # Super Admin: grant Administration Settings group
-                if group_system and group_system not in user.group_ids:
-                    user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, group_system.id, 0)]})
-            elif user.havano_role == 'admin':
-                # Admin: grant Tenant Admin group + Settings (group_erp_manager)
-                group_cmds = []
-                if tenant_admin_group and tenant_admin_group not in user.group_ids:
-                    group_cmds.append((4, tenant_admin_group.id, 0))
-                if erp_manager_group and erp_manager_group not in user.group_ids:
-                    group_cmds.append((4, erp_manager_group.id, 0))
-                if group_cmds:
-                    user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
-            elif user.havano_role == 'user':
-                # Cashier: ensure they don't have admin/settings groups
-                group_cmds = []
-                if erp_manager_group and erp_manager_group in user.group_ids:
-                    group_cmds.append((3, erp_manager_group.id, 0))
-                if tenant_admin_group and tenant_admin_group in user.group_ids:
-                    group_cmds.append((3, tenant_admin_group.id, 0))
-                if group_cmds:
-                    user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
             if user.saas_state == 'unverified' and user.verification_token:
                 user.sudo().send_verification_email()
 
@@ -214,6 +242,17 @@ class ResUsers(models.Model):
             erp_manager_group = self.env.ref('base.group_erp_manager', raise_if_not_found=False)
             group_system = self.env.ref('base.group_system', raise_if_not_found=False)
             for user in self:
+                group_cmds = []
+                portal_group = self.env.ref('base.group_portal', raise_if_not_found=False)
+                public_group = self.env.ref('base.group_public', raise_if_not_found=False)
+                if portal_group and portal_group in user.group_ids:
+                    group_cmds.append((3, portal_group.id, 0))
+                if public_group and public_group in user.group_ids:
+                    group_cmds.append((3, public_group.id, 0))
+                
+                if group_cmds:
+                    user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
+
                 if user.havano_role == 'super_admin':
                     if group_system and group_system not in user.group_ids:
                         user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, group_system.id, 0)]})
@@ -266,12 +305,23 @@ class ResUsers(models.Model):
         return super()._get_invalidation_fields() | {'tenant_id'}
 
     def _create_user_from_template(self, values):
+        from odoo.http import request
+        org_name = request.params.get('organization_name') if request else False
+        tenant_name = org_name or f"{values.get('name', 'My')}'s Business"
+        
         # 1. Create a new Tenant record for the user's business
-        tenant_name = f"{values.get('name', 'My')}'s Business"
         tenant = self.env['havanoposdesk.tenant'].sudo().create({
             'name': tenant_name,
             'subscription_state': 'active',
         })
+
+        # Process phone number if provided
+        phone = False
+        if request:
+            phone_num = request.params.get('phone_number')
+            country_code = request.params.get('country_code', '')
+            if phone_num:
+                phone = f"{country_code}{phone_num}"
 
         # 2. Inject SaaS values
         values.update({
@@ -279,28 +329,11 @@ class ResUsers(models.Model):
             'havano_role': 'admin',
             'saas_state': 'unverified',
         })
+        if phone:
+            values['phone'] = phone
 
         # 3. Create the user using standard portal template copy
         user = super()._create_user_from_template(values)
-
-        # 4. Swap Portal group for Internal User group to give access to backend
-        portal_group = self.env.ref('base.group_portal')
-        internal_group = self.env.ref('base.group_user')
-
-        erp_manager_group = self.env.ref('base.group_erp_manager', raise_if_not_found=False)
-        tenant_admin_grp = self.env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
-
-        group_cmds = [
-            (3, portal_group.id, 0),    # Unlink portal
-            (4, internal_group.id, 0),  # Link internal user
-        ]
-        # New tenant admin from self-signup → grant Settings icon access
-        if erp_manager_group:
-            group_cmds.append((4, erp_manager_group.id, 0))
-        if tenant_admin_grp:
-            group_cmds.append((4, tenant_admin_grp.id, 0))
-
-        user.sudo().write({'group_ids': group_cmds})
 
         return user
 

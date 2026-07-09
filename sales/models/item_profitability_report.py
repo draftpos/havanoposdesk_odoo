@@ -19,6 +19,7 @@ class ItemProfitabilityReport(models.Model):
     date = fields.Date(string='Date', readonly=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', readonly=True)
+    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     create_uid = fields.Many2one('res.users', string='Created By', readonly=True)
     create_date = fields.Datetime(string='Created On', readonly=True)
 

@@ -33,7 +33,10 @@ class HavanoposdeskUserRightsProfile(models.Model):
             if 'permission_ids' not in vals or not vals['permission_ids']:
                 features = [
                     'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
-                    'Stock Management', 'Payment Entries', 'Reports', 'Settings', 'Printer'
+                    'Categories', 'Brands', 'Taxes', 'Stock Management',
+                    'Payment Entries', 'Reports', 'Profit and Loss', 'Settings',
+                    'Printer', 'Terminals', 'Stores', 'Suppliers', 'Customers',
+                    'Expenses', 'User Profiles'
                 ]
                 permission_lines = []
                 for feature in features:
@@ -60,11 +63,21 @@ class HavanoposdeskUserRightsPermission(models.Model):
         ('Quotations', 'Quotations'),
         ('Sales', 'Sales'),
         ('Products', 'Products'),
+        ('Categories', 'Categories'),
+        ('Brands', 'Brands'),
+        ('Taxes', 'Taxes'),
         ('Stock Management', 'Stock Management'),
         ('Payment Entries', 'Payment Entries'),
         ('Reports', 'Reports'),
+        ('Profit and Loss', 'Profit and Loss'),
         ('Settings', 'Settings'),
-        ('Printer', 'Printer')
+        ('Printer', 'Printer'),
+        ('Terminals', 'Terminals'),
+        ('Stores', 'Stores'),
+        ('Suppliers', 'Suppliers'),
+        ('Customers', 'Customers'),
+        ('Expenses', 'Expenses'),
+        ('User Profiles', 'User Profiles')
     ], string='Feature', required=True)
     can_read = fields.Boolean(string='Read', default=True)
     can_create = fields.Boolean(string='Create', default=True)

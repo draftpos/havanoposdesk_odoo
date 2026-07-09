@@ -7,6 +7,7 @@
             <field name="model">havanoposdesk.category.sales.report</field>
             <field name="arch" type="xml">
                 <list string="Category Profitability" create="false" edit="false" delete="false">
+                    <field name="currency_id" column_invisible="True"/>
                     <field name="date" optional="show"/>
                     <field name="category_id" optional="show"/>
                     <field name="store_id" optional="show"/>

@@ -239,5 +239,60 @@
             <field name="global" eval="True"/>
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
+        <!-- Expense Model Isolation Rule -->
+        <record id="rule_havano_expense_isolation" model="ir.rule">
+            <field name="name">Havano Expense Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_expense"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Customer Group Model Isolation Rule -->
+        <record id="rule_havano_customer_group_isolation" model="ir.rule">
+            <field name="name">Havano Customer Group Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_customer_group"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Support Ticket Model Isolation Rule -->
+        <record id="rule_havano_support_ticket_isolation" model="ir.rule">
+            <field name="name">Havano Support Ticket Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_support_ticket"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Stock Adjustment Line Isolation Rule -->
+        <record id="rule_havano_stock_adjustment_line_isolation" model="ir.rule">
+            <field name="name">Havano Stock Adjustment Line Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_stock_adjustment_line"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Tenant Upgrade Wizard Isolation Rule -->
+        <record id="rule_havano_tenant_upgrade_wizard_isolation" model="ir.rule">
+            <field name="name">Havano Tenant Upgrade Wizard Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_tenant_upgrade_wizard"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Subscription Pay Wizard Isolation Rule -->
+        <record id="rule_havano_subscription_pay_wizard_isolation" model="ir.rule">
+            <field name="name">Havano Subscription Pay Wizard Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_subscription_pay_wizard"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Subscription Payment Isolation Rule -->
+        <record id="rule_havano_subscription_payment_isolation" model="ir.rule">
+            <field name="name">Havano Subscription Payment Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_subscription_payment"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
     </data>
 </odoo>

@@ -20,6 +20,13 @@ class HavanoposdeskProduct(models.Model):
                 record.display_name = f"[{record.item_code}] {record.name}"
             else:
                 record.display_name = record.name
+
+    @api.model
+    def _name_search(self, name='', args=None, operator='ilike', limit=100, name_get_uid=None):
+        args = list(args or [])
+        if name:
+            args += ['|', ('name', operator, name), ('item_code', operator, name)]
+        return self._search(args, limit=limit, access_rights_uid=name_get_uid)
     buying_price = fields.Float(string='Cost price', default=0.0)
     selling_price = fields.Float(string='Sell price')
     markup = fields.Float(string='Markup', compute='_compute_markup')

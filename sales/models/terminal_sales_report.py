@@ -16,7 +16,7 @@ class TerminalSalesReport(models.Model):
     date = fields.Date(string='Date', readonly=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', readonly=True)
-    currency_id = fields.Many2one(related='store_id.currency_id', string='Currency', store=False)
+    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     create_uid = fields.Many2one('res.users', string='Created By', readonly=True)
     create_date = fields.Datetime(string='Created On', readonly=True)
 
@@ -43,7 +43,7 @@ class TerminalSalesReport(models.Model):
                     SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END) as profit,
                     CASE 
                         WHEN SUM(l.amount) > 0 
-                        THEN ((SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END)) / SUM(l.amount)) * 100 
+                        THEN ((SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END)) / SUM(l.amount))
                         ELSE 0 
                     END as profit_margin,
                     s.posting_date as date,

@@ -68,15 +68,12 @@
                                 <field name="line_ids" readonly="state != 'draft'">
                                     <list editable="bottom">
                                         <field name="currency_id" column_invisible="True"/>
-                                        <field name="item_code" width="15%"/>
-                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" string="Item Name"/>
-                                        <field name="accepted_qty" string="Qty" width="10%" sum="Total Qty"/>
+                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="50%" string="Item"/>
+                                        <field name="accepted_qty" string="Qty" width="15%"/>
                                         <field name="rate" width="15%" widget="monetary"/>
                                         <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary"/>
-                                        <field name="gross_profit" string="Gross Profit" optional="hide" sum="Total Gross Profit" widget="monetary"/>
-                                        <field name="tax_ids" widget="many2many_tags" width="15%" optional="show" column_invisible="parent.is_tax_enabled == False"/>
-                                        <field name="price_tax" string="Tax Amount" width="10%" sum="Total Tax" optional="show" widget="monetary" column_invisible="parent.is_tax_enabled == False"/>
-                                        <field name="amount" width="10%" sum="Total Amount" widget="monetary"/>
+                                        <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary"/>
+                                        <field name="amount" width="20%" widget="monetary"/>
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">

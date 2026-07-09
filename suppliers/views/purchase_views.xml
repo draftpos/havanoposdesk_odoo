@@ -44,13 +44,10 @@
                                 <field name="line_ids" readonly="state != 'draft'">
                                     <list  editable="bottom">
                                         <field name="currency_id" column_invisible="True"/>
-                                        <field name="item_code" width="10%" optional="show"/>
-                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="25%" optional="show"/>
-                                        <field name="accepted_qty" width="15%" sum="Total Qty" optional="show"/>
-                                        <field name="rate" string="Cost Price" width="15%" optional="show" widget="monetary"/>
-                                        <field name="tax_ids" widget="many2many_tags" width="15%" optional="show" column_invisible="parent.is_tax_enabled == False"/>
-                                        <field name="price_tax" string="Tax Amount" width="10%" sum="Total Tax" optional="show" widget="monetary" column_invisible="parent.is_tax_enabled == False"/>
-                                        <field name="amount" width="10%" sum="Total Amount" optional="show" widget="monetary"/>
+                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="45%" string="Item"/>
+                                        <field name="accepted_qty" width="15%"/>
+                                        <field name="rate" string="Cost Price" width="20%" optional="show" widget="monetary"/>
+                                        <field name="amount" width="20%" optional="show" widget="monetary"/>
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="purchase_total">
