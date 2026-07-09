@@ -197,14 +197,15 @@ class Purchase(models.Model):
                             })
                     else:
                         # Normal Purchase
-                        # Calculate true moving average cost (weighted average based on stock quantity)
+                        # Director's Custom Costing Logic:
+                        # If quantity on hand is greater than 0, use the simple average (old_cost + new_cost) / 2
+                        # If quantity on hand is 0 or less, use the new purchase cost directly
                         current_cost = line.product_id.buying_price or 0.0
                         current_qty = line.product_id.opening_stock or 0.0
                         
-                        if current_qty > 0 and (current_qty + line.accepted_qty) > 0:
-                            new_buying_price = ((current_qty * current_cost) + (line.accepted_qty * line.rate)) / (current_qty + line.accepted_qty)
+                        if current_qty > 0:
+                            new_buying_price = (current_cost + line.rate) / 2.0
                         else:
-                            # If no previous stock, or stock is negative/zero, the new cost price is just the new purchase price
                             new_buying_price = line.rate
                             
                         # Update Product On Hand (opening_stock) and buying_price (last updated value) using sudo()
