@@ -1,1 +1,1 @@
-from . import whitelabel
+from . import main
