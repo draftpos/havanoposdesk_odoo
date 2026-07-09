@@ -77,7 +77,7 @@
         ],
         'web.assets_frontend': [
             ('remove', 'web/static/src/core/browser/router.js'),
-            'Havanoposdesk_odoo/static/src/js/router.js',
+            'havanoposdesk_odoo/static/src/js/router.js',
         ],
         'web.assets_backend': [
             'Havanoposdesk_odoo/static/src/js/user_menu_hide.js',
