@@ -58,7 +58,7 @@ function replaceOdooLogo() {
         `;
         const appName = session.havanoposdesk_app_name || "Havano";
         brand.innerHTML = `
-            <img src="/havanoposdesk_odoo/static/src/img/favicon_trans.png"
+            <img src="/havanoposdesk_odoo/static/src/img/havan_2.png"
                  alt="${appName}"
                  style="height:28px; width:auto; object-fit:contain;"
                  onerror="this.style.display='none'; this.nextSibling.style.display='flex'"/>
