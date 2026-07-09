@@ -8,8 +8,8 @@ class DailySalesReport(models.Model):
     qty = fields.Float(string='Qty Sold', readonly=True)
     cost_price = fields.Float(string='Cost Price', readonly=True)
     selling_price = fields.Float(string='Selling Price', readonly=True)
-    total_sales = fields.Float(string='Total Sales', readonly=True)
-    profit = fields.Float(string='Profit', readonly=True)
+    total_sales = fields.Monetary(string='Total Sales', readonly=True, currency_field='currency_id')
+    profit = fields.Monetary(string='Profit', readonly=True, currency_field='currency_id')
     profit_margin = fields.Float(string='Profit Margin (%)', readonly=True)
     date = fields.Date(string='Date', readonly=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
@@ -39,7 +39,7 @@ class DailySalesReport(models.Model):
                     SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END) as profit,
                     CASE 
                         WHEN SUM(l.amount) > 0 
-                        THEN ((SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END)) / SUM(l.amount)) * 100 
+                        THEN ((SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END)) / SUM(l.amount)) 
                         ELSE 0 
                     END as profit_margin,
                     s.posting_date as date,
@@ -59,3 +59,5 @@ class DailySalesReport(models.Model):
                     s.posting_date, s.create_uid, s.create_date, l.tenant_id, s.store_id
             )
         """ % (self._table,))
+
+

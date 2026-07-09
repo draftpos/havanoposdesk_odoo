@@ -7,11 +7,11 @@ class CashierSalesReport(models.Model):
 
     salesperson_id = fields.Many2one('res.users', string='Cashier', readonly=True)
     qty = fields.Float(string='Qty Sold', readonly=True)
-    cost_price = fields.Float(string='Buy Price', readonly=True)
-    selling_price = fields.Float(string='Sell Price', readonly=True)
-    total_buy_price = fields.Float(string='Total Buy Price', readonly=True)
-    total_sales = fields.Float(string='Total Sales', readonly=True)
-    profit = fields.Float(string='Profit', readonly=True)
+    cost_price = fields.Monetary(string='Buy Price', readonly=True, currency_field='currency_id')
+    selling_price = fields.Monetary(string='Sell Price', readonly=True, currency_field='currency_id')
+    total_buy_price = fields.Monetary(string='Total Buy Price', readonly=True, currency_field='currency_id')
+    total_sales = fields.Monetary(string='Total Sales', readonly=True, currency_field='currency_id')
+    profit = fields.Monetary(string='Profit', readonly=True, currency_field='currency_id')
     profit_margin = fields.Float(string='Profit Margin (%)', readonly=True)
     date = fields.Date(string='Date', readonly=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
@@ -63,3 +63,4 @@ class CashierSalesReport(models.Model):
                     s.posting_date, s.create_uid, s.create_date, l.tenant_id, s.store_id, s.salesperson_id
             )
         """ % (self._table,))
+
