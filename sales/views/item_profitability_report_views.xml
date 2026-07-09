@@ -14,9 +14,9 @@
                     <field name="category_id" optional="show"/>
                     <field name="store_id" optional="show"/>
                     <field name="qty" string="Qty Sold" optional="show"/>
-                    <field name="cost_price" string="Buy Price" widget="monetary" optional="hide"/>
+                    <field name="cost_price" string="Unit Buy Price" widget="monetary" optional="hide"/>
                     <field name="selling_price" string="Sell Price" widget="monetary" optional="hide"/>
-                    <field name="total_buy_price" string="Total Buy Price" widget="monetary" optional="hide"/>
+                    <field name="total_buy_price" string="Buy Price" widget="monetary" optional="show"/>
                     <field name="total_sales" sum="Total Sales" widget="monetary" optional="show"/>
                     <field name="profit" sum="Total Profit" widget="monetary" decoration-danger="profit &lt; 0" decoration-success="profit &gt; 0" optional="show"/>
                     <field name="profit_margin" widget="percentage" decoration-danger="profit_margin &lt; 0" decoration-success="profit_margin &gt; 0" optional="show"/>
