@@ -166,3 +166,11 @@
     justify-content: center !important;
     transform: none !important;
 }
+
+/* Hide default Odoo empty state illustrations */
+.o_view_nocontent_empty_folder::before,
+.o_view_nocontent_smiling_face::before {
+    content: none !important;
+    display: none !important;
+    background-image: none !important;
+}
