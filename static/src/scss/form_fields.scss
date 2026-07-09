@@ -1,4 +1,4 @@
-.o_form_view .o_field_widget:not(.o_field_image):not(.o_field_boolean_toggle):not(.o_field_boolean) {
+.o_form_view .o_field_widget:not(.o_field_image):not(.o_field_boolean_toggle):not(.o_field_boolean):not(.o_field_one2many):not(.o_field_many2many):not(.o_field_html) {
     border-bottom: 1px solid #343a40 !important;
 }
 
