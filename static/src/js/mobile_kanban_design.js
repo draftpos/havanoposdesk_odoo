@@ -186,7 +186,7 @@ patch(NavBar.prototype, {
             if (appJustChanged && window.innerWidth <= 768) {
                 const currentApp = this.env.services.menu && this.env.services.menu.getCurrentApp();
                 // Do not auto-open sidebar if it's the Dashboard
-                if (!currentApp || currentApp.xmlid !== "Havanoposdesk_odoo.menu_dashboard_main") {
+                if (!currentApp || currentApp.xmlid !== "havanoposdesk_odoo.menu_dashboard_main") {
                     // Force open the App Menu Sidebar (which contains the app's modules/dropdown)
                     setTimeout(() => {
                         this.state.isAppMenuSidebarOpened = true;
@@ -206,3 +206,4 @@ window.addEventListener('beforeinstallprompt', (e) => {
     // Stash the event so it can be triggered later.
     window.deferredPwaPrompt = e;
 });
+

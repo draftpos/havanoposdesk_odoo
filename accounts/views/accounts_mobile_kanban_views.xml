@@ -188,7 +188,7 @@
         <record id="action_havanoposdesk_payment_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_payment_tree"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_payment_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_payment"/>
         </record>
         <record id="action_havanoposdesk_payment_view_kanban" model="ir.actions.act_window.view">
@@ -200,7 +200,7 @@
         <record id="action_havanoposdesk_expense_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_expense_tree"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_expense_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_expense"/>
         </record>
         <record id="action_havanoposdesk_expense_view_kanban" model="ir.actions.act_window.view">
@@ -212,7 +212,7 @@
         <record id="action_havanoposdesk_account_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_account_tree"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_account_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_account"/>
         </record>
         <record id="action_havanoposdesk_account_view_kanban" model="ir.actions.act_window.view">
@@ -224,7 +224,7 @@
         <record id="action_havanoposdesk_tax_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_tax_tree"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_tax_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_tax"/>
         </record>
         <record id="action_havanoposdesk_tax_view_kanban" model="ir.actions.act_window.view">
@@ -235,3 +235,4 @@
         </record>
     </data>
 </odoo>
+

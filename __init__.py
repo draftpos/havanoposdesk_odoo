@@ -53,3 +53,4 @@ def post_migrate(cr, registry):
         if group_cmds:
             user.sudo().write({'group_ids': group_cmds})
 
+

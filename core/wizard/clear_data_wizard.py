@@ -280,3 +280,4 @@ class ClearDataWizard(models.TransientModel):
         log.append("═" * 52)
 
         return "\n".join(log)
+

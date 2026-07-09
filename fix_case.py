@@ -9,3 +9,4 @@ for file in files:
         with open(file, 'w', encoding='utf-8') as f:
             f.write(new_content)
 print('Fixed module name case in views')
+

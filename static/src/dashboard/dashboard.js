@@ -9,7 +9,7 @@ import { DropdownItem } from "@web/core/dropdown/dropdown_item";
 import { PwaPrompt } from "./pwa_prompt";
 
 export class HavanoDashboard extends Component {
-    static template = "Havanoposdesk_odoo.Dashboard";
+    static template = "havanoposdesk_odoo.Dashboard";
     static components = { Dropdown, DropdownItem, PwaPrompt };
 
     setup() {
@@ -324,3 +324,4 @@ export class HavanoDashboard extends Component {
 }
 
 registry.category("actions").add("havano_dashboard_tag", HavanoDashboard);
+

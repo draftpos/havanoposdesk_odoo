@@ -98,7 +98,7 @@
         <record id="action_havanoposdesk_purchase_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_purchase_tree"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_purchase_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_purchase"/>
         </record>
         <record id="action_havanoposdesk_purchase_view_kanban" model="ir.actions.act_window.view">
@@ -110,7 +110,7 @@
         <record id="action_havanoposdesk_supplier_view_list" model="ir.actions.act_window.view">
             <field name="sequence" eval="1"/>
             <field name="view_mode">list</field>
-            <field name="view_id" ref="Havanoposdesk_odoo.view_havanoposdesk_supplier_tree"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_supplier_tree"/>
             <field name="act_window_id" ref="action_havanoposdesk_supplier"/>
         </record>
         <record id="action_havanoposdesk_supplier_view_kanban" model="ir.actions.act_window.view">
@@ -122,3 +122,4 @@
 
     </data>
 </odoo>
+
