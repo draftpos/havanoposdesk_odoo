@@ -109,5 +109,8 @@
                 </p>
             </field>
         </record>
+
+        <!-- Menu Item -->
+        <menuitem id="menu_expense_posting" name="Expense Posting" parent="menu_accounts_operations" action="action_havanoposdesk_expense" sequence="10"/>
     </data>
 </odoo>
