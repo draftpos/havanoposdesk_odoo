@@ -235,5 +235,8 @@ else:
         </record>
         <!-- Exchange Rate Menu (Moved to Accounts Master) -->
         <menuitem id="menu_my_business_exchange_rate" name="Exchange Rates" parent="menu_accounts_master" action="action_havanoposdesk_exchange_rates" sequence="30"/>
+
+        <!-- Analytics Menu Folder -->
+        <menuitem id="menu_my_business_analytics" name="Analytics" parent="menu_my_business_root" sequence="40"/>
     </data>
 </odoo>
