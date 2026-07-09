@@ -1,13 +1,13 @@
 /* Global Odoo Color Overrides (Purple to Blue) */
 :root {
-    --o-brand-odoo: #0E4D90;
-    --o-brand-primary: #0E4D90;
-    --primary: #0E4D90;
+    --o-brand-odoo: #0278F3;
+    --o-brand-primary: #0278F3;
+    --primary: #0278F3;
 }
 
 .btn-primary, .bg-primary, .badge-primary {
-    background-color: #0E4D90 !important;
-    border-color: #0E4D90 !important;
+    background-color: #0278F3 !important;
+    border-color: #0278F3 !important;
     color: white !important;
     border-radius: 6px !important;
 }
@@ -17,11 +17,11 @@
 }
 
 .text-primary {
-    color: #0E4D90 !important;
+    color: #0278F3 !important;
 }
 
 .o_main_navbar {
-    background-color: #0E4D90 !important;
+    background-color: #0278F3 !important;
     border-bottom: none !important;
     display: flex;
     align-items: center;
@@ -144,3 +144,4 @@
     margin: 2px 4px !important;
     width: calc(100% - 8px) !important;
 }
+

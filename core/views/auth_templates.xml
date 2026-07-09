@@ -26,18 +26,18 @@
                     
                     .form header { font-size: 22px; text-align: center; color: #333; font-weight: 600; margin-bottom: 2px; }
                     .form .sub-header { text-align: center; font-size: 13px; color: #666; margin-bottom: 15px; }
-                    .form .sub-header span { color: #4070f4; cursor: pointer; font-weight: 500; transition: color 0.3s; }
-                    .form .sub-header span:hover { color: #265df2; text-decoration: underline; }
+                    .form .sub-header span { color: #0278F3; cursor: pointer; font-weight: 500; transition: color 0.3s; }
+                    .form .sub-header span:hover { color: #015bc2; text-decoration: underline; }
                     
                     .wrapper form { display: flex; flex-direction: column; gap: 16px; }
                     .input-field { position: relative; width: 100%; }
-                    .input-field i.icon-left { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #0E4D90; font-size: 16px; }
+                    .input-field i.icon-left { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #0278F3; font-size: 16px; }
                     .input-field i.toggle-password { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #999; font-size: 16px; cursor: pointer; transition: color 0.3s; }
-                    .input-field i.toggle-password:hover { color: #0E4D90; }
+                    .input-field i.toggle-password:hover { color: #0278F3; }
                     form input[type="text"], form input[type="password"] { height: 46px; width: 100%; outline: none; border: 1px solid #e1e5ea; padding: 0 45px 0 45px; font-size: 14px; font-weight: 400; color: #333; border-radius: 8px; background: #fafbfc; transition: all 0.3s ease; }
-                    form input[type="text"]:focus, form input[type="password"]:focus { border: 1px solid #0E4D90; box-shadow: 0 0 0 3px rgba(14,77,144,0.1); background: #fff; }
+                    form input[type="text"]:focus, form input[type="password"]:focus { border: 1px solid #0278F3; box-shadow: 0 0 0 3px rgba(14,77,144,0.1); background: #fff; }
                     
-                    .btn-submit { margin-top: 10px; font-size: 15px; font-weight: 500; cursor: pointer; width: 100%; transition: all 0.3s ease; height: 44px; border-radius: 8px; background: #0E4D90; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; }
+                    .btn-submit { margin-top: 10px; font-size: 15px; font-weight: 500; cursor: pointer; width: 100%; transition: all 0.3s ease; height: 44px; border-radius: 8px; background: #0278F3; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; }
                     .btn-submit:hover { background: #0b3d73; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(14,77,144,0.2); }
                     .btn-submit:active { transform: translateY(0); }
                     
@@ -53,7 +53,7 @@
                     .support-list { display: flex; flex-direction: column; gap: 10px; }
                     .support-item { display: flex; align-items: center; justify-content: center; font-size: 13px; color: #444; font-weight: 500; background: #fff; padding: 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
                     .support-item i { margin-right: 10px; font-size: 16px; width: 20px; text-align: center; }
-                    .support-item .fa-headphones { color: #0E4D90; }
+                    .support-item .fa-headphones { color: #0278F3; }
                     .support-item .fa-briefcase { color: #f59e0b; }
                     .support-item .fa-whatsapp { color: #25D366; font-size: 18px; }
                     
@@ -64,7 +64,7 @@
                     /* Step indicators */
                     .step-indicators { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; }
                     .step-dot { width: 8px; height: 8px; border-radius: 50%; background: #e1e5ea; transition: all 0.3s ease; }
-                    .step-dot.active { background: #0E4D90; width: 16px; border-radius: 4px; }
+                    .step-dot.active { background: #0278F3; width: 16px; border-radius: 4px; }
                     
                     .signup-step { display: flex; flex-direction: column; gap: 16px; }
                     .error-text { color: #dc2626; font-size: 11px; margin-top: -12px; margin-left: 5px; display: none; text-align: left; }
@@ -88,7 +88,7 @@
                     <!-- Signup Form -->
                     <div t-attf-class="form-container form signup {{ 'active' if active_form == 'signup' else '' }}" id="signup-form">
                         <div style="text-align: center; margin-bottom: 15px; display: none;">
-                            <i class="fa-solid fa-briefcase" style="font-size: 40px; color: #0E4D90;"></i>
+                            <i class="fa-solid fa-briefcase" style="font-size: 40px; color: #0278F3;"></i>
                         </div>
                         <header>Create Your Account</header>
                         <div class="sub-header">Get started with your business in seconds</div>
@@ -168,7 +168,7 @@
                                 </button>
                                 
                                 <div style="text-align: center; margin-top: 15px; font-size: 13px;">
-                                    <span style="color: #666;">Already have an account? <strong onclick="toggleForms('login')" style="color: #0E4D90; cursor: pointer;">Log In</strong></span>
+                                    <span style="color: #666;">Already have an account? <strong onclick="toggleForms('login')" style="color: #0278F3; cursor: pointer;">Log In</strong></span>
                                 </div>
                             </div>
                         </form>
@@ -293,8 +293,8 @@
                             </button>
                             
                             <div style="display: flex; justify-content: space-between; margin-top: 15px; font-size: 13px;">
-                                <span style="color: #666;">New to Havano? <strong onclick="toggleForms('signup')" style="color: #0E4D90; cursor: pointer;">Sign up</strong></span>
-                                <span onclick="toggleForms('reset')" style="color: #0E4D90; cursor: pointer; font-weight: 500;">Forgot Password?</span>
+                                <span style="color: #666;">New to Havano? <strong onclick="toggleForms('signup')" style="color: #0278F3; cursor: pointer;">Sign up</strong></span>
+                                <span onclick="toggleForms('reset')" style="color: #0278F3; cursor: pointer; font-weight: 500;">Forgot Password?</span>
                             </div>
                         </form>
                     </div>
@@ -429,4 +429,6 @@
         </xpath>
     </template>
 </odoo>
+
+
 
