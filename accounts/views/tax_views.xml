@@ -55,5 +55,8 @@
                 </p>
             </field>
         </record>
+
+        <!-- Menu Item -->
+        <menuitem id="menu_accounts_taxes" name="Taxes" parent="menu_accounts_master" action="action_havanoposdesk_tax" sequence="20"/>
     </data>
 </odoo>

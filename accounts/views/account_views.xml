@@ -61,5 +61,8 @@
                 </p>
             </field>
         </record>
+
+        <!-- Menu Item -->
+        <menuitem id="menu_accounts_list" name="Accounts" parent="menu_accounts_master" action="action_havanoposdesk_account" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
     </data>
 </odoo>

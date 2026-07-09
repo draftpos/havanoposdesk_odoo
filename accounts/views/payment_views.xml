@@ -100,5 +100,7 @@
             </field>
         </record>
 
+        <!-- Menu Item -->
+        <menuitem id="menu_payments" name="Payments" parent="menu_accounts_operations" action="action_havanoposdesk_payment" sequence="5"/>
     </data>
 </odoo>
