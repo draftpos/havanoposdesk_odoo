@@ -4,14 +4,14 @@
     <!-- Override the ActionHelper template to inject the Lottie animation -->
     <t t-name="havanoposdesk_odoo.ActionHelper" t-inherit="web.ActionHelper" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('o_nocontent_help')]/*[1]" position="before">
-            <lottie-player src="/havanoposdesk_odoo/static/src/json/empty_box.json" background="transparent" speed="999" style="width: 180px; height: 180px; margin: 0 auto 15px auto; display: block;" loop="false" autoplay="true"></lottie-player>
+            <lottie-player src="/havanoposdesk_odoo/static/src/json/empty_box.json" background="transparent" speed="0" style="width: 180px; height: 180px; margin: 0 auto 15px auto; display: block;" loop="false" autoplay="true"></lottie-player>
         </xpath>
     </t>
 
     <!-- Override the NoContentHelper template as well -->
     <t t-name="havanoposdesk_odoo.NoContentHelper" t-inherit="web.NoContentHelper" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('o_nocontent_help')]/*[1]" position="before">
-            <lottie-player src="/havanoposdesk_odoo/static/src/json/empty_box.json" background="transparent" speed="999" style="width: 180px; height: 180px; margin: 0 auto 15px auto; display: block;" loop="false" autoplay="true"></lottie-player>
+            <lottie-player src="/havanoposdesk_odoo/static/src/json/empty_box.json" background="transparent" speed="0" style="width: 180px; height: 180px; margin: 0 auto 15px auto; display: block;" loop="false" autoplay="true"></lottie-player>
         </xpath>
     </t>
 
