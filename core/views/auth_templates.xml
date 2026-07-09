@@ -413,7 +413,7 @@
                             btn.style.opacity = '0.9';
                             
                             // Add spinner icon
-                            textSpan.innerHTML = '<lottie-player src="/havanoposdesk_odoo/static/src/json/loader.json" background="transparent" speed="1" style="width: 25px; height: 25px; margin-right: 8px; display: inline-block; vertical-align: middle;" loop autoplay></lottie-player>' + originalText;
+                            textSpan.innerHTML = '<lottie-player src="/havanoposdesk_odoo/static/src/json/loader.json" background="transparent" speed="1" style="width: 25px; height: 25px; margin-right: 8px; display: inline-block; vertical-align: middle;" loop="true" autoplay="true"></lottie-player>' + originalText;
                             
                             // Form will submit normally after this
                             return true;
