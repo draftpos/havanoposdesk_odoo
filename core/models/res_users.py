@@ -386,7 +386,7 @@ class ResUsers(models.Model):
             'email_to': self.login,
             'email_from': self.company_id.email or 'noreply@havanopos.com',
         }
-        self.env['mail.mail'].sudo().create(mail_values).send()
+        self.env['mail.mail'].sudo().create(mail_values)
 
     def action_send_verification_email(self):
         for user in self:
