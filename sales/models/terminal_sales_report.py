@@ -10,8 +10,8 @@ class TerminalSalesReport(models.Model):
     qty = fields.Float(string='Qty Sold', readonly=True)
     cost_price = fields.Float(string='Cost Price', readonly=True)
     selling_price = fields.Float(string='Selling Price', readonly=True)
-    total_sales = fields.Float(string='Total Sales', readonly=True)
-    profit = fields.Float(string='Profit', readonly=True)
+    total_sales = fields.Monetary(string='Total Sales', readonly=True, currency_field='currency_id')
+    profit = fields.Monetary(string='Profit', readonly=True, currency_field='currency_id')
     profit_margin = fields.Float(string='Profit Margin (%)', readonly=True)
     date = fields.Date(string='Date', readonly=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
@@ -63,3 +63,4 @@ class TerminalSalesReport(models.Model):
                     s.terminal_id, s.salesperson_id, s.posting_date, s.create_uid, s.create_date, l.tenant_id, s.store_id
             )
         """ % (self._table,))
+

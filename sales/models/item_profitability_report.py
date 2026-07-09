@@ -10,11 +10,11 @@ class ItemProfitabilityReport(models.Model):
     name = fields.Char(string='Item Name', readonly=True)
     category_id = fields.Many2one('havanoposdesk.category', string='Category', readonly=True)
     qty = fields.Float(string='Qty Sold', readonly=True)
-    cost_price = fields.Float(string='Buy Price', readonly=True)
-    selling_price = fields.Float(string='Sell Price', readonly=True)
-    total_buy_price = fields.Float(string='Total Buy Price', readonly=True)
-    total_sales = fields.Float(string='Total Sales', readonly=True)
-    profit = fields.Float(string='Profit', readonly=True)
+    cost_price = fields.Monetary(string='Buy Price', readonly=True, currency_field='currency_id')
+    selling_price = fields.Monetary(string='Sell Price', readonly=True, currency_field='currency_id')
+    total_buy_price = fields.Monetary(string='Total Buy Price', readonly=True, currency_field='currency_id')
+    total_sales = fields.Monetary(string='Total Sales', readonly=True, currency_field='currency_id')
+    profit = fields.Monetary(string='Profit', readonly=True, currency_field='currency_id')
     profit_margin = fields.Float(string='Profit Margin (%)', readonly=True)
     date = fields.Date(string='Date', readonly=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
@@ -49,7 +49,7 @@ class ItemProfitabilityReport(models.Model):
                     SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END) as profit,
                     CASE 
                         WHEN SUM(l.amount) > 0 
-                        THEN ((SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END)) / SUM(l.amount)) * 100 
+                        THEN ((SUM(l.amount) - SUM(CASE WHEN s.is_return THEN -l.accepted_qty * l.cost_price ELSE l.accepted_qty * l.cost_price END)) / SUM(l.amount)) 
                         ELSE 0 
                     END as profit_margin,
                     s.posting_date as date,
@@ -69,3 +69,5 @@ class ItemProfitabilityReport(models.Model):
                     l.product_id, p.category_id, p.item_code, p.name, s.posting_date, s.create_uid, s.create_date, l.tenant_id, s.store_id
             )
         """ % (self._table,))
+
+
