@@ -12,6 +12,7 @@
                 <link rel="shortcut icon" t-att-href="havano_favicon" type="image/png"/>
                 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
                 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+                <script src="/havanoposdesk_odoo/static/src/js/lottie-player.js"></script>
                 <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
                     body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f4f7f6; }
@@ -412,7 +413,7 @@
                             btn.style.opacity = '0.9';
                             
                             // Add spinner icon
-                            textSpan.innerHTML = '&lt;i class="fa fa-spinner fa-spin" style="margin-right: 5px;"&gt;&lt;/i&gt; ' + originalText;
+                            textSpan.innerHTML = '<lottie-player src="/havanoposdesk_odoo/static/src/json/loader.json" background="transparent" speed="1" style="width: 25px; height: 25px; margin-right: 8px; display: inline-block; vertical-align: middle;" loop autoplay></lottie-player>' + originalText;
                             
                             // Form will submit normally after this
                             return true;
