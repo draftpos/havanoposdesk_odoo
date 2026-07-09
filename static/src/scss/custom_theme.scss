@@ -146,16 +146,23 @@
 }
 
 
-/* Custom Centered Lottie Loader */
+/* Custom Centered Lottie Loader with Blurred Backdrop */
 .o_loading_indicator.custom-loading-indicator {
     position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    background: transparent !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
     border: none !important;
     box-shadow: none !important;
     color: transparent !important;
     padding: 0 !important;
-    z-index: 1050 !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transform: none !important;
 }
