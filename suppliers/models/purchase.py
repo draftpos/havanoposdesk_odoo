@@ -197,14 +197,21 @@ class Purchase(models.Model):
                             })
                     else:
                         # Normal Purchase
-                        # Average cost = (current_buying_price + new_rate) / 2
+                        # Calculate true moving average cost (weighted average based on stock quantity)
                         current_cost = line.product_id.buying_price or 0.0
-                        new_buying_price = (current_cost + line.rate) / 2.0
+                        current_qty = line.product_id.opening_stock or 0.0
                         
+                        if current_qty > 0 and (current_qty + line.accepted_qty) > 0:
+                            new_buying_price = ((current_qty * current_cost) + (line.accepted_qty * line.rate)) / (current_qty + line.accepted_qty)
+                        else:
+                            # If no previous stock, or stock is negative/zero, the new cost price is just the new purchase price
+                            new_buying_price = line.rate
+                            
                         # Update Product On Hand (opening_stock) and buying_price (last updated value) using sudo()
                         line.product_id.sudo().write({
-                            'opening_stock': line.product_id.opening_stock + line.accepted_qty,
+                            'opening_stock': current_qty + line.accepted_qty,
                             'buying_price': new_buying_price,
+                            'cost_price': new_buying_price,
                         })
                         
                         # Create costing records in costing table
@@ -218,22 +225,15 @@ class Purchase(models.Model):
                         })
                         
                         # Calculate and store average cost
-                        purchase_lines = self.env['havanoposdesk.purchase.line'].search([
-                            ('product_id', '=', line.product_id.id),
-                            '|', ('purchase_id.state', '=', 'posted'), ('purchase_id', '=', purchase.id)
-                        ])
-                        total_qty = sum(purchase_lines.mapped('accepted_qty'))
-                        if total_qty > 0:
-                            total_amount = sum(pl.accepted_qty * pl.rate for pl in purchase_lines)
-                            avg_price = total_amount / total_qty
-                            self.env['havanoposdesk.product.costing'].sudo().create({
-                                'product_id': line.product_id.id,
-                                'purchase_line_id': line.id,
-                                'qty': total_qty,
-                                'price': avg_price,
-                                'cost_type': 'average',
-                                'date': purchase.posting_date,
-                            })
+                        # We use the properly weighted new_buying_price calculated above
+                        self.env['havanoposdesk.product.costing'].sudo().create({
+                            'product_id': line.product_id.id,
+                            'purchase_line_id': line.id,
+                            'qty': line.accepted_qty,
+                            'price': new_buying_price,
+                            'cost_type': 'average',
+                            'date': purchase.posting_date,
+                        })
 
                         # Create Ledger Entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
