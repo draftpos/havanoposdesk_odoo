@@ -413,14 +413,9 @@
                             btn.style.pointerEvents = 'none';
                             btn.style.opacity = '0.9';
                             
-                            // Add spinner icon
-                            textSpan.innerHTML = '<lottie-player background="transparent" speed="1" style="width: 25px; height: 25px; margin-right: 8px; display: inline-block; vertical-align: middle;" loop="true" autoplay="true"></lottie-player>' + originalText;
-                            
-                            // Load JSON data directly to avoid 404s on login page where static assets might be blocked before database selection
-                            const player = textSpan.querySelector('lottie-player');
-                            if (player) {
-                                player.load(loaderJson);
-                            }
+                            // Load JSON data directly via Data URI to avoid 404s and async initialization issues
+                            const loaderDataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(loaderJson));
+                            textSpan.innerHTML = '<lottie-player src="' + loaderDataUri + '" background="transparent" speed="1" style="width: 25px; height: 25px; margin-right: 8px; display: inline-block; vertical-align: middle;" loop="true" autoplay="true"></lottie-player>' + originalText;
                             
                             // Form will submit normally after this
                             return true;
