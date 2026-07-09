@@ -2,6 +2,16 @@
     border-bottom: 1px solid #343a40 !important;
 }
 
-.o_form_view .o_list_view .o_field_widget {
+.o_form_view .o_list_view .o_field_widget,
+.o_form_view .o_field_one2many .o_field_widget,
+.o_form_view td .o_field_widget {
     border-bottom: none !important;
+}
+
+/* Remove Odoo's standard grey lines from the product line tables */
+.o_form_view .o_field_one2many table.o_list_table tbody tr td,
+.o_form_view .o_field_one2many table.o_list_table thead tr th,
+.o_form_view .o_field_one2many table.o_list_table tfoot tr td {
+    border-bottom: none !important;
+    border-top: none !important;
 }
