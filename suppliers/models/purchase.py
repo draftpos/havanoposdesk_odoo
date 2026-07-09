@@ -143,7 +143,7 @@ class Purchase(models.Model):
                 ], limit=1)
 
                 if existing_payment:
-                    existing_payment.amount += purchase.amount_total
+                    existing_payment.with_context(bypass_payment_check=True).write({'amount': existing_payment.amount + purchase.amount_total})
                     if existing_payment.state == 'posted':
                         if payment_type == 'receipt':
                             existing_payment.account_id.sudo().balance += purchase.amount_total
@@ -279,7 +279,7 @@ class Purchase(models.Model):
                         payment.account_id.sudo().balance -= purchase.amount_total
                     else:
                         payment.account_id.sudo().balance += purchase.amount_total
-                payment.write({'amount': payment.amount - purchase.amount_total})
+                payment.with_context(bypass_payment_check=True).write({'amount': payment.amount - purchase.amount_total})
 
             # Remove costing records associated with this purchase's lines
             self.env['havanoposdesk.product.costing'].sudo().search([
