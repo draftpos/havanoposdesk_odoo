@@ -145,3 +145,17 @@
     width: calc(100% - 8px) !important;
 }
 
+
+/* Custom Centered Lottie Loader */
+.o_loading_indicator.custom-loading-indicator {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: transparent !important;
+    padding: 0 !important;
+    z-index: 1050 !important;
+}
