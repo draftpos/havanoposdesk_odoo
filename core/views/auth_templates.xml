@@ -217,7 +217,7 @@
                             
                             // Name Validation
                             const nameInput = document.getElementById('full_name');
-                            if (nameInput && !/^[A-Za-z\s]+$/.test(nameInput.value)) {
+                            if (nameInput &&amp; !/^[A-Za-z\s]+$/.test(nameInput.value)) {
                                 showCustomError(nameInput, "Full Name can only contain letters and spaces.");
                                 isValid = false;
                             }
@@ -226,7 +226,7 @@
                             const emailInput = document.getElementById('email');
                             if (emailInput) {
                                 const emailVal = emailInput.value;
-                                if (emailVal.length > 254) {
+                                if (emailVal.length &gt; 254) {
                                     showCustomError(emailInput, "Email is too long.");
                                     isValid = false;
                                 } else if (emailVal.indexOf(' ') !== -1) {
@@ -242,7 +242,7 @@
                                         isValid = false;
                                     } else {
                                         const tld = domain.split('.').pop();
-                                        if (tld.length < 2) {
+                                        if (tld.length &lt; 2) {
                                             showCustomError(emailInput, "Top-level domain must be at least 2 letters.");
                                             isValid = false;
                                         }
@@ -252,7 +252,7 @@
                             
                             // Password Validation
                             const pwInput = document.getElementById('password');
-                            if (pwInput && !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/.test(pwInput.value)) {
+                            if (pwInput &amp;&amp; !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&amp;*()_+\-=\[\]{};':"\\|,.&lt;&gt;\/?]).{8,}$/.test(pwInput.value)) {
                                 showCustomError(pwInput, "Password must be 8+ chars, with 1 uppercase, 1 number, 1 special char.");
                                 isValid = false;
                             }
@@ -306,15 +306,15 @@
                             var phoneInput = document.getElementById('phone_number');
                             var countryCode = document.getElementById('country_code');
                             
-                            if (phoneInput && countryCode) {
+                            if (phoneInput &amp;&amp; countryCode) {
                                 phoneInput.addEventListener('input', function(e) {
                                     if (countryCode.value === '+263') {
                                         var val = this.value.replace(/\D/g, '');
-                                        if (val.length > 9) val = val.substring(0, 9);
+                                        if (val.length &gt; 9) val = val.substring(0, 9);
                                         var formatted = '';
-                                        if (val.length > 0) formatted += val.substring(0, 2);
-                                        if (val.length > 2) formatted += ' ' + val.substring(2, 5);
-                                        if (val.length > 5) formatted += ' ' + val.substring(5, 9);
+                                        if (val.length &gt; 0) formatted += val.substring(0, 2);
+                                        if (val.length &gt; 2) formatted += ' ' + val.substring(2, 5);
+                                        if (val.length &gt; 5) formatted += ' ' + val.substring(5, 9);
                                         this.value = formatted;
                                     }
                                 });
