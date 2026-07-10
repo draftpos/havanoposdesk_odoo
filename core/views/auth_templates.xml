@@ -184,6 +184,7 @@
                                 if (!input.value.trim()) {
                                     input.classList.add('input-error');
                                     if (errorSpan &amp;&amp; errorSpan.classList.contains('error-text')) {
+                                        errorSpan.innerText = 'This field is required';
                                         errorSpan.style.display = 'block';
                                     }
                                     isValid = false;
@@ -196,12 +197,71 @@
                             });
                             return isValid;
                         }
+                        
+                        function showCustomError(inputEl, msg) {
+                            inputEl.classList.add('input-error');
+                            var errorSpan = inputEl.parentNode.nextElementSibling;
+                            if (errorSpan &amp;&amp; errorSpan.classList.contains('error-text')) {
+                                errorSpan.innerText = msg;
+                                errorSpan.style.display = 'block';
+                            }
+                        }
 
                         function validateSignupForm(event, form) {
                             if(!validateInputs('signup-form-fields')) {
                                 event.preventDefault();
                                 return false;
                             }
+                            
+                            let isValid = true;
+                            
+                            // Name Validation
+                            const nameInput = document.getElementById('full_name');
+                            if (nameInput && !/^[A-Za-z\s]+$/.test(nameInput.value)) {
+                                showCustomError(nameInput, "Full Name can only contain letters and spaces.");
+                                isValid = false;
+                            }
+                            
+                            // Strict Email Validation
+                            const emailInput = document.getElementById('email');
+                            if (emailInput) {
+                                const emailVal = emailInput.value;
+                                if (emailVal.length > 254) {
+                                    showCustomError(emailInput, "Email is too long.");
+                                    isValid = false;
+                                } else if (emailVal.indexOf(' ') !== -1) {
+                                    showCustomError(emailInput, "Email cannot contain spaces.");
+                                    isValid = false;
+                                } else if (emailVal.split('@').length - 1 !== 1) {
+                                    showCustomError(emailInput, "Email must contain exactly one @ symbol.");
+                                    isValid = false;
+                                } else {
+                                    const domain = emailVal.split('@')[1];
+                                    if (domain.indexOf('.') === -1) {
+                                        showCustomError(emailInput, "Domain must contain a dot (e.g., .com).");
+                                        isValid = false;
+                                    } else {
+                                        const tld = domain.split('.').pop();
+                                        if (tld.length < 2) {
+                                            showCustomError(emailInput, "Top-level domain must be at least 2 letters.");
+                                            isValid = false;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Password Validation
+                            const pwInput = document.getElementById('password');
+                            if (pwInput && !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/.test(pwInput.value)) {
+                                showCustomError(pwInput, "Password must be 8+ chars, with 1 uppercase, 1 number, 1 special char.");
+                                isValid = false;
+                            }
+                            
+                            if (!isValid) {
+                                event.preventDefault();
+                                return false;
+                            }
+                            
                             showSpinner(form);
                             return true;
                         }
@@ -241,6 +301,28 @@
                                 icon.classList.add('fa-eye');
                             }
                         }
+
+                        document.addEventListener('DOMContentLoaded', function() {
+                            var phoneInput = document.getElementById('phone_number');
+                            var countryCode = document.getElementById('country_code');
+                            
+                            if (phoneInput && countryCode) {
+                                phoneInput.addEventListener('input', function(e) {
+                                    if (countryCode.value === '+263') {
+                                        var val = this.value.replace(/\D/g, '');
+                                        if (val.length > 9) val = val.substring(0, 9);
+                                        var formatted = '';
+                                        if (val.length > 0) formatted += val.substring(0, 2);
+                                        if (val.length > 2) formatted += ' ' + val.substring(2, 5);
+                                        if (val.length > 5) formatted += ' ' + val.substring(5, 9);
+                                        this.value = formatted;
+                                    }
+                                });
+                                countryCode.addEventListener('change', function() {
+                                    phoneInput.dispatchEvent(new Event('input'));
+                                });
+                            }
+                        });
                     </script>
 
                     <!-- Login Form -->

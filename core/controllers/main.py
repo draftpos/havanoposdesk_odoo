@@ -17,6 +17,7 @@ class HavanoAuthSignup(AuthSignupHome):
 
         if 'error' not in qcontext and request.httprequest.method == 'POST':
             try:
+                request.env = request.env(context=dict(request.env.context, no_reset_password=True, create_user=True))
                 self.do_signup(qcontext)
                 
                 if request.session.uid is None:
@@ -43,3 +44,57 @@ class HavanoAuthSignup(AuthSignupHome):
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
         return response
+
+    def _prepare_signup_values(self, qcontext):
+        values = super(HavanoAuthSignup, self)._prepare_signup_values(qcontext)
+        import re
+        from odoo.exceptions import UserError
+        
+        # 1. Password validation
+        password = values.get('password')
+        if password:
+            if not re.match(r'^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]).{8,}$', password):
+                raise UserError(_("Password must be at least 8 characters long, contain 1 uppercase letter, 1 number, and 1 special character."))
+        
+        # 2. Name Validation (strictly letters and spaces)
+        name = values.get('name')
+        if name and not re.match(r'^[A-Za-z\s]+$', name):
+            raise UserError(_("Full Name can only contain letters and spaces."))
+            
+        # 3. Email Validation
+        email = values.get('login')
+        if not email:
+            raise UserError(_("Email is required."))
+            
+        if len(email) > 254:
+            raise UserError(_("Email is too long."))
+            
+        if ' ' in email:
+            raise UserError(_("Email cannot contain spaces."))
+            
+        if email.count('@') != 1:
+            raise UserError(_("Email must contain exactly one @ symbol."))
+            
+        domain = email.split('@')[1]
+        if '.' not in domain:
+            raise UserError(_("Email domain must contain a dot (e.g., .com)."))
+            
+        tld = domain.split('.')[-1]
+        if len(tld) < 2:
+            raise UserError(_("Email top-level domain must be at least 2 letters."))
+            
+        # 4. Check if email already exists
+        existing_user = request.env['res.users'].sudo().search([('login', '=', email)], limit=1)
+        if existing_user:
+            raise UserError(_("Email already in use. Please log in instead."))
+            
+        # Add custom fields
+        if qcontext.get('organization_name'):
+            values['organization_name'] = qcontext.get('organization_name')
+        
+        phone = qcontext.get('phone_number')
+        country = qcontext.get('country_code', '')
+        if phone:
+            values['phone'] = f"{country}{phone}"
+            
+        return values
