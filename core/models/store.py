@@ -5,6 +5,10 @@ class HavanoposdeskStore(models.Model):
     _name = 'havanoposdesk.store'
     _description = 'Store'
 
+    _sql_constraints = [
+        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Store name must be unique per tenant!')
+    ]
+
     name = fields.Char(string='Store Name', required=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
     currency_id = fields.Many2one(

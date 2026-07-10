@@ -25,6 +25,17 @@ class ResConfigSettings(models.TransientModel):
             return super(ResConfigSettings, self.sudo()).execute()
         return super().execute()
 
+    biz_product_name_format = fields.Selection(
+        related='tenant_id.product_name_format',
+        readonly=False,
+        string="Product Name Formatting"
+    )
+
+    biz_restrict_price_modification = fields.Boolean(
+        related='tenant_id.restrict_price_modification',
+        readonly=False,
+        string="Restrict Price Modification"
+    )
 
     biz_allow_negative_stock = fields.Boolean(
         string="Allow Negative Stock",

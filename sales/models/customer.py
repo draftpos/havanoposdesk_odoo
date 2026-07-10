@@ -2,7 +2,11 @@ from odoo import models, fields, api
 
 class CustomerGroup(models.Model):
     _name = 'havanoposdesk.customer.group'
-    _description = 'Customer Group'
+    _description = 'Customer'
+
+    _sql_constraints = [
+        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Customer name must be unique per tenant!')
+    ]
 
     name = fields.Char(string='Group Name', required=True)
     tenant_id = fields.Many2one(

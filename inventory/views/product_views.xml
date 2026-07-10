@@ -16,7 +16,7 @@
                     <field name="selling_price" string="Sell price" widget="monetary"/>
                     <field name="track_qty"/>
                     <field name="opening_stock" string="QTY"/>
-                    <field name="store_id" optional="show"/>
+                    <field name="store_ids" widget="many2many_tags" optional="show"/>
                     <field name="color" column_invisible="1"/>
                     <field name="tenant_id" column_invisible="1"/>
                     <field name="create_uid" optional="hide"/>
@@ -45,7 +45,9 @@
                                         <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark"/>
                                         <field name="tenant_id" invisible="1"/>
                                         <field name="track_qty" class="border-bottom border-dark"/>
-                                        <field name="store_id" class="border-bottom border-dark" options="{'no_create': True}"/>
+                                        <field name="has_multiple_stores" invisible="1"/>
+                                        <field name="all_stores" invisible="has_multiple_stores == False" class="border-bottom border-dark"/>
+                                        <field name="store_ids" widget="many2many_tags" invisible="has_multiple_stores == True and all_stores == True" class="border-bottom border-dark" options="{'no_create': True}"/>
                                         <field name="item_code" readonly="1" class="border-bottom border-dark"/>
                                         <field name="color" invisible="1"/>
                                     </group>
@@ -85,6 +87,7 @@
                                 <group invisible="not allow_advanced_pricing">
                                     <field name="advanced_price_ids" nolabel="1">
                                         <list editable="bottom">
+                                            <field name="store_id" options="{'no_create': True}"/>
                                             <field name="pricelist_id" options="{'no_create': True}"/>
                                             <field name="uom_id" string="Unit of Measure" options="{'no_create': True}"/>
                                             <field name="qty_to_be_sold" string="Qty to be Sold"/>
@@ -125,7 +128,7 @@
                     <field name="category_id"/>
                     <field name="create_date"/>
                     <field name="create_uid"/>
-                    <field name="store_id"/>
+                    <field name="store_ids"/>
                     <field name="track_qty"/>
                     <separator/>
                     <filter string="In Stock" name="in_stock" domain="[('opening_stock', '&gt;', 0)]"/>
@@ -135,14 +138,14 @@
                     <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
                     <filter string="Created On" name="filter_created_on" date="create_date"/>
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
-                    <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
+                    <filter string="Store" name="filter_store" domain="[('store_ids', '!=', False)]"/>
                     <filter string="Track QTY" name="filter_track_qty" domain="[('track_qty', '=', True)]"/>
                     <filter string="Product Name" name="filter_name" domain="[('name', '!=', False)]"/>
                     <group>
                         <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
-                        <filter string="Store" name="group_by_store" context="{'group_by': 'store_id'}"/>
+                        <filter string="Store" name="group_by_store" context="{'group_by': 'store_ids'}"/>
                         <filter string="Track QTY" name="group_by_track_qty" context="{'group_by': 'track_qty'}"/>
                         <filter string="Product Name" name="group_by_name" context="{'group_by': 'name'}"/>
                         <filter string="Today" name="group_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:day'}"/>
