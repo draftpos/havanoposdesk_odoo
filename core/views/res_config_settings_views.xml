@@ -191,7 +191,7 @@
                         <div class="row mt16 o_settings_container">
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_left_pane">
-                                    <field name="biz_enable_quotations" widget="boolean_toggle"/>
+                                    <field name="biz_enable_quotations"/>
                                 </div>
                                 <div class="o_setting_right_pane">
                                     <label for="biz_enable_quotations" string="Enable Quotations"/>
@@ -200,7 +200,7 @@
                             </div>
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_left_pane">
-                                    <field name="biz_enable_uom_conversion" widget="boolean_toggle"/>
+                                    <field name="biz_enable_uom_conversion"/>
                                 </div>
                                 <div class="o_setting_right_pane">
                                     <label for="biz_enable_uom_conversion" string="Enable UOM Conversion"/>
@@ -209,7 +209,7 @@
                             </div>
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_left_pane">
-                                    <field name="biz_enable_payment_entries" widget="boolean_toggle"/>
+                                    <field name="biz_enable_payment_entries"/>
                                 </div>
                                 <div class="o_setting_right_pane">
                                     <label for="biz_enable_payment_entries" string="Enable Payment Entries"/>
@@ -218,7 +218,7 @@
                             </div>
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_left_pane">
-                                    <field name="biz_show_qty_on_hand" widget="boolean_toggle"/>
+                                    <field name="biz_show_qty_on_hand"/>
                                 </div>
                                 <div class="o_setting_right_pane">
                                     <label for="biz_show_qty_on_hand" string="Show Stock Quantity on Hand"/>
@@ -227,7 +227,7 @@
                             </div>
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_left_pane">
-                                    <field name="biz_enable_shift" widget="boolean_toggle"/>
+                                    <field name="biz_enable_shift"/>
                                 </div>
                                 <div class="o_setting_right_pane">
                                     <label for="biz_enable_shift" string="Enable Shift Management"/>
@@ -289,10 +289,10 @@
                 <app logo="/havanoposdesk_odoo/static/description/stock.png" data-string="Stock" string="Stock" name="havanoposdesk_stock" groups="base.group_user">
                     <block title="Inventory Operations" name="stock_config">
                         <setting id="allow_negative_stock_setting" help="Allow selling products even when their quantity on hand is zero or less. Purchasing more will compensate the negative balance automatically.">
-                            <field name="biz_allow_negative_stock" widget="boolean_toggle"/>
+                            <field name="biz_allow_negative_stock"/>
                         </setting>
                         <setting id="allow_advanced_pricing_setting" help="Allow setting different prices based on pricelists (e.g. Retail, Wholesale) and multiple units of measure.">
-                            <field name="biz_allow_advanced_pricing" widget="boolean_toggle"/>
+                            <field name="biz_allow_advanced_pricing"/>
                         </setting>
                     </block>
                     <block title="Sequence Configuration" name="stock_seq_config">
@@ -414,6 +414,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
+        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_my_business'}</field>
     </record>
@@ -422,6 +423,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
+        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_sales'}</field>
     </record>
@@ -430,6 +432,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
+        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_stock'}</field>
     </record>
@@ -438,6 +441,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
+        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_accounts'}</field>
     </record>
@@ -446,6 +450,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
+        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_suppliers'}</field>
     </record>
