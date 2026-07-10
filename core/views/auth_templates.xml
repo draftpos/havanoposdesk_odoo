@@ -217,7 +217,7 @@
                             
                             // Name Validation
                             const nameInput = document.getElementById('full_name');
-                            if (nameInput &&amp; !/^[A-Za-z\s]+$/.test(nameInput.value)) {
+                            if (nameInput &amp;&amp; !/^[A-Za-z\s]+$/.test(nameInput.value)) {
                                 showCustomError(nameInput, "Full Name can only contain letters and spaces.");
                                 isValid = false;
                             }
