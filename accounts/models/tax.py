@@ -2,7 +2,11 @@ from odoo import models, fields, api
 
 class HavanoposdeskTax(models.Model):
     _name = 'havanoposdesk.tax'
-    _description = 'Tax Configuration'
+    _description = 'Tax'
+
+    _sql_constraints = [
+        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Tax name must be unique per tenant!')
+    ]
 
     name = fields.Char(string='Tax Code', required=True)
     tax_type = fields.Selection([

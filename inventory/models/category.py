@@ -2,7 +2,11 @@ from odoo import models, fields
 
 class HavanoposdeskCategory(models.Model):
     _name = 'havanoposdesk.category'
-    _description = 'Product Category'
+    _description = 'Category'
+
+    _sql_constraints = [
+        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Category name must be unique per tenant!')
+    ]
 
     name = fields.Char(string='Category Name', required=True)
     is_main_category = fields.Boolean(string='Is Main Category', default=True)

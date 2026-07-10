@@ -446,6 +446,15 @@ class SaleLine(models.Model):
 
     @api.onchange('rate')
     def _onchange_rate(self):
+        if self.tenant_id.restrict_price_modification and not self.env.user.has_group('havanoposdesk_odoo.group_tenant_admin'):
+            self.rate = self._origin.rate if getattr(self, '_origin', False) else (self.product_id.selling_price if self.product_id else 0.0)
+            return {
+                'warning': {
+                    'title': 'Price Modification Restricted',
+                    'message': 'You cannot edit prices. Please contact the admin if you wish to change the price.'
+                }
+            }
+
         if self.product_id:
             if self.rate != self.product_id.selling_price:
                 avg_cost_rec = self.env['havanoposdesk.product.costing'].sudo().search([

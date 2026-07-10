@@ -109,9 +109,18 @@ class HavanoposdeskProduct(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
+            
+            if 'name' in vals and vals['name'] and tenant and tenant.product_name_format:
+                if tenant.product_name_format == 'uppercase':
+                    vals['name'] = vals['name'].upper()
+                elif tenant.product_name_format == 'lowercase':
+                    vals['name'] = vals['name'].lower()
+                elif tenant.product_name_format == 'title':
+                    vals['name'] = vals['name'].title()
+                    
             if vals.get('item_code', 'New') == 'New':
-                tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
-                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
                 if tenant:
                     vals['item_code'] = tenant._get_next_sequence('prod')
                 else:
@@ -121,7 +130,7 @@ class HavanoposdeskProduct(models.Model):
         for product in products:
             if product.opening_stock > 0:
                 adj = self.env['havanoposdesk.stock.adjustment'].with_context(from_product_creation=True).create({
-                    'store_id': product.store_id.id if product.store_id else False,
+                    'store_id': product.store_ids[0].id if product.store_ids else False,
                     'fetch_all_data': False,
                     'line_ids': [(0, 0, {
                         'product_id': product.id,
@@ -130,7 +139,38 @@ class HavanoposdeskProduct(models.Model):
                     })]
                 })
                 adj.action_post()
+                
+            if product.allow_advanced_pricing and product.store_ids and product.uom_id:
+                default_pricelist = self.env['havanoposdesk.pricelist'].search([('tenant_id', '=', product.tenant_id.id), ('name', 'ilike', 'Retail')], limit=1)
+                if not default_pricelist:
+                    default_pricelist = self.env['havanoposdesk.pricelist'].search([('tenant_id', '=', product.tenant_id.id)], limit=1)
+                if not default_pricelist:
+                    default_pricelist = self.env['havanoposdesk.pricelist'].create({'name': 'Retail', 'tenant_id': product.tenant_id.id})
+                
+                for store in product.store_ids:
+                    self.env['havanoposdesk.product.uom.price'].create({
+                        'product_id': product.id,
+                        'store_id': store.id,
+                        'pricelist_id': default_pricelist.id,
+                        'uom_id': product.uom_id.id,
+                        'qty_to_be_sold': 1.0,
+                        'price': product.selling_price,
+                        'tenant_id': product.tenant_id.id
+                    })
         return products
+
+    def write(self, vals):
+        if 'name' in vals and vals['name']:
+            for product in self:
+                fmt = product.tenant_id.product_name_format
+                if fmt == 'uppercase':
+                    vals['name'] = vals['name'].upper()
+                elif fmt == 'lowercase':
+                    vals['name'] = vals['name'].lower()
+                elif fmt == 'title':
+                    vals['name'] = vals['name'].title()
+                break # All products in self usually belong to same tenant, or we can just apply first one
+        return super().write(vals)
 
     color_hex = fields.Char(string='Color Hex')
     color = fields.Selection([
@@ -158,20 +198,37 @@ class HavanoposdeskProduct(models.Model):
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=lambda self: (self.env['havanoposdesk.uom'].search([('name', '=', 'Each')], limit=1) or self.env['havanoposdesk.uom'].create({'name': 'Each'})).id)
     
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
-    currency_id = fields.Many2one(related='store_id.currency_id', string='Currency', store=False)
+    currency_id = fields.Many2one(related='tenant_id.currency_id', string='Currency', store=False)
     advanced_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='Advanced Prices')
     allow_advanced_pricing = fields.Boolean(related='tenant_id.allow_advanced_pricing', readonly=True)
 
-    def _get_default_store(self):
+    def _get_default_stores(self):
         tenant_id = self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
         # Look for the store explicitly marked as default for this tenant
         default_store = self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id), ('is_default', '=', True)], limit=1)
         if default_store:
-            return default_store.id
+            return [(6, 0, [default_store.id])]
         # Fallback to user's personal default or the first available store
-        return self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1).id
+        fallback = self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1).id
+        if fallback:
+            return [(6, 0, [fallback])]
+        return []
 
-    store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True, default=_get_default_store)
+    store_ids = fields.Many2many('havanoposdesk.store', 'product_store_rel', 'product_id', 'store_id', string='Stores', required=True, default=_get_default_stores)
+    all_stores = fields.Boolean(string='All Stores', default=True)
+    has_multiple_stores = fields.Boolean(compute='_compute_has_multiple_stores')
+
+    @api.depends('tenant_id')
+    def _compute_has_multiple_stores(self):
+        for record in self:
+            store_count = self.env['havanoposdesk.store'].search_count([('tenant_id', '=', record.tenant_id.id)])
+            record.has_multiple_stores = store_count > 1
+
+    @api.onchange('all_stores')
+    def _onchange_all_stores(self):
+        if self.all_stores:
+            all_store_records = self.env['havanoposdesk.store'].search([('tenant_id', '=', self.tenant_id.id)])
+            self.store_ids = [(6, 0, all_store_records.ids)]
 
     @api.depends('buying_price', 'selling_price')
     def _compute_markup(self):

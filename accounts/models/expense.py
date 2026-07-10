@@ -2,7 +2,11 @@ from odoo import models, fields, api
 
 class Expense(models.Model):
     _name = 'havanoposdesk.expense'
-    _description = 'Expense Posting'
+    _description = 'Expense'
+
+    _sql_constraints = [
+        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Expense name must be unique per tenant!')
+    ]
 
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default=lambda self: 'New')
     date = fields.Date(string='Date', default=fields.Date.context_today, required=True)

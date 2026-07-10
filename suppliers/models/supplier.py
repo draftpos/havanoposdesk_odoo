@@ -4,6 +4,10 @@ class HavanoposdeskSupplier(models.Model):
     _name = 'havanoposdesk.supplier'
     _description = 'Supplier'
 
+    _sql_constraints = [
+        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Supplier name must be unique per tenant!')
+    ]
+
     name = fields.Char(string='Supplier Name', required=True)
     phone = fields.Char(string='Phone')
     email = fields.Char(string='Email')

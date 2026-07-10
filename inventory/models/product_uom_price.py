@@ -5,6 +5,7 @@ class HavanoposdeskProductUomPrice(models.Model):
     _description = 'Product UOM Price'
 
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, ondelete='cascade')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True)
     pricelist_id = fields.Many2one('havanoposdesk.pricelist', string='Pricelist', required=True)
     uom_id = fields.Many2one('havanoposdesk.uom', string='UoM Name', required=True)
     qty_to_be_sold = fields.Float(string='Qty to be Sold', default=1.0, required=True, help="Conversion multiplier (e.g. 1 Box = 24 items, set this to 24)")

@@ -25,6 +25,24 @@ class HavanoposdeskTenant(models.Model):
     ], string='Subscription State', default='active')
     subscription_start_date = fields.Date(string='Subscription Start Date')
     subscription_end_date = fields.Date(string='Subscription End Date')
+    theme_color = fields.Selection([
+        ('dark', 'Dark'),
+        ('light', 'Light')
+    ], string="Theme", default='light')
+    
+    product_name_format = fields.Selection([
+        ('uppercase', 'UPPERCASE'),
+        ('lowercase', 'lowercase'),
+        ('title', 'Title Case'),
+        ('asis', 'As-Is')
+    ], string='Product Naming Format', default='asis')
+    
+    restrict_price_modification = fields.Boolean(
+        string="Restrict Price Modification",
+        default=False,
+        help="If checked, only Tenant Admins can modify unit prices on sales and purchases."
+    )
+    
     payment_status = fields.Selection([
         ('unpaid', 'Unpaid'),
         ('pending', 'Pending Payment'),

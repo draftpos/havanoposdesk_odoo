@@ -245,6 +245,17 @@
                             <div class="row mt16 o_settings_container">
                                 <div class="col-12 col-lg-6 o_setting_box">
                                     <div class="o_setting_left_pane">
+                                        <field name="biz_restrict_price_modification"/>
+                                    </div>
+                                    <div class="o_setting_right_pane">
+                                        <label for="biz_restrict_price_modification" string="Restrict Price Modification"/>
+                                        <div class="text-muted">
+                                            If checked, only Tenant Admins can modify unit prices on sales and purchases.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-6 o_setting_box">
+                                    <div class="o_setting_left_pane">
                                         <field name="biz_allow_credit_sales"/>
                                     </div>
                                     <div class="o_setting_right_pane">
@@ -288,6 +299,9 @@
                 <!-- Stock Settings -->
                 <app logo="/havanoposdesk_odoo/static/description/stock.png" data-string="Stock" string="Stock" name="havanoposdesk_stock" groups="base.group_user">
                     <block title="Inventory Operations" name="stock_config">
+                        <setting id="product_naming_format_setting" help="Force product names to automatically format as uppercase, lowercase, title case, or leave as-is when saved.">
+                            <field name="biz_product_name_format" widget="radio"/>
+                        </setting>
                         <setting id="allow_negative_stock_setting" help="Allow selling products even when their quantity on hand is zero or less. Purchasing more will compensate the negative balance automatically.">
                             <field name="biz_allow_negative_stock"/>
                         </setting>

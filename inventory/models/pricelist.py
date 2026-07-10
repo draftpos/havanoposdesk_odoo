@@ -4,6 +4,10 @@ class HavanoposdeskPricelist(models.Model):
     _name = 'havanoposdesk.pricelist'
     _description = 'Pricelist'
 
+    _sql_constraints = [
+        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Pricelist name must be unique per tenant!')
+    ]
+
     name = fields.Char(string='Pricelist Name', required=True)
     type = fields.Selection([
         ('selling', 'Selling'),
