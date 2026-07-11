@@ -53,6 +53,7 @@ class HavanoposdeskTenant(models.Model):
 
     api_company_name = fields.Char(string="API Company Name", default="Havano POS Company")
     api_currency = fields.Char(string="API Currency", default="USD")
+    api_uom = fields.Char(string="API Default UOM", default="Nos")
     # Products Sequence Config
     prod_seq_prefix = fields.Char(string='Product Sequence Prefix', default='')
     prod_seq_next = fields.Integer(string='Product Sequence Next Number', default=101)

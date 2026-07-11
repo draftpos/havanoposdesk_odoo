@@ -3989,6 +3989,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 default_customer = env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
             default_customer_name = default_customer.name if default_customer else "Walk-in Customer"
 
+            currency = user.api_currency or (tenant.api_currency if tenant else "USD")
             return self._make_json_response({
                 "message": {
                     "status": "success",
@@ -3996,7 +3997,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         "company_name": company_name,
                         "default_warehouse": warehouse,
                         "default_customer": default_customer_name,
-                        "currency": "USD"
+                        "currency": currency
                     }
                 }
             })
@@ -4049,6 +4050,26 @@ class HavanoPOSDeskAPI(http.Controller):
                 default_customer = env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
             default_customer_name = default_customer.name if default_customer else "Walk-in Customer"
 
+            payment_methods_list = []
+            if tenant:
+                accounts = env['havanoposdesk.account'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('type', 'in', ['Cash', 'Bank'])
+                ])
+                for acc in accounts:
+                    payment_methods_list.append({
+                        "name": acc.name,
+                        "type": acc.type
+                    })
+            else:
+                payment_methods_list.append({"name": "Cash", "type": "Cash"})
+                
+            currency = user.api_currency or (tenant.api_currency if tenant else "USD")
+            uom = user.api_uom or (tenant.api_uom if tenant else "Nos")
+            
+            uom_records = env['havanoposdesk.uom'].sudo().search([('tenant_id', '=', tenant.id)]) if tenant else env['havanoposdesk.uom'].sudo().search([])
+            uom_list = [u.name for u in uom_records]
+
             response_data = {
                 "message": {
                     "status": "success",
@@ -4065,7 +4086,13 @@ class HavanoPOSDeskAPI(http.Controller):
                         "cost_center": cost_center,
                         "default_customer": default_customer_name,
                         "company": company_name,
-                        "role": user.havano_role or "admin"
+                        "role": user.havano_role or "admin",
+                        "company_registration": {
+                            "currency": currency,
+                            "uom": uom,
+                            "uom_list": uom_list,
+                            "payment_methods": payment_methods_list
+                        }
                     }
                 }
             }

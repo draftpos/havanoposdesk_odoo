@@ -89,6 +89,7 @@
                             <group>
                                 <field name="api_company_name"/>
                                 <field name="api_currency"/>
+                                <field name="api_uom"/>
                             </group>
                             <group>
                                 <field name="api_cost_center" placeholder="Defaults to Store name if blank"/>
