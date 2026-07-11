@@ -68,7 +68,7 @@
                                 <field name="line_ids" readonly="state != 'draft'" widget="section_and_note_one2many" mode="list,kanban">
                                     <list editable="bottom">
                                         <field name="currency_id" column_invisible="True"/>
-                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="50%" string="Item"/>
+                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id)]" width="50%" string="Item"/>
                                         <field name="accepted_qty" string="Qty" width="15%"/>
                                         <field name="rate" width="15%" widget="monetary"/>
                                         <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary"/>

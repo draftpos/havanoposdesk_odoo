@@ -42,7 +42,7 @@
                                 <field name="line_ids" readonly="state != 'draft'">
                                     <list  editable="bottom">
                                         <field name="currency_id" column_invisible="True"/>
-                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="16%" optional="show"/>
+                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id)]" width="16%" optional="show"/>
                                         <field name="item_code" width="15%" optional="show"/>
                                         <field name="on_hand" width="16%" optional="show"/>
                                         <field name="counted" width="16%" optional="show"/>
