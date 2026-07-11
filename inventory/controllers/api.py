@@ -2407,7 +2407,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if posting_date:
                     purchase_vals['posting_date'] = posting_date
 
-                purchase = env['havanoposdesk.purchase'].with_user(user.id).create(purchase_vals)
+                purchase = env['havanoposdesk.purchase'].sudo().create(purchase_vals)
 
                 if custom_cr:
                     custom_cr.commit()

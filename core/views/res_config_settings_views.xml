@@ -428,7 +428,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
+        <field name="target">current</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_my_business'}</field>
     </record>
@@ -437,7 +437,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
+        <field name="target">current</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_sales'}</field>
     </record>
@@ -446,7 +446,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
+        <field name="target">current</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_stock'}</field>
     </record>
@@ -455,7 +455,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
+        <field name="target">current</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_accounts'}</field>
     </record>
@@ -464,7 +464,7 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
+        <field name="target">current</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_suppliers'}</field>
     </record>
