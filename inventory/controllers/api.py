@@ -4645,6 +4645,67 @@ class HavanoPOSDeskAPI(http.Controller):
                 custom_cr.close()
 
     @http.route([
+        '/api/method/saas_api.www.api.get_stock_purchases_with_items'
+    ], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_get_stock_purchases_with_items(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.params
+        if not token:
+            token = params.get('token')
+
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            
+            from_date = params.get('from_date')
+            to_date = params.get('to_date')
+            
+            domain = [('is_return', '=', False)]
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+            if from_date:
+                domain.append(('posting_date', '>=', from_date))
+            if to_date:
+                domain.append(('posting_date', '<=', to_date))
+                
+            purchases = env['havanoposdesk.purchase'].search(domain, order='posting_date desc, id desc')
+            
+            result = []
+            for purchase in purchases:
+                items = []
+                for line in purchase.line_ids:
+                    items.append({
+                        'item_code': line.item_code,
+                        'item_name': line.product_id.name,
+                        'qty': line.accepted_qty,
+                        'rate': line.rate,
+                        'amount': line.amount,
+                        'warehouse': purchase.store_id.name if purchase.store_id else '',
+                    })
+                    
+                result.append({
+                    'name': purchase.name,
+                    'supplier': purchase.supplier.name if purchase.supplier else '',
+                    'posting_date': str(purchase.posting_date),
+                    'grand_total': purchase.amount_total,
+                    'items': items
+                })
+                
+            return self._make_json_response({'message': result})
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route([
         '/api/method/sass_manager.sass_manager.api.register.register_user_with_site',
         '/api/method/saas_manager.saas_manager.api.register.register_user_with_site'
     ], auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
