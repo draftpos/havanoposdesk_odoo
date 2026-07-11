@@ -2644,6 +2644,12 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
+    @http.route('/api/resource/Batch', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_batch(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+        return self._make_json_response({"data": []})
+
     @http.route('/api/resource/Bin', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_resource_bin(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
