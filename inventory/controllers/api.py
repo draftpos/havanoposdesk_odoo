@@ -2204,6 +2204,227 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.close()
 
+    @http.route([
+        '/api/resource/Purchase Invoice',
+        '/api/resource/Purchase%20Invoice'
+    ], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_purchase_invoice(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        if request.httprequest.method == 'GET':
+            params = request.httprequest.args.to_dict()
+            token = request.httprequest.headers.get('Authorization')
+            if not token:
+                token = params.get('token')
+            uid, login = self._verify_token(token)
+            if not uid:
+                user = self._get_user()
+                uid = user.id
+            
+            env, custom_cr = self._get_env(user_id=uid)
+            try:
+                user = env['res.users'].browse(uid)
+                tenant = user.tenant_id
+
+                domain = [('is_return', '=', False)]
+                if user.havano_role != 'super_admin' and tenant:
+                    domain.append(('tenant_id', '=', tenant.id))
+                    if user.store_ids:
+                        domain.append(('store_id', 'in', user.store_ids.ids))
+                    elif user.default_store_id:
+                        domain.append(('store_id', '=', user.default_store_id.id))
+
+                date_from = params.get('date_from') or params.get('from_date')
+                date_to = params.get('date_to') or params.get('to_date')
+                supplier_filter = params.get('supplier') or params.get('supplier_name')
+                invoice_name = params.get('name') or params.get('invoice_name')
+
+                if date_from:
+                    domain.append(('posting_date', '>=', date_from))
+                if date_to:
+                    domain.append(('posting_date', '<=', date_to))
+                if supplier_filter:
+                    domain.append(('supplier.name', 'ilike', supplier_filter))
+                if invoice_name:
+                    domain.append(('name', 'ilike', invoice_name))
+
+                limit = int(params.get('limit', 100))
+                purchases = env['havanoposdesk.purchase'].search(domain, limit=limit, order='posting_date desc, id desc')
+
+                result = []
+                for purchase in purchases:
+                    posting_date = str(purchase.posting_date) if purchase.posting_date else ""
+                    
+                    items = []
+                    total_qty = 0.0
+                    for line in purchase.line_ids:
+                        qty = line.accepted_qty
+                        rate = line.rate
+                        amount = line.amount
+                        items.append({
+                            "item_name": line.product_id.name,
+                            "item_code": line.product_id.item_code,
+                            "qty": qty,
+                            "rate": rate,
+                            "amount": amount,
+                        })
+                        total_qty += qty
+
+                    result.append({
+                        "name": purchase.name or "",
+                        "supplier": purchase.supplier.name if purchase.supplier else "",
+                        "company": purchase.tenant_id.name if purchase.tenant_id else "Havano POS Company",
+                        "posting_date": posting_date,
+                        "due_date": posting_date,
+                        "items": items,
+                        "total_qty": total_qty,
+                        "total": purchase.amount_total,
+                        "grand_total": purchase.amount_total,
+                    })
+
+                return self._make_json_response({"data": result})
+            finally:
+                if custom_cr:
+                    custom_cr.close()
+
+        elif request.httprequest.method == 'POST':
+            token = request.httprequest.headers.get('Authorization')
+            params = self._get_request_json()
+            if not token:
+                token = params.get('token')
+
+            uid, login = self._verify_token(token)
+            if not uid:
+                user = self._get_user()
+                uid = user.id
+
+            env, custom_cr = self._get_env(user_id=uid)
+            try:
+                user_email = params.get('cashier') or params.get('owner') or params.get('user')
+                user = None
+                if user_email:
+                    cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                    if cashier_user:
+                        user = cashier_user
+                    else:
+                        raise Exception(f"User '{user_email}' not found. Please log in again online.")
+                if not user:
+                    user = env['res.users'].browse(uid)
+                tenant = user.tenant_id
+
+                tenant_id = tenant.id if tenant else False
+                if not tenant_id:
+                    first_tenant = env['havanoposdesk.tenant'].search([], limit=1)
+                    if not first_tenant:
+                        first_tenant = env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})
+                    tenant_id = first_tenant.id
+
+                # Resolve warehouse/store
+                store_name = params.get('set_warehouse') or params.get('warehouse')
+                store = None
+                if store_name:
+                    store = env['havanoposdesk.store'].search([
+                        ('name', '=', store_name),
+                        ('tenant_id', '=', tenant_id)
+                    ], limit=1)
+                    if not store:
+                        store = env['havanoposdesk.store'].search([('name', '=', store_name)], limit=1)
+                
+                if not store:
+                    store = self._get_current_store(user, tenant, params)
+                
+                if not store:
+                    store = env['havanoposdesk.store'].search([('is_default', '=', True), ('tenant_id', '=', tenant_id)], limit=1)
+                    if not store:
+                        store = env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1)
+                    if not store:
+                        store = env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1)
+                    if not store:
+                        store = env['havanoposdesk.store'].search([], limit=1)
+
+                # Resolve Supplier
+                supplier_name = params.get('supplier')
+                supplier = None
+                if supplier_name:
+                    supplier = env['havanoposdesk.supplier'].search([
+                        ('name', '=', supplier_name),
+                        ('tenant_id', '=', tenant_id)
+                    ], limit=1)
+                    if not supplier:
+                        supplier = env['havanoposdesk.supplier'].search([('name', '=', supplier_name)], limit=1)
+                
+                if not supplier:
+                    supplier = env['havanoposdesk.supplier'].search([
+                        ('name', '=', 'General'),
+                        ('tenant_id', '=', tenant_id)
+                    ], limit=1)
+                    if not supplier:
+                        supplier = env['havanoposdesk.supplier'].create({
+                            'name': supplier_name or 'General',
+                            'tenant_id': tenant_id,
+                            'store_id': store.id if store else False
+                        })
+
+                posting_date = params.get('posting_date')
+
+                lines = []
+                for item in params.get('items', []):
+                    item_code = item.get('item_code') or item.get('item_name')
+                    qty = float(item.get('qty', 1.0))
+                    rate = float(item.get('rate', 0.0))
+
+                    product = env['havanoposdesk.product'].search([
+                        ('tenant_id', '=', tenant_id),
+                        '|', ('item_code', '=', item_code), ('name', '=', item_code)
+                    ], limit=1)
+                    if not product:
+                        product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+                    if not product:
+                        product = env['havanoposdesk.product'].create({
+                            'name': item_code,
+                            'item_code': item_code or 'New',
+                            'buying_price': rate,
+                            'tenant_id': tenant_id,
+                            'store_id': store.id if store else False,
+                        })
+
+                    lines.append((0, 0, {
+                        'product_id': product.id,
+                        'accepted_qty': qty,
+                        'rate': rate or product.buying_price or 0.0,
+                        'tenant_id': tenant_id,
+                    }))
+
+                purchase_vals = {
+                    'supplier': supplier.id,
+                    'store_id': store.id if store else False,
+                    'tenant_id': tenant_id,
+                    'line_ids': lines,
+                    'state': 'posted',  # automatically moves from draft to posted to apply costing logic & stock ledger entries
+                    'payment_status': 'account',
+                }
+                if posting_date:
+                    purchase_vals['posting_date'] = posting_date
+
+                purchase = env['havanoposdesk.purchase'].with_user(user.id).create(purchase_vals)
+
+                if custom_cr:
+                    custom_cr.commit()
+
+                return self._make_json_response({
+                    "data": {
+                        "name": purchase.name
+                    }
+                })
+            except Exception as e:
+                if custom_cr:
+                    custom_cr.rollback()
+                return self._make_json_response({"error": str(e)}, status=500)
+            finally:
+                if custom_cr:
+                    custom_cr.close()
+
     @http.route('/api/resource/Payment Entry', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_payment_entry(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
