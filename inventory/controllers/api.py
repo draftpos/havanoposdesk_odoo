@@ -914,12 +914,14 @@ class HavanoPOSDeskAPI(http.Controller):
 
         store_name = store.name if store else ''
         
-        # Scope customers by tenant; add store filter only when we have one
-        domain = []
-        if tenant:
-            domain.append(('tenant_id', '=', tenant.id))
+        # Filter customers by store only (store already scopes to tenant)
+        # This matches the login endpoint behaviour which returns customers correctly
         if store:
-            domain.append(('store_id', '=', store.id))
+            domain = [('store_id', '=', store.id)]
+        elif tenant:
+            domain = [('tenant_id', '=', tenant.id)]
+        else:
+            domain = []
             
         customers = request.env['havanoposdesk.customer'].sudo().search(domain)
         
