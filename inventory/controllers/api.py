@@ -167,7 +167,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if user.tenant_id:
                     product_domain.append(('tenant_id', '=', user.tenant_id.id))
                 if user.havano_role == 'user':
-                    product_domain.append(('store_id', 'in', user.store_ids.ids))
+                    product_domain.append(('store_ids', 'in', user.store_ids.ids))
                     
             limit_val = None
             if items_limit is not None:
@@ -1456,7 +1456,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
             if user.havano_role == 'user':
-                product_domain.append(('store_id', 'in', user.store_ids.ids))
+                product_domain.append(('store_ids', 'in', user.store_ids.ids))
                 
         total_count = request.env['havanoposdesk.product'].sudo().search_count(product_domain)
         products = request.env['havanoposdesk.product'].sudo().search(product_domain, limit=limit, offset=offset)
