@@ -24,6 +24,7 @@
                             <group string="API &amp; Integration Settings">
                                 <field name="api_company_name"/>
                                 <field name="api_currency"/>
+                                <field name="api_uom"/>
                                 <field name="api_cost_center" placeholder="Defaults to default store if blank"/>
                                 <field name="api_warehouse" placeholder="Defaults to default store if blank"/>
                             </group>
@@ -59,6 +60,7 @@
                             <group string="API &amp; Integration Settings">
                                 <field name="api_company_name"/>
                                 <field name="api_currency"/>
+                                <field name="api_uom"/>
                                 <field name="api_cost_center" placeholder="Defaults to default store if blank"/>
                                 <field name="api_warehouse" placeholder="Defaults to default store if blank"/>
                             </group>

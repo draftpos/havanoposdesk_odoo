@@ -51,8 +51,22 @@ class HavanoposdeskTenant(models.Model):
     
     user_ids = fields.One2many('res.users', 'tenant_id', string='Users')
 
+    def check_subscription_active(self):
+        self.ensure_one()
+        if self.subscription_state not in ('expired', 'cancelled', 'pending'):
+            return True
+            
+        if self.subscription_state == 'expired' and self.subscription_end_date:
+            grace_days = int(self.env['ir.config_parameter'].sudo().get_param('havanoposdesk.subscription_grace_days', '5'))
+            expiry_with_grace = self.subscription_end_date + relativedelta(days=grace_days)
+            if fields.Date.context_today(self) <= expiry_with_grace:
+                return True
+                
+        return False
+
     api_company_name = fields.Char(string="API Company Name", default="Havano POS Company")
     api_currency = fields.Char(string="API Currency", default="USD")
+    api_uom = fields.Char(string="API Default UOM", default="Nos")
     # Products Sequence Config
     prod_seq_prefix = fields.Char(string='Product Sequence Prefix', default='')
     prod_seq_next = fields.Integer(string='Product Sequence Next Number', default=101)

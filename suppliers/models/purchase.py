@@ -1,5 +1,5 @@
 from odoo.exceptions import ValidationError
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 
 class Purchase(models.Model):
     _name = 'havanoposdesk.purchase'
@@ -94,8 +94,14 @@ class Purchase(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            if tenant_id:
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
+                if tenant and not tenant.check_subscription_active():
+                    raise ValidationError(_("Your subscription has expired and the grace period has ended. Please upgrade your package to resume operations."))
+
             if vals.get('payment_status') == 'cash' and not vals.get('account_id'):
-                raise ValidationError("Please specify a cash/bank payment account for cash purchases.")
+                raise ValidationError(_("Please specify a cash/bank payment account for cash purchases."))
             if vals.get('name', 'New') == 'New':
                 tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']

@@ -48,6 +48,7 @@ class ResUsers(models.Model):
 
     api_company_name = fields.Char(string="API Company Name", default="Havano POS Company")
     api_currency = fields.Char(string="API Currency", default="USD")
+    api_uom = fields.Char(string="API Default UOM", default="Nos")
     api_cost_center = fields.Char(string="API Cost Center")
     api_warehouse = fields.Char(string="API Warehouse")
 
