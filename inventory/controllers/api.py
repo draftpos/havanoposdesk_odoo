@@ -1126,7 +1126,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'item_code': item_code or 'New',
                     'selling_price': rate,
                     'tenant_id': tenant.id,
-                    'store_id': store.id,
+                    'all_stores': True,
                 })
                 
             lines.append((0, 0, {
@@ -1276,7 +1276,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'category_id': category.id,
                 'uom_id': uom.id,
                 'tenant_id': tenant.id,
-                'store_id': store.id,
+                'all_stores': True,
                 'track_qty': track_qty,
             })
             
@@ -1785,7 +1785,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         'item_code': item_code or 'New',
                         'selling_price': price,
                         'tenant_id': tenant.id,
-                        'store_id': store.id,
+                        'all_stores': True,
                     })
 
                 sale_lines.append((0, 0, {
@@ -2231,7 +2231,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             'item_code': item_code or 'New',
                             'selling_price': rate,
                             'tenant_id': tenant.id,
-                            'store_id': store.id,
+                            'all_stores': True,
                         })
 
                     lines.append((0, 0, {
@@ -2244,7 +2244,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if not terminal:
                     raise Exception("No terminal assigned. Please select a terminal first.")
 
-                sale = env['havanoposdesk.sale'].with_user(user.id).create({
+                sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create({
                     'customer': customer.id,
                     'store': store.name,
                     'store_id': store.id,
@@ -2454,7 +2454,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             'item_code': item_code or 'New',
                             'buying_price': rate,
                             'tenant_id': tenant_id,
-                            'store_id': store.id if store else False,
+                            'all_stores': True,
                         })
 
                     lines.append((0, 0, {

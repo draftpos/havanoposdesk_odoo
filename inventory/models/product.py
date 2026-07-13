@@ -27,11 +27,11 @@ class HavanoposdeskProduct(models.Model):
                 record.display_name = base_name
 
     @api.model
-    def _name_search(self, name='', args=None, operator='ilike', limit=100, name_get_uid=None):
+    def _name_search(self, name='', args=None, operator='ilike', limit=100, order=None):
         args = list(args or [])
         if name:
             args += ['|', ('name', operator, name), ('item_code', operator, name)]
-        return self._search(args, limit=limit, access_rights_uid=name_get_uid)
+        return self._search(args, limit=limit, order=order)
     buying_price = fields.Float(string='Cost price', default=0.0)
     selling_price = fields.Float(string='Sell price')
     markup = fields.Float(string='Markup', compute='_compute_markup')
@@ -117,6 +117,12 @@ class HavanoposdeskProduct(models.Model):
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
             
+            # Map store_id to store_ids if present and pop it to prevent invalid field exception
+            if 'store_id' in vals:
+                store_id = vals.pop('store_id')
+                if store_id and 'store_ids' not in vals:
+                    vals['store_ids'] = [(6, 0, [store_id])]
+
             if 'name' in vals and vals['name'] and tenant and tenant.product_name_format:
                 if tenant.product_name_format == 'uppercase':
                     vals['name'] = vals['name'].upper()
@@ -130,6 +136,13 @@ class HavanoposdeskProduct(models.Model):
                     vals['item_code'] = tenant._get_next_sequence('prod')
                 else:
                     vals['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
+
+            # Set store_ids to all stores if all_stores is True (either by default or explicitly)
+            if (vals.get('all_stores', True) and 'store_ids' not in vals) or vals.get('all_stores') is True:
+                if tenant_id:
+                    all_store_records = self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)])
+                    if all_store_records:
+                        vals['store_ids'] = [(6, 0, all_store_records.ids)]
         products = super().create(vals_list)
         
         for product in products:
@@ -165,6 +178,12 @@ class HavanoposdeskProduct(models.Model):
         return products
 
     def write(self, vals):
+        # Map store_id to store_ids if present and pop it to prevent invalid field exception
+        if 'store_id' in vals:
+            store_id = vals.pop('store_id')
+            if store_id:
+                vals['store_ids'] = [(6, 0, [store_id])]
+
         if 'name' in vals and vals['name']:
             for product in self:
                 fmt = product.tenant_id.product_name_format
@@ -175,7 +194,16 @@ class HavanoposdeskProduct(models.Model):
                 elif fmt == 'title':
                     vals['name'] = vals['name'].title()
                 break # All products in self usually belong to same tenant, or we can just apply first one
-        return super().write(vals)
+
+        res = super().write(vals)
+
+        if vals.get('all_stores'):
+            for product in self:
+                all_store_records = self.env['havanoposdesk.store'].search([('tenant_id', '=', product.tenant_id.id)])
+                super(HavanoposdeskProduct, product).write({
+                    'store_ids': [(6, 0, all_store_records.ids)]
+                })
+        return res
 
     color_hex = fields.Char(string='Color Hex')
     color = fields.Selection([
