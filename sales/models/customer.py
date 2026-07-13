@@ -44,10 +44,6 @@ class Customer(models.Model):
     customer_group_id = fields.Many2one('havanoposdesk.customer.group', string='Customer Group')
     tin = fields.Char(string='TIN')
     vat = fields.Char(string='VAT')
-    customer_type = fields.Selection([
-        ('individual', 'Individual'),
-        ('company', 'Company')
-    ], string='Customer Type', default='individual')
 
     @api.depends('name', 'tenant_id')
     def _compute_display_name(self):
