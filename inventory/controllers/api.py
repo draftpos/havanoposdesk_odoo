@@ -475,10 +475,7 @@ class HavanoPOSDeskAPI(http.Controller):
         store = self._get_current_store(user, tenant, request_params)
 
         if request.httprequest.method == 'GET':
-            if not store:
-                return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
-
-            domain = [('store_id', '=', store.id)]
+            domain = []
             if user.havano_role != 'super_admin':
                 if not user.tenant_id:
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
@@ -2631,11 +2628,8 @@ class HavanoPOSDeskAPI(http.Controller):
         try:
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
-            store = self._get_current_store(user, tenant, request.params)
-            if not store:
-                return self._make_json_response({"data": []})
 
-            domain = [('store_id', '=', store.id)]
+            domain = []
             if tenant:
                 domain.append(('tenant_id', '=', tenant.id))
 
