@@ -939,10 +939,10 @@ class HavanoPOSDeskAPI(http.Controller):
         res_list = []
         for c in customers:
             # Dynamic balance calculation from sales
-            sales = request.env['havanoposdesk.sale'].sudo().search([
-                ('customer', '=', c.id),
-                ('tenant_id', '=', tenant.id) if tenant else (1, '=', 1)
-            ])
+            sales_domain = [('customer', '=', c.id)]
+            if tenant:
+                sales_domain.append(('tenant_id', '=', tenant.id))
+            sales = request.env['havanoposdesk.sale'].sudo().search(sales_domain)
             balance_amount = sum(sales.mapped('amount_total'))
             
             res_list.append({
@@ -985,10 +985,10 @@ class HavanoPOSDeskAPI(http.Controller):
         customer = request.env['havanoposdesk.customer'].sudo().search([('name', '=', customer_name)], limit=1)
         balance_amount = 0.0
         if customer:
-            sales = request.env['havanoposdesk.sale'].sudo().search([
-                ('customer', '=', customer.id),
-                ('tenant_id', '=', tenant.id) if tenant else (1, '=', 1)
-            ])
+            sales_domain = [('customer', '=', customer.id)]
+            if tenant:
+                sales_domain.append(('tenant_id', '=', tenant.id))
+            sales = request.env['havanoposdesk.sale'].sudo().search(sales_domain)
             balance_amount = sum(sales.mapped('amount_total'))
             
         res_data = {
@@ -6129,4 +6129,305 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.close()
 
+
+    # ─── REPORTS ────────────────────────────────────────────────────────────────
+
+    def _report_base_domain(self, env, uid, params):
+        """Build a base domain scoped to the authenticated user's tenant/store."""
+        user = env['res.users'].browse(uid)
+        tenant = user.tenant_id
+        domain = []
+        if tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+
+        store = self._get_current_store(user, tenant, params)
+        if store:
+            domain.append(('store_id', '=', store.id))
+        elif user.havano_role != 'super_admin':
+            if user.store_ids:
+                domain.append(('store_id', 'in', user.store_ids.ids))
+            elif user.default_store_id:
+                domain.append(('store_id', '=', user.default_store_id.id))
+
+        from_date = params.get('from_date')
+        to_date = params.get('to_date')
+        if from_date:
+            domain.append(('date', '>=', from_date))
+        if to_date:
+            domain.append(('date', '<=', to_date))
+        return domain
+
+    # ── Category Profitability ──────────────────────────────────────────────────
+    @http.route('/api/reports/category-profitability', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_category_profitability(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.httprequest.args.to_dict()
+        if not token:
+            token = params.get('token')
+
+        uid, _ = self._verify_token(token)
+        if not uid:
+            uid = self._get_user().id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            domain = self._report_base_domain(env, uid, params)
+            records = env['havanoposdesk.category.sales.report'].search(domain)
+
+            grouped = {}
+            for r in records:
+                cat_name = r.category_id.name if r.category_id else 'Uncategorised'
+                if cat_name not in grouped:
+                    grouped[cat_name] = {
+                        'category': cat_name,
+                        'total_qty': 0.0,
+                        'total_sales': 0.0,
+                        'profit': 0.0,
+                        'profit_margin': 0.0,
+                    }
+                g = grouped[cat_name]
+                g['total_qty'] += r.qty
+                g['total_sales'] += r.total_sales
+                g['profit'] += r.profit
+
+            data = list(grouped.values())
+            for g in data:
+                if g['total_sales'] > 0:
+                    g['profit_margin'] = round((g['profit'] / g['total_sales']) * 100.0, 2)
+            data.sort(key=lambda x: x['total_sales'], reverse=True)
+
+            return self._make_json_response({'status': 'success', 'data': data})
+        except Exception as e:
+            return self._make_json_response({'error': str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    # ── Cashier Profitability ───────────────────────────────────────────────────
+    @http.route('/api/reports/cashier-profitability', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_cashier_profitability(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.httprequest.args.to_dict()
+        if not token:
+            token = params.get('token')
+
+        uid, _ = self._verify_token(token)
+        if not uid:
+            uid = self._get_user().id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            domain = self._report_base_domain(env, uid, params)
+            records = env['havanoposdesk.cashier.sales.report'].search(domain)
+
+            grouped = {}
+            for r in records:
+                cashier_name = r.salesperson_id.name if r.salesperson_id else 'Unknown'
+                cashier_email = r.salesperson_id.login if r.salesperson_id else ''
+                key = cashier_email or cashier_name
+                if key not in grouped:
+                    grouped[key] = {
+                        'cashier': cashier_name,
+                        'cashier_email': cashier_email,
+                        'total_qty': 0.0,
+                        'total_sales': 0.0,
+                        'total_cost': 0.0,
+                        'profit': 0.0,
+                        'profit_margin': 0.0,
+                    }
+                g = grouped[key]
+                g['total_qty'] += r.qty
+                g['total_sales'] += r.total_sales
+                g['total_cost'] += r.total_buy_price
+                g['profit'] += r.profit
+
+            data = list(grouped.values())
+            for g in data:
+                if g['total_sales'] > 0:
+                    g['profit_margin'] = round((g['profit'] / g['total_sales']) * 100.0, 2)
+            data.sort(key=lambda x: x['total_sales'], reverse=True)
+
+            return self._make_json_response({'status': 'success', 'data': data})
+        except Exception as e:
+            return self._make_json_response({'error': str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    # ── Shop (Terminal) Profitability ───────────────────────────────────────────
+    @http.route('/api/reports/shop-profitability', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_shop_profitability(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.httprequest.args.to_dict()
+        if not token:
+            token = params.get('token')
+
+        uid, _ = self._verify_token(token)
+        if not uid:
+            uid = self._get_user().id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            # Use store_id-scoped domain but without date filter on this model which uses 'date'
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            domain = []
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+
+            from_date = params.get('from_date')
+            to_date = params.get('to_date')
+            if from_date:
+                domain.append(('date', '>=', from_date))
+            if to_date:
+                domain.append(('date', '<=', to_date))
+
+            # Scope to user's stores
+            if user.havano_role != 'super_admin':
+                if user.store_ids:
+                    domain.append(('store_id', 'in', user.store_ids.ids))
+                elif user.default_store_id:
+                    domain.append(('store_id', '=', user.default_store_id.id))
+
+            records = env['havanoposdesk.terminal.sales.report'].search(domain)
+
+            grouped = {}
+            for r in records:
+                store_name = r.store_id.name if r.store_id else 'Unknown Shop'
+                if store_name not in grouped:
+                    grouped[store_name] = {
+                        'shop': store_name,
+                        'total_qty': 0.0,
+                        'total_sales': 0.0,
+                        'profit': 0.0,
+                        'profit_margin': 0.0,
+                    }
+                g = grouped[store_name]
+                g['total_qty'] += r.qty
+                g['total_sales'] += r.total_sales
+                g['profit'] += r.profit
+
+            data = list(grouped.values())
+            for g in data:
+                if g['total_sales'] > 0:
+                    g['profit_margin'] = round((g['profit'] / g['total_sales']) * 100.0, 2)
+            data.sort(key=lambda x: x['total_sales'], reverse=True)
+
+            return self._make_json_response({'status': 'success', 'data': data})
+        except Exception as e:
+            return self._make_json_response({'error': str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    # ── Daily Sales ─────────────────────────────────────────────────────────────
+    @http.route('/api/reports/daily-sales', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_daily_sales(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.httprequest.args.to_dict()
+        if not token:
+            token = params.get('token')
+
+        uid, _ = self._verify_token(token)
+        if not uid:
+            uid = self._get_user().id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            domain = self._report_base_domain(env, uid, params)
+            records = env['havanoposdesk.daily.sales.report'].search(domain, order='date asc')
+
+            data = []
+            for r in records:
+                data.append({
+                    'date': str(r.date) if r.date else None,
+                    'total_qty': r.qty,
+                    'total_sales': r.total_sales,
+                    'profit': r.profit,
+                    'profit_margin': round(r.profit_margin * 100.0, 2) if r.profit_margin else 0.0,
+                })
+
+            return self._make_json_response({'status': 'success', 'data': data})
+        except Exception as e:
+            return self._make_json_response({'error': str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    # ── Sales Returns ───────────────────────────────────────────────────────────
+    @http.route('/api/reports/sales-returns', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_sales_returns(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.httprequest.args.to_dict()
+        if not token:
+            token = params.get('token')
+
+        uid, _ = self._verify_token(token)
+        if not uid:
+            uid = self._get_user().id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            domain = [('is_return', '=', True), ('state', 'in', ['confirmed', 'done'])]
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+
+            from_date = params.get('from_date')
+            to_date = params.get('to_date')
+            if from_date:
+                domain.append(('posting_date', '>=', from_date))
+            if to_date:
+                domain.append(('posting_date', '<=', to_date))
+
+            if user.havano_role != 'super_admin':
+                if user.store_ids:
+                    domain.append(('store_id', 'in', user.store_ids.ids))
+                elif user.default_store_id:
+                    domain.append(('store_id', '=', user.default_store_id.id))
+
+            sales = env['havanoposdesk.sale'].search(domain, order='posting_date desc')
+
+            data = []
+            for s in sales:
+                items = []
+                for line in s.line_ids:
+                    items.append({
+                        'item_code': line.product_id.item_code if line.product_id else '',
+                        'item_name': line.product_id.name if line.product_id else '',
+                        'qty': line.accepted_qty,
+                        'rate': line.unit_price,
+                        'amount': line.amount,
+                    })
+                data.append({
+                    'name': s.name,
+                    'date': str(s.posting_date) if s.posting_date else None,
+                    'customer': s.customer_id.name if s.customer_id else '',
+                    'cashier': s.salesperson_id.name if s.salesperson_id else '',
+                    'total_amount': s.amount_total,
+                    'items': items,
+                })
+
+            return self._make_json_response({'status': 'success', 'data': data})
+        except Exception as e:
+            return self._make_json_response({'error': str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
 
