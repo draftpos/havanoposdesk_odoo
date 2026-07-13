@@ -86,6 +86,11 @@ class HavanoAuthSignup(AuthSignupHome):
         response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
         return response
 
+    def get_auth_signup_qcontext(self):
+        qcontext = super(HavanoAuthSignup, self).get_auth_signup_qcontext()
+        qcontext['countries'] = request.env['res.country'].sudo().search([])
+        return qcontext
+
     def _prepare_signup_values(self, qcontext):
         values = super(HavanoAuthSignup, self)._prepare_signup_values(qcontext)
         import re

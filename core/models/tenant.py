@@ -143,11 +143,13 @@ class HavanoposdeskTenant(models.Model):
         tenants = super().create(vals_list)
         for tenant in tenants:
             usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
+            store_currency_id = tenant.currency_id.id if tenant.currency_id else (usd_currency.id if usd_currency else False)
+            
             store = self.env['havanoposdesk.store'].sudo().create({
                 'name': tenant.name,
                 'tenant_id': tenant.id,
                 'is_default': True,
-                'currency_id': usd_currency.id if usd_currency else False,
+                'currency_id': store_currency_id,
             })
             
             # Auto-create a default terminal

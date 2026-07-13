@@ -146,6 +146,22 @@
                                 </div>
                                 
                                 <div>
+                                    <div class="input-field">
+                                        <i class="fa-solid fa-globe icon-left"></i>
+                                        <select name="country_id" id="country_id" required="required" style="height: 46px; width: 100%; outline: none; border: 1px solid #e1e5ea; padding: 0 45px 0 45px; font-size: 14px; font-weight: 400; color: #333; border-radius: 8px; background: #fafbfc; transition: all 0.3s ease; -webkit-appearance: none; -moz-appearance: none; appearance: none; cursor: pointer;">
+                                            <option value="" disabled="disabled" selected="selected">Select Country *</option>
+                                            <t t-if="countries">
+                                                <t t-foreach="countries" t-as="country">
+                                                    <option t-att-value="country.id"><t t-esc="country.name"/></option>
+                                                </t>
+                                            </t>
+                                        </select>
+                                        <i class="fa-solid fa-caret-down" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #999; font-size: 16px; cursor: pointer; transition: color 0.3s;"></i>
+                                    </div>
+                                    <div class="error-text">This field is required</div>
+                                </div>
+                                
+                                <div>
                                     <div class="input-field" style="display: flex;">
                                         <select id="country_code" name="country_code" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); border: none; background: transparent; outline: none; z-index: 10; color: #333; font-size: 14px; width: 85px; cursor: pointer; -webkit-appearance: none; -moz-appearance: none; appearance: none;">
                                             <option value="+263">🇿🇼 +263</option>

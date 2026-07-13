@@ -99,6 +99,7 @@
                         <group string="Feature Toggles">
                             <group>
                                 <field name="enable_tax" widget="boolean_toggle"/>
+                                <field name="enable_barcode" widget="boolean_toggle"/>
                             </group>
                         </group>
                     </sheet>
