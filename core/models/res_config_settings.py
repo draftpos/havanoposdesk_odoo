@@ -280,3 +280,10 @@ class ResConfigSettings(models.TransientModel):
         help="The Bearer API token used for authenticating with Bugsink."
     )
 
+    havano_subscription_grace_days = fields.Integer(
+        string="Subscription Grace Days",
+        config_parameter="havanoposdesk.subscription_grace_days",
+        default=5,
+        help="The amount of time (in days) a user's subscription can be expired before access is blocked."
+    )
+

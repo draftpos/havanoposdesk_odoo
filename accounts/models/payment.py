@@ -1,5 +1,5 @@
-from odoo import models, fields, api
-from odoo.exceptions import UserError
+from odoo import models, fields, api, _
+from odoo.exceptions import UserError, ValidationError
 
 class Payment(models.Model):
     _name = 'havanoposdesk.payment'
@@ -44,8 +44,13 @@ class Payment(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            if tenant_id:
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
+                if tenant and not tenant.check_subscription_active():
+                    raise ValidationError(_("Your subscription has expired and the grace period has ended. Please upgrade your package to resume operations."))
+            
             if vals.get('name', 'New') == 'New':
-                tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
                 if tenant:
                     if vals.get('payment_type') == 'payment':

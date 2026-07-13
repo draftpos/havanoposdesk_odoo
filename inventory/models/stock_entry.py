@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
 from datetime import datetime
 
@@ -42,6 +42,12 @@ class StockEntry(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            if tenant_id:
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
+                if tenant and not tenant.check_subscription_active():
+                    raise ValidationError(_("Your subscription has expired and the grace period has ended. Please upgrade your package to resume operations."))
+
             if vals.get('name', 'New') == 'New':
                 seq = self.env['ir.sequence'].next_by_code('havanoposdesk.stock.entry')
                 if not seq:

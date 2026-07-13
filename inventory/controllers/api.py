@@ -4297,6 +4297,25 @@ class HavanoPOSDeskAPI(http.Controller):
             uom_records = env['havanoposdesk.uom'].sudo().search([('tenant_id', '=', tenant.id)]) if tenant else env['havanoposdesk.uom'].sudo().search([])
             uom_list = [u.name for u in uom_records]
 
+            # Compute days left and company status
+            days_left = 30
+            if tenant and tenant.subscription_end_date:
+                days_left = (tenant.subscription_end_date - fields.Date.context_today(user)).days
+
+            # Also check if user is expired or suspended
+            company_status = tenant.subscription_state if tenant else 'active'
+            
+            # If the grace period is expired, company_status is blocked/expired/suspended
+            if tenant and not tenant.check_subscription_active():
+                if tenant.subscription_state == 'expired':
+                    company_status = 'expired'
+                elif tenant.subscription_state == 'cancelled':
+                    company_status = 'cancelled'
+                elif tenant.subscription_state == 'pending':
+                    company_status = 'pending'
+                else:
+                    company_status = 'suspended'
+
             response_data = {
                 "message": {
                     "status": "success",
@@ -4315,6 +4334,13 @@ class HavanoPOSDeskAPI(http.Controller):
                         "company": company_name,
                         "role": user.havano_role or "admin",
                         "company_registration": {
+                            "name": tenant.name if tenant else company_name,
+                            "organization_name": tenant.name if tenant else company_name,
+                            "status": tenant.subscription_state if tenant else "active",
+                            "company": tenant.name if tenant else company_name,
+                            "company_status": company_status,
+                            "subscription": tenant.subscription_state if tenant else "active",
+                            "days_left": days_left,
                             "currency": currency,
                             "uom": uom,
                             "uom_list": uom_list,

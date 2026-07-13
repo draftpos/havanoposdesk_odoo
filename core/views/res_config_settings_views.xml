@@ -114,13 +114,22 @@
                             </div>
                         </div>
                     </block>
-                    <block title="User Verification &amp; Suspension" name="saas_verification">
+                    <block title="User Verification &amp; Subscription" name="saas_verification">
                         <setting id="verification_grace_period_setting" help="Specify the grace period for self-registered users to verify their email before their account gets suspended.">
                             <div class="content-group">
                                 <div class="d-flex align-items-center gap-2">
                                     <span>Grace Period:</span>
                                     <field name="havano_verification_grace_number" class="oe_inline" style="width: 80px;"/>
                                     <field name="havano_verification_grace_unit" class="oe_inline" style="width: 100px;"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting id="subscription_grace_days_setting" help="Specify the subscription grace period (in days) allowed for tenants after their subscription has expired.">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Subscription Grace Days:</span>
+                                    <field name="havano_subscription_grace_days" class="oe_inline" style="width: 80px;"/>
+                                    <span>Days</span>
                                 </div>
                             </div>
                         </setting>
