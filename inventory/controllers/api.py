@@ -6,6 +6,11 @@ import odoo.orm.environments
 from odoo import http
 from odoo.http import request
 import json
+import json
+import traceback
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class HavanoPOSDeskAPI(http.Controller):
 
@@ -901,29 +906,136 @@ class HavanoPOSDeskAPI(http.Controller):
     @http.route('/api/method/saas_api.www.api.get_customers', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
     def api_get_customers(self, **kw):
         try:
+            checkpoint = "1 - Get user"
             user = self._get_user()
             tenant = user.tenant_id
 
+            checkpoint = "2 - Get current store"
             store = self._get_current_store(user, tenant, kw)
 
+            if not store:
+                return request.make_response(
+                    json.dumps({'message': []}),
+                    headers=[('Content-Type', 'application/json')]
+                )
+
+            store_name = store.name
+
+            checkpoint = "3 - Search customers"
+            domain = [('store_id', '=', store.id)]
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+
+            customers = request.env['havanoposdesk.customer'].sudo().search(domain)
+
+            checkpoint = "4 - Search products"
+            prod_domain = []
+            if tenant:
+                prod_domain.append(('tenant_id', '=', tenant.id))
+            if store:
+                prod_domain.append(('store_id', '=', store.id))
+
+            products = request.env['havanoposdesk.product'].sudo().search(prod_domain)
+
+            checkpoint = "5 - Build items list"
+            items_data = []
+
+            for p in products:
+                items_data.append({
+                    'item_code': p.item_code,
+                    'item_name': p.name,
+                    'price_list_rate': p.selling_price or 0.0,
+                })
+
+            if not items_data:
+                items_data = [
+                    {
+                        'item_code': 'Sadza',
+                        'item_name': 'Sadza',
+                        'price_list_rate': 5.0,
+                    },
+                    {
+                        'item_code': 'Water',
+                        'item_name': 'Water',
+                        'price_list_rate': 1.0,
+                    }
+                ]
+
+            checkpoint = "6 - Company settings"
+
+            company_name = (
+                user.api_company_name
+                or (tenant.api_company_name if tenant else False)
+                or (tenant.name if tenant else False)
+                or user.company_id.name
+                or 'Havano Co'
+            )
+
+            cost_center = (
+                user.api_cost_center
+                or (tenant.api_cost_center if tenant else False)
+                or store_name
+            )
+
+            warehouse = (
+                user.api_warehouse
+                or (tenant.api_warehouse if tenant else False)
+                or store_name
+            )
+
+            checkpoint = "7 - Build customer response"
+
+            res_list = []
+
+            for c in customers:
+
+                checkpoint = f"7A - Calculating balance for customer {c.name}"
+
+                sales_domain = [('customer', '=', c.id)]
+                if tenant:
+                    sales_domain.append(('tenant_id', '=', tenant.id))
+
+                sales = request.env['havanoposdesk.sale'].sudo().search(sales_domain)
+
+                balance_amount = sum(sales.mapped('amount_total'))
+
+                res_list.append({
+                    'name': c.name,
+                    'customer_name': c.name,
+                    'customer_type': 'Company' if c.customer_type == 'company' else 'Individual',
+                    'custom_cost_center': cost_center,
+                    'custom_warehouse': warehouse,
+                    'gender': None,
+                    'customer_pos_id': None,
+                    'default_price_list': 'Standard Selling',
+                    'balance': {
+                        'status': 'success',
+                        'customer': c.name,
+                        'company': company_name,
+                        'balance': balance_amount,
+                    },
+                    'items': items_data,
+                })
+
+            checkpoint = "8 - Return response"
+
             return request.make_response(
-                json.dumps({
-                    "store_exists": store is not None,
-                    "store_id": store.id if store else None,
-                    "store_name": store.name if store else None,
-                }),
+                json.dumps({'message': res_list}),
                 headers=[('Content-Type', 'application/json')]
             )
 
         except Exception as e:
-            import traceback
+            _logger.exception("api_get_customers failed")
+
             return request.make_response(
                 json.dumps({
+                    "success": False,
+                    "checkpoint": checkpoint,
                     "error": str(e),
                     "traceback": traceback.format_exc(),
                 }),
                 headers=[('Content-Type', 'application/json')],
-                status=500
+                status=500,
             )
     # @http.route('/api/method/saas_api.www.api.get_customers', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
     # def api_get_customers(self, **kw):
