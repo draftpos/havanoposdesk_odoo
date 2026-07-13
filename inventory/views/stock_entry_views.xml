@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Stock Entry Form View -->
+        <record id="view_havanoposdesk_stock_entry_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.entry.form</field>
+            <field name="model">havanoposdesk.stock.entry</field>
+            <field name="arch" type="xml">
+                <form string="Stock Entry">
+                    <header>
+                        <button name="action_submit" string="Submit" type="object" class="oe_highlight" invisible="state != 'draft'"/>
+                        <button name="action_cancel" string="Cancel" type="object" invisible="state != 'submitted'"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,submitted,cancelled"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="stock_entry_type" readonly="state != 'draft'"/>
+                                <field name="from_warehouse" readonly="state != 'draft'"/>
+                                <field name="to_warehouse" readonly="state != 'draft'"/>
+                            </group>
+                            <group>
+                                <field name="posting_date" readonly="state != 'draft'"/>
+                                <field name="tenant_id" options="{'no_create': True}" readonly="state != 'draft'"/>
+                            </group>
+                        </group>
+                        <group>
+                            <field name="remarks" placeholder="Add remarks here..." readonly="state != 'draft'"/>
+                        </group>
+                        <notebook>
+                            <page string="Items">
+                                <field name="line_ids" readonly="state != 'draft'">
+                                    <list editable="bottom">
+                                        <field name="product_id"/>
+                                        <field name="item_code"/>
+                                        <field name="qty"/>
+                                        <field name="uom"/>
+                                        <field name="basic_rate"/>
+                                        <field name="basic_amount" sum="Total Amount"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Stock Entry Tree View -->
+        <record id="view_havanoposdesk_stock_entry_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.entry.tree</field>
+            <field name="model">havanoposdesk.stock.entry</field>
+            <field name="arch" type="xml">
+                <list string="Stock Entries">
+                    <field name="name"/>
+                    <field name="stock_entry_type"/>
+                    <field name="from_warehouse"/>
+                    <field name="to_warehouse"/>
+                    <field name="posting_date"/>
+                    <field name="total_outgoing_value" sum="Total Outgoing Value"/>
+                    <field name="state" widget="badge" decoration-success="state == 'submitted'" decoration-info="state == 'draft'" decoration-danger="state == 'cancelled'"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Stock Entry Search View -->
+        <record id="view_havanoposdesk_stock_entry_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.entry.search</field>
+            <field name="model">havanoposdesk.stock.entry</field>
+            <field name="arch" type="xml">
+                <search string="Search Stock Entries">
+                    <field name="name"/>
+                    <field name="from_warehouse"/>
+                    <field name="to_warehouse"/>
+                    <field name="posting_date"/>
+                    <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                    <filter string="Submitted" name="submitted" domain="[('state', '=', 'submitted')]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
+                        <filter string="Type" name="group_by_type" context="{'group_by': 'stock_entry_type'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Stock Entry Action -->
+        <record id="action_havanoposdesk_stock_entry" model="ir.actions.act_window">
+            <field name="name">Stock Entry / Transfers</field>
+            <field name="res_model">havanoposdesk.stock.entry</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_stock_entry_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new Stock Entry or Material Transfer
+                </p>
+            </field>
+        </record>
+
+        <!-- Menu Item -->
+        <menuitem id="menu_inventory_stock_entry" 
+                  name="Stock Entry / Transfers" 
+                  parent="menu_inventory_operations" 
+                  action="action_havanoposdesk_stock_entry" 
+                  sequence="15"/>
+    </data>
+</odoo>
