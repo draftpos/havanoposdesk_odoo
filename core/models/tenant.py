@@ -181,11 +181,11 @@ class HavanoposdeskTenant(models.Model):
         
         # 2. Supplier
         queries.append("""INSERT INTO havanoposdesk_supplier (name, tenant_id, store_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
-        params.append(('general', tenant_id, store_id, uid, uid, now, now))
+        params.append(('General Supplier', tenant_id, store_id, uid, uid, now, now))
         
         # 3. Default Deposit Account
         queries.append("""INSERT INTO havanoposdesk_account (name, type, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
-        params.append(('cash', 'Cash', tenant_id, uid, uid, now, now))
+        params.append(('Cash', 'Cash', tenant_id, uid, uid, now, now))
         
         # 4. Default Expenses Account
         expenses = ['Electricity', 'Rent', 'Utilities', 'Wages & Salaries', 'Breakages', 'Council Licenses', 'Maintanences', 'Fuel']
@@ -195,7 +195,7 @@ class HavanoposdeskTenant(models.Model):
             
         # 5. Default Customer
         queries.append("""INSERT INTO havanoposdesk_customer (name, customer_group_id, tenant_id, store_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""")
-        params.append(('cash customer', cg_id, tenant_id, store_id, uid, uid, now, now))
+        params.append(('Cash Customer', cg_id, tenant_id, store_id, uid, uid, now, now))
         
         # 6. Default Categories
         queries.append("""INSERT INTO havanoposdesk_category (name, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s)""")
