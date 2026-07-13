@@ -900,75 +900,97 @@ class HavanoPOSDeskAPI(http.Controller):
     # 2. GET CUSTOMERS
     @http.route('/api/method/saas_api.www.api.get_customers', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
     def api_get_customers(self, **kw):
-        user = self._get_user()
-        tenant = user.tenant_id
+        try:
+            user = self._get_user()
+
+            return request.make_response(
+                json.dumps({
+                    "user_found": user is not None,
+                    "user": user.id if user else None,
+                }),
+                headers=[('Content-Type', 'application/json')]
+            )
+        except Exception as e:
+            import traceback
+            return request.make_response(
+                json.dumps({
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                }),
+                headers=[('Content-Type', 'application/json')],
+                status=500
+            )
+    # @http.route('/api/method/saas_api.www.api.get_customers', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
+    # def api_get_customers(self, **kw):
+    #     user = self._get_user()
+    #     tenant = user.tenant_id
         
-        # Determine store and company settings
-        store = self._get_current_store(user, tenant, kw)
-        if not store:
-            return request.make_response(json.dumps({'message': []}), headers=[('Content-Type', 'application/json')])
-        store_name = store.name
+    #     # Determine store and company settings
+    #     store = self._get_current_store(user, tenant, kw)
+    #     if not store:
+    #         return request.make_response(json.dumps({'message': []}), headers=[('Content-Type', 'application/json')])
+    #     store_name = store.name
         
-        domain = [('store_id', '=', store.id)]
-        if tenant:
-            domain.append(('tenant_id', '=', tenant.id))
+    #     domain = [('store_id', '=', store.id)]
+    #     if tenant:
+    #         domain.append(('tenant_id', '=', tenant.id))
             
-        customers = request.env['havanoposdesk.customer'].sudo().search(domain)
+    #     customers = request.env['havanoposdesk.customer'].sudo().search(domain)
         
-        # Load products/items for client caching
-        prod_domain = []
-        if tenant:
-            prod_domain.append(('tenant_id', '=', tenant.id))
-        if store:
-            prod_domain.append(('store_id', '=', store.id))
-        products = request.env['havanoposdesk.product'].sudo().search(prod_domain)
-        items_data = []
-        for p in products:
-            items_data.append({
-                'item_code': p.item_code,
-                'item_name': p.name,
-                'price_list_rate': p.selling_price or 0.0
-            })
+    #     # Load products/items for client caching
+    #     prod_domain = []
+    #     if tenant:
+    #         prod_domain.append(('tenant_id', '=', tenant.id))
+    #     if store:
+    #         prod_domain.append(('store_id', '=', store.id))
+    #     products = request.env['havanoposdesk.product'].sudo().search(prod_domain)
+    #     items_data = []
+    #     for p in products:
+    #         items_data.append({
+    #             'item_code': p.item_code,
+    #             'item_name': p.name,
+    #             'price_list_rate': p.selling_price or 0.0
+    #         })
             
-        if not items_data:
-            # Fallback dummies if no products
-            items_data = [
-                {'item_code': 'Sadza', 'item_name': 'Sadza', 'price_list_rate': 5.0},
-                {'item_code': 'Water', 'item_name': 'Water', 'price_list_rate': 1.0}
-            ]
+    #     if not items_data:
+    #         # Fallback dummies if no products
+    #         items_data = [
+    #             {'item_code': 'Sadza', 'item_name': 'Sadza', 'price_list_rate': 5.0},
+    #             {'item_code': 'Water', 'item_name': 'Water', 'price_list_rate': 1.0}
+    #         ]
             
-        company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
-        cost_center = user.api_cost_center or (tenant.api_cost_center if tenant else False) or store_name
-        warehouse = user.api_warehouse or (tenant.api_warehouse if tenant else False) or store_name
+    #     company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
+    #     cost_center = user.api_cost_center or (tenant.api_cost_center if tenant else False) or store_name
+    #     warehouse = user.api_warehouse or (tenant.api_warehouse if tenant else False) or store_name
             
-        res_list = []
-        for c in customers:
-            # Dynamic balance calculation from sales
-            sales_domain = [('customer', '=', c.id)]
-            if tenant:
-                sales_domain.append(('tenant_id', '=', tenant.id))
-            sales = request.env['havanoposdesk.sale'].sudo().search(sales_domain)
-            balance_amount = sum(sales.mapped('amount_total'))
+    #     res_list = []
+    #     for c in customers:
+    #         # Dynamic balance calculation from sales
+    #         sales_domain = [('customer', '=', c.id)]
+    #         if tenant:
+    #             sales_domain.append(('tenant_id', '=', tenant.id))
+    #         sales = request.env['havanoposdesk.sale'].sudo().search(sales_domain)
+    #         balance_amount = sum(sales.mapped('amount_total'))
             
-            res_list.append({
-                'name': c.name,
-                'customer_name': c.name,
-                'customer_type': 'Company' if getattr(c, 'customer_type', 'individual') == 'company' else 'Individual',
-                'custom_cost_center': cost_center,
-                'custom_warehouse': warehouse,
-                'gender': None,
-                'customer_pos_id': None,
-                'default_price_list': 'Standard Selling',
-                'balance': {
-                    'status': 'success',
-                    'customer': c.name,
-                    'company': company_name,
-                    'balance': balance_amount
-                },
-                'items': items_data
-            })
+    #         res_list.append({
+    #             'name': c.name,
+    #             'customer_name': c.name,
+    #             'customer_type': 'Company' if getattr(c, 'customer_type', 'individual') == 'company' else 'Individual',
+    #             'custom_cost_center': cost_center,
+    #             'custom_warehouse': warehouse,
+    #             'gender': None,
+    #             'customer_pos_id': None,
+    #             'default_price_list': 'Standard Selling',
+    #             'balance': {
+    #                 'status': 'success',
+    #                 'customer': c.name,
+    #                 'company': company_name,
+    #                 'balance': balance_amount
+    #             },
+    #             'items': items_data
+    #         })
             
-        return request.make_response(json.dumps({'message': res_list}), headers=[('Content-Type', 'application/json')])
+    #     return request.make_response(json.dumps({'message': res_list}), headers=[('Content-Type', 'application/json')])
 
 
     # 3. GET CUSTOMER BALANCE
