@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <data>
+        
+        <record id="view_stock_transfer_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.transfer.form</field>
+            <field name="model">havanoposdesk.stock.transfer</field>
+            <field name="arch" type="xml">
+                <form string="Stock Transfer">
+                    <header>
+                        <button name="action_validate" type="object" string="Validate" class="btn-primary" invisible="state != 'draft'" />
+                        <field name="state" widget="statusbar" />
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1" />
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="from_store_id" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="to_store_id" options="{'no_create': True}" class="border-bottom border-dark" />
+                            </group>
+                            <group>
+                                <field name="date" class="border-bottom border-dark" />
+                                <field name="tenant_id" invisible="1" />
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Items">
+                                <field name="line_ids">
+                                    <list editable="bottom">
+                                        <field name="tenant_id" column_invisible="True" />
+                                        <field name="product_id" domain="[('store_ids', 'in', parent.from_store_id)]" />
+                                        <field name="uom_id" />
+                                        <field name="qty" optional="show" />
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        
+        <record id="view_stock_transfer_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.transfer.tree</field>
+            <field name="model">havanoposdesk.stock.transfer</field>
+            <field name="arch" type="xml">
+                <list string="Stock Transfers" decoration-muted="state == 'done'" decoration-info="state == 'draft'">
+                    <field name="name" />
+                    <field name="date" />
+                    <field name="from_store_id" />
+                    <field name="to_store_id" />
+                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done'" optional="show" />
+                </list>
+            </field>
+        </record>
+
+        
+        <record id="view_stock_transfer_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.transfer.search</field>
+            <field name="model">havanoposdesk.stock.transfer</field>
+            <field name="arch" type="xml">
+                <search string="Search Transfers">
+                    <field name="name" />
+                    <field name="from_store_id" />
+                    <field name="to_store_id" />
+                    <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]" />
+                    <filter string="Transferred" name="done" domain="[('state', '=', 'done')]" />
+                    <group>
+                        <filter string="From Store" name="group_by_from_store" context="{'group_by':'from_store_id'}" />
+                        <filter string="To Store" name="group_by_to_store" context="{'group_by':'to_store_id'}" />
+                        <filter string="Status" name="group_by_state" context="{'group_by':'state'}" />
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        
+        <record id="action_stock_transfer" model="ir.actions.act_window">
+            <field name="name">Stock Transfers</field>
+            <field name="res_model">havanoposdesk.stock.transfer</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_stock_transfer_search" />
+        </record>
+
+        
+        <menuitem id="menu_stock_transfer" name="Stock Transfers" parent="menu_inventory_operations" action="action_stock_transfer" sequence="30" />
+
+    </data>
+</odoo>

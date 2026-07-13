@@ -428,27 +428,3 @@
     }
 }
 
-/* Global Form Save Button Customization (Icon + Text) - Applies to both Mobile and Web View */
-.o_form_button_save {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: transparent !important;
-    border: none !important;
-    color: #34495e !important;
-    padding: 0 8px !important;
-    
-    i {
-        font-size: 16px !important;
-        margin-bottom: 2px !important;
-    }
-
-    &::after {
-        content: "Save";
-        font-size: 11px;
-        font-family: inherit;
-        font-weight: 600;
-        line-height: 1.2;
-    }
-}

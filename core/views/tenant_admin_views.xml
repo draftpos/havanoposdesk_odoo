@@ -1,56 +1,47 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- My Business Root Menu (visible to tenant admins) -->
-        <menuitem id="menu_my_business_root" name="My Business" sequence="5" web_icon="havanoposdesk_odoo,static/description/mybusiness.png" groups="base.group_user"/>
+        
+        <menuitem id="menu_my_business_root" name="My Business" sequence="5" web_icon="havanoposdesk_odoo,static/description/mybusiness.png" groups="base.group_user" />
 
-        <!--
-            Settings icon for Tenant Admins.
-            This is a brand-new menu record owned by our addon — it shows up
-            immediately after module upgrade with no dependency on base record overrides.
-        -->
-        <menuitem id="menu_tenant_admin_settings_root"
-            name="Configs"
-            web_icon="havanoposdesk_odoo,static/description/configs.png"
-            sequence="550"
-            groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"
-            action="action_havanoposdesk_settings_my_business"/>
+        
+        <menuitem id="menu_tenant_admin_settings_root" name="Configs" web_icon="havanoposdesk_odoo,static/description/configs.png" sequence="550" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system" action="action_havanoposdesk_settings_my_business" />
 
-        <!-- Stores Submenu -->
+        
         <record id="action_my_stores" model="ir.actions.act_window">
             <field name="name">My Stores</field>
             <field name="res_model">havanoposdesk.store</field>
             <field name="view_mode">list,form</field>
         </record>
-        <menuitem id="menu_my_stores" name="Stores" parent="menu_my_business_root" action="action_my_stores" sequence="10"/>
+        <menuitem id="menu_my_stores" name="Stores" parent="menu_my_business_root" action="action_my_stores" sequence="10" />
 
-        <!-- POS Terminals Submenu -->
+        
         <record id="action_my_terminals" model="ir.actions.act_window">
             <field name="name">My POS Terminals</field>
             <field name="res_model">havanoposdesk.pos.terminal</field>
             <field name="view_mode">list,form</field>
         </record>
-        <menuitem id="menu_my_terminals" name="POS Terminals" parent="menu_my_business_root" action="action_my_terminals" sequence="20"/>
+        <menuitem id="menu_my_terminals" name="POS Terminals" parent="menu_my_business_root" action="action_my_terminals" sequence="20" />
 
-        <!-- Change Password Wizard Form View (must be defined before it is referenced) -->
+        
         <record id="view_havano_change_password_wizard_form" model="ir.ui.view">
             <field name="name">havano.change.password.wizard.form</field>
             <field name="model">havano.change.password.wizard</field>
             <field name="arch" type="xml">
                 <form string="Change Cashier Password">
                     <group>
-                        <field name="user_id" readonly="1" force_save="1"/>
-                        <field name="new_password" password="True" required="1"/>
+                        <field name="user_id" readonly="1" force_save="1" />
+                        <field name="new_password" password="True" required="1" />
                     </group>
                     <footer>
-                        <button name="action_change_password" string="Change Password" type="object" class="btn-primary"/>
-                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                        <button name="action_change_password" string="Change Password" type="object" class="btn-primary" />
+                        <button string="Cancel" class="btn-secondary" special="cancel" />
                     </footer>
                 </form>
             </field>
         </record>
 
-        <!-- Change Password Action for wizard (must be defined before cashier form view) -->
+        
         <record id="action_havano_change_password_wizard" model="ir.actions.act_window">
             <field name="name">Change Password</field>
             <field name="res_model">havano.change.password.wizard</field>
@@ -58,24 +49,24 @@
             <field name="target">new</field>
         </record>
 
-        <!-- Change PIN Wizard Form View -->
+        
         <record id="view_havano_change_pin_wizard_form" model="ir.ui.view">
             <field name="name">havano.change.pin.wizard.form</field>
             <field name="model">havano.change.pin.wizard</field>
             <field name="arch" type="xml">
                 <form string="Change My PIN">
                     <group>
-                        <field name="new_pin" password="True" required="1" placeholder="4-digit PIN"/>
+                        <field name="new_pin" password="True" required="1" placeholder="4-digit PIN" />
                     </group>
                     <footer>
-                        <button name="action_change_pin" string="Change PIN" type="object" class="btn-primary"/>
-                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                        <button name="action_change_pin" string="Change PIN" type="object" class="btn-primary" />
+                        <button string="Cancel" class="btn-secondary" special="cancel" />
                     </footer>
                 </form>
             </field>
         </record>
 
-        <!-- Change PIN Action for wizard -->
+        
         <record id="action_havano_change_pin_wizard" model="ir.actions.act_window">
             <field name="name">Change My PIN</field>
             <field name="res_model">havano.change.pin.wizard</field>
@@ -84,60 +75,60 @@
         </record>
 
 
-        <!-- Custom Tree/List View for Cashiers (must be defined before action_my_cashiers) -->
+        
         <record id="view_my_cashiers_tree" model="ir.ui.view">
             <field name="name">res.users.my.cashiers.list</field>
             <field name="model">res.users</field>
             <field name="arch" type="xml">
                 <list string="My Cashiers">
-                    <field name="name"/>
-                    <field name="login" string="Email / Username"/>
-                    <field name="phone"/>
-                    <field name="pin"/>
-                    <field name="user_rights_profile_id"/>
-                    <field name="active" widget="boolean_toggle"/>
+                    <field name="name" />
+                    <field name="login" string="Email / Username" />
+                    <field name="phone" />
+                    <field name="pin" />
+                    <field name="user_rights_profile_id" />
+                    <field name="active" widget="boolean_toggle" optional="show" />
                 </list>
             </field>
         </record>
 
-        <!-- Custom Form View for Cashiers (must be defined before action_my_cashiers) -->
+        
         <record id="view_my_cashiers_form" model="ir.ui.view">
             <field name="name">res.users.my.cashiers.form</field>
             <field name="model">res.users</field>
             <field name="arch" type="xml">
                 <form string="Cashier">
                     <header>
-                        <button name="%(action_havano_change_password_wizard)d" string="Change Password" type="action" class="oe_highlight" context="{'default_user_id': id}"/>
+                        <button name="%(action_havano_change_password_wizard)d" string="Change Password" type="action" class="oe_highlight" context="{'default_user_id': id}" />
                     </header>
                     <sheet>
-                        <widget name="web_ribbon" title="Archived" bg_color="text-danger" invisible="active"/>
+                        <widget name="web_ribbon" title="Archived" bg_color="text-danger" invisible="active" />
                         <div class="oe_title">
-                            <label for="name" class="oe_edit_only"/>
+                            <label for="name" class="oe_edit_only" />
                             <h1>
-                                <field name="name" required="1" placeholder="Cashier Name"/>
+                                <field name="name" required="1" placeholder="Cashier Name" />
                             </h1>
                         </div>
                         <group>
                             <group string="Basic Information">
-                                <field name="login" string="Email / Username" required="1"/>
-                                <field name="phone"/>
-                                <field name="pin"/>
-                                <field name="active"/>
+                                <field name="login" string="Email / Username" required="1" />
+                                <field name="phone" />
+                                <field name="pin" />
+                                <field name="active" />
                             </group>
                             <group string="Access &amp; Permissions">
-                                <field name="user_rights_profile_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
-                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
-                                <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}"/>
-                                <field name="tenant_id" invisible="1"/>
+                                <field name="user_rights_profile_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" />
+                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" />
+                                <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" />
+                                <field name="tenant_id" invisible="1" />
                             </group>
                         </group>
                         <notebook>
                             <page string="POS Settings" name="pos_settings">
                                 <group>
                                     <group>
-                                        <field name="allow_discount"/>
-                                        <field name="max_discount_percent"/>
-                                        <field name="require_shift"/>
+                                        <field name="allow_discount" />
+                                        <field name="max_discount_percent" />
+                                        <field name="require_shift" />
                                     </group>
                                 </group>
                             </page>
@@ -147,29 +138,27 @@
             </field>
         </record>
 
-        <!-- Cashiers Submenu (users with role 'user') - views defined above so ref() works -->
+        
         <record id="action_my_cashiers" model="ir.actions.act_window">
             <field name="name">My Cashiers</field>
             <field name="res_model">res.users</field>
             <field name="view_mode">list,form</field>
             <field name="domain">[('havano_role', '=', 'user')]</field>
             <field name="context">{'default_havano_role': 'user'}</field>
-            <field name="view_ids" eval="[(5, 0, 0),
-                (0, 0, {'view_mode': 'list', 'view_id': ref('view_my_cashiers_tree')}),
-                (0, 0, {'view_mode': 'form', 'view_id': ref('view_my_cashiers_form')})]"/>
+            <field name="view_ids" eval="[(5, 0, 0),                 (0, 0, {'view_mode': 'list', 'view_id': ref('view_my_cashiers_tree')}),                 (0, 0, {'view_mode': 'form', 'view_id': ref('view_my_cashiers_form')})]" />
         </record>
-        <menuitem id="menu_my_cashiers" name="Users" parent="menu_my_business_root" action="action_my_cashiers" sequence="30"/>
+        <menuitem id="menu_my_cashiers" name="Users" parent="menu_my_business_root" action="action_my_cashiers" sequence="30" />
 
-        <!-- User Rights Profiles Submenu -->
-        <menuitem id="menu_my_user_rights_profiles" name="User Rights Profiles" parent="menu_my_business_root" action="action_user_rights_profiles" sequence="35"/>
+        
+        <menuitem id="menu_my_user_rights_profiles" name="User Rights Profiles" parent="menu_my_business_root" action="action_user_rights_profiles" sequence="35" />
 
-        <!-- Change My PIN Submenu -->
-        <menuitem id="menu_havano_change_pin" name="Change My PIN" parent="menu_my_business_root" action="action_havano_change_pin_wizard" sequence="40"/>
+        
+        <menuitem id="menu_havano_change_pin" name="Change My PIN" parent="menu_my_business_root" action="action_havano_change_pin_wizard" sequence="40" />
 
-        <!-- My Subscription Action &amp; Menu -->
+        
         <record id="action_my_subscription" model="ir.actions.server">
             <field name="name">My Subscription</field>
-            <field name="model_id" ref="model_havanoposdesk_tenant"/>
+            <field name="model_id" ref="model_havanoposdesk_tenant" />
             <field name="state">code</field>
             <field name="code">
 tenant_id = env.user.tenant_id
@@ -199,45 +188,43 @@ else:
     }
             </field>
         </record>
-        <menuitem id="menu_my_subscription" name="My Subscription" parent="menu_my_business_root" action="action_my_subscription" sequence="40"/>
+        <menuitem id="menu_my_subscription" name="My Subscription" parent="menu_my_business_root" action="action_my_subscription" sequence="40" />
         
-        <menuitem id="menu_my_business_settings_parent" name="Currencies" parent="menu_my_business_root" sequence="100"/>
+        <menuitem id="menu_my_business_settings_parent" name="Currencies" parent="menu_my_business_root" sequence="100" />
         
-        <!-- Currency Management (Moved to Accounts Master) -->
-        <menuitem id="menu_my_business_currency" name="Currencies" parent="menu_accounts_master" action="base.action_currency_form" sequence="20"/>
+        
+        <menuitem id="menu_my_business_currency" name="Currencies" parent="menu_accounts_master" action="base.action_currency_form" sequence="20" />
 
-        <!-- Custom Exchange Rate List View -->
+        
         <record id="view_havanoposdesk_currency_rate_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.currency.rate.list</field>
             <field name="model">res.currency.rate</field>
             <field name="arch" type="xml">
                 <list string="Exchange Rates" editable="bottom">
-                    <field name="currency_id"/>
-                    <field name="name" string="Date"/>
-                    <field name="company_rate" string="Unit per Base Currency" digits="[12,6]"/>
-                    <field name="inverse_company_rate" string="Base Currency per Unit" digits="[12,6]"/>
+                    <field name="currency_id" />
+                    <field name="name" string="Date" />
+                    <field name="company_rate" string="Unit per Base Currency" digits="[12,6]" />
+                    <field name="inverse_company_rate" string="Base Currency per Unit" digits="[12,6]" optional="show" />
                 </list>
             </field>
         </record>
 
-        <!-- Exchange Rates Action -->
+        
         <record id="action_havanoposdesk_exchange_rates" model="ir.actions.act_window">
             <field name="name">Exchange Rates</field>
             <field name="res_model">res.currency.rate</field>
             <field name="view_mode">list,form</field>
-            <field name="view_ids" eval="[(5, 0, 0),
-                (0, 0, {'view_mode': 'list', 'view_id': ref('view_havanoposdesk_currency_rate_tree')})]"/>
+            <field name="view_ids" eval="[(5, 0, 0),                 (0, 0, {'view_mode': 'list', 'view_id': ref('view_havanoposdesk_currency_rate_tree')})]" />
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Create a new Exchange Rate
                 </p>
             </field>
         </record>
-        <!-- Exchange Rate Menu (Moved to Accounts Master) -->
-        <menuitem id="menu_my_business_exchange_rate" name="Exchange Rates" parent="menu_accounts_master" action="action_havanoposdesk_exchange_rates" sequence="30"/>
+        
+        <menuitem id="menu_my_business_exchange_rate" name="Exchange Rates" parent="menu_accounts_master" action="action_havanoposdesk_exchange_rates" sequence="30" />
 
-        <!-- Analytics Menu Folder -->
-        <menuitem id="menu_my_business_analytics" name="Analytics" parent="menu_my_business_root" sequence="40"/>
+        
+        <menuitem id="menu_my_business_analytics" name="Analytics" parent="menu_my_business_root" sequence="40" />
     </data>
 </odoo>
-

@@ -47,7 +47,14 @@ class Purchase(models.Model):
 
     supplier = fields.Many2one('havanoposdesk.supplier', string='Supplier', required=True, default=_default_supplier_id)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
-    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
+    currency_id = fields.Many2one('res.currency', string='Currency', compute='_compute_currency_id', store=True, readonly=False)
+    allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency')
+
+    @api.depends('store_id')
+    def _compute_currency_id(self):
+        for record in self:
+            if record.store_id and not record.currency_id:
+                record.currency_id = record.store_id.currency_id
     posting_date = fields.Datetime(string='Posting Date', default=fields.Datetime.now)
     
     amount_untaxed = fields.Float(string='Untaxed Amount', compute='_compute_amount_total', store=True)

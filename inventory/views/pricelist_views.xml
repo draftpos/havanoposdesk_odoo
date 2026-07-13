@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
         <record id="view_havanoposdesk_pricelist_tree" model="ir.ui.view">
@@ -6,8 +6,8 @@
             <field name="model">havanoposdesk.pricelist</field>
             <field name="arch" type="xml">
                 <list string="Pricelists">
-                    <field name="name"/>
-                    <field name="type"/>
+                    <field name="name" />
+                    <field name="type" optional="show" />
                 </list>
             </field>
         </record>
@@ -20,9 +20,9 @@
                     <sheet>
                         <group>
                             <group>
-                                <field name="name" class="border-bottom border-dark"/>
-                                <field name="type" class="border-bottom border-dark"/>
-                                <field name="tenant_id" invisible="1"/>
+                                <field name="name" class="border-bottom border-dark" />
+                                <field name="type" class="border-bottom border-dark" />
+                                <field name="tenant_id" invisible="1" />
                             </group>
                         </group>
                     </sheet>
@@ -36,7 +36,7 @@
             <field name="view_mode">list,form</field>
         </record>
 
-        <!-- Menu Items -->
-        <menuitem id="menu_havanoposdesk_pricelist" name="Pricelists" parent="menu_inventory_master" action="action_havanoposdesk_pricelist" sequence="15"/>
+        
+        <menuitem id="menu_havanoposdesk_pricelist" name="Pricelists" parent="menu_inventory_master" action="action_havanoposdesk_pricelist" sequence="15" />
     </data>
 </odoo>

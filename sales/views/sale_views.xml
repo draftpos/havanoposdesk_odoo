@@ -1,47 +1,47 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- Sales List View -->
+        
         <record id="view_havanoposdesk_sale_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.sale.tree</field>
             <field name="model">havanoposdesk.sale</field>
             <field name="arch" type="xml">
                 <list string="Sales Invoices" default_order="date desc">
-                    <field name="is_return" column_invisible="True"/>
-                    <field name="currency_id" column_invisible="True"/>
-                    <field name="name" string="Reference" optional="show"/>
-                    <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-bf="is_return"/>
-                    <field name="payment_status" optional="show"/>
-                    <field name="customer" optional="show"/>
-                    <field name="date" string="Date" optional="show"/>
-                    <field name="store_id" optional="show"/>
-                    <field name="terminal_id" optional="hide"/>
-                    <field name="salesperson_id" optional="show"/>
-                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" optional="hide"/>
-                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" optional="hide"/>
-                    <field name="amount_total" string="Total Inclu" sum="Total Inclu" widget="monetary" optional="show"/>
-                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return" optional="show"/>
+                    <field name="is_return" column_invisible="True" />
+                    <field name="currency_id" column_invisible="True" />
+                    <field name="name" string="Reference" optional="show" />
+                    <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-bf="is_return" />
+                    <field name="payment_status" optional="show" />
+                    <field name="customer" optional="show" />
+                    <field name="date" string="Date" optional="show" />
+                    <field name="store_id" optional="show" />
+                    <field name="terminal_id" optional="hide" />
+                    <field name="salesperson_id" optional="show" />
+                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" optional="hide" />
+                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" optional="hide" />
+                    <field name="amount_total" string="Total Inclu" sum="Total Inclu" widget="monetary" optional="show" />
+                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return" optional="show" />
                 </list>
             </field>
         </record>
 
-         <!-- Sales Form View -->
+         
         <record id="view_havanoposdesk_sale_form" model="ir.ui.view">
             <field name="name">havanoposdesk.sale.form</field>
             <field name="model">havanoposdesk.sale</field>
             <field name="arch" type="xml">
                 <form string="Sales Invoice">
                     <header>
-                        <button name="action_post" string="Confirm" type="object" class="oe_highlight" invisible="state != 'draft'"/>
-                        <button name="action_cancel" string="Cancel" type="object" invisible="state not in ['confirmed', 'done']"/>
-                        <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'cancelled'"/>
-                        <button name="%(action_havanoposdesk_sale_return_wizard)d" string="Credit Note" type="action" class="btn-primary" invisible="state != 'done' or is_return"/>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
+                        <button name="action_post" string="Confirm" type="object" class="oe_highlight" invisible="state != 'draft'" />
+                        <button name="action_cancel" string="Cancel" type="object" invisible="state not in ['confirmed', 'done']" />
+                        <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'cancelled'" />
+                        <button name="%(action_havanoposdesk_sale_return_wizard)d" string="Credit Note" type="action" class="btn-primary" invisible="state != 'done' or is_return" />
+                        <field name="state" widget="statusbar" statusbar_visible="draft,done" />
                     </header>
                     <sheet>
                         <div class="oe_title" invisible="not id">
                             <h1>
-                                <field name="name" readonly="1"/>
+                                <field name="name" readonly="1" />
                             </h1>
                             <h2>
                                 <span invisible="not is_return" class="text-danger">Credit Note</span>
@@ -49,38 +49,51 @@
                         </div>
                         <group>
                             <group>
-                                <field name="customer" readonly="state != 'draft'" class="border-bottom border-dark"/>
-                                <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark"/>
-                                <field name="date" readonly="state != 'draft'" class="border-bottom border-dark"/>
-                                <field name="is_return" invisible="1"/>
-                                <field name="currency_id" invisible="1"/>
-                                <field name="is_tax_enabled" invisible="1"/>
-                                <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark"/>
+                                <field name="customer" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <field name="date" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <field name="is_return" invisible="1" />
+                                <field name="allow_multi_currency" invisible="1" />
+                                <field name="currency_id" invisible="allow_multi_currency == False" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="is_tax_enabled" invisible="1" />
+                                <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark" />
                             </group>
                             <group>
-                                <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}"/>
-                                <field name="account_id" invisible="payment_status != 'cash'" required="payment_status == 'cash'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark"/>
-                                <field name="tenant_id" invisible="1"/>
+                                <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" />
+                                <field name="account_id" invisible="payment_status != 'cash'" required="payment_status == 'cash'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark" />
+                                <field name="tenant_id" invisible="1" />
                             </group>
                         </group>
                         <notebook>
                             <page string="Order Lines">
                                 <field name="line_ids" readonly="state != 'draft'" widget="section_and_note_one2many" mode="list,kanban">
                                     <list editable="bottom">
-                                        <field name="currency_id" column_invisible="True"/>
-                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id)]" width="50%" string="Item"/>
-                                        <field name="accepted_qty" string="Qty" width="15%"/>
-                                        <field name="rate" width="15%" widget="monetary"/>
-                                        <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary"/>
-                                        <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary"/>
-                                        <field name="amount" width="20%" widget="monetary"/>
+                                        <field name="currency_id" column_invisible="True" />
+                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id)]" width="50%" string="Item" />
+                                        <field name="accepted_qty" string="Qty" width="15%" />
+                                        <field name="rate" width="15%" widget="monetary" />
+                                        <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary" />
+                                        <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary" />
+                                        <field name="amount" width="20%" widget="monetary" />
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
-                                    <field name="amount_untaxed" widget="monetary" string="Total Excl" invisible="not is_tax_enabled"/>
-                                    <field name="amount_tax" widget="monetary" string="Total Tax" invisible="not is_tax_enabled"/>
-                                    <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl"/>
+                                    <field name="amount_untaxed" widget="monetary" string="Total Excl" invisible="not is_tax_enabled" />
+                                    <field name="amount_tax" widget="monetary" string="Total Tax" invisible="not is_tax_enabled" />
+                                    <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl" />
                                 </group>
+                            </page>
+                            <page string="Payment Entries" name="payment_entries" invisible="not payment_ids">
+                                <field name="payment_ids" readonly="1">
+                                    <list>
+                                        <field name="name" />
+                                        <field name="date" />
+                                        <field name="payment_type" />
+                                        <field name="account_id" />
+                                        <field name="amount" />
+                                        <field name="state" optional="show" />
+                                    </list>
+                                </field>
                             </page>
                         </notebook>
                     </sheet>
@@ -88,69 +101,69 @@
             </field>
         </record>
 
-        <!-- Sales Graph View -->
+        
         <record id="view_havanoposdesk_sale_graph" model="ir.ui.view">
             <field name="name">havanoposdesk.sale.graph</field>
             <field name="model">havanoposdesk.sale</field>
             <field name="arch" type="xml">
                 <graph string="Sales Analysis" type="bar" sample="1">
-                    <field name="date" interval="day"/>
-                    <field name="amount_total" type="measure"/>
+                    <field name="date" interval="day" />
+                    <field name="amount_total" type="measure" />
                 </graph>
             </field>
         </record>
 
-        <!-- Sales Pivot View -->
+        
         <record id="view_havanoposdesk_sale_pivot" model="ir.ui.view">
             <field name="name">havanoposdesk.sale.pivot</field>
             <field name="model">havanoposdesk.sale</field>
             <field name="arch" type="xml">
                 <pivot string="Sales Analysis" sample="1">
-                    <field name="date" interval="month" type="row"/>
-                    <field name="store_id" type="col"/>
-                    <field name="amount_total" type="measure"/>
+                    <field name="date" interval="month" type="row" />
+                    <field name="store_id" type="col" />
+                    <field name="amount_total" type="measure" />
                 </pivot>
             </field>
         </record>
 
-        <!-- Sales Search View -->
+        
         <record id="view_havanoposdesk_sale_search" model="ir.ui.view">
             <field name="name">havanoposdesk.sale.search</field>
             <field name="model">havanoposdesk.sale</field>
             <field name="arch" type="xml">
                 <search string="Search Sales">
-                    <field name="name" string="Reference Number" filter_domain="['|', ('name', 'ilike', self), ('customer', 'ilike', self)]"/>
-                    <field name="customer"/>
-                    <field name="store_id"/>
-                    <field name="payment_status"/>
-                    <field name="create_uid"/>
-                    <field name="date"/>
-                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="Reference" name="filter_reference" domain="[('name', '!=', False)]"/>
-                    <filter string="Payment Mode" name="filter_payment" domain="[('payment_status', '!=', False)]"/>
-                    <filter string="Created On" name="filter_created_on" date="date"/>
-                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
-                    <filter string="Customer" name="filter_customer" domain="[('customer', '!=', False)]"/>
+                    <field name="name" string="Reference Number" filter_domain="['|', ('name', 'ilike', self), ('customer', 'ilike', self)]" />
+                    <field name="customer" />
+                    <field name="store_id" />
+                    <field name="payment_status" />
+                    <field name="create_uid" />
+                    <field name="date" />
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="Reference" name="filter_reference" domain="[('name', '!=', False)]" />
+                    <filter string="Payment Mode" name="filter_payment" domain="[('payment_status', '!=', False)]" />
+                    <filter string="Created On" name="filter_created_on" date="date" />
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]" />
+                    <filter string="Customer" name="filter_customer" domain="[('customer', '!=', False)]" />
                     <group>
-                        <filter string="Reference" name="group_by_reference" context="{'group_by': 'name'}"/>
-                        <filter string="Payment Mode" name="group_by_payment" context="{'group_by': 'payment_status'}"/>
-                        <filter string="Created On" name="group_by_created_on" context="{'group_by': 'date:day'}"/>
-                        <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
-                        <filter string="Customer" name="group_by_customer" context="{'group_by': 'customer'}"/>
-                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}"/>
-                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}"/>
+                        <filter string="Reference" name="group_by_reference" context="{'group_by': 'name'}" />
+                        <filter string="Payment Mode" name="group_by_payment" context="{'group_by': 'payment_status'}" />
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by': 'date:day'}" />
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}" />
+                        <filter string="Customer" name="group_by_customer" context="{'group_by': 'customer'}" />
+                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}" />
+                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}" />
                     </group>
                 </search>
             </field>
         </record>
 
-        <!-- Action: Sales Operations -->
+        
         <record id="action_sales_operations" model="ir.actions.act_window">
             <field name="name">Sales Invoices</field>
             <field name="res_model">havanoposdesk.sale</field>
             <field name="view_mode">list,form</field>
-            <field name="search_view_id" ref="view_havanoposdesk_sale_search"/>
+            <field name="search_view_id" ref="view_havanoposdesk_sale_search" />
             <field name="domain">[]</field>
             <field name="context">{'default_payment_status': 'cash', 'search_default_today': 1}</field>
             <field name="help" type="html">
@@ -173,13 +186,11 @@
             </field>
         </record>
 
-        <!-- Sales App Menu Connections -->
-        <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="10"/>
-        <menuitem id="menu_sales_returns" name="Sales Returns" parent="menu_sales_reports" action="action_sales_returns" sequence="5"/>
+        
+        <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="10" />
+        <menuitem id="menu_sales_returns" name="Sales Returns" parent="menu_sales_reports" action="action_sales_returns" sequence="60" />
 
-        <!-- Update top-level Sales app menu to default to Sales Invoices list -->
-        <menuitem id="menu_sales_root" action="action_sales_operations"/>
+        
+        <menuitem id="menu_sales_root" action="action_sales_operations" />
     </data>
 </odoo>
-
-

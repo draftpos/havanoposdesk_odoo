@@ -124,6 +124,37 @@ class HavanoPOSDeskAPI(http.Controller):
                     "territory": None,
                     "custom_cost_center": cost_center
                 })
+            # Fetch suppliers
+            suppliers_records = user_env['havanoposdesk.supplier'].sudo().search([('store_id', '=', store.id)])
+            suppliers_data = []
+            for s in suppliers_records:
+                suppliers_data.append({
+                    "id": s.id,
+                    "name": s.name
+                })
+
+            # Fetch currencies
+            currencies_records = user_env['res.currency'].sudo().search([('active', '=', True)])
+            currencies_data = []
+            for cur in currencies_records:
+                currencies_data.append({
+                    "id": cur.id,
+                    "name": cur.name,
+                    "symbol": cur.symbol
+                })
+
+            # Fetch payment methods
+            payment_methods_records = user_env['havanoposdesk.account'].sudo().search([
+                ('tenant_id', '=', user.tenant_id.id),
+                ('type', 'in', ['Cash', 'Bank'])
+            ])
+            payment_methods_data = []
+            for pm in payment_methods_records:
+                payment_methods_data.append({
+                    "id": pm.id,
+                    "name": pm.name,
+                    "type": pm.type
+                })
                 
             # Fetch warehouse items/products
             product_domain = []
@@ -184,6 +215,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     "default_customer": default_customer_name,
                     "company": company_name,
                     "customers": customers_data,
+                    "suppliers": suppliers_data,
+                    "currencies": currencies_data,
+                    "payment_methods": payment_methods_data,
                     "warehouse_items": warehouse_items,
                     "pin": user.pin or ""
                 },
@@ -236,6 +270,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "email": user.login,
                     "role": role_val,
                     "tenant_id": user.tenant_id.id if user.tenant_id else None,
+                    "store_ids": user.store_ids.ids if hasattr(user, 'store_ids') and user.store_ids else [],
                     "shops": shops_data,
                     "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
                     "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None,
@@ -1464,7 +1499,7 @@ class HavanoPOSDeskAPI(http.Controller):
     # Helpers & Token Authentication
     # =========================================================================
     def _make_json_response(self, data, status=200):
-        body = json.dumps(data)
+        body = json.dumps(data, default=str)
         headers = [
             ('Content-Type', 'application/json'),
             ('Content-Length', str(len(body))),

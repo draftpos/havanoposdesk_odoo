@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- Customer Form View -->
+        
         <record id="view_havanoposdesk_customer_form" model="ir.ui.view">
             <field name="name">havanoposdesk.customer.form</field>
             <field name="model">havanoposdesk.customer</field>
@@ -10,23 +10,23 @@
                     <sheet>
                         <div class="oe_title">
                             <h1>
-                                <field name="name" placeholder="e.g. John Doe" class="border-bottom border-dark"/>
+                                <field name="name" placeholder="e.g. John Doe" class="border-bottom border-dark" />
                             </h1>
                         </div>
                         <group>
                             <group>
-                                <field name="tin" class="border-bottom border-dark"/>
-                                <field name="vat" class="border-bottom border-dark"/>
-                                <field name="store_id" class="border-bottom border-dark" options="{'no_create': True}"/>
-                                <field name="customer_group_id" class="border-bottom border-dark"/>
-                                <field name="phone" class="border-bottom border-dark"/>
-                                <field name="address" class="border-bottom border-dark"/>
-                                <field name="city" class="border-bottom border-dark"/>
-                                <field name="country_id" options="{'no_create': True}" class="border-bottom border-dark"/>
+                                <field name="tin" class="border-bottom border-dark" />
+                                <field name="vat" class="border-bottom border-dark" />
+                                <field name="store_id" class="border-bottom border-dark" options="{'no_create': True}" />
+                                <field name="customer_group_id" class="border-bottom border-dark" />
+                                <field name="phone" class="border-bottom border-dark" />
+                                <field name="address" class="border-bottom border-dark" />
+                                <field name="city" class="border-bottom border-dark" />
+                                <field name="country_id" options="{'no_create': True}" class="border-bottom border-dark" />
                             </group>
                             <group>
-                                <field name="currency_id" invisible="1"/>
-                                <field name="balance" readonly="1" class="border-bottom border-dark" widget="monetary"/>
+                                <field name="currency_id" invisible="1" />
+                                <field name="balance" readonly="1" class="border-bottom border-dark" widget="monetary" />
                             </group>
                         </group>
                     </sheet>
@@ -34,27 +34,27 @@
             </field>
         </record>
 
-        <!-- Customer Tree View -->
+        
         <record id="view_havanoposdesk_customer_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.customer.tree</field>
             <field name="model">havanoposdesk.customer</field>
             <field name="arch" type="xml">
-                <list  string="Customers">
-                    <field name="currency_id" column_invisible="True"/>
-                    <field  name="name" optional="show"/>
-                    <field  name="store_id" optional="show"/>
-                    <field  name="phone" optional="show"/>
-                    <field  name="address" optional="show"/>
-                    <field  name="city" optional="show"/>
-                    <field  name="country_id" optional="show"/>
-                    <field  name="balance" optional="show" widget="monetary"/>
-                    <field  name="tin" optional="show"/>
-                    <field  name="vat" optional="show"/>
+                <list string="Customers">
+                    <field name="currency_id" column_invisible="True" />
+                    <field name="name" optional="show" />
+                    <field name="store_id" optional="show" />
+                    <field name="phone" optional="show" />
+                    <field name="address" optional="show" />
+                    <field name="city" optional="show" />
+                    <field name="country_id" optional="show" />
+                    <field name="balance" optional="show" widget="monetary" />
+                    <field name="tin" optional="show" />
+                    <field name="vat" optional="show" />
                 </list>
             </field>
         </record>
 
-        <!-- Action -->
+        
         <record id="action_havanoposdesk_customer" model="ir.actions.act_window">
             <field name="name">Customers</field>
             <field name="res_model">havanoposdesk.customer</field>
@@ -66,7 +66,7 @@
             </field>
         </record>
 
-        <!-- Customer Group Form View -->
+        
         <record id="view_havanoposdesk_customer_group_form" model="ir.ui.view">
             <field name="name">havanoposdesk.customer.group.form</field>
             <field name="model">havanoposdesk.customer.group</field>
@@ -74,25 +74,25 @@
                 <form string="Customer Group">
                     <sheet>
                         <group>
-                            <field name="name" class="border-bottom border-dark"/>
+                            <field name="name" class="border-bottom border-dark" />
                         </group>
                     </sheet>
                 </form>
             </field>
         </record>
 
-        <!-- Customer Group Tree View -->
+        
         <record id="view_havanoposdesk_customer_group_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.customer.group.tree</field>
             <field name="model">havanoposdesk.customer.group</field>
             <field name="arch" type="xml">
                 <list string="Customer Groups">
-                    <field name="name"/>
+                    <field name="name" optional="show" />
                 </list>
             </field>
         </record>
 
-        <!-- Customer Group Action -->
+        
         <record id="action_havanoposdesk_customer_group" model="ir.actions.act_window">
             <field name="name">Customer Groups</field>
             <field name="res_model">havanoposdesk.customer.group</field>
@@ -104,17 +104,9 @@
             </field>
         </record>
 
-        <!-- Menu -->
-        <menuitem id="menu_sales_customer" 
-                  name="Customers" 
-                  parent="menu_sales_master" 
-                  action="action_havanoposdesk_customer" 
-                  sequence="20"/>
+        
+        <menuitem id="menu_sales_customer" name="Customers" parent="menu_sales_master" action="action_havanoposdesk_customer" sequence="20" />
 
-        <menuitem id="menu_sales_customer_group" 
-                  name="Customer Groups" 
-                  parent="menu_sales_master" 
-                  action="action_havanoposdesk_customer_group" 
-                  sequence="30"/>
+        <menuitem id="menu_sales_customer_group" name="Customer Groups" parent="menu_sales_master" action="action_havanoposdesk_customer_group" sequence="30" />
     </data>
 </odoo>

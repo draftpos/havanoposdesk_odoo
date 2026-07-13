@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- Sequence for Payment -->
+        
         <record id="seq_havanoposdesk_payment_in" model="ir.sequence">
             <field name="name">Payment Receipt Sequence</field>
             <field name="code">havanoposdesk.payment.in</field>
             <field name="prefix">REC/%(y)s/%(month)s/</field>
             <field name="padding">4</field>
-            <field name="company_id" eval="False"/>
+            <field name="company_id" eval="False" />
         </record>
         
         <record id="seq_havanoposdesk_payment_out" model="ir.sequence">
@@ -15,50 +15,50 @@
             <field name="code">havanoposdesk.payment.out</field>
             <field name="prefix">PAY/%(y)s/%(month)s/</field>
             <field name="padding">4</field>
-            <field name="company_id" eval="False"/>
+            <field name="company_id" eval="False" />
         </record>
 
-        <!-- Form View -->
+        
         <record id="view_havanoposdesk_payment_form" model="ir.ui.view">
             <field name="name">havanoposdesk.payment.form</field>
             <field name="model">havanoposdesk.payment</field>
             <field name="arch" type="xml">
                 <form string="Payment">
                     <header>
-                        <button name="action_post" string="Confirm" type="object" class="oe_highlight" invisible="state != 'draft'"/>
-                        <button name="action_cancel" string="Cancel" type="object" invisible="state != 'posted'"/>
-                        <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'cancelled'"/>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
+                        <button name="action_post" string="Confirm" type="object" class="oe_highlight" invisible="state != 'draft'" />
+                        <button name="action_cancel" string="Cancel" type="object" invisible="state != 'posted'" />
+                        <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'cancelled'" />
+                        <field name="state" widget="statusbar" statusbar_visible="draft,posted" />
                     </header>
                     <sheet>
                         <div class="oe_title">
-                            <h1><field name="name"/></h1>
+                            <h1><field name="name" /></h1>
                         </div>
                         <group>
                             <group>
-                                <field name="payment_type" widget="radio" class="border-bottom border-dark" readonly="state != 'draft'"/>
-                                <field name="partner_type" widget="radio" class="border-bottom border-dark" readonly="state != 'draft'"/>
-                                <field name="customer_id" class="border-bottom border-dark" invisible="partner_type != 'customer'" required="partner_type == 'customer'" readonly="state != 'draft'"/>
-                                <field name="supplier_id" class="border-bottom border-dark" invisible="partner_type != 'supplier'" required="partner_type == 'supplier'" readonly="state != 'draft'"/>
+                                <field name="payment_type" widget="radio" class="border-bottom border-dark" readonly="state != 'draft'" />
+                                <field name="partner_type" widget="radio" class="border-bottom border-dark" readonly="state != 'draft'" />
+                                <field name="customer_id" class="border-bottom border-dark" invisible="partner_type != 'customer'" required="partner_type == 'customer'" readonly="state != 'draft'" />
+                                <field name="supplier_id" class="border-bottom border-dark" invisible="partner_type != 'supplier'" required="partner_type == 'supplier'" readonly="state != 'draft'" />
                             </group>
                             <group>
-                                <field name="account_id" options="{'no_create': True}" class="border-bottom border-dark" readonly="state != 'draft'"/>
-                                <field name="currency_id" invisible="1"/>
-                                <field name="amount" class="border-bottom border-dark" readonly="state != 'draft'" widget="monetary"/>
-                                <field name="date" class="border-bottom border-dark" readonly="state != 'draft'"/>
-                                <field name="reference" class="border-bottom border-dark" readonly="state != 'draft'"/>
+                                <field name="account_id" options="{'no_create': True}" class="border-bottom border-dark" readonly="state != 'draft'" />
+                                <field name="currency_id" invisible="1" />
+                                <field name="amount" class="border-bottom border-dark" readonly="state != 'draft'" widget="monetary" />
+                                <field name="date" class="border-bottom border-dark" readonly="state != 'draft'" />
+                                <field name="reference" class="border-bottom border-dark" readonly="state != 'draft'" />
                             </group>
                         </group>
                         <notebook invisible="reference != 'POS Payments'">
                             <page string="POS Sales Breakdown">
                                 <field name="pos_sale_ids" readonly="1">
                                     <list>
-                                        <field name="date"/>
-                                        <field name="name" string="Sale Reference"/>
-                                        <field name="customer"/>
-                                        <field name="store"/>
-                                        <field name="currency_id" column_invisible="True"/>
-                                        <field name="amount_total" sum="Total" widget="monetary"/>
+                                        <field name="date" />
+                                        <field name="name" string="Sale Reference" />
+                                        <field name="customer" />
+                                        <field name="store" />
+                                        <field name="currency_id" column_invisible="True" />
+                                        <field name="amount_total" sum="Total" widget="monetary" optional="show" />
                                     </list>
                                 </field>
                             </page>
@@ -68,27 +68,27 @@
             </field>
         </record>
 
-        <!-- Tree View -->
+        
         <record id="view_havanoposdesk_payment_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.payment.tree</field>
             <field name="model">havanoposdesk.payment</field>
             <field name="arch" type="xml">
                 <list string="Payments" decoration-muted="state == 'cancelled'">
-                    <field name="currency_id" column_invisible="True"/>
-                    <field name="date"/>
-                    <field name="name" string="Number"/>
-                    <field name="reference" string="Memo/Reference"/>
-                    <field name="payment_type"/>
-                    <field name="customer_id" optional="show"/>
-                    <field name="supplier_id" optional="show"/>
-                    <field name="account_id"/>
-                    <field name="amount" sum="Total Amount" widget="monetary"/>
-                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'"/>
+                    <field name="currency_id" column_invisible="True" />
+                    <field name="date" />
+                    <field name="name" string="Number" />
+                    <field name="reference" string="Memo/Reference" />
+                    <field name="payment_type" />
+                    <field name="customer_id" optional="show" />
+                    <field name="supplier_id" optional="show" />
+                    <field name="account_id" />
+                    <field name="amount" sum="Total Amount" widget="monetary" />
+                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'" />
                 </list>
             </field>
         </record>
 
-        <!-- Action -->
+        
         <record id="action_havanoposdesk_payment" model="ir.actions.act_window">
             <field name="name">Payments</field>
             <field name="res_model">havanoposdesk.payment</field>
@@ -100,7 +100,7 @@
             </field>
         </record>
 
-        <!-- Menu Item -->
-        <menuitem id="menu_payments" name="Payments" parent="menu_accounts_operations" action="action_havanoposdesk_payment" sequence="5"/>
+        
+        <menuitem id="menu_payments" name="Payments" parent="menu_accounts_operations" action="action_havanoposdesk_payment" sequence="5" />
     </data>
 </odoo>

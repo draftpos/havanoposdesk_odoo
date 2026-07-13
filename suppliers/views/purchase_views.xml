@@ -25,7 +25,8 @@
                         </div>
                         <group>
                             <group>
-                                <field name="currency_id" invisible="1"/>
+                                <field name="allow_multi_currency" invisible="1"/>
+                                <field name="currency_id" invisible="allow_multi_currency == False" options="{'no_create': True}" class="border-bottom border-dark"/>
                                 <field name="is_tax_enabled" invisible="1"/>
                                 <field name="invoice_type" readonly="1" class="border-bottom border-dark"/>
                                 <field name="supplier" readonly="state != 'draft'" class="border-bottom border-dark"/>
