@@ -22,6 +22,7 @@ class ResUsers(models.Model):
     selected_shop_id = fields.Many2one('havanoposdesk.store', string="Selected Shop")
     selected_terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string="Selected Terminal")
     pin = fields.Char(string="PIN Code")
+    user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
     allow_backoffice = fields.Boolean(string="Access Backoffice", compute="_compute_allow_backoffice", inverse="_inverse_allow_backoffice", store=True)
     has_password = fields.Boolean(string="Has Password", compute="_compute_has_password")
 
@@ -574,6 +575,8 @@ class HavanoChangePinWizard(models.TransientModel):
                 'sticky': False,
             }
         }
+
+
 
 
 
