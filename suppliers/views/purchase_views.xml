@@ -44,9 +44,11 @@
                             <page string="Order Lines">
                                 <field name="line_ids" readonly="state != 'draft'" widget="section_and_note_one2many" mode="list,kanban">
                                     <list  editable="bottom">
-                                        <field name="currency_id" column_invisible="True"/>
-                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id)]" width="45%" string="Item"/>
-                                        <field name="accepted_qty" width="15%"/>
+                                          <field name="currency_id" column_invisible="True"/>
+                                          <field name="product_id" domain="[('store_ids', 'in', parent.store_id)]" width="35%" string="Item"/>
+                                          <field name="available_uom_ids" column_invisible="True" />
+                                          <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{'no_create': True}" width="15%" />
+                                          <field name="accepted_qty" width="10%"/>
                                         <field name="rate" string="Cost Price" width="20%" optional="show" widget="monetary"/>
                                         <field name="amount" width="20%" optional="show" widget="monetary"/>
                                     </list>

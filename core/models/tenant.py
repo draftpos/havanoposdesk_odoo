@@ -207,6 +207,12 @@ class HavanoposdeskTenant(models.Model):
         queries.append("""INSERT INTO havanoposdesk_pricelist (name, type, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
         params.append(('Retail', 'selling', tenant_id, uid, uid, now, now))
         
+        # 8. Default UOMs
+        uoms = ['Kg', 'Litre', 'Meter', 'Pieces', 'Box', 'Set']
+        for uom in uoms:
+            queries.append("""INSERT INTO havanoposdesk_uom (name, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s)""")
+            params.append((uom, tenant_id, uid, uid, now, now))
+        
         # Execute all inserts in a single rapid batch
         for i, query in enumerate(queries):
             self.env.cr.execute(query, params[i])
