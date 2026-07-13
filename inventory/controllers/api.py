@@ -1,3 +1,5 @@
+from datetime import datetime
+from dataclasses import fields
 from odoo.orm import environments
 from odoo.orm import environments
 import odoo.orm.environments
@@ -203,6 +205,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     shops = user_env['havanoposdesk.store'].sudo().search(shop_domain)
                     for s in shops:
                         terminals = user_env['havanoposdesk.pos.terminal'].sudo().search([
+                            '&', '&',
                             ('store_id', '=', s.id),
                             ('status', '!=', 'offline'),
                             '|',
@@ -5368,6 +5371,7 @@ class HavanoPOSDeskAPI(http.Controller):
             shops_data = []
             for s in shops:
                 terminals = env['havanoposdesk.pos.terminal'].sudo().search([
+                    '&', '&',
                     ('store_id', '=', s.id),
                     ('status', '!=', 'offline'),
                     '|',
@@ -5557,6 +5561,7 @@ class HavanoPOSDeskAPI(http.Controller):
             shops = env['havanoposdesk.store'].sudo().search(shop_domain)
             for s in shops:
                 terminals = env['havanoposdesk.pos.terminal'].sudo().search([
+                    '&', '&',
                     ('store_id', '=', s.id),
                     ('status', '!=', 'offline'),
                     '|',
