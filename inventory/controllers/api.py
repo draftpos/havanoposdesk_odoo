@@ -904,11 +904,13 @@ class HavanoPOSDeskAPI(http.Controller):
             user = self._get_user()
             tenant = user.tenant_id
 
+            store = self._get_current_store(user, tenant, kw)
+
             return request.make_response(
                 json.dumps({
-                    "user": user.id,
-                    "tenant_exists": tenant is not None,
-                    "tenant": tenant.id if tenant else None,
+                    "store_exists": store is not None,
+                    "store_id": store.id if store else None,
+                    "store_name": store.name if store else None,
                 }),
                 headers=[('Content-Type', 'application/json')]
             )
