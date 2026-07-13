@@ -69,16 +69,10 @@ class HavanoAuthSignup(AuthSignupHome):
         if len(email) > 254:
             raise UserError(_("Email is too long."))
             
-        if ' ' in email:
-            raise UserError(_("Email cannot contain spaces."))
-            
-        if email.count('@') != 1:
-            raise UserError(_("Email must contain exactly one @ symbol."))
+        if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            raise UserError(_("Please enter a valid email address (e.g. name@domain.com)."))
             
         domain = email.split('@')[1]
-        if '.' not in domain:
-            raise UserError(_("Email domain must contain a dot (e.g., .com)."))
-            
         tld = domain.split('.')[-1]
         if len(tld) < 2:
             raise UserError(_("Email top-level domain must be at least 2 letters."))

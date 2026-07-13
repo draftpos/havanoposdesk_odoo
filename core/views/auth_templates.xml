@@ -226,26 +226,19 @@
                             const emailInput = document.getElementById('email');
                             if (emailInput) {
                                 const emailVal = emailInput.value;
+                                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                                 if (emailVal.length &gt; 254) {
                                     showCustomError(emailInput, "Email is too long.");
                                     isValid = false;
-                                } else if (emailVal.indexOf(' ') !== -1) {
-                                    showCustomError(emailInput, "Email cannot contain spaces.");
-                                    isValid = false;
-                                } else if (emailVal.split('@').length - 1 !== 1) {
-                                    showCustomError(emailInput, "Email must contain exactly one @ symbol.");
+                                } else if (!emailRegex.test(emailVal)) {
+                                    showCustomError(emailInput, "Please enter a valid email address (e.g. name@domain.com).");
                                     isValid = false;
                                 } else {
                                     const domain = emailVal.split('@')[1];
-                                    if (domain.indexOf('.') === -1) {
-                                        showCustomError(emailInput, "Domain must contain a dot (e.g., .com).");
+                                    const tld = domain.split('.').pop();
+                                    if (tld.length &lt; 2) {
+                                        showCustomError(emailInput, "Top-level domain must be at least 2 letters.");
                                         isValid = false;
-                                    } else {
-                                        const tld = domain.split('.').pop();
-                                        if (tld.length &lt; 2) {
-                                            showCustomError(emailInput, "Top-level domain must be at least 2 letters.");
-                                            isValid = false;
-                                        }
                                     }
                                 }
                             }
