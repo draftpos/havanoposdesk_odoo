@@ -1,4 +1,4 @@
-from odoo import models, fields
+from odoo import models, fields, api
 
 class Account(models.Model):
     _name = 'havanoposdesk.account'
@@ -14,6 +14,11 @@ class Account(models.Model):
         ('Bank', 'Bank'),
         ('Expense', 'Expense')
     ], string='Account Type', required=True)
+    currency_id = fields.Many2one(
+        'res.currency',
+        string='Currency',
+        help='Currency used for this Cash or Bank account.',
+    )
     balance = fields.Float(string='Balance', default=0.0)
     
     # Store reference for multi-tenancy if applicable

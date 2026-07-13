@@ -9,6 +9,7 @@
                 <list string="Accounts">
                     <field name="name" />
                     <field name="type" />
+                    <field name="currency_id" optional="show" invisible="type not in ['Cash', 'Bank']" />
                     <field name="balance" optional="show" />
                 </list>
             </field>
@@ -25,6 +26,7 @@
                             <group>
                                 <field name="name" />
                                 <field name="type" />
+                                <field name="currency_id" invisible="type not in ['Cash', 'Bank']" />
                                 <field name="balance" />
                             </group>
                         </group>
