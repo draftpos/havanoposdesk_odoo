@@ -902,14 +902,17 @@ class HavanoPOSDeskAPI(http.Controller):
     def api_get_customers(self, **kw):
         try:
             user = self._get_user()
+            tenant = user.tenant_id
 
             return request.make_response(
                 json.dumps({
-                    "user_found": user is not None,
-                    "user": user.id if user else None,
+                    "user": user.id,
+                    "tenant_exists": tenant is not None,
+                    "tenant": tenant.id if tenant else None,
                 }),
                 headers=[('Content-Type', 'application/json')]
             )
+
         except Exception as e:
             import traceback
             return request.make_response(
