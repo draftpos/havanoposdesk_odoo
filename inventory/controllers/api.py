@@ -933,7 +933,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if tenant:
                 prod_domain.append(('tenant_id', '=', tenant.id))
             if store:
-                prod_domain.append(('store_id', '=', store.id))
+                prod_domain.append(('store_ids', 'in', [store.id]))
 
             products = request.env['havanoposdesk.product'].sudo().search(prod_domain)
 
