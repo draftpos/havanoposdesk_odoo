@@ -4801,19 +4801,35 @@ class HavanoPOSDeskAPI(http.Controller):
                 }
                 tenant = env['havanoposdesk.tenant'].create(tenant_vals)
 
-                store = env['havanoposdesk.store'].create({
-                    'name': 'Default Shop',
-                    'tenant_id': tenant.id,
-                    'is_default': True
-                })
+                # Fetch and configure the store created automatically by tenant creation
+                store = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+                if store:
+                    store.sudo().write({
+                        'name': 'Default Shop',
+                        'is_default': True
+                    })
+                else:
+                    store = env['havanoposdesk.store'].sudo().create({
+                        'name': 'Default Shop',
+                        'tenant_id': tenant.id,
+                        'is_default': True
+                    })
 
-                # Create 1 POS Terminal (status: open) for the shop
-                terminal = env['havanoposdesk.pos.terminal'].create({
-                    'name': 'Terminal 1',
-                    'tenant_id': tenant.id,
-                    'store_id': store.id,
-                    'status': 'open',
-                })
+                # Fetch and configure the terminal created automatically by tenant creation
+                terminal = env['havanoposdesk.pos.terminal'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+                if terminal:
+                    terminal.sudo().write({
+                        'name': 'Terminal 1',
+                        'store_id': store.id,
+                        'status': 'open'
+                    })
+                else:
+                    terminal = env['havanoposdesk.pos.terminal'].sudo().create({
+                        'name': 'Terminal 1',
+                        'tenant_id': tenant.id,
+                        'store_id': store.id,
+                        'status': 'open',
+                    })
 
                 user_vals = {
                     'name': f"{first_name} {last_name}".strip(),
