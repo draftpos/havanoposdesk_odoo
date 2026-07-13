@@ -186,8 +186,8 @@ class HavanoposdeskTenant(models.Model):
         params.append(('General Supplier', tenant_id, store_id, uid, uid, now, now))
         
         # 3. Default Deposit Account
-        queries.append("""INSERT INTO havanoposdesk_account (name, type, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
-        params.append(('Cash', 'Cash', tenant_id, uid, uid, now, now))
+        queries.append("""INSERT INTO havanoposdesk_account (name, type, tenant_id, currency_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""")
+        params.append(('Cash', 'Cash', tenant_id, self.currency_id.id if self.currency_id else None, uid, uid, now, now))
         
         # 4. Default Expenses Account
         expenses = ['Electricity', 'Rent', 'Utilities', 'Wages & Salaries', 'Breakages', 'Council Licenses', 'Maintanences', 'Fuel']
