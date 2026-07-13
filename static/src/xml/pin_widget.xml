@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="havanoposdesk_odoo.PosPinBoxes" owl="1">
+        <div class="d-flex align-items-center">
+            <t t-if="!isReadonly">
+                <input type="text"
+                       class="o_input text-center mr-2 border rounded"
+                       style="width: 40px; height: 50px; font-size: 20px; margin-right: 8px;"
+                       maxlength="1"
+                       t-att-value="state.chars[0]"
+                       t-ref="input0"
+                       t-on-input="(ev) => this.onInput(0, ev)"
+                       t-on-keydown="(ev) => this.onKeyDown(0, ev)"/>
+                <input type="text"
+                       class="o_input text-center mr-2 border rounded"
+                       style="width: 40px; height: 50px; font-size: 20px; margin-right: 8px;"
+                       maxlength="1"
+                       t-att-value="state.chars[1]"
+                       t-ref="input1"
+                       t-on-input="(ev) => this.onInput(1, ev)"
+                       t-on-keydown="(ev) => this.onKeyDown(1, ev)"/>
+                <input type="text"
+                       class="o_input text-center mr-2 border rounded"
+                       style="width: 40px; height: 50px; font-size: 20px; margin-right: 8px;"
+                       maxlength="1"
+                       t-att-value="state.chars[2]"
+                       t-ref="input2"
+                       t-on-input="(ev) => this.onInput(2, ev)"
+                       t-on-keydown="(ev) => this.onKeyDown(2, ev)"/>
+                <input type="text"
+                       class="o_input text-center border rounded"
+                       style="width: 40px; height: 50px; font-size: 20px;"
+                       maxlength="1"
+                       t-att-value="state.chars[3]"
+                       t-ref="input3"
+                       t-on-input="(ev) => this.onInput(3, ev)"
+                       t-on-keydown="(ev) => this.onKeyDown(3, ev)"/>
+            </t>
+            <t t-else="">
+                <span class="mr-2" style="font-size: 20px; margin-right: 8px;"><t t-esc="state.chars[0] || '-'"/></span>
+                <span class="mr-2" style="font-size: 20px; margin-right: 8px;"><t t-esc="state.chars[1] || '-'"/></span>
+                <span class="mr-2" style="font-size: 20px; margin-right: 8px;"><t t-esc="state.chars[2] || '-'"/></span>
+                <span style="font-size: 20px;"><t t-esc="state.chars[3] || '-'"/></span>
+            </t>
+        </div>
+    </t>
+</templates>

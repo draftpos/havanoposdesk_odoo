@@ -147,6 +147,7 @@
                                 
                                 <div>
                                     <div class="input-field">
+                                        <t t-set="countries" t-value="request.env['res.country'].sudo().search([])"/>
                                         <i class="fa-solid fa-globe icon-left"></i>
                                         <select name="country_id" id="country_id" required="required" style="height: 46px; width: 100%; outline: none; border: 1px solid #e1e5ea; padding: 0 45px 0 45px; font-size: 14px; font-weight: 400; color: #333; border-radius: 8px; background: #fafbfc; transition: all 0.3s ease; -webkit-appearance: none; -moz-appearance: none; appearance: none; cursor: pointer;">
                                             <option value="" disabled="disabled" selected="selected">Select Country *</option>

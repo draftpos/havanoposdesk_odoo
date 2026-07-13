@@ -80,12 +80,13 @@
             <field name="name">res.users.my.cashiers.list</field>
             <field name="model">res.users</field>
             <field name="arch" type="xml">
-                <list string="My Cashiers">
+                <list string="Users" default_order="create_date desc">
                     <field name="name" />
                     <field name="login" string="Email / Username" />
                     <field name="phone" />
                     <field name="pin" />
-                    <field name="user_rights_profile_id" />
+                    <field name="havano_role" string="User Role" />
+                    <field name="allow_backoffice" string="Backoffice" widget="boolean_toggle" optional="show" />
                     <field name="active" widget="boolean_toggle" optional="show" />
                 </list>
             </field>
@@ -96,43 +97,42 @@
             <field name="name">res.users.my.cashiers.form</field>
             <field name="model">res.users</field>
             <field name="arch" type="xml">
-                <form string="Cashier">
-                    <header>
-                        <button name="%(action_havano_change_password_wizard)d" string="Change Password" type="action" class="oe_highlight" context="{'default_user_id': id}" />
-                    </header>
+                <form string="Employee">
                     <sheet>
                         <widget name="web_ribbon" title="Archived" bg_color="text-danger" invisible="active" />
-                        <div class="oe_title">
-                            <label for="name" class="oe_edit_only" />
+                        <div class="oe_title mb-4">
                             <h1>
-                                <field name="name" required="1" placeholder="Cashier Name" />
+                                <field name="name" required="1" />
                             </h1>
                         </div>
                         <group>
-                            <group string="Basic Information">
-                                <field name="login" string="Email / Username" required="1" />
-                                <field name="phone" />
-                                <field name="pin" />
-                                <field name="active" />
+                            <group>
+                                <!-- LEFT COLUMN -->
+                                <field name="havano_role" string="User Role" />
+                                <field name="pin" string="POS Login PIN" widget="pos_pin_boxes" />
+                                <field name="login" string="Backoffice email (optional)" required="0" />
+                                <field name="phone" string="Phone number" />
+                                <field name="has_password" invisible="1" />
+                                
+                                <label for="allow_backoffice" string="Access Backoffice" />
+                                <div class="o_row">
+                                    <field name="allow_backoffice" widget="boolean_toggle" />
+                                    <button name="%(action_havano_change_password_wizard)d" string="Set Backoffice Password" type="action" class="btn btn-primary btn-sm ms-3" context="{'default_user_id': id}" invisible="not allow_backoffice or has_password" />
+                                    <button name="%(action_havano_change_password_wizard)d" string="Change Backoffice Password" type="action" class="btn btn-secondary btn-sm ms-3" context="{'default_user_id': id}" invisible="not allow_backoffice or not has_password" />
+                                </div>
+                                
+                                <field name="active" string="Active User" widget="boolean_toggle" />
                             </group>
-                            <group string="Access &amp; Permissions">
-                                <field name="user_rights_profile_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" />
-                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" />
-                                <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" />
+                            <group>
+                                <!-- RIGHT COLUMN -->
+                                <field name="default_store_id" string="Default Store" options="{'no_create': True}" />
+                                <field name="store_ids" string="Allowed Stores" widget="many2many_tags" options="{'no_create': True}" />
+                                <field name="allow_discount" string="Discount Enable" widget="boolean_toggle" />
+                                <field name="max_discount_percent" invisible="allow_discount == False" />
+                                <field name="require_shift" string="Require Shift" widget="boolean_toggle" />
                                 <field name="tenant_id" invisible="1" />
                             </group>
                         </group>
-                        <notebook>
-                            <page string="POS Settings" name="pos_settings">
-                                <group>
-                                    <group>
-                                        <field name="allow_discount" />
-                                        <field name="max_discount_percent" />
-                                        <field name="require_shift" />
-                                    </group>
-                                </group>
-                            </page>
-                        </notebook>
                     </sheet>
                 </form>
             </field>
@@ -140,20 +140,19 @@
 
         
         <record id="action_my_cashiers" model="ir.actions.act_window">
-            <field name="name">My Cashiers</field>
+            <field name="name">Users</field>
             <field name="res_model">res.users</field>
             <field name="view_mode">list,form</field>
-            <field name="domain">[('havano_role', '=', 'user')]</field>
+            <field name="domain">[]</field>
             <field name="context">{'default_havano_role': 'user'}</field>
             <field name="view_ids" eval="[(5, 0, 0),                 (0, 0, {'view_mode': 'list', 'view_id': ref('view_my_cashiers_tree')}),                 (0, 0, {'view_mode': 'form', 'view_id': ref('view_my_cashiers_form')})]" />
         </record>
-        <menuitem id="menu_my_cashiers" name="Users" parent="menu_my_business_root" action="action_my_cashiers" sequence="30" />
+        <!-- Users & Roles Parent Menu -->
+        <menuitem id="menu_my_users_and_roles" name="Users &amp; Roles" parent="menu_my_business_root" sequence="30" />
 
-        
-        <menuitem id="menu_my_user_rights_profiles" name="User Rights Profiles" parent="menu_my_business_root" action="action_user_rights_profiles" sequence="35" />
+        <menuitem id="menu_my_cashiers" name="Users" parent="menu_my_users_and_roles" action="action_my_cashiers" sequence="10" />
 
-        
-        <menuitem id="menu_havano_change_pin" name="Change My PIN" parent="menu_my_business_root" action="action_havano_change_pin_wizard" sequence="40" />
+        <menuitem id="menu_my_user_rights_profiles" name="User Rights Profiles" parent="menu_my_users_and_roles" action="action_user_rights_profiles" sequence="20" />
 
         
         <record id="action_my_subscription" model="ir.actions.server">

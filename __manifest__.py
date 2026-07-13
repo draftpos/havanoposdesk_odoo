@@ -85,6 +85,8 @@
             'havanoposdesk_odoo/static/src/js/lottie-player.js',
             'havanoposdesk_odoo/static/src/xml/loading_indicator.xml',
             'havanoposdesk_odoo/static/src/xml/nocontent_helpers.xml',
+            'havanoposdesk_odoo/static/src/js/pin_widget.js',
+            'havanoposdesk_odoo/static/src/xml/pin_widget.xml',
             'havanoposdesk_odoo/static/src/js/user_menu_hide.js',
             'havanoposdesk_odoo/static/src/js/whitelabel.js',
             'havanoposdesk_odoo/static/src/scss/custom_theme.scss',

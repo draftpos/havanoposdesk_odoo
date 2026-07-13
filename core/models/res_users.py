@@ -22,12 +22,52 @@ class ResUsers(models.Model):
     selected_shop_id = fields.Many2one('havanoposdesk.store', string="Selected Shop")
     selected_terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string="Selected Terminal")
     pin = fields.Char(string="PIN Code")
-    user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
+    allow_backoffice = fields.Boolean(string="Access Backoffice", compute="_compute_allow_backoffice", inverse="_inverse_allow_backoffice", store=True)
+    has_password = fields.Boolean(string="Has Password", compute="_compute_has_password")
+
+    def _compute_has_password(self):
+        saved_users = self.filtered('id')
+        (self - saved_users).has_password = False
+        if saved_users:
+            self.env.cr.execute("SELECT id, password FROM res_users WHERE id IN %s", [tuple(saved_users.ids)])
+            passwords = {r[0]: bool(r[1]) for r in self.env.cr.fetchall()}
+            for user in saved_users:
+                user.has_password = passwords.get(user.id, False)
+
+    @api.onchange('default_store_id')
+    def _onchange_default_store_id(self):
+        if self.default_store_id:
+            self.store_ids = self.store_ids | self.default_store_id
+
+    @api.depends('havano_role')
+    def _compute_allow_backoffice(self):
+        for user in self:
+            user.allow_backoffice = (user.havano_role in ['admin', 'super_admin'])
+
+
+
+    def _inverse_allow_backoffice(self):
+        for user in self:
+            if user.havano_role == 'super_admin':
+                continue
+            if user.allow_backoffice:
+                user.havano_role = 'admin'
+            else:
+                user.havano_role = 'user'
+
+    @api.constrains('password', 'allow_backoffice')
+    def _check_backoffice_password(self):
+        for user in self:
+            if user.password and not user.allow_backoffice and user.havano_role == 'user':
+                raise ValidationError(_("You cannot assign a backoffice password to a user who does not have 'Access Backoffice' enabled."))
 
     @api.constrains('pin', 'tenant_id')
     def _check_pin_uniqueness(self):
         for user in self:
             if user.pin and user.pin.strip():
+                if len(user.pin.strip()) != 4 or not user.pin.strip().isdigit():
+                    raise ValidationError(_("The POS Login PIN must be exactly 4 digits."))
+                
                 duplicate = self.search([
                     ('tenant_id', '=', user.tenant_id.id),
                     ('pin', '=', user.pin),
@@ -66,6 +106,31 @@ class ResUsers(models.Model):
     def create(self, vals_list):
         import uuid
         for vals in vals_list:
+            if 'allow_backoffice' in vals:
+                vals['havano_role'] = 'admin' if vals['allow_backoffice'] else 'user'
+                
+            tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            if 'login' not in vals or not vals.get('login'):
+                name = vals.get('name', 'user').lower().replace(' ', '')
+                store_id = vals.get('default_store_id') or self.env.user.default_store_id.id
+                store_domain = "havanopos.com"
+                if store_id:
+                    store = self.env['havanoposdesk.store'].sudo().browse(store_id)
+                    if store:
+                        store_domain = store.name.lower().replace(' ', '') + ".com"
+                
+                base_email = f"{name}@{store_domain}"
+                email = base_email
+                counter = 1
+                while self.env['res.users'].sudo().with_context(active_test=False).search_count([('login', '=', email)]) > 0:
+                    email = f"{name}{counter}@{store_domain}"
+                    counter += 1
+                vals['login'] = email
+            else:
+                email = vals.get('login')
+                if self.env['res.users'].sudo().with_context(active_test=False).search_count([('login', '=', email)]) > 0:
+                    raise ValidationError(_("Oops! Sorry, the email '%s' is already in use by another user.") % email)
+
             if vals.get('saas_state') == 'unverified' and not vals.get('verification_token'):
                 vals['verification_token'] = str(uuid.uuid4())
                 vals['verification_sent_at'] = fields.Datetime.now()
@@ -226,6 +291,16 @@ class ResUsers(models.Model):
         return users
 
     def write(self, vals):
+        if 'allow_backoffice' in vals:
+            vals['havano_role'] = 'admin' if vals['allow_backoffice'] else 'user'
+            
+        if 'login' in vals:
+            email = vals.get('login')
+            if email:
+                for user in self:
+                    if email != user.login and self.env['res.users'].sudo().with_context(active_test=False).search_count([('login', '=', email)]) > 0:
+                        raise ValidationError(_("Oops! Sorry, the email '%s' is already in use by another user.") % email)
+
         if self.env.user.havano_role == 'admin':
             # Restrict Tenant Admins to modifying only cashiers in their own tenant
             for user in self:
