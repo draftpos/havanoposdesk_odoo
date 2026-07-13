@@ -880,12 +880,14 @@ class HavanoPOSDeskAPI(http.Controller):
             store = self._get_current_store(user, tenant, data)
             if not store:
                 return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
-            customer = request.env['havanoposdesk.customer'].sudo().create({
+            vals = {
                 'name': name,
-                'customer_type': customer_type,
                 'store_id': store.id,
                 'tenant_id': tenant.id if tenant else False,
-            })
+            }
+            if 'customer_type' in request.env['havanoposdesk.customer']._fields:
+                vals['customer_type'] = customer_type
+            customer = request.env['havanoposdesk.customer'].sudo().create(vals)
             
         res_data = {
             'message': {
@@ -951,7 +953,7 @@ class HavanoPOSDeskAPI(http.Controller):
             res_list.append({
                 'name': c.name,
                 'customer_name': c.name,
-                'customer_type': 'Company' if c.customer_type == 'company' else 'Individual',
+                'customer_type': 'Company' if getattr(c, 'customer_type', 'individual') == 'company' else 'Individual',
                 'custom_cost_center': cost_center,
                 'custom_warehouse': warehouse,
                 'gender': None,
@@ -2030,14 +2032,14 @@ class HavanoPOSDeskAPI(http.Controller):
                 result.append({
                     "name": p.name,
                     "customer_name": p.name,
-                    "customer_group": p.customer_group_id.name or ("Individual" if p.customer_type == "individual" else "Commercial"),
+                    "customer_group": p.customer_group_id.name or ("Individual" if getattr(p, 'customer_type', 'individual') == "individual" else "Commercial"),
                     "territory": p.country_id.name if p.country_id else "All Territories",
                     "custom_cost_center": cost_center_name,
                     "email": "",
                     "mobile_no": p.phone or "",
                     "phone": p.phone or "",
                     "tax_id": "",
-                    "is_company": p.customer_type == 'company',
+                    "is_company": getattr(p, 'customer_type', 'individual') == 'company',
                     "primary_address": p.address or "",
                 })
 
