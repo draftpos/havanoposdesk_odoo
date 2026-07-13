@@ -16,6 +16,15 @@ class CustomerGroup(models.Model):
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
 
+    @api.depends('name', 'tenant_id')
+    def _compute_display_name(self):
+        is_super_admin = self.env.user.has_group('base.group_system')
+        for record in self:
+            if is_super_admin and record.tenant_id:
+                record.display_name = f"{record.name} ({record.tenant_id.name})"
+            else:
+                record.display_name = record.name
+
 class Customer(models.Model):
     _name = 'havanoposdesk.customer'
     _description = 'Customer'
@@ -35,6 +44,15 @@ class Customer(models.Model):
     customer_group_id = fields.Many2one('havanoposdesk.customer.group', string='Customer Group')
     tin = fields.Char(string='TIN')
     vat = fields.Char(string='VAT')
+
+    @api.depends('name', 'tenant_id')
+    def _compute_display_name(self):
+        is_super_admin = self.env.user.has_group('base.group_system')
+        for record in self:
+            if is_super_admin and record.tenant_id:
+                record.display_name = f"{record.name} ({record.tenant_id.name})"
+            else:
+                record.display_name = record.name
     
     sale_ids = fields.One2many('havanoposdesk.sale', 'customer', string='Sales')
     payment_ids = fields.One2many('havanoposdesk.payment', 'customer_id', string='Payments')

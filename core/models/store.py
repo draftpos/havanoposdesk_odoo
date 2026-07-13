@@ -19,6 +19,15 @@ class HavanoposdeskStore(models.Model):
     active = fields.Boolean(string='Active', default=True)
     is_default = fields.Boolean(string='Is Default', default=False)
 
+    @api.depends('name', 'tenant_id')
+    def _compute_display_name(self):
+        is_super_admin = self.env.user.has_group('base.group_system')
+        for record in self:
+            if is_super_admin and record.tenant_id:
+                record.display_name = f"{record.name} ({record.tenant_id.name})"
+            else:
+                record.display_name = record.name
+
     @api.constrains('is_default', 'tenant_id')
     def _check_single_default_store(self):
         for store in self:

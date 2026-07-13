@@ -83,7 +83,7 @@
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl" />
                                 </group>
                             </page>
-                            <page string="Payment Entries" name="payment_entries" invisible="not payment_ids">
+                            <page string="Payment Entries" name="payment_entries">
                                 <field name="payment_ids" readonly="1">
                                     <list>
                                         <field name="name" />

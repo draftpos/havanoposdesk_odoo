@@ -208,6 +208,12 @@
                         <setting string="Allow Credit Sales" help="Allow creating sales invoices on credit (e.g. from POS terminals or API).">
                             <field name="biz_allow_credit_sales"/>
                         </setting>
+                        <setting string="Enable Barcode Scanning" help="Activate barcode scanning for products in POS.">
+                            <field name="biz_enable_barcode"/>
+                        </setting>
+                        <setting string="Allow Multi Currency" help="Enable selling and buying in multiple currencies.">
+                            <field name="biz_allow_multi_currency"/>
+                        </setting>
                     </block>
                     <block title="Sequence Configuration" name="sales_seq_config">
                         <setting id="sale_seq_setting" string="Sales Orders">
@@ -328,9 +334,9 @@
                 <!-- Suppliers Settings -->
                 <app logo="/havanoposdesk_odoo/static/description/purchases.png" data-string="Suppliers" string="Suppliers" name="havanoposdesk_suppliers" groups="base.group_user">
                     <block title="Purchasing Configuration" name="suppliers_config">
-                        <div>
-                            <p class="text-muted">Supplier and purchasing settings will go here.</p>
-                        </div>
+                        <setting string="Allow Multi Currency" help="Enable selling and buying in multiple currencies.">
+                            <field name="biz_allow_multi_currency"/>
+                        </setting>
                     </block>
                     <block title="Sequence Configuration" name="suppliers_seq_config">
                         <setting id="purch_seq_setting" string="Purchase Orders">

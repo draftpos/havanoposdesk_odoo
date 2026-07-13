@@ -68,6 +68,16 @@ class ResConfigSettings(models.TransientModel):
     )
 
     # SaaS backoffice-controlled related settings
+    biz_enable_tax = fields.Boolean(
+        string="Enable Tax",
+        related='tenant_id.enable_tax',
+        readonly=False
+    )
+    biz_enable_barcode = fields.Boolean(
+        string="Enable Barcode Scanning",
+        related='tenant_id.enable_barcode',
+        readonly=False
+    )
     biz_enable_quotations = fields.Boolean(
         string="Enable Quotations",
         related='tenant_id.enable_quotations',

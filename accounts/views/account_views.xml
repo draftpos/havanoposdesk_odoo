@@ -62,7 +62,20 @@
             </field>
         </record>
 
-        
+        <record id="action_havanoposdesk_cash_balance_report" model="ir.actions.act_window">
+            <field name="name">Cash Balance</field>
+            <field name="res_model">havanoposdesk.account</field>
+            <field name="view_mode">list,form</field>
+            <field name="context">{'search_default_filter_cash_bank': 1}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No Cash or Bank accounts found.
+                </p>
+            </field>
+        </record>
+
         <menuitem id="menu_accounts_list" name="Accounts" parent="menu_accounts_master" action="action_havanoposdesk_account" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system" />
+        <menuitem id="menu_accounts_cash_balance" name="Cash Balance" parent="menu_accounts_reports" action="action_havanoposdesk_cash_balance_report" sequence="20" />
+        <menuitem id="menu_sales_cash_balance" name="Cash Balance" parent="menu_sales_reports" action="action_havanoposdesk_cash_balance_report" sequence="40" />
     </data>
 </odoo>

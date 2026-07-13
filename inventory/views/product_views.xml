@@ -9,6 +9,8 @@
                 <list string="Products">
                     <field name="currency_id" column_invisible="True" />
                     <field name="item_code" string="Product Code" />
+                    <field name="is_barcode_enabled" column_invisible="True" />
+                    <field name="barcode" optional="show" invisible="is_barcode_enabled == False" />
                     <field name="name" />
                     <field name="category_id" string="Category" />
                     <field name="uom_id" optional="hide" />
@@ -49,6 +51,8 @@
                                         <field name="all_stores" invisible="has_multiple_stores == False" class="border-bottom border-dark" />
                                         <field name="store_ids" widget="many2many_tags" invisible="has_multiple_stores == True and all_stores == True" class="border-bottom border-dark" options="{'no_create': True}" />
                                         <field name="item_code" readonly="1" class="border-bottom border-dark" />
+                                        <field name="is_barcode_enabled" invisible="1" />
+                                        <field name="barcode" invisible="is_barcode_enabled == False" widget="barcode" class="border-bottom border-dark" />
                                         <field name="color" invisible="1" />
                                     </group>
                                     <group string="Price information">
@@ -96,18 +100,19 @@
                                     </field>
                                 </group>
                                 
-                                <group string="Other Pricing Settings">
-                                    <group>
-                                        <field name="discount_percentage" class="border-bottom border-dark" />
-                                        <field name="tax_percentage" class="border-bottom border-dark" />
-                                    </group>
-                                </group>
+
                             </page>
                             <page string="Other">
                                 <group>
                                     <group>
                                         <field name="is_active" class="border-bottom border-dark" />
                                         <field name="internal_notes" class="border-bottom border-dark" />
+                                    </group>
+                                </group>
+                                <group string="Other Pricing Settings">
+                                    <group>
+                                        <field name="discount_percentage" class="border-bottom border-dark" />
+                                        <field name="tax_percentage" class="border-bottom border-dark" />
                                     </group>
                                 </group>
                             </page>

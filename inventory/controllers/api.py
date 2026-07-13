@@ -356,6 +356,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'id': p.id,
                     'name': p.name,
                     'item_code': p.item_code,
+                    'barcode': p.barcode if p.is_barcode_enabled else None,
                     'buying_price': p.buying_price,
                     'selling_price': p.selling_price,
                     'color_hex': p.color_hex,
@@ -415,6 +416,7 @@ class HavanoPOSDeskAPI(http.Controller):
             vals = {
                 'name': data.get('name'),
                 'item_code': data.get('item_code') or 'New',
+                'barcode': data.get('barcode'),
                 'buying_price': data.get('buying_price', 0.0),
                 'selling_price': data.get('selling_price', 0.0),
                 'color_hex': data.get('color_hex'),
@@ -439,6 +441,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'id': product.id,
                 'name': product.name,
                 'item_code': product.item_code,
+                'barcode': product.barcode if product.is_barcode_enabled else None,
                 'buying_price': product.buying_price,
                 'selling_price': product.selling_price,
                 'color_hex': product.color_hex,

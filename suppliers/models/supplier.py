@@ -25,6 +25,15 @@ class HavanoposdeskSupplier(models.Model):
         default=lambda self: self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1).id
     )
 
+    @api.depends('name', 'tenant_id')
+    def _compute_display_name(self):
+        is_super_admin = self.env.user.has_group('base.group_system')
+        for record in self:
+            if is_super_admin and record.tenant_id:
+                record.display_name = f"{record.name} ({record.tenant_id.name})"
+            else:
+                record.display_name = record.name
+
     purchase_ids = fields.One2many('havanoposdesk.purchase', 'supplier', string='Purchases')
     payment_ids = fields.One2many('havanoposdesk.payment', 'supplier_id', string='Payments')
     balance = fields.Float(string='Balance', compute='_compute_balance', store=False)
