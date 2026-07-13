@@ -73,11 +73,7 @@
             </field>
         </record>
 
-        <!-- Set Dashboard as default action for users who don't have one -->
-        <function model="res.users" name="write">
-            <value model="res.users" search="[('action_id', '=', False)]"/>
-            <value eval="{'action_id': ref('action_havano_dashboard_client')}"/>
-        </function>
+
     </data>
 </odoo>
 

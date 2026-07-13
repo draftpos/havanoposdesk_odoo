@@ -77,12 +77,7 @@ class ResUsers(models.Model):
                 if duplicate:
                     raise ValidationError(_("The PIN code must be unique per tenant! User '%s' already has this PIN.") % duplicate.name)
 
-    @api.model
-    def _get_default_action_id(self):
-        action = self.env.ref('havanoposdesk_odoo.action_havano_dashboard_client', raise_if_not_found=False)
-        return action.id if action else False
 
-    action_id = fields.Many2one(default=_get_default_action_id)
 
     verification_token = fields.Char(string="Verification Token", copy=False)
     verification_sent_at = fields.Datetime(string="Verification Sent At", copy=False)
