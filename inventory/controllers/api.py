@@ -1379,6 +1379,31 @@ class HavanoPOSDeskAPI(http.Controller):
                     "type": "selling"
                 })
                 
+            uom_name = p.uom_id.name or "Nos"
+            uom_conversions = [{
+                "uom": uom_name,
+                "conversion_factor": 1.0
+            }]
+            added_uoms = {uom_name}
+
+            if getattr(p, 'allow_advanced_pricing', False) and getattr(p, 'advanced_price_ids', []):
+                for ap in p.advanced_price_ids:
+                    ap_uom_name = ap.uom_id.name or "Nos"
+                    if ap.price > 0.0:
+                        prices_data.append({
+                            "priceName": ap.pricelist_id.name if ap.pricelist_id else "Retail",
+                            "price": ap.price,
+                            "uom": ap_uom_name,
+                            "type": "selling"
+                        })
+                    if ap_uom_name not in added_uoms:
+                        uom_conversions.append({
+                            "uom": ap_uom_name,
+                            "conversion_factor": ap.qty_to_be_sold
+                        })
+                        added_uoms.add(ap_uom_name)
+
+                
             # Map taxes
             taxes_data = []
             food_and_tourism_tax = 0
@@ -1457,8 +1482,6 @@ class HavanoPOSDeskAPI(http.Controller):
             if (p.name or "") in ["sweet", "Standard Chair"] or p.item_code in ["066559", "026739"]:
                 simple_code = p.item_code
                 
-            uom_name = p.uom_id.name or "Nos"
-            
             products_list.append({
                 "itemcode": p.item_code,
                 "itemname": p.name,
@@ -1472,12 +1495,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 "is_sales_item": 1,
                 "uom": {
                     "stock_uom": uom_name,
-                    "conversions": [
-                        {
-                            "uom": uom_name,
-                            "conversion_factor": 1.0
-                        }
-                    ]
+                    "conversions": uom_conversions
                 },
                 "food_and_tourism_tax": food_and_tourism_tax,
                 "food_tax": food_tax,
