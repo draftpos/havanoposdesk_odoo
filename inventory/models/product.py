@@ -7,19 +7,24 @@ class HavanoposdeskProduct(models.Model):
 
     _sql_constraints = [
         ('name_tenant_uniq', 'unique (name, tenant_id)', 'The product name must be unique per tenant!'),
-        ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!')
+        ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
+        ('barcode_tenant_uniq', 'unique (barcode, tenant_id)', 'The Product Barcode must be unique per tenant!')
     ]
 
     name = fields.Char(string='Product Name', required=True)
     item_code = fields.Char(string='Product Code', required=True, copy=False, readonly=True, default=lambda self: 'New')
+    barcode = fields.Char(string='Barcode', copy=False)
+    is_barcode_enabled = fields.Boolean(related='tenant_id.enable_barcode', string="Barcode Enabled")
 
-    @api.depends('name', 'item_code')
+    @api.depends('name', 'item_code', 'tenant_id')
     def _compute_display_name(self):
+        is_super_admin = self.env.user.has_group('base.group_system')
         for record in self:
-            if record.item_code and record.item_code != 'New':
-                record.display_name = f"[{record.item_code}] {record.name}"
+            base_name = f"[{record.item_code}] {record.name}" if record.item_code and record.item_code != 'New' else record.name
+            if is_super_admin and record.tenant_id:
+                record.display_name = f"{base_name} ({record.tenant_id.name})"
             else:
-                record.display_name = record.name
+                record.display_name = base_name
 
     @api.model
     def _name_search(self, name='', args=None, operator='ilike', limit=100, name_get_uid=None):

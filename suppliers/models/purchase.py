@@ -60,6 +60,10 @@ class Purchase(models.Model):
     amount_untaxed = fields.Float(string='Untaxed Amount', compute='_compute_amount_total', store=True)
     amount_tax = fields.Float(string='Taxes', compute='_compute_amount_total', store=True)
     amount_total = fields.Float(string='Total Amount', compute='_compute_amount_total', store=True)
+    
+    tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
+    amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
+    
     state = fields.Selection([
         ('draft', 'Draft'),
         ('posted', 'Posted'),
@@ -90,6 +94,17 @@ class Purchase(models.Model):
             record.amount_untaxed = sum(record.line_ids.mapped('price_subtotal'))
             record.amount_tax = sum(record.line_ids.mapped('price_tax'))
             record.amount_total = sum(record.line_ids.mapped('amount'))
+
+    @api.depends('amount_total', 'currency_id', 'tenant_currency_id', 'posting_date')
+    def _compute_amount_total_base(self):
+        for record in self:
+            if not record.currency_id or not record.tenant_currency_id or record.currency_id == record.tenant_currency_id:
+                record.amount_total_base = record.amount_total
+            else:
+                date = record.posting_date or fields.Date.context_today(self)
+                record.amount_total_base = record.currency_id._convert(
+                    record.amount_total, record.tenant_currency_id, self.env.company, date
+                )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -159,9 +174,9 @@ class Purchase(models.Model):
                     existing_payment.with_context(bypass_payment_check=True).write({'amount': existing_payment.amount + purchase.amount_total})
                     if existing_payment.state == 'posted':
                         if payment_type == 'receipt':
-                            existing_payment.account_id.sudo().balance += purchase.amount_total
+                            existing_payment.account_id.sudo().balance += purchase.amount_total_base
                         else:
-                            existing_payment.account_id.sudo().balance -= purchase.amount_total
+                            existing_payment.account_id.sudo().balance -= purchase.amount_total_base
                     purchase.pos_payment_id = existing_payment.id
                 else:
                     payment = self.env['havanoposdesk.payment'].create({
@@ -169,6 +184,7 @@ class Purchase(models.Model):
                         'partner_type': 'supplier',
                         'account_id': purchase.account_id.id,
                         'amount': purchase.amount_total,
+                        'currency_id': purchase.currency_id.id,
                         'reference': 'POS Purchases',
                         'date': fields.Date.context_today(self),
                     })
@@ -289,9 +305,9 @@ class Purchase(models.Model):
                 payment_type = 'receipt' if purchase.is_return else 'payment'
                 if payment.state == 'posted':
                     if payment_type == 'receipt':
-                        payment.account_id.sudo().balance -= purchase.amount_total
+                        payment.account_id.sudo().balance -= purchase.amount_total_base
                     else:
-                        payment.account_id.sudo().balance += purchase.amount_total
+                        payment.account_id.sudo().balance += purchase.amount_total_base
                 payment.with_context(bypass_payment_check=True).write({'amount': payment.amount - purchase.amount_total})
 
             # Remove costing records associated with this purchase's lines

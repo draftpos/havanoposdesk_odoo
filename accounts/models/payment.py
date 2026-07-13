@@ -13,7 +13,9 @@ class Payment(models.Model):
         required=True, 
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
-    currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id', readonly=True)
+    currency_id = fields.Many2one('res.currency', string='Currency', compute='_compute_currency_id', store=True, readonly=False)
+    tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
+    amount_base = fields.Float(string='Base Amount', compute='_compute_amount_base', store=True)
     
     payment_type = fields.Selection([
         ('receipt', 'Receive Money'),
@@ -78,6 +80,23 @@ class Payment(models.Model):
                 raise ValidationError("You cannot delete a confirmed/posted payment. Please cancel it first.")
         return super().unlink()
 
+    @api.depends('tenant_id')
+    def _compute_currency_id(self):
+        for record in self:
+            if not record.currency_id:
+                record.currency_id = record.tenant_id.currency_id
+
+    @api.depends('amount', 'currency_id', 'tenant_currency_id', 'date')
+    def _compute_amount_base(self):
+        for record in self:
+            if not record.currency_id or not record.tenant_currency_id or record.currency_id == record.tenant_currency_id:
+                record.amount_base = record.amount
+            else:
+                date = record.date or fields.Date.context_today(self)
+                record.amount_base = record.currency_id._convert(
+                    record.amount, record.tenant_currency_id, self.env.company, date
+                )
+
     def action_post(self):
         for payment in self:
             if payment.state != 'draft':
@@ -87,9 +106,9 @@ class Payment(models.Model):
                 
             # Update Account Balance using sudo()
             if payment.payment_type == 'receipt':
-                payment.account_id.sudo().balance += payment.amount
+                payment.account_id.sudo().balance += payment.amount_base
             else:
-                payment.account_id.sudo().balance -= payment.amount
+                payment.account_id.sudo().balance -= payment.amount_base
                 
             payment.write({'state': 'posted'})
 
@@ -101,9 +120,9 @@ class Payment(models.Model):
                 
             # Reverse Account Balance using sudo()
             if payment.payment_type == 'receipt':
-                payment.account_id.sudo().balance -= payment.amount
+                payment.account_id.sudo().balance -= payment.amount_base
             else:
-                payment.account_id.sudo().balance += payment.amount
+                payment.account_id.sudo().balance += payment.amount_base
                 
             payment.write({'state': 'cancelled'})
 

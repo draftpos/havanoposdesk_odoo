@@ -79,6 +79,10 @@ class Sale(models.Model):
     amount_untaxed = fields.Float(string='Untaxed Amount', compute='_compute_amount_total', store=True)
     amount_tax = fields.Float(string='Taxes', compute='_compute_amount_total', store=True)
     amount_total = fields.Float(string='Total Amount', compute='_compute_amount_total', store=True)
+    
+    tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
+    amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
+    
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
     salesperson_id = fields.Many2one('res.users', string='Salesperson', default=lambda self: self.env.user.id)
     is_tax_enabled = fields.Boolean(related='tenant_id.enable_tax', string='Tax Enabled')
@@ -94,6 +98,17 @@ class Sale(models.Model):
             record.amount_untaxed = sum(record.line_ids.mapped('price_subtotal'))
             record.amount_tax = sum(record.line_ids.mapped('price_tax'))
             record.amount_total = sum(record.line_ids.mapped('amount'))
+
+    @api.depends('amount_total', 'currency_id', 'tenant_currency_id', 'date')
+    def _compute_amount_total_base(self):
+        for record in self:
+            if not record.currency_id or not record.tenant_currency_id or record.currency_id == record.tenant_currency_id:
+                record.amount_total_base = record.amount_total
+            else:
+                date = record.date or fields.Date.context_today(self)
+                record.amount_total_base = record.currency_id._convert(
+                    record.amount_total, record.tenant_currency_id, self.env.company, date
+                )
 
     @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
     def _compute_total_cost(self):
@@ -217,7 +232,7 @@ class Sale(models.Model):
                 if existing_payment:
                     existing_payment.with_context(bypass_payment_check=True).write({'amount': existing_payment.amount + abs(sale.amount_total)})
                     if existing_payment.state == 'posted':
-                        existing_payment.account_id.sudo().balance += sale.amount_total
+                        existing_payment.account_id.sudo().balance += sale.amount_total_base
                     sale.pos_payment_id = existing_payment.id
                 else:
                     payment = self.env['havanoposdesk.payment'].create({
@@ -225,6 +240,7 @@ class Sale(models.Model):
                         'partner_type': 'customer',
                         'account_id': sale.account_id.id,
                         'amount': abs(sale.amount_total),
+                        'currency_id': sale.currency_id.id,
                         'reference': 'POS Payments',
                         'date': fields.Date.context_today(self),
                     })
@@ -374,7 +390,7 @@ class Sale(models.Model):
             if sale.payment_status == 'cash' and sale.pos_payment_id:
                 payment = sale.pos_payment_id
                 if payment.state == 'posted':
-                    payment.account_id.sudo().balance -= sale.amount_total
+                    payment.account_id.sudo().balance -= sale.amount_total_base
                 payment.with_context(bypass_payment_check=True).write({'amount': payment.amount - abs(sale.amount_total)})
                 
             sale.write({'state': 'cancelled'})
