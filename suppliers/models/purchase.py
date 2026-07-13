@@ -192,16 +192,18 @@ class Purchase(models.Model):
                     purchase.pos_payment_id = payment.id
 
             for line in purchase.line_ids:
-                if line.accepted_qty > 0:
+                base_qty = line.accepted_qty * line.uom_qty_multiplier
+                unit_rate = line.rate / line.uom_qty_multiplier if line.uom_qty_multiplier else line.rate
+                if base_qty > 0:
                     if purchase.is_return:
                         # Revert/Subtract stock for return
-                        line.product_id.sudo().opening_stock -= line.accepted_qty
+                        line.product_id.sudo().opening_stock -= base_qty
                         
                         # Create Ledger Entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
                             'in_qty': 0.0,
-                            'out_qty': line.accepted_qty,
+                            'out_qty': base_qty,
                             'balance_qty': line.product_id.opening_stock,
                             'store': purchase.store_id.name if purchase.store_id else '',
                             'type': 'Purchase Return',
@@ -216,13 +218,13 @@ class Purchase(models.Model):
                         
                         if valuation:
                             valuation.write({
-                                'on_hand_qty': valuation.on_hand_qty - line.accepted_qty,
+                                'on_hand_qty': valuation.on_hand_qty - base_qty,
                             })
                         else:
                             self.env['havanoposdesk.stock.valuation'].sudo().create({
                                 'product_id': line.product_id.id,
                                 'store': purchase.store_id.name if purchase.store_id else '',
-                                'on_hand_qty': -line.accepted_qty,
+                                'on_hand_qty': -base_qty,
                             })
                     else:
                         # Normal Purchase
@@ -233,13 +235,13 @@ class Purchase(models.Model):
                         current_qty = line.product_id.opening_stock or 0.0
                         
                         if current_qty > 0:
-                            new_buying_price = (current_cost + line.rate) / 2.0
+                            new_buying_price = (current_cost + unit_rate) / 2.0
                         else:
-                            new_buying_price = line.rate
+                            new_buying_price = unit_rate
                             
                         # Update Product On Hand (opening_stock) and buying_price (last updated value) using sudo()
                         line.product_id.sudo().write({
-                            'opening_stock': current_qty + line.accepted_qty,
+                            'opening_stock': current_qty + base_qty,
                             'buying_price': new_buying_price,
                             'cost_price': new_buying_price,
                         })
@@ -248,8 +250,8 @@ class Purchase(models.Model):
                         self.env['havanoposdesk.product.costing'].sudo().create({
                             'product_id': line.product_id.id,
                             'purchase_line_id': line.id,
-                            'qty': line.accepted_qty,
-                            'price': line.rate,
+                            'qty': base_qty,
+                            'price': unit_rate,
                             'cost_type': 'last',
                             'date': purchase.posting_date,
                         })
@@ -259,7 +261,7 @@ class Purchase(models.Model):
                         self.env['havanoposdesk.product.costing'].sudo().create({
                             'product_id': line.product_id.id,
                             'purchase_line_id': line.id,
-                            'qty': line.accepted_qty,
+                            'qty': base_qty,
                             'price': new_buying_price,
                             'cost_type': 'average',
                             'date': purchase.posting_date,
@@ -268,7 +270,7 @@ class Purchase(models.Model):
                         # Create Ledger Entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
-                            'in_qty': line.accepted_qty,
+                            'in_qty': base_qty,
                             'out_qty': 0.0,
                             'balance_qty': line.product_id.opening_stock,
                             'store': purchase.store_id.name if purchase.store_id else '',
@@ -284,13 +286,13 @@ class Purchase(models.Model):
                         
                         if valuation:
                             valuation.write({
-                                'on_hand_qty': valuation.on_hand_qty + line.accepted_qty,
+                                'on_hand_qty': valuation.on_hand_qty + base_qty,
                             })
                         else:
                             self.env['havanoposdesk.stock.valuation'].sudo().create({
                                 'product_id': line.product_id.id,
                                 'store': purchase.store_id.name if purchase.store_id else '',
-                                'on_hand_qty': line.accepted_qty,
+                                'on_hand_qty': base_qty,
                             })
             purchase.write({'state': 'posted'})
 
@@ -316,15 +318,17 @@ class Purchase(models.Model):
             ]).unlink()
 
             for line in purchase.line_ids:
-                if line.accepted_qty > 0:
+                base_qty = line.accepted_qty * line.uom_qty_multiplier
+                unit_rate = line.rate / line.uom_qty_multiplier if line.uom_qty_multiplier else line.rate
+                if base_qty > 0:
                     if purchase.is_return:
                         # Revert return: Add stock back using sudo()
-                        line.product_id.sudo().opening_stock += line.accepted_qty
+                        line.product_id.sudo().opening_stock += base_qty
                         
                         # Create reverse ledger entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
-                            'in_qty': line.accepted_qty,
+                            'in_qty': base_qty,
                             'out_qty': 0.0,
                             'balance_qty': line.product_id.opening_stock,
                             'store': purchase.store_id.name if purchase.store_id else '',
@@ -339,12 +343,12 @@ class Purchase(models.Model):
                         ], limit=1)
                         if valuation:
                             valuation.write({
-                                'on_hand_qty': valuation.on_hand_qty + line.accepted_qty,
+                                'on_hand_qty': valuation.on_hand_qty + base_qty,
                             })
                     else:
                         # Normal Purchase Cancelled
                         # Revert: Subtract stock using sudo()
-                        line.product_id.sudo().opening_stock -= line.accepted_qty
+                        line.product_id.sudo().opening_stock -= base_qty
                         
                         # Revert product buying price to the previous purchase's rate (if any)
                         last_purchase = self.env['havanoposdesk.purchase.line'].search([
@@ -353,13 +357,14 @@ class Purchase(models.Model):
                             ('purchase_id', '!=', purchase.id)
                         ], order='id desc', limit=1)
                         if last_purchase:
-                            line.product_id.sudo().buying_price = last_purchase.rate
+                            last_rate = last_purchase.rate / last_purchase.uom_qty_multiplier if last_purchase.uom_qty_multiplier else last_purchase.rate
+                            line.product_id.sudo().buying_price = last_rate
 
                         # Create reverse ledger entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
                             'in_qty': 0.0,
-                            'out_qty': line.accepted_qty,
+                            'out_qty': base_qty,
                             'balance_qty': line.product_id.opening_stock,
                             'store': purchase.store_id.name if purchase.store_id else '',
                             'type': 'Purchase Cancelled',
@@ -373,7 +378,7 @@ class Purchase(models.Model):
                         ], limit=1)
                         if valuation:
                             valuation.write({
-                                'on_hand_qty': valuation.on_hand_qty - line.accepted_qty,
+                                'on_hand_qty': valuation.on_hand_qty - base_qty,
                             })
             purchase.write({'state': 'cancelled'})
 
@@ -404,6 +409,9 @@ class PurchaseLine(models.Model):
     price_subtotal = fields.Float(string='Subtotal', compute='_compute_amount', store=True)
     price_tax = fields.Float(string='Tax', compute='_compute_amount', store=True)
     amount = fields.Float(string='Total', compute='_compute_amount', store=True)
+    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM')
+    uom_qty_multiplier = fields.Float(string='UOM Multiplier', default=1.0)
+    available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
 
     @api.depends('accepted_qty', 'rate', 'tax_ids')
     def _compute_amount(self):
@@ -425,11 +433,49 @@ class PurchaseLine(models.Model):
             record.price_tax = inclusive_tax_amount + exclusive_tax_amount
             record.amount = record.price_subtotal + record.price_tax
 
-    @api.onchange('product_id')
-    def _onchange_product_id(self):
-        if self.product_id:
-            self.rate = self.product_id.buying_price
-            self.tax_ids = [(6, 0, self.product_id.purchase_tax_ids.ids)]
+    @api.depends('product_id')
+    def _compute_available_uom_ids(self):
+        for line in self:
+            if not line.product_id:
+                line.available_uom_ids = False
+                continue
+            
+            uom_ids = line.product_id.uom_id.ids if line.product_id.uom_id else []
+            prices = self.env['havanoposdesk.product.uom.price'].search([
+                ('product_id', '=', line.product_id.id),
+                ('pricelist_id.type', '=', 'buying')
+            ])
+            uom_ids.extend(prices.mapped('uom_id.id'))
+            line.available_uom_ids = [(6, 0, list(set(uom_ids)))]
+
+    @api.onchange('product_id', 'uom_id')
+    def _onchange_product_uom(self):
+        for line in self:
+            if not line.product_id:
+                line.uom_id = False
+                line.uom_qty_multiplier = 1.0
+                continue
+                
+            if not line.uom_id or line.uom_id.id not in line.available_uom_ids.ids:
+                line.uom_id = line.product_id.uom_id
+                
+            line.tax_ids = [(6, 0, line.product_id.purchase_tax_ids.ids)]
+            
+            if line.uom_id == line.product_id.uom_id:
+                line.rate = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                line.uom_qty_multiplier = 1.0
+            else:
+                price_record = self.env['havanoposdesk.product.uom.price'].search([
+                    ('product_id', '=', line.product_id.id),
+                    ('uom_id', '=', line.uom_id.id),
+                    ('pricelist_id.type', '=', 'buying')
+                ], limit=1)
+                if price_record:
+                    line.rate = price_record.price
+                    line.uom_qty_multiplier = price_record.qty_to_be_sold
+                else:
+                    line.rate = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                    line.uom_qty_multiplier = 1.0
 
     @api.onchange('rate')
     def _onchange_rate(self):
@@ -441,3 +487,4 @@ class PurchaseLine(models.Model):
                     'message': 'You cannot edit prices. Please contact the admin if you wish to change the price.'
                 }
             }
+
