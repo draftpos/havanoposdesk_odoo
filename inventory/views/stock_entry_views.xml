@@ -80,7 +80,7 @@
                     <field name="posting_date"/>
                     <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
                     <filter string="Submitted" name="submitted" domain="[('state', '=', 'submitted')]"/>
-                    <group expand="0" string="Group By">
+                    <group>
                         <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
                         <filter string="Type" name="group_by_type" context="{'group_by': 'stock_entry_type'}"/>
                     </group>
