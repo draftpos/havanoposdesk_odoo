@@ -903,15 +903,23 @@ class HavanoPOSDeskAPI(http.Controller):
         user = self._get_user()
         tenant = user.tenant_id
         
-        # Determine store and company settings
+        # Determine store — fall back gracefully so we always return data
         store = self._get_current_store(user, tenant, kw)
         if not store:
-            return request.make_response(json.dumps({'message': []}), headers=[('Content-Type', 'application/json')])
-        store_name = store.name
+            store = user.default_store_id
+        if not store and user.store_ids:
+            store = user.store_ids[0]
+        if not store and tenant:
+            store = request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+
+        store_name = store.name if store else ''
         
-        domain = [('store_id', '=', store.id)]
+        # Scope customers by tenant; add store filter only when we have one
+        domain = []
         if tenant:
             domain.append(('tenant_id', '=', tenant.id))
+        if store:
+            domain.append(('store_id', '=', store.id))
             
         customers = request.env['havanoposdesk.customer'].sudo().search(domain)
         
