@@ -1,19 +1,19 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
         <record id="view_havanoposdesk_uom_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.uom.tree</field>
             <field name="model">havanoposdesk.uom</field>
             <field name="arch" type="xml">
-                <list  string="UOM">
-                    <field  name="name"/>
+                <list string="UOM">
+                    <field name="name" />
 
-                    <field  name="tenant_id" column_invisible="1"/>
+                    <field name="tenant_id" column_invisible="1" optional="show" />
                 </list>
             </field>
         </record>
 
-        <!-- UOM Form View -->
+        
         <record id="view_havanoposdesk_uom_form" model="ir.ui.view">
             <field name="name">havanoposdesk.uom.form</field>
             <field name="model">havanoposdesk.uom</field>
@@ -21,14 +21,14 @@
                 <form string="UOM">
                     <sheet>
                         <div class="oe_title">
-                            <label for="name" class="oe_edit_only" string="UOM Name"/>
+                            <label for="name" class="oe_edit_only" string="UOM Name" />
                             <h1>
-                                <field name="name" placeholder="e.g. Kilogram" class="border-bottom border-dark"/>
+                                <field name="name" placeholder="e.g. Kilogram" class="border-bottom border-dark" />
                             </h1>
                         </div>
                         <group>
                             <group>
-                                <field name="tenant_id" invisible="1"/>
+                                <field name="tenant_id" invisible="1" />
                             </group>
                         </group>
                     </sheet>
@@ -42,6 +42,6 @@
             <field name="view_mode">list,form</field>
         </record>
 
-        <menuitem id="menu_uom_inventory" name="UOM" parent="menu_inventory_master" action="action_havanoposdesk_uom" sequence="30"/>
+        <menuitem id="menu_uom_inventory" name="UOM" parent="menu_inventory_master" action="action_havanoposdesk_uom" sequence="30" />
     </data>
 </odoo>

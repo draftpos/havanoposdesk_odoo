@@ -1,20 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- Account List View -->
+        
         <record id="view_havanoposdesk_account_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.account.list</field>
             <field name="model">havanoposdesk.account</field>
             <field name="arch" type="xml">
                 <list string="Accounts">
-                    <field name="name"/>
-                    <field name="type"/>
-                    <field name="balance"/>
+                    <field name="name" />
+                    <field name="type" />
+                    <field name="balance" optional="show" />
                 </list>
             </field>
         </record>
 
-        <!-- Account Form View -->
+        
         <record id="view_havanoposdesk_account_form" model="ir.ui.view">
             <field name="name">havanoposdesk.account.form</field>
             <field name="model">havanoposdesk.account</field>
@@ -23,9 +23,9 @@
                     <sheet>
                         <group>
                             <group>
-                                <field name="name"/>
-                                <field name="type"/>
-                                <field name="balance"/>
+                                <field name="name" />
+                                <field name="type" />
+                                <field name="balance" />
                             </group>
                         </group>
                     </sheet>
@@ -33,21 +33,21 @@
             </field>
         </record>
 
-        <!-- Account Search View -->
+        
         <record id="view_havanoposdesk_account_search" model="ir.ui.view">
             <field name="name">havanoposdesk.account.search</field>
             <field name="model">havanoposdesk.account</field>
             <field name="arch" type="xml">
                 <search string="Accounts">
-                    <field name="name"/>
-                    <field name="type"/>
-                    <filter string="Expenses" name="filter_expense" domain="[('type','=','Expense')]"/>
-                    <filter string="Cash/Bank" name="filter_cash_bank" domain="[('type','in',['Cash','Bank'])]"/>
+                    <field name="name" />
+                    <field name="type" />
+                    <filter string="Expenses" name="filter_expense" domain="[('type','=','Expense')]" />
+                    <filter string="Cash/Bank" name="filter_cash_bank" domain="[('type','in',['Cash','Bank'])]" />
                 </search>
             </field>
         </record>
 
-        <!-- Action for Accounts -->
+        
         <record id="action_havanoposdesk_account" model="ir.actions.act_window">
             <field name="name">Chart of Accounts</field>
             <field name="res_model">havanoposdesk.account</field>
@@ -62,8 +62,7 @@
             </field>
         </record>
 
-        <!-- Menu Item -->
-        <menuitem id="menu_accounts_list" name="Accounts" parent="menu_accounts_master" action="action_havanoposdesk_account" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        
+        <menuitem id="menu_accounts_list" name="Accounts" parent="menu_accounts_master" action="action_havanoposdesk_account" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system" />
     </data>
 </odoo>
-

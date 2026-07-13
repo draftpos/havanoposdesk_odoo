@@ -48,3 +48,5 @@ access_havanoposdesk_dashboard,havanoposdesk.dashboard,model_havanoposdesk_dashb
 access_havano_change_pin_wizard,havano.change.pin.wizard,model_havano_change_pin_wizard,base.group_user,1,1,1,1
 access_havano_change_password_wizard,havano.change.password.wizard,model_havano_change_password_wizard,base.group_user,1,1,1,1
 
+access_havanoposdesk_stock_transfer,havanoposdesk.stock.transfer,model_havanoposdesk_stock_transfer,base.group_user,1,1,1,1
+access_havanoposdesk_stock_transfer_line,havanoposdesk.stock.transfer.line,model_havanoposdesk_stock_transfer_line,base.group_user,1,1,1,1

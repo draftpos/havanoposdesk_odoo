@@ -5,3 +5,4 @@ from . import product
 from . import product_uom_price
 from . import reports
 from . import stock_adjustment
+from . import stock_transfer

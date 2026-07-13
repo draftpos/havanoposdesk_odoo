@@ -161,112 +161,44 @@
                 <!-- My Business Settings -->
                 <app logo="/havanoposdesk_odoo/static/description/mybusiness.png" data-string="My Business" string="My Business" name="havanoposdesk_my_business" groups="base.group_user">
                     <field name="tenant_id" invisible="1"/>
-                    <div class="row mt16 o_settings_container">
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_left_pane">
-                                <field name="biz_allow_multi_currency"/>
+                    <block title="Business Settings" name="my_business_config">
+                        <setting string="Multi-Currencies" help="Allow multiple currencies for your business">
+                            <field name="biz_allow_multi_currency"/>
+                        </setting>
+                        <setting string="Business Currency" help="Main currency of your business">
+                            <div class="content-group mt8">
+                                <field name="biz_currency_id" class="o_light_label"/>
                             </div>
-                            <div class="o_setting_right_pane">
-                                <label for="biz_allow_multi_currency" string="Multi-Currencies"/>
-                                <div class="text-muted">
-                                    Allow multiple currencies for your business
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_right_pane">
-                                <label for="biz_currency_id"/>
-                                <div class="text-muted">
-                                    Main currency of your business
-                                </div>
-                                <div class="content-group">
-                                    <div class="mt16">
-                                        <field name="biz_currency_id" class="o_light_label"/>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        </setting>
+                    </block>
                     <block title="Mobile POS Configuration" name="mobile_pos_config">
-                        <div class="row mt16 o_settings_container">
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_left_pane">
-                                    <field name="biz_enable_quotations"/>
-                                </div>
-                                <div class="o_setting_right_pane">
-                                    <label for="biz_enable_quotations" string="Enable Quotations"/>
-                                    <div class="text-muted">Allow quotations management in POS app</div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_left_pane">
-                                    <field name="biz_enable_uom_conversion"/>
-                                </div>
-                                <div class="o_setting_right_pane">
-                                    <label for="biz_enable_uom_conversion" string="Enable UOM Conversion"/>
-                                    <div class="text-muted">Allow multi-UOM packaging conversions in POS</div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_left_pane">
-                                    <field name="biz_enable_payment_entries"/>
-                                </div>
-                                <div class="o_setting_right_pane">
-                                    <label for="biz_enable_payment_entries" string="Enable Payment Entries"/>
-                                    <div class="text-muted">Display Payment Entries management in POS app</div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_left_pane">
-                                    <field name="biz_show_qty_on_hand"/>
-                                </div>
-                                <div class="o_setting_right_pane">
-                                    <label for="biz_show_qty_on_hand" string="Show Stock Quantity on Hand"/>
-                                    <div class="text-muted">Show stock quantity indicator on POS product cards</div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_left_pane">
-                                    <field name="biz_enable_shift"/>
-                                </div>
-                                <div class="o_setting_right_pane">
-                                    <label for="biz_enable_shift" string="Enable Shift Management"/>
-                                    <div class="text-muted">Track sales shifts and cash drawer opening/closing</div>
-                                </div>
-                            </div>
-                        </div>
+                        <setting string="Enable Quotations" help="Allow quotations management in POS app">
+                            <field name="biz_enable_quotations"/>
+                        </setting>
+                        <setting string="Enable UOM Conversion" help="Allow multi-UOM packaging conversions in POS">
+                            <field name="biz_enable_uom_conversion"/>
+                        </setting>
+                        <setting string="Enable Payment Entries" help="Display Payment Entries management in POS app">
+                            <field name="biz_enable_payment_entries"/>
+                        </setting>
+                        <setting string="Show Stock Quantity on Hand" help="Show stock quantity indicator on POS product cards">
+                            <field name="biz_show_qty_on_hand"/>
+                        </setting>
+                        <setting string="Enable Shift Management" help="Track sales shifts and cash drawer opening/closing">
+                            <field name="biz_enable_shift"/>
+                        </setting>
                     </block>
                 </app>
                 
                 <!-- Sales Settings -->
                 <app logo="/havanoposdesk_odoo/static/description/sales.png" data-string="Sales" string="Sales" name="havanoposdesk_sales" groups="base.group_user">
                     <block title="Sales Configuration" name="sales_config">
-                        <div>
-                            <div class="row mt16 o_settings_container">
-                                <div class="col-12 col-lg-6 o_setting_box">
-                                    <div class="o_setting_left_pane">
-                                        <field name="biz_restrict_price_modification"/>
-                                    </div>
-                                    <div class="o_setting_right_pane">
-                                        <label for="biz_restrict_price_modification" string="Restrict Price Modification"/>
-                                        <div class="text-muted">
-                                            If checked, only Tenant Admins can modify unit prices on sales and purchases.
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-12 col-lg-6 o_setting_box">
-                                    <div class="o_setting_left_pane">
-                                        <field name="biz_allow_credit_sales"/>
-                                    </div>
-                                    <div class="o_setting_right_pane">
-                                        <label for="biz_allow_credit_sales"/>
-                                        <div class="text-muted">
-                                            Allow creating sales invoices on credit (e.g. from POS terminals or API).
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <setting string="Restrict Price Modification" help="If checked, only Tenant Admins can modify unit prices on sales and purchases.">
+                            <field name="biz_restrict_price_modification"/>
+                        </setting>
+                        <setting string="Allow Credit Sales" help="Allow creating sales invoices on credit (e.g. from POS terminals or API).">
+                            <field name="biz_allow_credit_sales"/>
+                        </setting>
                     </block>
                     <block title="Sequence Configuration" name="sales_seq_config">
                         <setting id="sale_seq_setting" string="Sales Orders">
@@ -428,7 +360,6 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_my_business'}</field>
     </record>
@@ -437,7 +368,6 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_sales'}</field>
     </record>
@@ -446,7 +376,6 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_stock'}</field>
     </record>
@@ -455,7 +384,6 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_accounts'}</field>
     </record>
@@ -464,7 +392,6 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_suppliers'}</field>
     </record>

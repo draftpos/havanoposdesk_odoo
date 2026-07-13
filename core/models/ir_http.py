@@ -4,6 +4,33 @@ from odoo.http import request
 class IrHttp(models.AbstractModel):
     _inherit = 'ir.http'
 
+    @classmethod
+    def _serve_fallback(cls):
+        """
+        Override to intercept /<configured_base>/* paths (e.g. /Havano/action-894)
+        before the website module serves its 404 page.
+        When the path starts with the configured web base URL, we serve the
+        webclient SPA instead — the JS router handles the subpath client-side.
+        """
+        path = request.httprequest.path
+        # Only act when a database is available
+        if request.db:
+            try:
+                icp = request.env['ir.config_parameter'].sudo()
+                configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'havano').lower()
+                lower_path = path.lower()
+                # Match /<base> or /<base>/<subpath>
+                if lower_path == f'/{configured_base}' or lower_path.startswith(f'/{configured_base}/'):
+                    from odoo.addons.web.controllers.home import Home
+                    response = Home().web_client()
+                    if hasattr(response, 'flatten'):
+                        response.flatten()
+                    return response
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error("Error in fallback routing for %s: %s", path, e, exc_info=True)
+        return super()._serve_fallback()
+
     def session_info(self):
         result = super(IrHttp, self).session_info()
         

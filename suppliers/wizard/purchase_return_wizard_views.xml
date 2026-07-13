@@ -1,41 +1,41 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- Purchase Return Wizard Form View -->
+        
         <record id="view_havanoposdesk_purchase_return_wizard_form" model="ir.ui.view">
             <field name="name">havanoposdesk.purchase.return.wizard.form</field>
             <field name="model">havanoposdesk.purchase.return.wizard</field>
             <field name="arch" type="xml">
                 <form string="Debit Note (Purchase Return)">
                     <group>
-                        <field name="purchase_id" readonly="1" options="{'no_open': True}"/>
+                        <field name="purchase_id" readonly="1" options="{'no_open': True}" />
                     </group>
                     <notebook>
                         <page string="Items to Return">
                             <field name="line_ids">
                                 <list editable="bottom" create="0" delete="0">
-                                    <field name="purchase_line_id" column_invisible="True" force_save="1"/>
-                                    <field name="product_id" readonly="1" force_save="1"/>
-                                    <field name="qty_purchased" readonly="1" force_save="1"/>
-                                    <field name="qty_returned"/>
-                                    <field name="rate" readonly="1" force_save="1"/>
-                                    <field name="tax_ids" widget="many2many_tags" readonly="1" force_save="1"/>
-                                    <field name="price_subtotal" sum="Total Subtotal"/>
-                                    <field name="price_tax" sum="Total Tax"/>
-                                    <field name="amount" sum="Total Return"/>
+                                    <field name="purchase_line_id" column_invisible="True" force_save="1" />
+                                    <field name="product_id" readonly="1" force_save="1" />
+                                    <field name="qty_purchased" readonly="1" force_save="1" />
+                                    <field name="qty_returned" />
+                                    <field name="rate" readonly="1" force_save="1" />
+                                    <field name="tax_ids" widget="many2many_tags" readonly="1" force_save="1" />
+                                    <field name="price_subtotal" sum="Total Subtotal" />
+                                    <field name="price_tax" sum="Total Tax" />
+                                    <field name="amount" sum="Total Return" optional="show" />
                                 </list>
                             </field>
                         </page>
                     </notebook>
                     <footer>
-                        <button name="action_confirm_return" string="Confirm Return" type="object" class="btn-primary"/>
-                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                        <button name="action_confirm_return" string="Confirm Return" type="object" class="btn-primary" />
+                        <button string="Cancel" class="btn-secondary" special="cancel" />
                     </footer>
                 </form>
             </field>
         </record>
 
-        <!-- Action to open Purchase Return Wizard -->
+        
         <record id="action_havanoposdesk_purchase_return_wizard" model="ir.actions.act_window">
             <field name="name">Debit Note (Purchase Return)</field>
             <field name="res_model">havanoposdesk.purchase.return.wizard</field>

@@ -1,58 +1,58 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- Expense List View -->
+        
         <record id="view_havanoposdesk_expense_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.expense.list</field>
             <field name="model">havanoposdesk.expense</field>
             <field name="arch" type="xml">
                 <list string="Expense Posting" decoration-info="state == 'Draft'" decoration-success="state == 'Posted'" decoration-danger="state == 'Cancelled'">
-                    <field name="name"/>
-                    <field name="date"/>
-                    <field name="currency_id" column_invisible="True"/>
-                    <field name="supplier_id"/>
-                    <field name="account_id"/>
-                    <field name="amount" sum="Total Expenses" widget="monetary"/>
-                    <field name="is_paid" widget="boolean_toggle"/>
-                    <field name="state" widget="badge" decoration-info="state == 'Draft'" decoration-success="state == 'Posted'" decoration-danger="state == 'Cancelled'"/>
+                    <field name="name" />
+                    <field name="date" />
+                    <field name="currency_id" column_invisible="True" />
+                    <field name="supplier_id" />
+                    <field name="account_id" />
+                    <field name="amount" sum="Total Expenses" widget="monetary" />
+                    <field name="is_paid" widget="boolean_toggle" />
+                    <field name="state" widget="badge" decoration-info="state == 'Draft'" decoration-success="state == 'Posted'" decoration-danger="state == 'Cancelled'" optional="show" />
                 </list>
             </field>
         </record>
 
-        <!-- Expense Form View -->
+        
         <record id="view_havanoposdesk_expense_form" model="ir.ui.view">
             <field name="name">havanoposdesk.expense.form</field>
             <field name="model">havanoposdesk.expense</field>
             <field name="arch" type="xml">
                 <form string="Expense Posting">
                     <header>
-                        <button name="action_post" string="Post" type="object" class="oe_highlight" invisible="state != 'Draft'"/>
-                        <button name="action_cancel" string="Cancel" type="object" invisible="state != 'Posted'"/>
-                        <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'Cancelled'"/>
-                        <field name="state" widget="statusbar" statusbar_visible="Draft,Posted"/>
+                        <button name="action_post" string="Post" type="object" class="oe_highlight" invisible="state != 'Draft'" />
+                        <button name="action_cancel" string="Cancel" type="object" invisible="state != 'Posted'" />
+                        <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'Cancelled'" />
+                        <field name="state" widget="statusbar" statusbar_visible="Draft,Posted" />
                     </header>
                     <sheet>
                         <div class="oe_title">
                             <h1>
-                                <field name="name"/>
+                                <field name="name" />
                             </h1>
                         </div>
                         <group>
                             <group>
-                                <field name="date" readonly="state != 'Draft'"/>
-                                <field name="currency_id" invisible="1"/>
-                                <field name="supplier_id" readonly="state != 'Draft'"/>
-                                <field name="account_id" readonly="state != 'Draft'"/>
-                                <field name="amount" readonly="state != 'Draft'" widget="monetary"/>
+                                <field name="date" readonly="state != 'Draft'" />
+                                <field name="currency_id" invisible="1" />
+                                <field name="supplier_id" readonly="state != 'Draft'" />
+                                <field name="account_id" readonly="state != 'Draft'" />
+                                <field name="amount" readonly="state != 'Draft'" widget="monetary" />
                             </group>
                             <group>
-                                <field name="is_paid" readonly="state != 'Draft'"/>
-                                <field name="payment_account_id" invisible="not is_paid" required="is_paid" readonly="state != 'Draft'"/>
+                                <field name="is_paid" readonly="state != 'Draft'" />
+                                <field name="payment_account_id" invisible="not is_paid" required="is_paid" readonly="state != 'Draft'" />
                             </group>
                         </group>
                         <notebook>
                             <page string="Description">
-                                <field name="description" readonly="state != 'Draft'"/>
+                                <field name="description" readonly="state != 'Draft'" />
                             </page>
                         </notebook>
                     </sheet>
@@ -60,41 +60,41 @@
             </field>
         </record>
 
-        <!-- Expense Search View -->
+        
         <record id="view_havanoposdesk_expense_search" model="ir.ui.view">
             <field name="name">havanoposdesk.expense.search</field>
             <field name="model">havanoposdesk.expense</field>
             <field name="arch" type="xml">
                 <search string="Expense Posting">
-                    <field name="name"/>
-                    <field name="account_id"/>
-                    <field name="store_id"/>
-                    <field name="create_uid"/>
-                    <field name="date"/>
-                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="Draft" name="draft" domain="[('state','=','Draft')]"/>
-                    <filter string="Posted" name="posted" domain="[('state','=','Posted')]"/>
-                    <filter string="Account" name="filter_account" domain="[('account_id', '!=', False)]"/>
-                    <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
-                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
-                    <filter string="Created On" name="filter_created_on" date="date"/>
-                    <separator/>
+                    <field name="name" />
+                    <field name="account_id" />
+                    <field name="store_id" />
+                    <field name="create_uid" />
+                    <field name="date" />
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="Draft" name="draft" domain="[('state','=','Draft')]" />
+                    <filter string="Posted" name="posted" domain="[('state','=','Posted')]" />
+                    <filter string="Account" name="filter_account" domain="[('account_id', '!=', False)]" />
+                    <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]" />
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]" />
+                    <filter string="Created On" name="filter_created_on" date="date" />
+                    <separator />
                     <group>
-                        <filter string="Account" name="group_by_account" context="{'group_by':'account_id'}"/>
-                        <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
-                        <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
-                        <filter string="Status" name="group_by_state" context="{'group_by':'state'}"/>
-                        <filter string="Created By" name="group_by_created_by" context="{'group_by':'create_uid'}"/>
-                        <filter string="Created On" name="group_by_created_on" context="{'group_by':'date:day'}"/>
-                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}"/>
-                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}"/>
+                        <filter string="Account" name="group_by_account" context="{'group_by':'account_id'}" />
+                        <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}" />
+                        <filter string="Date" name="group_by_date" context="{'group_by':'date'}" />
+                        <filter string="Status" name="group_by_state" context="{'group_by':'state'}" />
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by':'create_uid'}" />
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by':'date:day'}" />
+                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}" />
+                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}" />
                     </group>
                 </search>
             </field>
         </record>
 
-        <!-- Action for Expenses -->
+        
         <record id="action_havanoposdesk_expense" model="ir.actions.act_window">
             <field name="name">Expense Posting</field>
             <field name="res_model">havanoposdesk.expense</field>
@@ -110,7 +110,7 @@
             </field>
         </record>
 
-        <!-- Menu Item -->
-        <menuitem id="menu_expense_posting" name="Expense Posting" parent="menu_accounts_operations" action="action_havanoposdesk_expense" sequence="10"/>
+        
+        <menuitem id="menu_expense_posting" name="Expense Posting" parent="menu_accounts_operations" action="action_havanoposdesk_expense" sequence="10" />
     </data>
 </odoo>

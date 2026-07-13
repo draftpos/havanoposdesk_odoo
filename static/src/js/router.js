@@ -188,8 +188,8 @@ function urlToState(urlObj) {
 
     const [prefix, ...splitPath] = urlObj.pathname.split("/").filter(Boolean);
 
-    const havano_base = session?.havanoposdesk_web_base_url || "odoo";
-    if (["odoo", havano_base, "scoped_app"].includes(prefix)) {
+    const havano_base = (session?.havanoposdesk_web_base_url || "odoo").toLowerCase();
+    if (prefix && ["odoo", havano_base, "scoped_app"].includes(prefix.toLowerCase())) {
         const actionParts = [...splitPath.entries()].filter(
             ([_, part]) => !isNumeric(part) && part !== "new"
         );
@@ -324,16 +324,18 @@ browser.addEventListener("click", (ev) => {
         } catch {
             return;
         }
-        const havano_base = session?.havanoposdesk_web_base_url || "odoo";
+        const havano_base = (session?.havanoposdesk_web_base_url || "odoo").toLowerCase();
+        const lowerPathname = browser.location.pathname.toLowerCase();
+        const lowerUrlPath = url.pathname.toLowerCase();
         if (
             browser.location.host === url.host &&
-            (browser.location.pathname.startsWith("/odoo") || browser.location.pathname.startsWith("/" + havano_base)) &&
-            (["/web", "/odoo", "/" + havano_base].includes(url.pathname) || url.pathname.startsWith("/odoo/") || url.pathname.startsWith("/" + havano_base + "/")) &&
+            (lowerPathname.startsWith("/odoo") || lowerPathname.startsWith("/" + havano_base)) &&
+            (["/web", "/odoo", "/" + havano_base].includes(lowerUrlPath) || lowerUrlPath.startsWith("/odoo/") || lowerUrlPath.startsWith("/" + havano_base + "/")) &&
             a.target !== "_blank"
         ) {
             ev.preventDefault();
             state = router.urlToState(url);
-            if ((url.pathname.startsWith("/odoo") || url.pathname.startsWith("/" + havano_base)) && url.hash) {
+            if ((lowerUrlPath.startsWith("/odoo") || lowerUrlPath.startsWith("/" + havano_base)) && url.hash) {
                 browser.history.pushState({}, "", url.href);
             }
             new Promise((res) => setTimeout(res, 0)).then(() => routerBus.trigger("ROUTE_CHANGE"));

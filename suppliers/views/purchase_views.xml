@@ -25,7 +25,8 @@
                         </div>
                         <group>
                             <group>
-                                <field name="currency_id" invisible="1"/>
+                                <field name="allow_multi_currency" invisible="1"/>
+                                <field name="currency_id" invisible="allow_multi_currency == False" options="{'no_create': True}" class="border-bottom border-dark"/>
                                 <field name="is_tax_enabled" invisible="1"/>
                                 <field name="invoice_type" readonly="1" class="border-bottom border-dark"/>
                                 <field name="supplier" readonly="state != 'draft'" class="border-bottom border-dark"/>
@@ -44,7 +45,7 @@
                                 <field name="line_ids" readonly="state != 'draft'" widget="section_and_note_one2many" mode="list,kanban">
                                     <list  editable="bottom">
                                         <field name="currency_id" column_invisible="True"/>
-                                        <field name="product_id" domain="[('store_id', '=', parent.store_id)]" width="45%" string="Item"/>
+                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id)]" width="45%" string="Item"/>
                                         <field name="accepted_qty" width="15%"/>
                                         <field name="rate" string="Cost Price" width="20%" optional="show" widget="monetary"/>
                                         <field name="amount" width="20%" optional="show" widget="monetary"/>

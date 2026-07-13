@@ -1,42 +1,42 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- Tax List View -->
+        
         <record id="view_havanoposdesk_tax_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.tax.list</field>
             <field name="model">havanoposdesk.tax</field>
             <field name="arch" type="xml">
                 <list string="Taxes">
-                    <field name="name"/>
-                    <field name="tax_type"/>
-                    <field name="rate"/>
-                    <field name="is_inclusive" widget="boolean_toggle"/>
-                    <field name="active" widget="boolean_toggle"/>
+                    <field name="name" />
+                    <field name="tax_type" />
+                    <field name="rate" />
+                    <field name="is_inclusive" widget="boolean_toggle" />
+                    <field name="active" widget="boolean_toggle" optional="show" />
                 </list>
             </field>
         </record>
 
-        <!-- Tax Form View -->
+        
         <record id="view_havanoposdesk_tax_form" model="ir.ui.view">
             <field name="name">havanoposdesk.tax.form</field>
             <field name="model">havanoposdesk.tax</field>
             <field name="arch" type="xml">
                 <form string="Tax Configuration">
                     <sheet>
-                        <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active"/>
+                        <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active" />
                         <div class="oe_title">
                             <h1>
-                                <field name="name" placeholder="e.g. VAT 15.5%"/>
+                                <field name="name" placeholder="e.g. VAT 15.5%" />
                             </h1>
                         </div>
                         <group>
                             <group>
-                                <field name="tax_type"/>
-                                <field name="rate"/>
+                                <field name="tax_type" />
+                                <field name="rate" />
                             </group>
                             <group>
-                                <field name="is_inclusive" widget="boolean_toggle"/>
-                                <field name="active" widget="boolean_toggle"/>
+                                <field name="is_inclusive" widget="boolean_toggle" />
+                                <field name="active" widget="boolean_toggle" />
                             </group>
                         </group>
                     </sheet>
@@ -44,7 +44,7 @@
             </field>
         </record>
 
-        <!-- Action for Taxes -->
+        
         <record id="action_havanoposdesk_tax" model="ir.actions.act_window">
             <field name="name">Taxes</field>
             <field name="res_model">havanoposdesk.tax</field>
@@ -56,7 +56,7 @@
             </field>
         </record>
 
-        <!-- Menu Item -->
-        <menuitem id="menu_accounts_taxes" name="Taxes" parent="menu_accounts_master" action="action_havanoposdesk_tax" sequence="20"/>
+        
+        <menuitem id="menu_accounts_taxes" name="Taxes" parent="menu_accounts_master" action="action_havanoposdesk_tax" sequence="20" />
     </data>
 </odoo>

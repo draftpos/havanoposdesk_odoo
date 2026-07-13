@@ -37,6 +37,12 @@ class Sale(models.Model):
     ], string='Payment Status', default='cash', required=True)
     account_id = fields.Many2one('havanoposdesk.account', string='Deposit Account', domain="[('type', 'in', ['Cash', 'Bank'])]", default=_default_account_id)
     pos_payment_id = fields.Many2one('havanoposdesk.payment', string='POS Payment Batch')
+    payment_ids = fields.Many2many('havanoposdesk.payment', compute='_compute_payment_ids', string='Payments')
+
+    @api.depends('pos_payment_id')
+    def _compute_payment_ids(self):
+        for record in self:
+            record.payment_ids = [(6, 0, [record.pos_payment_id.id])] if record.pos_payment_id else False
     
     line_ids = fields.One2many('havanoposdesk.sale.line', 'sale_id', string='Items')
 
@@ -56,7 +62,14 @@ class Sale(models.Model):
         required=True, 
         default=_default_store_id
     )
-    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
+    currency_id = fields.Many2one('res.currency', string='Currency', compute='_compute_currency_id', store=True, readonly=False)
+    allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency')
+
+    @api.depends('store_id')
+    def _compute_currency_id(self):
+        for record in self:
+            if record.store_id and not record.currency_id:
+                record.currency_id = record.store_id.currency_id
     terminal_id = fields.Many2one(
         'havanoposdesk.pos.terminal', 
         string='POS Terminal', 

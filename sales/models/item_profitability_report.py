@@ -12,7 +12,7 @@ class ItemProfitabilityReport(models.Model):
     qty = fields.Float(string='Qty Sold', readonly=True)
     cost_price = fields.Monetary(string='Buy Price', readonly=True, currency_field='currency_id')
     selling_price = fields.Monetary(string='Sell Price', readonly=True, currency_field='currency_id')
-    total_buy_price = fields.Monetary(string='Total Buy Price', readonly=True, currency_field='currency_id')
+    total_buy_price = fields.Monetary(string='Buy Price', readonly=True, currency_field='currency_id')
     total_sales = fields.Monetary(string='Total Sales', readonly=True, currency_field='currency_id')
     profit = fields.Monetary(string='Profit', readonly=True, currency_field='currency_id')
     profit_margin = fields.Float(string='Profit Margin (%)', readonly=True)

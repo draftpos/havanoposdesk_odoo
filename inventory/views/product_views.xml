@@ -1,31 +1,31 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- Product List (Tree) View -->
+        
         <record id="view_havanoposdesk_product_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.product.tree</field>
             <field name="model">havanoposdesk.product</field>
             <field name="arch" type="xml">
                 <list string="Products">
-                    <field name="currency_id" column_invisible="True"/>
-                    <field name="item_code" string="Product Code"/>
-                    <field name="name"/>
-                    <field name="category_id" string="Category"/>
-                    <field name="uom_id" optional="hide"/>
-                    <field name="buying_price" optional="hide" widget="monetary"/>
-                    <field name="selling_price" string="Sell price" widget="monetary"/>
-                    <field name="track_qty"/>
-                    <field name="opening_stock" string="QTY"/>
-                    <field name="store_ids" widget="many2many_tags" optional="show"/>
-                    <field name="color" column_invisible="1"/>
-                    <field name="tenant_id" column_invisible="1"/>
-                    <field name="create_uid" optional="hide"/>
-                    <field name="create_date" optional="hide"/>
+                    <field name="currency_id" column_invisible="True" />
+                    <field name="item_code" string="Product Code" />
+                    <field name="name" />
+                    <field name="category_id" string="Category" />
+                    <field name="uom_id" optional="hide" />
+                    <field name="buying_price" optional="hide" widget="monetary" />
+                    <field name="selling_price" string="Sell price" widget="monetary" />
+                    <field name="track_qty" />
+                    <field name="opening_stock" string="QTY" />
+                    <field name="store_ids" widget="many2many_tags" optional="show" />
+                    <field name="color" column_invisible="1" />
+                    <field name="tenant_id" column_invisible="1" />
+                    <field name="create_uid" optional="hide" />
+                    <field name="create_date" optional="hide" />
                 </list>
             </field>
         </record>
 
-        <!-- Product Form View -->
+        
         <record id="view_havanoposdesk_product_form" model="ir.ui.view">
             <field name="name">havanoposdesk.product.form</field>
             <field name="model">havanoposdesk.product</field>
@@ -40,74 +40,74 @@
                             <page string="Details">
                                 <group>
                                     <group string="Product information">
-                                        <field name="name" class="border-bottom border-dark"/>
-                                        <field name="category_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark"/>
-                                        <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark"/>
-                                        <field name="tenant_id" invisible="1"/>
-                                        <field name="track_qty" class="border-bottom border-dark"/>
-                                        <field name="has_multiple_stores" invisible="1"/>
-                                        <field name="all_stores" invisible="has_multiple_stores == False" class="border-bottom border-dark"/>
-                                        <field name="store_ids" widget="many2many_tags" invisible="has_multiple_stores == True and all_stores == True" class="border-bottom border-dark" options="{'no_create': True}"/>
-                                        <field name="item_code" readonly="1" class="border-bottom border-dark"/>
-                                        <field name="color" invisible="1"/>
+                                        <field name="name" class="border-bottom border-dark" />
+                                        <field name="category_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark" />
+                                        <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark" />
+                                        <field name="tenant_id" invisible="1" />
+                                        <field name="track_qty" class="border-bottom border-dark" />
+                                        <field name="has_multiple_stores" invisible="1" />
+                                        <field name="all_stores" invisible="has_multiple_stores == False" class="border-bottom border-dark" />
+                                        <field name="store_ids" widget="many2many_tags" invisible="has_multiple_stores == True and all_stores == True" class="border-bottom border-dark" options="{'no_create': True}" />
+                                        <field name="item_code" readonly="1" class="border-bottom border-dark" />
+                                        <field name="color" invisible="1" />
                                     </group>
                                     <group string="Price information">
-                                        <label for="buying_price"/>
+                                        <label for="buying_price" />
                                         <div class="o_row">
-                                            <field name="buying_price" class="border-bottom border-dark"/>
+                                            <field name="buying_price" class="border-bottom border-dark" />
                                         </div>
                                         
-                                        <label for="selling_price"/>
+                                        <label for="selling_price" />
                                         <div class="o_row">
-                                            <field name="selling_price" class="border-bottom border-dark"/>
+                                            <field name="selling_price" class="border-bottom border-dark" />
                                         </div>
-                                        <field name="markup" class="border-bottom border-dark"/>
-                                        <field name="id" invisible="1"/>
-                                        <field name="has_active_taxes" invisible="1"/>
-                                        <field name="sale_tax_ids" widget="many2many_tags" invisible="1" class="border-bottom border-dark"/>
-                                        <field name="purchase_tax_ids" widget="many2many_tags" invisible="1" class="border-bottom border-dark"/>
-                                        <field name="opening_stock" string="Opening Stock" invisible="id" class="border-bottom border-dark"/>
-                                        <field name="opening_stock" string="On hand" invisible="not id" readonly="1" class="border-bottom border-dark"/>
-                                        <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}"/>
+                                        <field name="markup" class="border-bottom border-dark" />
+                                        <field name="id" invisible="1" />
+                                        <field name="has_active_taxes" invisible="1" />
+                                        <field name="sale_tax_ids" widget="many2many_tags" invisible="1" class="border-bottom border-dark" />
+                                        <field name="purchase_tax_ids" widget="many2many_tags" invisible="1" class="border-bottom border-dark" />
+                                        <field name="opening_stock" string="Opening Stock" invisible="id" class="border-bottom border-dark" />
+                                        <field name="opening_stock" string="On hand" invisible="not id" readonly="1" class="border-bottom border-dark" />
+                                        <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}" />
                                     </group>
                                 </group>
                             </page>
                             <page string="Advanced Pricing">
-                                <field name="allow_advanced_pricing" invisible="1"/>
+                                <field name="allow_advanced_pricing" invisible="1" />
                                 
-                                <!-- Warning if disabled -->
+                                
                                 <div invisible="allow_advanced_pricing" class="alert alert-info" role="alert" style="margin-top: 10px; margin-bottom: 20px;">
                                     <h4 class="alert-heading">Multi-UOM &amp; Advanced Pricing is Disabled</h4>
                                     <p>To use Wholesale and Retail prices, or to sell items in multiple units of measure (e.g. Boxes and Singles), please activate the <b>Allow Advanced Pricing &amp; Multi-UOM</b> setting.</p>
-                                    <hr/>
+                                    <hr />
                                     <p class="mb-0">Go to <b>Settings &gt; Stock</b> to activate this feature for your business.</p>
                                 </div>
                                 
-                                <!-- Table if enabled -->
-                                <group invisible="not allow_advanced_pricing">
+                                
+                                <group>
                                     <field name="advanced_price_ids" nolabel="1">
                                         <list editable="bottom">
-                                            <field name="store_id" options="{'no_create': True}"/>
-                                            <field name="pricelist_id" options="{'no_create': True}"/>
-                                            <field name="uom_id" string="Unit of Measure" options="{'no_create': True}"/>
-                                            <field name="qty_to_be_sold" string="Qty to be Sold"/>
-                                            <field name="price"/>
+                                            <field name="store_id" options="{'no_create': True}" />
+                                            <field name="pricelist_id" options="{'no_create': True}" />
+                                            <field name="uom_id" string="Unit of Measure" options="{'no_create': True}" />
+                                            <field name="qty_to_be_sold" string="Qty to be Sold" />
+                                            <field name="price" />
                                         </list>
                                     </field>
                                 </group>
                                 
                                 <group string="Other Pricing Settings">
                                     <group>
-                                        <field name="discount_percentage" class="border-bottom border-dark"/>
-                                        <field name="tax_percentage" class="border-bottom border-dark"/>
+                                        <field name="discount_percentage" class="border-bottom border-dark" />
+                                        <field name="tax_percentage" class="border-bottom border-dark" />
                                     </group>
                                 </group>
                             </page>
                             <page string="Other">
                                 <group>
                                     <group>
-                                        <field name="is_active" class="border-bottom border-dark"/>
-                                        <field name="internal_notes" class="border-bottom border-dark"/>
+                                        <field name="is_active" class="border-bottom border-dark" />
+                                        <field name="internal_notes" class="border-bottom border-dark" />
                                     </group>
                                 </group>
                             </page>
@@ -117,55 +117,53 @@
             </field>
         </record>
 
-        <!-- Product Search View -->
+        
         <record id="view_havanoposdesk_product_search" model="ir.ui.view">
             <field name="name">havanoposdesk.product.search</field>
             <field name="model">havanoposdesk.product</field>
             <field name="arch" type="xml">
                 <search string="Search Products">
-                    <field name="name"/>
-                    <field name="item_code" string="Product Code"/>
-                    <field name="category_id"/>
-                    <field name="create_date"/>
-                    <field name="create_uid"/>
-                    <field name="store_ids"/>
-                    <field name="track_qty"/>
-                    <separator/>
-                    <filter string="In Stock" name="in_stock" domain="[('opening_stock', '&gt;', 0)]"/>
-                    <filter string="Out of Stock" name="out_of_stock" domain="[('opening_stock', '&lt;=', 0)]"/>
-                    <filter string="Today" name="created_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" domain="[('create_date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
-                    <filter string="Created On" name="filter_created_on" date="create_date"/>
-                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
-                    <filter string="Store" name="filter_store" domain="[('store_ids', '!=', False)]"/>
-                    <filter string="Track QTY" name="filter_track_qty" domain="[('track_qty', '=', True)]"/>
-                    <filter string="Product Name" name="filter_name" domain="[('name', '!=', False)]"/>
+                    <field name="name" />
+                    <field name="item_code" string="Product Code" />
+                    <field name="category_id" />
+                    <field name="create_date" />
+                    <field name="create_uid" />
+                    <field name="store_ids" />
+                    <field name="track_qty" />
+                    <separator />
+                    <filter string="In Stock" name="in_stock" domain="[('opening_stock', '&gt;', 0)]" />
+                    <filter string="Out of Stock" name="out_of_stock" domain="[('opening_stock', '&lt;=', 0)]" />
+                    <filter string="Today" name="created_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="This Month" name="this_month" domain="[('create_date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]" />
+                    <filter string="Created On" name="filter_created_on" date="create_date" />
+                    <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]" />
+                    <filter string="Store" name="filter_store" domain="[('store_ids', '!=', False)]" />
+                    <filter string="Track QTY" name="filter_track_qty" domain="[('track_qty', '=', True)]" />
+                    <filter string="Product Name" name="filter_name" domain="[('name', '!=', False)]" />
                     <group>
-                        <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}"/>
-                        <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}"/>
-                        <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
-                        <filter string="Store" name="group_by_store" context="{'group_by': 'store_ids'}"/>
-                        <filter string="Track QTY" name="group_by_track_qty" context="{'group_by': 'track_qty'}"/>
-                        <filter string="Product Name" name="group_by_name" context="{'group_by': 'name'}"/>
-                        <filter string="Today" name="group_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:day'}"/>
-                        <filter string="This Month" name="group_month" domain="[('create_date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:month'}"/>
+                        <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}" />
+                        <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}" />
+                        <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}" />
+                        <filter string="Store" name="group_by_store" context="{'group_by': 'store_ids'}" />
+                        <filter string="Track QTY" name="group_by_track_qty" context="{'group_by': 'track_qty'}" />
+                        <filter string="Product Name" name="group_by_name" context="{'group_by': 'name'}" />
+                        <filter string="Today" name="group_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:day'}" />
+                        <filter string="This Month" name="group_month" domain="[('create_date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:month'}" />
                     </group>
                 </search>
             </field>
         </record>
 
-        <!-- Action -->
+        
         <record id="action_havanoposdesk_product" model="ir.actions.act_window">
             <field name="name">Products</field>
             <field name="res_model">havanoposdesk.product</field>
             <field name="view_mode">list,form</field>
-            <field name="search_view_id" ref="view_havanoposdesk_product_search"/>
+            <field name="search_view_id" ref="view_havanoposdesk_product_search" />
         </record>
 
-        <!-- Menu Items for all Apps -->
-        <menuitem id="menu_product_inventory" name="Products" parent="menu_inventory_master" action="action_havanoposdesk_product" sequence="10"/>
+        
+        <menuitem id="menu_product_inventory" name="Products" parent="menu_inventory_master" action="action_havanoposdesk_product" sequence="10" />
     </data>
 </odoo>
-
-
