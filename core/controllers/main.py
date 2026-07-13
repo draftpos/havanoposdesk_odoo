@@ -1,12 +1,53 @@
 from odoo import http, _
 from odoo.http import request
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
+from odoo.addons.web.controllers.webmanifest import WebManifest
 import werkzeug
 import logging
 
 _logger = logging.getLogger(__name__)
 
+class HavanoWebManifest(WebManifest):
+    def _get_webmanifest(self):
+        manifest = super()._get_webmanifest()
+        
+        icp = request.env['ir.config_parameter'].sudo()
+        configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'Havano')
+        if not configured_base.startswith('/'):
+            configured_base = '/' + configured_base
+        if configured_base.lower() == '/havano':
+            configured_base = '/Havano'
+            
+        manifest['start_url'] = f"{configured_base}/action-749"
+        
+        # Override the icons with the Havano logo
+        manifest['icons'] = [{
+            'src': '/havanoposdesk_odoo/static/description/icon.png',
+            'sizes': '192x192',
+            'type': 'image/png',
+        }, {
+            'src': '/havanoposdesk_odoo/static/description/icon.png',
+            'sizes': '512x512',
+            'type': 'image/png',
+        }]
+        
+        return manifest
+
 class HavanoAuthSignup(AuthSignupHome):
+
+    def _login_redirect(self, uid, redirect=None):
+        icp = request.env['ir.config_parameter'].sudo()
+        configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'Havano')
+        
+        # Format properly, e.g. /Havano/action-749
+        if not configured_base.startswith('/'):
+            configured_base = '/' + configured_base
+        
+        # Ensure capitalization if it's havano
+        if configured_base.lower() == '/havano':
+            configured_base = '/Havano'
+            
+        return f"{configured_base}/action-749"
 
     @http.route('/web/signup', type='http', auth='public', website=True, sitemap=False, captcha='signup')
     def web_auth_signup(self, *args, **kw):
