@@ -3426,25 +3426,40 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id
 
             product_domain = []
-            if tenant:
+            if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
             products = env['havanoposdesk.product'].search(product_domain)
             
             store_domain = []
-            if tenant:
+            if user.havano_role != 'super_admin' and tenant:
                 store_domain.append(('tenant_id', '=', tenant.id))
+                
+            store = self._get_current_store(user, tenant, params)
+            if store:
+                store_domain.append(('id', '=', store.id))
+            elif user.havano_role != 'super_admin':
+                if user.store_ids:
+                    store_domain.append(('id', 'in', user.store_ids.ids))
+                elif user.default_store_id:
+                    store_domain.append(('id', '=', user.default_store_id.id))
+                    
             stores = env['havanoposdesk.store'].search(store_domain)
             
             data_list = []
-            for store in stores:
+            for store_rec in stores:
                 cost_value = 0.0
                 selling_value = 0.0
                 for p in products:
                     qty = p.opening_stock
-                    valuation = env['havanoposdesk.stock.valuation'].search([
+                    
+                    val_domain = [
                         ('product_id', '=', p.id),
-                        ('store', '=', store.name)
-                    ], limit=1)
+                        ('store', '=', store_rec.name)
+                    ]
+                    if user.havano_role != 'super_admin' and tenant:
+                        val_domain.append(('tenant_id', '=', tenant.id))
+                        
+                    valuation = env['havanoposdesk.stock.valuation'].sudo().search(val_domain, limit=1)
                     if valuation:
                         qty = valuation.on_hand_qty
                         
@@ -3452,7 +3467,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     selling_value += qty * (p.selling_price or 0.0)
                     
                 data_list.append({
-                    "warehouse": store.name,
+                    "warehouse": store_rec.name,
                     "cost_value": cost_value,
                     "selling_value": selling_value,
                     "bal_val": cost_value,
