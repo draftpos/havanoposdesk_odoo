@@ -2719,7 +2719,12 @@ class HavanoPOSDeskAPI(http.Controller):
 
         env, custom_cr = self._get_env(user_id=uid)
         try:
-            suppliers = env['havanoposdesk.supplier'].search([])
+            user = env['res.users'].browse(uid)
+            domain = []
+            if user.havano_role != 'super_admin' and user.tenant_id:
+                domain.append(('tenant_id', '=', user.tenant_id.id))
+            
+            suppliers = env['havanoposdesk.supplier'].search(domain)
             result = []
             for s in suppliers:
                 result.append({
