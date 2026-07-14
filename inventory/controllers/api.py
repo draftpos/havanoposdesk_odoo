@@ -3150,6 +3150,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if from_date:
                 domain.append(('posting_date', '>=', from_date))
             if to_date:
+                if len(to_date) == 10:
+                    to_date += " 23:59:59"
                 domain.append(('posting_date', '<=', to_date))
             
             sales = env['havanoposdesk.sale'].search(domain)
@@ -3232,6 +3234,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 if from_date:
                     domain.append(('posting_date', '>=', from_date))
                 if to_date:
+                    if len(to_date) == 10:
+                        to_date += " 23:59:59"
                     domain.append(('posting_date', '<=', to_date))
 
                 sales = env['havanoposdesk.sale'].search(domain)
@@ -3285,6 +3289,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 if from_date:
                     domain.append(('posting_date', '>=', from_date))
                 if to_date:
+                    if len(to_date) == 10:
+                        to_date += " 23:59:59"
                     domain.append(('posting_date', '<=', to_date))
 
                 if user_rec.havano_role != 'super_admin':
@@ -3365,6 +3371,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if from_date:
                 domain.append(('posting_date', '>=', from_date))
             if to_date:
+                if len(to_date) == 10:
+                    to_date += " 23:59:59"
                 domain.append(('posting_date', '<=', to_date))
                 
             cost_center = data.get('cost_center')
@@ -3669,6 +3677,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if from_date:
                 domain.append(('date', '>=', from_date))
             if to_date:
+                if len(to_date) == 10:
+                    to_date += " 23:59:59"
                 domain.append(('date', '<=', to_date))
 
             item_code = params.get('item_code')
@@ -4803,6 +4813,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if from_date:
                 domain.append(('posting_date', '>=', from_date))
             if to_date:
+                if len(to_date) == 10:
+                    to_date += " 23:59:59"
                 domain.append(('posting_date', '<=', to_date))
                 
             adjustments = env['havanoposdesk.stock.adjustment'].search(domain, order='posting_date desc, id desc')
@@ -4877,6 +4889,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if from_date:
                 domain.append(('posting_date', '>=', from_date))
             if to_date:
+                if len(to_date) == 10:
+                    to_date += " 23:59:59"
                 domain.append(('posting_date', '<=', to_date))
                 
             purchases = env['havanoposdesk.purchase'].search(domain, order='posting_date desc, id desc')
@@ -6256,6 +6270,8 @@ class HavanoPOSDeskAPI(http.Controller):
         if from_date:
             domain.append(('date', '>=', from_date))
         if to_date:
+            if len(to_date) == 10:
+                to_date += " 23:59:59"
             domain.append(('date', '<=', to_date))
         return domain
 
@@ -6391,6 +6407,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if from_date:
                 domain.append(('date', '>=', from_date))
             if to_date:
+                if len(to_date) == 10:
+                    to_date += " 23:59:59"
                 domain.append(('date', '<=', to_date))
 
             # Scope to user's stores
@@ -6496,6 +6514,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if from_date:
                 domain.append(('posting_date', '>=', from_date))
             if to_date:
+                if len(to_date) == 10:
+                    to_date += " 23:59:59"
                 domain.append(('posting_date', '<=', to_date))
 
             if user.havano_role != 'super_admin':
