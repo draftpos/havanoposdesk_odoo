@@ -6,6 +6,10 @@ import odoo.orm.environments
 from odoo import http
 from odoo.http import request
 import json
+import logging
+from odoo.exceptions import ValidationError, UserError
+
+_logger = logging.getLogger(__name__)
 
 class HavanoPOSDeskAPI(http.Controller):
 
@@ -4290,41 +4294,123 @@ class HavanoPOSDeskAPI(http.Controller):
 
     @http.route('/api/method/saas_api.www.api.get_user_data', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_user_data(self, **kwargs):
+        # Handle OPTIONS preflight
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
-
-        token = request.httprequest.headers.get('Authorization')
-        uid, login = self._verify_token(token)
         
-        env = None
         custom_cr = None
-        
-        if not uid:
-            user = self._get_user()
-            env = request.env
-        else:
-            env, custom_cr = self._get_env(user_id=uid)
-            user = env['res.users'].browse(uid)
-
         try:
-            names = (user.name or "").split(' ', 1)
-            first_name = names[0] if names else ""
-            last_name = names[1] if len(names) > 1 else ""
+            # Validate Authorization header
+            token = request.httprequest.headers.get('Authorization')
+            if not token:
+                _logger.warning("Missing Authorization token")
+                return self._make_json_response(
+                    {"error": "Authorization token required", "status": "error"},
+                    status=401
+                )
 
-            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
-            if not store:
-                store_domain = []
-                if user.havano_role != 'super_admin' and user.tenant_id:
-                    store_domain.append(('tenant_id', '=', user.tenant_id.id))
-                store = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
-            store_name = store.name if store else ''
+            # Verify token and get user
+            uid, login = self._verify_token(token)
+            
+            if not uid:
+                # Public user case
+                user = self._get_user()
+                env = request.env
+            else:
+                env, custom_cr = self._get_env(user_id=uid)
+                if not env:
+                    return self._make_json_response(
+                        {"error": "Failed to create environment", "status": "error"},
+                        status=500
+                    )
+                user = env['res.users'].browse(uid)
+                
+            # Validate user exists
+            if not user or not user.exists():
+                _logger.warning(f"User not found for uid: {uid}")
+                return self._make_json_response(
+                    {"error": "User not found", "status": "error"},
+                    status=404
+                )
 
-            warehouse = user.api_warehouse or (user.tenant_id.api_warehouse if user.tenant_id else False) or store_name
-            cost_center = user.api_cost_center or (user.tenant_id.api_cost_center if user.tenant_id else False) or store_name
+            # Get user data with proper error handling
+            try:
+                user_data = self._get_user_data(user, env)
+            except ValidationError as e:
+                _logger.error(f"Validation error: {str(e)}")
+                return self._make_json_response(
+                    {"error": str(e), "status": "error"},
+                    status=400
+                )
+            except UserError as e:
+                _logger.error(f"User error: {str(e)}")
+                return self._make_json_response(
+                    {"error": str(e), "status": "error"},
+                    status=400
+                )
+            except Exception as e:
+                _logger.error(f"Error processing user data: {str(e)}")
+                return self._make_json_response(
+                    {"error": "Failed to process user data", "detail": str(e), "status": "error"},
+                    status=500
+                )
 
-            tenant = user.tenant_id
-            company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
+            # Return success response
+            return self._make_json_response({
+                "status": "success",
+                "message": user_data
+            }, status=200)
 
+        except Exception as e:
+            _logger.error(f"Unexpected error in api_get_user_data: {str(e)}")
+            import traceback
+            _logger.error(traceback.format_exc())
+            
+            # Return clean JSON error
+            return self._make_json_response(
+                {
+                    "status": "error",
+                    "error": "Internal server error",
+                    "detail": str(e) if request.env.get('debug') else None
+                },
+                status=500
+            )
+        
+        finally:
+            if custom_cr:
+                try:
+                    custom_cr.close()
+                except Exception as e:
+                    _logger.error(f"Error closing cursor: {str(e)}")
+
+    def _get_user_data(self, user, env):
+        """Extract user data with proper error handling"""
+        
+        # Name processing
+        names = (user.name or "").split(' ', 1)
+        first_name = names[0] if names else ""
+        last_name = names[1] if len(names) > 1 else ""
+        
+        # Store
+        store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+        if not store:
+            store_domain = []
+            if user.havano_role != 'super_admin' and user.tenant_id:
+                store_domain.append(('tenant_id', '=', user.tenant_id.id))
+            store = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
+        store_name = store.name if store else ''
+        
+        # Warehouse and Cost Center
+        warehouse = user.api_warehouse or (user.tenant_id.api_warehouse if user.tenant_id else False) or store_name
+        cost_center = user.api_cost_center or (user.tenant_id.api_cost_center if user.tenant_id else False) or store_name
+        
+        # Tenant and Company
+        tenant = user.tenant_id
+        company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
+        
+        # Default Customer
+        default_customer_name = "Walk-in Customer"
+        if tenant:
             default_customer = env['havanoposdesk.customer'].sudo().search([
                 ('tenant_id', '=', tenant.id),
                 '|', ('name', 'ilike', 'Default'), ('name', 'ilike', 'Walk-in')
@@ -4332,84 +4418,88 @@ class HavanoPOSDeskAPI(http.Controller):
             if not default_customer:
                 default_customer = env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
             default_customer_name = default_customer.name if default_customer else "Walk-in Customer"
-
-            payment_methods_list = []
-            if tenant:
-                accounts = env['havanoposdesk.account'].sudo().search([
-                    ('tenant_id', '=', tenant.id),
-                    ('type', 'in', ['Cash', 'Bank'])
-                ])
-                for acc in accounts:
-                    payment_methods_list.append({
-                        "name": acc.name,
-                        "type": acc.type
-                    })
-            else:
-                payment_methods_list.append({"name": "Cash", "type": "Cash"})
-                
-            currency = user.api_currency or (tenant.api_currency if tenant else "USD")
-            uom = user.api_uom or (tenant.api_uom if tenant else "Nos")
-            
-            uom_records = env['havanoposdesk.uom'].sudo().search([('tenant_id', '=', tenant.id)]) if tenant else env['havanoposdesk.uom'].sudo().search([])
-            uom_list = [u.name for u in uom_records]
-
-            # Compute days left and company status
-            days_left = 30
-            if tenant and tenant.subscription_end_date:
-                days_left = (tenant.subscription_end_date - fields.Date.context_today(user)).days
-
-            # Also check if user is expired or suspended
-            company_status = tenant.subscription_state if tenant else 'active'
-            
-            # If the grace period is expired, company_status is blocked/expired/suspended
-            if tenant and not tenant.check_subscription_active():
-                if tenant.subscription_state == 'expired':
-                    company_status = 'expired'
-                elif tenant.subscription_state == 'cancelled':
-                    company_status = 'cancelled'
-                elif tenant.subscription_state == 'pending':
-                    company_status = 'pending'
-                else:
-                    company_status = 'suspended'
-
-            response_data = {
-                "message": {
-                    "status": "success",
-                    "user": {
-                        "first_name": first_name,
-                        "last_name": last_name,
-                        "gender": "",
-                        "birth_date": "",
-                        "mobile_no": user.phone or "",
-                        "username": user.name or "",
-                        "full_name": user.name or "",
-                        "email": user.login or "",
-                        "warehouse": warehouse,
-                        "cost_center": cost_center,
-                        "default_customer": default_customer_name,
-                        "company": company_name,
-                        "role": user.havano_role or "admin",
-                        "company_registration": {
-                            "name": tenant.name if tenant else company_name,
-                            "organization_name": tenant.name if tenant else company_name,
-                            "status": tenant.subscription_state if tenant else "active",
-                            "company": tenant.name if tenant else company_name,
-                            "company_status": company_status,
-                            "subscription": tenant.subscription_state if tenant else "active",
-                            "days_left": days_left,
-                            "currency": currency,
-                            "uom": uom,
-                            "uom_list": uom_list,
-                            "payment_methods": payment_methods_list
-                        }
-                    }
+        
+        # Payment Methods
+        payment_methods_list = []
+        if tenant:
+            accounts = env['havanoposdesk.account'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('type', 'in', ['Cash', 'Bank'])
+            ])
+            for acc in accounts:
+                payment_methods_list.append({
+                    "name": acc.name,
+                    "type": acc.type
+                })
+        else:
+            payment_methods_list.append({"name": "Cash", "type": "Cash"})
+        
+        # Currency and UOM
+        currency = user.api_currency or (tenant.api_currency if tenant else "USD")
+        uom = user.api_uom or (tenant.api_uom if tenant else "Nos")
+        
+        uom_records = env['havanoposdesk.uom'].sudo().search([('tenant_id', '=', tenant.id)]) if tenant else env['havanoposdesk.uom'].sudo().search([])
+        uom_list = [u.name for u in uom_records]
+        
+        # Days left and company status
+        days_left = 30
+        if tenant and tenant.subscription_end_date:
+            from odoo import fields
+            days_left = (tenant.subscription_end_date - fields.Date.context_today(user)).days
+        
+        company_status = tenant.subscription_state if tenant else 'active'
+        if tenant and not tenant.check_subscription_active():
+            status_map = {
+                'expired': 'expired',
+                'cancelled': 'cancelled',
+                'pending': 'pending'
+            }
+            company_status = status_map.get(tenant.subscription_state, 'suspended')
+        
+        return {
+            "user": {
+                "first_name": first_name,
+                "last_name": last_name,
+                "gender": "",
+                "birth_date": "",
+                "mobile_no": user.phone or "",
+                "username": user.name or "",
+                "full_name": user.name or "",
+                "email": user.login or "",
+                "warehouse": warehouse,
+                "cost_center": cost_center,
+                "default_customer": default_customer_name,
+                "company": company_name,
+                "role": user.havano_role or "admin",
+                "company_registration": {
+                    "name": tenant.name if tenant else company_name,
+                    "organization_name": tenant.name if tenant else company_name,
+                    "status": tenant.subscription_state if tenant else "active",
+                    "company": tenant.name if tenant else company_name,
+                    "company_status": company_status,
+                    "subscription": tenant.subscription_state if tenant else "active",
+                    "days_left": days_left,
+                    "currency": currency,
+                    "uom": uom,
+                    "uom_list": uom_list,
+                    "payment_methods": payment_methods_list
                 }
             }
-            return self._make_json_response(response_data)
-        finally:
-            if custom_cr:
-                custom_cr.close()
+        }
 
+    def _make_json_response(self, data, status=200):
+        """Helper to ensure JSON response with proper headers"""
+        response = http.Response(
+            json.dumps(data, default=str),
+            status=status,
+            content_type='application/json',
+            headers=[
+                ('Access-Control-Allow-Origin', '*'),
+                ('Access-Control-Allow-Methods', 'GET, OPTIONS'),
+                ('Access-Control-Allow-Headers', 'Authorization, Content-Type'),
+            ]
+        )
+        return response
     @http.route('/api/method/havano_pos_integration.api.get_warehouses', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_warehouses_list(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
