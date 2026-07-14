@@ -844,7 +844,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 
         return False
 
-    def _resolve_store_from_cost_center(self, env, cost_center):
+    def _resolve_store_from_cost_center(self, env, cost_center, tenant=None):
         if not cost_center:
             return False
         try:
@@ -854,6 +854,15 @@ class HavanoPOSDeskAPI(http.Controller):
                 return store
         except ValueError:
             pass
+            
+        domain = [('name', '=', cost_center)]
+        if tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+            
+        store = env['havanoposdesk.store'].search(domain, limit=1)
+        if store:
+            return store
+            
         return False
 
 
@@ -1954,7 +1963,8 @@ class HavanoPOSDeskAPI(http.Controller):
     @http.route([
         '/saas_api/get_sales_invoice',
         '/saas_api/sales_invoices',
-        '/api/method/saas_api.www.api.get_sales_invoices'
+        '/api/method/saas_api.www.api.get_sales_invoices',
+        '/api/method/saas_api.www.api.get_sales_invoice'
     ], type='http', auth='public', methods=['GET', 'POST', 'OPTIONS'], csrf=False, cors='*')
     def saas_get_sales_invoices(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
@@ -3129,7 +3139,7 @@ class HavanoPOSDeskAPI(http.Controller):
             cost_center = data.get('cost_center')
             if user.havano_role != 'super_admin':
                 if cost_center:
-                    store = self._resolve_store_from_cost_center(env, cost_center)
+                    store = self._resolve_store_from_cost_center(env, cost_center, tenant)
                     if store:
                         domain.append(('store_id', '=', store.id))
                     else:
@@ -3141,7 +3151,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         domain.append(('store_id', '=', user.default_store_id.id))
             else:
                 if cost_center:
-                    store = self._resolve_store_from_cost_center(env, cost_center)
+                    store = self._resolve_store_from_cost_center(env, cost_center, tenant)
                     if store:
                         domain.append(('store_id', '=', store.id))
             
@@ -3215,7 +3225,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 if user_rec.havano_role != 'super_admin':
                     if cost_center:
-                        store = self._resolve_store_from_cost_center(env, cost_center)
+                        store = self._resolve_store_from_cost_center(env, cost_center, tenant)
                         if store:
                             domain.append(('store_id', '=', store.id))
                         else:
@@ -3227,7 +3237,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             domain.append(('store_id', '=', user_rec.default_store_id.id))
                 else:
                     if cost_center:
-                        store = self._resolve_store_from_cost_center(env, cost_center)
+                        store = self._resolve_store_from_cost_center(env, cost_center, tenant)
                         if store:
                             domain.append(('store_id', '=', store.id))
 
@@ -3295,7 +3305,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 if user_rec.havano_role != 'super_admin':
                     if cost_center:
-                        store = self._resolve_store_from_cost_center(env, cost_center)
+                        store = self._resolve_store_from_cost_center(env, cost_center, tenant)
                         if store:
                             domain.append(('store_id', '=', store.id))
                         else:
@@ -3307,7 +3317,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             domain.append(('store_id', '=', user_rec.default_store_id.id))
                 else:
                     if cost_center:
-                        store = self._resolve_store_from_cost_center(env, cost_center)
+                        store = self._resolve_store_from_cost_center(env, cost_center, tenant)
                         if store:
                             domain.append(('store_id', '=', store.id))
 
