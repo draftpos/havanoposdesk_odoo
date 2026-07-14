@@ -44,6 +44,16 @@ class StockValuation(models.Model):
             record.value_cost = record.on_hand_qty * record.product_id.buying_price
             record.value_selling = record.on_hand_qty * record.product_id.selling_price
 
+    def init(self):
+        super().init()
+        # Populate store_id for existing records where it is NULL
+        self.env.cr.execute("""
+            UPDATE havanoposdesk_stock_valuation sv
+            SET store_id = s.id
+            FROM havanoposdesk_store s
+            WHERE sv.store = s.name AND sv.tenant_id = s.tenant_id AND sv.store_id IS NULL
+        """)
+
 class StockLedger(models.Model):
     _name = 'havanoposdesk.stock.ledger'
     _description = 'Stock Ledger'
@@ -96,4 +106,14 @@ class StockLedger(models.Model):
             record.in_value = record.in_qty * buying_price
             record.out_value = record.out_qty * buying_price
             record.balance_value = record.balance_qty * buying_price
+
+    def init(self):
+        super().init()
+        # Populate store_id for existing records where it is NULL
+        self.env.cr.execute("""
+            UPDATE havanoposdesk_stock_ledger sl
+            SET store_id = s.id
+            FROM havanoposdesk_store s
+            WHERE sl.store = s.name AND sl.tenant_id = s.tenant_id AND sl.store_id IS NULL
+        """)
 
