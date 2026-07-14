@@ -21,7 +21,20 @@ class StockValuation(models.Model):
     item_code = fields.Char(related='product_id.item_code', string='Code', store=True)
     category_id = fields.Many2one(related='product_id.category_id', string='Category', store=True)
     store = fields.Char(string='Store')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store Link', compute='_compute_store_id', store=True)
     on_hand_qty = fields.Float(string='On Hand Qty')
+
+    @api.depends('store', 'tenant_id')
+    def _compute_store_id(self):
+        for record in self:
+            if record.store:
+                domain = [('name', '=', record.store)]
+                if record.tenant_id:
+                    domain.append(('tenant_id', '=', record.tenant_id.id))
+                store_rec = self.env['havanoposdesk.store'].sudo().search(domain, limit=1)
+                record.store_id = store_rec.id if store_rec else False
+            else:
+                record.store_id = False
     value_cost = fields.Float(string='Value Cost', compute='_compute_valuation_amounts', store=True)
     value_selling = fields.Float(string='Value Selling', compute='_compute_valuation_amounts', store=True)
 
@@ -55,7 +68,20 @@ class StockLedger(models.Model):
     out_qty = fields.Float(string='Out Qty')
     balance_qty = fields.Float(string='Balance Qty')
     store = fields.Char(string='Store')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store Link', compute='_compute_store_id', store=True)
     category_id = fields.Many2one(related='product_id.category_id', string='Category', store=True)
+
+    @api.depends('store', 'tenant_id')
+    def _compute_store_id(self):
+        for record in self:
+            if record.store:
+                domain = [('name', '=', record.store)]
+                if record.tenant_id:
+                    domain.append(('tenant_id', '=', record.tenant_id.id))
+                store_rec = self.env['havanoposdesk.store'].sudo().search(domain, limit=1)
+                record.store_id = store_rec.id if store_rec else False
+            else:
+                record.store_id = False
     in_value = fields.Float(string='In Value', compute='_compute_values', store=True)
     out_value = fields.Float(string='Out Value', compute='_compute_values', store=True)
     buying_price = fields.Float(string='Cost price')
