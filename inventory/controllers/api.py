@@ -1321,6 +1321,49 @@ class HavanoPOSDeskAPI(http.Controller):
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
 
 
+    # 9.1 CREATE ITEM GROUP
+    @http.route('/api/method/saas_api.www.api.create_item_group', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_create_item_group(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return request.make_response(json.dumps({}), headers=[('Content-Type', 'application/json')])
+
+        try:
+            data = json.loads(request.httprequest.data)
+        except Exception:
+            return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        user = self._get_user()
+        if not user:
+            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+            
+        tenant = user.tenant_id
+        if not tenant:
+            tenant = request.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+            if not tenant:
+                tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
+                
+        category_name = data.get('item_group_name') or data.get('name')
+        if not category_name:
+            return request.make_response(json.dumps({'error': 'item_group_name is required'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        category = request.env['havanoposdesk.category'].sudo().search([('name', '=', category_name), ('tenant_id', '=', tenant.id)], limit=1)
+        if not category:
+            category = request.env['havanoposdesk.category'].sudo().create({
+                'name': category_name, 
+                'tenant_id': tenant.id
+            })
+            
+        res_data = {
+            'message': {
+                'status': 'success',
+                'message': f"Item Group '{category.name}' created successfully.",
+                'name': category.name,
+                'item_group_name': category.name
+            }
+        }
+        return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+
+
     # 10. GET PRODUCTS
     @http.route('/api/method/havano_pos_integration.api.get_products', auth='public', methods=['GET', 'POST'], type='http', csrf=False, cors='*')
     def api_get_products(self, **kw):
