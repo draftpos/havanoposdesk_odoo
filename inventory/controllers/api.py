@@ -1098,6 +1098,22 @@ class HavanoPOSDeskAPI(http.Controller):
         if not store:
             return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
                 
+        local_invoice_id = data.get('reference_number') or data.get('local_invoice_id')
+        if local_invoice_id:
+            existing_sale = request.env['havanoposdesk.sale'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('local_invoice_id', '=', local_invoice_id)
+            ], limit=1)
+            if existing_sale:
+                res_data = {
+                    'data': {
+                        'name': existing_sale.name,
+                        'customer': existing_sale.customer.name,
+                        'amount_total': existing_sale.amount_total
+                    }
+                }
+                return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+
         customer_name = data.get('customer')
         if not customer_name:
             return request.make_response(json.dumps({'error': 'customer is required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -1145,6 +1161,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'state': 'done',
             'salesperson_id': user.id,
             'payment_status': 'cash',
+            'local_invoice_id': local_invoice_id,
         })
         
         res_data = {
@@ -1751,6 +1768,25 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
             
+            # Deduplication check
+            local_invoice_id = params.get('reference_number') or params.get('local_invoice_id')
+            if local_invoice_id:
+                existing_sale = env['havanoposdesk.sale'].search([
+                    ('tenant_id', '=', tenant.id),
+                    ('local_invoice_id', '=', local_invoice_id)
+                ], limit=1)
+                if existing_sale:
+                    if custom_cr:
+                        custom_cr.commit()
+                    return self._make_json_response({
+                        "message": "Sale created successfully",
+                        "sale_order_id": existing_sale.id,
+                        "sale_order_name": existing_sale.name,
+                        "data": {
+                            "name": existing_sale.name
+                        }
+                    })
+
             store = self._get_current_store(user, tenant, params)
             if not store:
                 return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
@@ -1809,6 +1845,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'line_ids': sale_lines,
                 'state': 'done',
                 'payment_status': 'cash',
+                'local_invoice_id': local_invoice_id,
             })
 
             if custom_cr:
@@ -2192,6 +2229,22 @@ class HavanoPOSDeskAPI(http.Controller):
                     user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
 
+                # Deduplication check
+                local_invoice_id = params.get('reference_number') or params.get('local_invoice_id')
+                if local_invoice_id:
+                    existing_sale = env['havanoposdesk.sale'].search([
+                        ('tenant_id', '=', tenant.id),
+                        ('local_invoice_id', '=', local_invoice_id)
+                    ], limit=1)
+                    if existing_sale:
+                        if custom_cr:
+                            custom_cr.commit()
+                        return self._make_json_response({
+                            "data": {
+                                "name": existing_sale.name
+                            }
+                        })
+
                 store = self._get_current_store(user, tenant, params)
                 if not store:
                     raise Exception("Store/Warehouse is required")
@@ -2254,6 +2307,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'state': 'done',
                     'salesperson_id': user.id,
                     'payment_status': payment_status,
+                    'local_invoice_id': local_invoice_id,
                 })
 
                 if custom_cr:
@@ -4821,6 +4875,26 @@ class HavanoPOSDeskAPI(http.Controller):
             if not email or not password:
                 return self._make_json_response({"error": "Email and password are required"}, status=400)
 
+            # 1. Full name validation (strictly letters and spaces)
+            import re
+            name = f"{first_name} {last_name}".strip()
+            if not re.match(r'^[A-Za-z\s]+$', name):
+                return self._make_json_response({"error": "Full Name can only contain letters and spaces."}, status=400)
+
+            # 2. Email Validation
+            if len(email) > 254:
+                return self._make_json_response({"error": "Email is too long."}, status=400)
+            if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+                return self._make_json_response({"error": "Please enter a valid email address (e.g. name@domain.com)."}, status=400)
+            domain_part = email.split('@')[1]
+            tld = domain_part.split('.')[-1]
+            if len(tld) < 2:
+                return self._make_json_response({"error": "Email top-level domain must be at least 2 letters."}, status=400)
+
+            # 3. Password validation
+            if not re.match(r'^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]).{8,}$', password):
+                return self._make_json_response({"error": "Password must be at least 8 characters long, contain 1 uppercase letter, 1 number, and 1 special character."}, status=400)
+
             env, custom_cr = self._get_env()
             try:
                 existing_user = env['res.users'].search([('login', '=', email)], limit=1)
@@ -4847,20 +4921,33 @@ class HavanoPOSDeskAPI(http.Controller):
                     })
                 plan_id = plan.id
 
-                import datetime
-                start_date = datetime.date.today()
-                duration = plan.duration_days or 30
-                end_date = start_date + datetime.timedelta(days=duration)
+                # Resolve Country & Currency
+                country_val = data.get('country') or data.get('country_code') or data.get('country_id')
+                country = None
+                if country_val:
+                    if str(country_val).isdigit():
+                        country = env['res.country'].sudo().browse(int(country_val))
+                    else:
+                        country = env['res.country'].sudo().search([
+                            '|', ('code', '=ilike', country_val), ('name', '=ilike', country_val)
+                        ], limit=1)
+
+                currency_id = False
+                if country:
+                    if country.code == 'ZW':
+                        usd = env.ref('base.USD', raise_if_not_found=False)
+                        currency_id = usd.id if usd else False
+                    elif country.currency_id:
+                        currency_id = country.currency_id.id
 
                 tenant_vals = {
                     'name': company_name or f"{first_name}'s Business",
                     'api_company_name': company_name or f"{first_name}'s Business",
                     'subscription_plan_id': plan_id,
-                    'subscription_state': 'active',
-                    'subscription_start_date': start_date,
-                    'subscription_end_date': end_date,
-                    'payment_status': 'paid',
                 }
+                if currency_id:
+                    tenant_vals['currency_id'] = currency_id
+
                 tenant = env['havanoposdesk.tenant'].create(tenant_vals)
 
                 # Fetch and configure the store created automatically by tenant creation
@@ -4893,6 +4980,12 @@ class HavanoPOSDeskAPI(http.Controller):
                         'status': 'open',
                     })
 
+                currency_code = 'USD'
+                if currency_id:
+                    currency = env['res.currency'].sudo().browse(currency_id)
+                    if currency:
+                        currency_code = currency.name
+
                 user_vals = {
                     'name': f"{first_name} {last_name}".strip(),
                     'login': email,
@@ -4907,6 +5000,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     'api_company_name': company_name or f"{first_name}'s Business",
                     'api_warehouse': 'Default Shop',
                     'api_cost_center': 'Default Shop',
+                    'api_currency': currency_code,
+                    'api_uom': 'Nos',
                     'company_id': company_id,
                     'company_ids': [(6, 0, [company_id])],
                     'active': True,

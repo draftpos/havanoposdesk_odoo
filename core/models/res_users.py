@@ -331,6 +331,21 @@ class ResUsers(models.Model):
         # 1. Create a new Tenant record for the user's business
         tenant = self.env['havanoposdesk.tenant'].sudo().create(tenant_vals)
 
+        # Configure store and terminal names to be consistent with API registration
+        store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+        if store:
+            store.sudo().write({
+                'name': 'Default Shop',
+                'is_default': True
+            })
+            
+        terminal = self.env['havanoposdesk.pos.terminal'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+        if terminal:
+            terminal.sudo().write({
+                'name': 'Terminal 1',
+                'status': 'open'
+            })
+
         # Process phone number if provided
         phone = False
         if request:
@@ -339,11 +354,24 @@ class ResUsers(models.Model):
             if phone_num:
                 phone = f"{country_code}{phone_num}"
 
+        currency_code = 'USD'
+        if currency_id:
+            currency = self.env['res.currency'].sudo().browse(currency_id)
+            if currency:
+                currency_code = currency.name
+
         # 2. Inject SaaS values
         values.update({
             'tenant_id': tenant.id,
             'havano_role': 'admin',
             'saas_state': 'unverified',
+            'default_store_id': store.id if store else False,
+            'store_ids': [(4, store.id)] if store else False,
+            'api_company_name': tenant_name,
+            'api_warehouse': 'Default Shop',
+            'api_cost_center': 'Default Shop',
+            'api_currency': currency_code,
+            'api_uom': 'Nos',
         })
         if phone:
             values['phone'] = phone
