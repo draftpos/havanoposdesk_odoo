@@ -4912,113 +4912,17 @@ class HavanoPOSDeskAPI(http.Controller):
                         }
                     }, status=409)
 
-                company = env['res.company'].search([], limit=1)
-                company_id = company.id if company else 1
-
-                plan = env['havanoposdesk.subscription.plan'].sudo().search([], order='id asc', limit=1)
-                if not plan:
-                    plan = env['havanoposdesk.subscription.plan'].sudo().create({
-                        'name': 'Default Plan',
-                        'price': 0.0,
-                        'duration_days': 30,
-                        'max_stores': 0,
-                        'max_users': 0,
-                        'max_terminals': 0
-                    })
-                plan_id = plan.id
-
-                # Resolve Country & Currency
                 country_val = data.get('country') or data.get('country_code') or data.get('country_id')
-                country = None
-                if country_val:
-                    if str(country_val).isdigit():
-                        country = env['res.country'].sudo().browse(int(country_val))
-                    else:
-                        country = env['res.country'].sudo().search([
-                            '|', ('code', '=ilike', country_val), ('name', '=ilike', country_val)
-                        ], limit=1)
-
-                currency_id = False
-                if country:
-                    if country.code == 'ZW':
-                        usd = env.ref('base.USD', raise_if_not_found=False)
-                        currency_id = usd.id if usd else False
-                    elif country.currency_id:
-                        currency_id = country.currency_id.id
-
-                tenant_vals = {
-                    'name': company_name or f"{first_name}'s Business",
-                    'api_company_name': company_name or f"{first_name}'s Business",
-                    'subscription_plan_id': plan_id,
-                }
-                if currency_id:
-                    tenant_vals['currency_id'] = currency_id
-
-                tenant = env['havanoposdesk.tenant'].create(tenant_vals)
-
-                # Fetch and configure the store created automatically by tenant creation
-                store = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
-                if store:
-                    store.sudo().write({
-                        'name': 'Default Shop',
-                        'is_default': True
-                    })
-                else:
-                    store = env['havanoposdesk.store'].sudo().create({
-                        'name': 'Default Shop',
-                        'tenant_id': tenant.id,
-                        'is_default': True
-                    })
-
-                # Fetch and configure the terminal created automatically by tenant creation
-                terminal = env['havanoposdesk.pos.terminal'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
-                if terminal:
-                    terminal.sudo().write({
-                        'name': 'Terminal 1',
-                        'store_id': store.id,
-                        'status': 'open'
-                    })
-                else:
-                    terminal = env['havanoposdesk.pos.terminal'].sudo().create({
-                        'name': 'Terminal 1',
-                        'tenant_id': tenant.id,
-                        'store_id': store.id,
-                        'status': 'open',
-                    })
-
-                currency_code = 'USD'
-                if currency_id:
-                    currency = env['res.currency'].sudo().browse(currency_id)
-                    if currency:
-                        currency_code = currency.name
-
                 user_vals = {
                     'name': f"{first_name} {last_name}".strip(),
                     'login': email,
                     'email': email,
                     'password': password,
-                    'havano_role': 'admin',
-                    'saas_state': 'unverified',
-                    'tenant_id': tenant.id,
                     'phone': phone_number,
-                    'default_store_id': store.id,
-                    'store_ids': [(4, store.id)],
                     'api_company_name': company_name or f"{first_name}'s Business",
-                    'api_warehouse': 'Default Shop',
-                    'api_cost_center': 'Default Shop',
-                    'api_currency': currency_code,
-                    'api_uom': 'Nos',
-                    'company_id': company_id,
-                    'company_ids': [(6, 0, [company_id])],
-                    'active': True,
+                    'country_id': country_val,
                 }
-                
-                user = env['res.users'].create(user_vals)
-                
-                internal_group = env.ref('base.group_user')
-                user.write({
-                    'group_ids': [(4, internal_group.id)]
-                })
+                user = env['res.users'].sudo()._create_user_from_template(user_vals)
 
                 ICPSudo = env['ir.config_parameter'].sudo()
                 try:
