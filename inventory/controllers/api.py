@@ -2454,8 +2454,6 @@ class HavanoPOSDeskAPI(http.Controller):
                         ('name', '=', store_name),
                         ('tenant_id', '=', tenant_id)
                     ], limit=1)
-                    if not store:
-                        store = env['havanoposdesk.store'].search([('name', '=', store_name)], limit=1)
                 
                 if not store:
                     store = self._get_current_store(user, tenant, params)
@@ -2464,10 +2462,6 @@ class HavanoPOSDeskAPI(http.Controller):
                     store = env['havanoposdesk.store'].search([('is_default', '=', True), ('tenant_id', '=', tenant_id)], limit=1)
                     if not store:
                         store = env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1)
-                    if not store:
-                        store = env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1)
-                    if not store:
-                        store = env['havanoposdesk.store'].search([], limit=1)
 
                 # Resolve Supplier
                 supplier_name = params.get('supplier')
@@ -2477,8 +2471,6 @@ class HavanoPOSDeskAPI(http.Controller):
                         ('name', '=', supplier_name),
                         ('tenant_id', '=', tenant_id)
                     ], limit=1)
-                    if not supplier:
-                        supplier = env['havanoposdesk.supplier'].search([('name', '=', supplier_name)], limit=1)
                 
                 if not supplier:
                     supplier = env['havanoposdesk.supplier'].search([
@@ -2504,8 +2496,6 @@ class HavanoPOSDeskAPI(http.Controller):
                         ('tenant_id', '=', tenant_id),
                         '|', ('item_code', '=', item_code), ('name', '=', item_code)
                     ], limit=1)
-                    if not product:
-                        product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant_id)], limit=1)
                     if not product:
                         product = env['havanoposdesk.product'].create({
                             'name': item_code,
@@ -4689,19 +4679,17 @@ class HavanoPOSDeskAPI(http.Controller):
             posting_date = data.get('posting_date')
             items_data = data.get('items', [])
 
-            store_id = None
             store = None
             if items_data:
                 warehouse_name = items_data[0].get('warehouse')
                 if warehouse_name:
-                    store = env['havanoposdesk.store'].search([('name', '=', warehouse_name)], limit=1)
-                    if store:
-                        store_id = store.id
-            if not store_id:
-                store = env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1)
-                if not store:
-                    store = env['havanoposdesk.store'].search([], limit=1)
-                store_id = store.id if store else False
+                    store = env['havanoposdesk.store'].search([
+                        ('name', '=', warehouse_name),
+                        ('tenant_id', '=', tenant_id)
+                    ], limit=1)
+            if not store:
+                store = self._get_current_store(user, tenant, data)
+            store_id = store.id if store else False
 
             line_ids = []
             for item in items_data:
@@ -4782,8 +4770,17 @@ class HavanoPOSDeskAPI(http.Controller):
             to_date = params.get('to_date')
             
             domain = []
-            if tenant:
+            if user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
+            
+            store = self._get_current_store(user, tenant, params)
+            if store:
+                domain.append(('store_id', '=', store.id))
+            elif user.havano_role != 'super_admin':
+                if user.store_ids:
+                    domain.append(('store_id', 'in', user.store_ids.ids))
+                elif user.default_store_id:
+                    domain.append(('store_id', '=', user.default_store_id.id))
             if from_date:
                 domain.append(('posting_date', '>=', from_date))
             if to_date:
@@ -4847,8 +4844,17 @@ class HavanoPOSDeskAPI(http.Controller):
             to_date = params.get('to_date')
             
             domain = [('is_return', '=', False)]
-            if tenant:
+            if user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
+            
+            store = self._get_current_store(user, tenant, params)
+            if store:
+                domain.append(('store_id', '=', store.id))
+            elif user.havano_role != 'super_admin':
+                if user.store_ids:
+                    domain.append(('store_id', 'in', user.store_ids.ids))
+                elif user.default_store_id:
+                    domain.append(('store_id', '=', user.default_store_id.id))
             if from_date:
                 domain.append(('posting_date', '>=', from_date))
             if to_date:
@@ -5996,6 +6002,23 @@ class HavanoPOSDeskAPI(http.Controller):
                 
                 # Simple parsing of filters if present
                 args_dict = request.httprequest.args.to_dict()
+                
+                store = self._get_current_store(user, tenant, args_dict)
+                if store:
+                    domain.append('|')
+                    domain.append(('from_warehouse', '=', store.name))
+                    domain.append(('to_warehouse', '=', store.name))
+                elif user.havano_role != 'super_admin':
+                    store_names = []
+                    if user.store_ids:
+                        store_names = user.store_ids.mapped('name')
+                    elif user.default_store_id:
+                        store_names = [user.default_store_id.name]
+                    if store_names:
+                        domain.append('|')
+                        domain.append(('from_warehouse', 'in', store_names))
+                        domain.append(('to_warehouse', 'in', store_names))
+                
                 filters_str = args_dict.get('filters')
                 if filters_str:
                     try:
