@@ -1277,7 +1277,9 @@ class HavanoPOSDeskAPI(http.Controller):
         category_name = data.get('item_group') or 'Basics'
         category = request.env['havanoposdesk.category'].sudo().search([('name', '=', category_name), ('tenant_id', '=', tenant.id)], limit=1)
         if not category:
-            category = request.env['havanoposdesk.category'].sudo().create({'name': category_name, 'tenant_id': tenant.id})
+            category = request.env['havanoposdesk.category'].sudo().create({'name': category_name, 'tenant_id': tenant.id, 'store_id': store.id})
+        elif not category.store_id and store:
+            category.sudo().write({'store_id': store.id})
             
         uom_name = data.get('stock_uom') or 'Each'
         uom = request.env['havanoposdesk.uom'].sudo().search([('name', '=', uom_name), ('tenant_id', '=', tenant.id)], limit=1)
@@ -1342,6 +1344,13 @@ class HavanoPOSDeskAPI(http.Controller):
             if not tenant:
                 tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
                 
+        default_warehouse = data.get('default_warehouse')
+        store = None
+        if default_warehouse:
+            store = request.env['havanoposdesk.store'].sudo().search([('name', '=', default_warehouse), ('tenant_id', '=', tenant.id)], limit=1)
+        if not store:
+            store = user.default_store_id or request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+            
         category_name = data.get('item_group_name') or data.get('name')
         if not category_name:
             return request.make_response(json.dumps({'error': 'item_group_name is required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -1350,8 +1359,11 @@ class HavanoPOSDeskAPI(http.Controller):
         if not category:
             category = request.env['havanoposdesk.category'].sudo().create({
                 'name': category_name, 
-                'tenant_id': tenant.id
+                'tenant_id': tenant.id,
+                'store_id': store.id if store else False
             })
+        elif not category.store_id and store:
+            category.sudo().write({'store_id': store.id})
             
         res_data = {
             'message': {
@@ -2731,8 +2743,11 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id
 
             domain = []
-            if tenant:
-                domain.append(('tenant_id', '=', tenant.id))
+            if user.havano_role != 'super_admin':
+                if tenant:
+                    domain.append(('tenant_id', '=', tenant.id))
+                if user.havano_role == 'user':
+                    domain.append(('store_id', 'in', user.store_ids.ids))
 
             categories = env['havanoposdesk.category'].search(domain)
             result = []
@@ -2742,7 +2757,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 result.append({
                     "name": c.name,
                     "item_group_name": c.name,
-                    "parent_item_group": "All Item Groups"
+                    "parent_item_group": "All Item Groups",
+                    "default_warehouse": c.store_id.name if c.store_id else (user.default_store_id.name if user.default_store_id else "")
                 })
             return self._make_json_response({"data": result})
         finally:
@@ -3057,7 +3073,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 if not category:
                     category = env['havanoposdesk.category'].create({
                         'name': cat_name,
-                        'tenant_id': tenant.id if tenant else False
+                        'tenant_id': tenant.id if tenant else False,
+                        'store_id': user.default_store_id.id if user.default_store_id else False
                     })
                 vals['category_id'] = category.id
             
