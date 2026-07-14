@@ -3434,14 +3434,18 @@ class HavanoPOSDeskAPI(http.Controller):
             if user.havano_role != 'super_admin' and tenant:
                 store_domain.append(('tenant_id', '=', tenant.id))
                 
-            store = self._get_current_store(user, tenant, params)
-            if store:
-                store_domain.append(('id', '=', store.id))
-            elif user.havano_role != 'super_admin':
-                if user.store_ids:
-                    store_domain.append(('id', 'in', user.store_ids.ids))
-                elif user.default_store_id:
-                    store_domain.append(('id', '=', user.default_store_id.id))
+            req_warehouse = params.get('warehouse')
+            if req_warehouse:
+                store_domain.append(('name', '=', req_warehouse))
+            else:
+                store = self._get_current_store(user, tenant, params)
+                if store:
+                    store_domain.append(('id', '=', store.id))
+                elif user.havano_role != 'super_admin':
+                    if user.store_ids:
+                        store_domain.append(('id', 'in', user.store_ids.ids))
+                    elif user.default_store_id:
+                        store_domain.append(('id', '=', user.default_store_id.id))
                     
             stores = env['havanoposdesk.store'].search(store_domain)
             
