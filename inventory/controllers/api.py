@@ -1813,7 +1813,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 ], limit=1)
 
                 if not product:
-                    product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+                    product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
                     
                 if not product:
                     product = env['havanoposdesk.product'].create({
@@ -2277,7 +2277,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         '|', ('item_code', '=', item_code), ('name', '=', item_code)
                     ], limit=1)
                     if not product:
-                        product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+                        product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
                     if not product:
                         product = env['havanoposdesk.product'].create({
                             'name': item_code,
@@ -2501,7 +2501,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         '|', ('item_code', '=', item_code), ('name', '=', item_code)
                     ], limit=1)
                     if not product:
-                        product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+                        product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant_id)], limit=1)
                     if not product:
                         product = env['havanoposdesk.product'].create({
                             'name': item_code,
@@ -2906,7 +2906,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if not item_code or not price_list or rate is None:
                     return self._make_json_response({"error": "item_code, price_list, and price_list_rate are required"}, status=400)
 
-                product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+                product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
                 if not product:
                     return self._make_json_response({"error": f"Product with item_code '{item_code}' not found"}, status=404)
 
@@ -2986,7 +2986,7 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
 
-            product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+            product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
             if not product:
                 return self._make_json_response({"error": "Product not found"}, status=404)
 
@@ -3501,7 +3501,9 @@ class HavanoPOSDeskAPI(http.Controller):
         item_code = params.get('item_code')
         env, custom_cr = self._get_env(user_id=uid)
         try:
-            product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
             qty = product.opening_stock if product else 0.0
             return self._make_json_response({
                 "message": {
@@ -4071,7 +4073,9 @@ class HavanoPOSDeskAPI(http.Controller):
 
         env, custom_cr = self._get_env(user_id=uid)
         try:
-            product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
             if not product:
                 return self._make_json_response({"message": {"product": None}})
 
@@ -4123,7 +4127,9 @@ class HavanoPOSDeskAPI(http.Controller):
         item_code = params.get('item_code')
         env, custom_cr = self._get_env(user_id=uid)
         try:
-            product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
             qty = product.opening_stock if product else 0.0
             return self._make_json_response({
                 "message": {
@@ -4676,7 +4682,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 item_code = item.get('item_code')
                 qty = float(item.get('qty', 0.0))
                 
-                product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+                product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant_id)], limit=1)
                 if product:
                     on_hand = product.opening_stock
                     valuation = env['havanoposdesk.stock.valuation'].search([
@@ -6003,7 +6009,9 @@ class HavanoPOSDeskAPI(http.Controller):
             if not item_code:
                 return self._make_json_response({"message": 0.0})
 
-            product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
             if not product:
                 return self._make_json_response({"message": 0.0})
 
@@ -6116,7 +6124,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     uom = item.get('uom', '')
                     rate = float(item.get('basic_rate', 0.0))
                     
-                    product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
+                    product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
                     if product:
                         if rate == 0.0:
                             rate = product.buying_price or product.cost_price or 0.0
