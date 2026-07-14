@@ -3218,23 +3218,16 @@ class HavanoPOSDeskAPI(http.Controller):
             from_date = data.get('from_date')
             to_date = data.get('to_date')
             if from_date:
-                domain.append(('posting_date', '>=', from_date))
+                domain.append(('date', '>=', from_date))
             if to_date:
                 if len(to_date) == 10:
                     to_date += " 23:59:59"
-                domain.append(('posting_date', '<=', to_date))
+                domain.append(('date', '<=', to_date))
             
-            sales = env['havanoposdesk.sale'].search(domain)
-            income = sum(sales.mapped('amount_total'))
-            
-            expense = 0.0
-            for sale in sales:
-                for line in sale.line_ids:
-                    qty = line.accepted_qty or 0.0
-                    buy_price = line.product_id.buying_price or 0.0
-                    expense += qty * buy_price
-                    
-            gross_profit_loss = income - expense
+            report_records = env['havanoposdesk.cashier.sales.report'].search(domain)
+            income = sum(report_records.mapped('total_sales'))
+            expense = sum(report_records.mapped('total_buy_price'))
+            gross_profit_loss = sum(report_records.mapped('profit'))
 
             return self._make_json_response({
                 "message": {
@@ -3302,23 +3295,16 @@ class HavanoPOSDeskAPI(http.Controller):
                             domain.append(('store_id', '=', store.id))
 
                 if from_date:
-                    domain.append(('posting_date', '>=', from_date))
+                    domain.append(('date', '>=', from_date))
                 if to_date:
                     if len(to_date) == 10:
                         to_date += " 23:59:59"
-                    domain.append(('posting_date', '<=', to_date))
+                    domain.append(('date', '<=', to_date))
 
-                sales = env['havanoposdesk.sale'].search(domain)
-                income = sum(sales.mapped('amount_total'))
-
-                expense = 0.0
-                for sale in sales:
-                    for line in sale.line_ids:
-                        qty = line.accepted_qty or 0.0
-                        buy_price = line.product_id.buying_price or 0.0
-                        expense += qty * buy_price
-
-                gross_profit_loss = income - expense
+                report_records = env['havanoposdesk.cashier.sales.report'].search(domain)
+                income = sum(report_records.mapped('total_sales'))
+                expense = sum(report_records.mapped('total_buy_price'))
+                gross_profit_loss = sum(report_records.mapped('profit'))
 
                 result_list = []
                 result_list.append({
@@ -4867,12 +4853,19 @@ class HavanoPOSDeskAPI(http.Controller):
             
             from_date = params.get('from_date')
             to_date = params.get('to_date')
+            cost_center = params.get('cost_center')
+            user_filter = params.get('user') or params.get('cashier') or params.get('user_email')
             
             domain = []
             if user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
             
-            store = self._get_current_store(user, tenant, params)
+            store = None
+            if cost_center:
+                store = self._resolve_store_from_cost_center(env, cost_center, tenant)
+            if not store:
+                store = self._get_current_store(user, tenant, params)
+
             if store:
                 domain.append(('store_id', '=', store.id))
             elif user.havano_role != 'super_admin':
@@ -4880,6 +4873,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     domain.append(('store_id', 'in', user.store_ids.ids))
                 elif user.default_store_id:
                     domain.append(('store_id', '=', user.default_store_id.id))
+                    
+            if user_filter:
+                filter_user = env['res.users'].search(['|', ('login', '=', user_filter), ('name', '=', user_filter)], limit=1)
+                if filter_user:
+                    domain.append(('create_uid', '=', filter_user.id))
+                    
             if from_date:
                 domain.append(('posting_date', '>=', from_date))
             if to_date:
@@ -4943,12 +4942,20 @@ class HavanoPOSDeskAPI(http.Controller):
             
             from_date = params.get('from_date')
             to_date = params.get('to_date')
+            cost_center = params.get('cost_center')
+            user_filter = params.get('user') or params.get('cashier') or params.get('user_email')
+            supplier = params.get('supplier')
             
             domain = [('is_return', '=', False)]
             if user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
             
-            store = self._get_current_store(user, tenant, params)
+            store = None
+            if cost_center:
+                store = self._resolve_store_from_cost_center(env, cost_center, tenant)
+            if not store:
+                store = self._get_current_store(user, tenant, params)
+
             if store:
                 domain.append(('store_id', '=', store.id))
             elif user.havano_role != 'super_admin':
@@ -4956,6 +4963,15 @@ class HavanoPOSDeskAPI(http.Controller):
                     domain.append(('store_id', 'in', user.store_ids.ids))
                 elif user.default_store_id:
                     domain.append(('store_id', '=', user.default_store_id.id))
+                    
+            if user_filter:
+                filter_user = env['res.users'].search(['|', ('login', '=', user_filter), ('name', '=', user_filter)], limit=1)
+                if filter_user:
+                    domain.append(('create_uid', '=', filter_user.id))
+                    
+            if supplier:
+                domain.append(('supplier_id.name', '=', supplier))
+                
             if from_date:
                 domain.append(('posting_date', '>=', from_date))
             if to_date:
