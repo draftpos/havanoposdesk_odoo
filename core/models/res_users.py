@@ -475,22 +475,30 @@ class ResUsers(models.Model):
 
     def _create_user_from_template(self, values):
         from odoo.http import request
-        org_name = request.params.get('organization_name') if request else False
+        org_name = values.get('api_company_name') or (request.params.get('organization_name') if request else False)
         tenant_name = org_name or f"{values.get('name', 'My')}'s Business"
         
-        country_id = request.params.get('country_id') if request else False
+        country_id = values.get('country_id') or (request.params.get('country_id') if request else False)
         currency_id = False
         
         if country_id:
-            country = self.env['res.country'].sudo().browse(int(country_id))
-            if country.code == 'ZW':
-                usd = self.env.ref('base.USD', raise_if_not_found=False)
-                currency_id = usd.id if usd else False
-            elif country.currency_id:
-                currency_id = country.currency_id.id
+            if str(country_id).isdigit():
+                country = self.env['res.country'].sudo().browse(int(country_id))
+            else:
+                country = self.env['res.country'].sudo().search([
+                    '|', ('code', '=ilike', country_id), ('name', '=ilike', country_id)
+                ], limit=1)
+            
+            if country:
+                if country.code == 'ZW':
+                    usd = self.env.ref('base.USD', raise_if_not_found=False)
+                    currency_id = usd.id if usd else False
+                elif country.currency_id:
+                    currency_id = country.currency_id.id
                 
         tenant_vals = {
             'name': tenant_name,
+            'api_company_name': tenant_name,
             'subscription_state': 'active',
         }
         if currency_id:
@@ -499,19 +507,61 @@ class ResUsers(models.Model):
         # 1. Create a new Tenant record for the user's business
         tenant = self.env['havanoposdesk.tenant'].sudo().create(tenant_vals)
 
+        # Configure store and terminal names to be consistent with API registration
+        store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+        if store:
+            store.sudo().write({
+                'name': 'Default Shop',
+                'is_default': True
+            })
+        else:
+            store = self.env['havanoposdesk.store'].sudo().create({
+                'name': 'Default Shop',
+                'tenant_id': tenant.id,
+                'is_default': True
+            })
+            
+        terminal = self.env['havanoposdesk.pos.terminal'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+        if terminal:
+            terminal.sudo().write({
+                'name': 'Terminal 1',
+                'store_id': store.id,
+                'status': 'open'
+            })
+        else:
+            terminal = self.env['havanoposdesk.pos.terminal'].sudo().create({
+                'name': 'Terminal 1',
+                'tenant_id': tenant.id,
+                'store_id': store.id,
+                'status': 'open'
+            })
+
         # Process phone number if provided
-        phone = False
-        if request:
+        phone = values.get('phone')
+        if not phone and request:
             phone_num = request.params.get('phone_number')
             country_code = request.params.get('country_code', '')
             if phone_num:
                 phone = f"{country_code}{phone_num}"
+
+        currency_code = 'USD'
+        if currency_id:
+            currency = self.env['res.currency'].sudo().browse(currency_id)
+            if currency:
+                currency_code = currency.name
 
         # 2. Inject SaaS values
         values.update({
             'tenant_id': tenant.id,
             'havano_role': 'admin',
             'saas_state': 'unverified',
+            'default_store_id': store.id if store else False,
+            'store_ids': [(4, store.id)] if store else False,
+            'api_company_name': tenant_name,
+            'api_warehouse': 'Default Shop',
+            'api_cost_center': 'Default Shop',
+            'api_currency': currency_code,
+            'api_uom': 'Nos',
         })
         if phone:
             values['phone'] = phone

@@ -145,6 +145,17 @@ class HavanoposdeskTenant(models.Model):
                     })
                 vals['subscription_plan_id'] = plan.id
                 
+            if not vals.get('subscription_start_date'):
+                vals['subscription_start_date'] = fields.Date.context_today(self)
+            if not vals.get('subscription_end_date') and vals.get('subscription_plan_id'):
+                plan = self.env['havanoposdesk.subscription.plan'].sudo().browse(vals['subscription_plan_id'])
+                duration = getattr(plan, 'duration_days', 30) or 30
+                vals['subscription_end_date'] = fields.Date.context_today(self) + relativedelta(days=duration)
+            if not vals.get('payment_status'):
+                vals['payment_status'] = 'paid'
+            if not vals.get('subscription_state'):
+                vals['subscription_state'] = 'active'
+                
         tenants = super().create(vals_list)
         for tenant in tenants:
             usd_currency = self.env.ref('base.USD', raise_if_not_found=False)

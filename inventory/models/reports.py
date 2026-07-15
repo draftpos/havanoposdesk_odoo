@@ -21,7 +21,20 @@ class StockValuation(models.Model):
     item_code = fields.Char(related='product_id.item_code', string='Code', store=True)
     category_id = fields.Many2one(related='product_id.category_id', string='Category', store=True)
     store = fields.Char(string='Store')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store Link', compute='_compute_store_id', store=True)
     on_hand_qty = fields.Float(string='On Hand Qty')
+
+    @api.depends('store', 'tenant_id')
+    def _compute_store_id(self):
+        for record in self:
+            if record.store:
+                domain = [('name', '=', record.store)]
+                if record.tenant_id:
+                    domain.append(('tenant_id', '=', record.tenant_id.id))
+                store_rec = self.env['havanoposdesk.store'].sudo().search(domain, limit=1)
+                record.store_id = store_rec.id if store_rec else False
+            else:
+                record.store_id = False
     value_cost = fields.Float(string='Value Cost', compute='_compute_valuation_amounts', store=True)
     value_selling = fields.Float(string='Value Selling', compute='_compute_valuation_amounts', store=True)
 
@@ -30,6 +43,16 @@ class StockValuation(models.Model):
         for record in self:
             record.value_cost = record.on_hand_qty * record.product_id.buying_price
             record.value_selling = record.on_hand_qty * record.product_id.selling_price
+
+    def init(self):
+        super().init()
+        # Populate store_id for existing records where it is NULL
+        self.env.cr.execute("""
+            UPDATE havanoposdesk_stock_valuation sv
+            SET store_id = s.id
+            FROM havanoposdesk_store s
+            WHERE sv.store = s.name AND sv.tenant_id = s.tenant_id AND sv.store_id IS NULL
+        """)
 
 class StockLedger(models.Model):
     _name = 'havanoposdesk.stock.ledger'
@@ -55,7 +78,20 @@ class StockLedger(models.Model):
     out_qty = fields.Float(string='Out Qty')
     balance_qty = fields.Float(string='Balance Qty')
     store = fields.Char(string='Store')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store Link', compute='_compute_store_id', store=True)
     category_id = fields.Many2one(related='product_id.category_id', string='Category', store=True)
+
+    @api.depends('store', 'tenant_id')
+    def _compute_store_id(self):
+        for record in self:
+            if record.store:
+                domain = [('name', '=', record.store)]
+                if record.tenant_id:
+                    domain.append(('tenant_id', '=', record.tenant_id.id))
+                store_rec = self.env['havanoposdesk.store'].sudo().search(domain, limit=1)
+                record.store_id = store_rec.id if store_rec else False
+            else:
+                record.store_id = False
     in_value = fields.Float(string='In Value', compute='_compute_values', store=True)
     out_value = fields.Float(string='Out Value', compute='_compute_values', store=True)
     buying_price = fields.Float(string='Cost price')
@@ -70,4 +106,14 @@ class StockLedger(models.Model):
             record.in_value = record.in_qty * buying_price
             record.out_value = record.out_qty * buying_price
             record.balance_value = record.balance_qty * buying_price
+
+    def init(self):
+        super().init()
+        # Populate store_id for existing records where it is NULL
+        self.env.cr.execute("""
+            UPDATE havanoposdesk_stock_ledger sl
+            SET store_id = s.id
+            FROM havanoposdesk_store s
+            WHERE sl.store = s.name AND sl.tenant_id = s.tenant_id AND sl.store_id IS NULL
+        """)
 

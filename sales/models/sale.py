@@ -7,6 +7,10 @@ class Sale(models.Model):
     _description = 'Sale'
     _order = 'date desc, id desc'
 
+    _sql_constraints = [
+        ('local_invoice_id_tenant_uniq', 'unique(local_invoice_id, tenant_id)', 'The Local Invoice ID must be unique per tenant!')
+    ]
+
     def _default_posting_time(self):
         now_utc = fields.Datetime.now()
         now_local = fields.Datetime.context_timestamp(self, now_utc)
@@ -17,11 +21,24 @@ class Sale(models.Model):
     store = fields.Char(string='Store')
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
+    local_invoice_id = fields.Char(string='Local Invoice ID', copy=False)
     
     is_return = fields.Boolean(string='Is Credit Note', default=False)
     return_id = fields.Many2one('havanoposdesk.sale', string='Original Sale')
     return_sale_ids = fields.One2many('havanoposdesk.sale', 'return_id', string='Credit Notes')
     invoice_type = fields.Char(string='Type', compute='_compute_invoice_type', store=True)
+
+    @api.constrains('local_invoice_id', 'tenant_id')
+    def _check_local_invoice_id_uniqueness(self):
+        for sale in self:
+            if sale.local_invoice_id:
+                duplicate = self.search([
+                    ('tenant_id', '=', sale.tenant_id.id),
+                    ('local_invoice_id', '=', sale.local_invoice_id),
+                    ('id', '!=', sale.id)
+                ], limit=1)
+                if duplicate:
+                    raise ValidationError(_("The Local Invoice ID must be unique per tenant!"))
 
     @api.depends('is_return')
     def _compute_invoice_type(self):
