@@ -579,7 +579,7 @@ class ResUsers(models.Model):
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
         verification_url = f"{base_url}/web/verify_email?token={self.verification_token}"
         
-        subject = _("Verify Your Havano POS Desk Account")
+        subject = _("Verify Your Account")
         body_html = f"""
             <div style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8f9fa;">
                 <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e9ecef;">
@@ -607,7 +607,7 @@ class ResUsers(models.Model):
                     </tr>
                     <tr>
                         <td align="center" style="padding: 20px; background-color: #f1f3f5; font-size: 12px; color: #6c757d; border-top: 1px solid #e9ecef;">
-                            &copy; {datetime.datetime.now().year} Havano POS Desk. All rights reserved.
+                            &copy; {datetime.datetime.now().year} Havano ERP. All rights reserved.
                         </td>
                     </tr>
                 </table>
