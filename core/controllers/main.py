@@ -12,7 +12,7 @@ class HavanoAccessController(http.Controller):
     @http.route('/havano/check_access', type='json', auth='user')
     def check_access(self, model):
         # Default allow if not matched
-        res = {'canCreate': True, 'canViewDetail': True}
+        res = {'canCreate': True, 'canViewDetail': True, 'canEdit': True, 'canDelete': True}
         
         from odoo.addons.havanoposdesk_odoo.core.models.user_rights import MODEL_FEATURE_MAP
         
@@ -22,14 +22,34 @@ class HavanoAccessController(http.Controller):
                 return res
                 
             profile = user.user_rights_profile_id
-            if profile:
-                feature_name = MODEL_FEATURE_MAP[model]
-                bo_perm = profile.backoffice_permission_ids.filtered(lambda p: p.feature == feature_name)
-                if bo_perm and bo_perm[0].is_read_only:
-                    res['canCreate'] = False
-                    res['canViewDetail'] = False
+            if not profile:
+                # No profile = no access at all
+                return {'canCreate': False, 'canViewDetail': False, 'canEdit': False, 'canDelete': False}
+                
+            feature_name = MODEL_FEATURE_MAP[model]
+            bo_perm = profile.backoffice_permission_ids.filtered(lambda p: p.feature == feature_name)
+            
+            if not bo_perm:
+                # Feature not in profile = no access
+                return {'canCreate': False, 'canViewDetail': False, 'canEdit': False, 'canDelete': False}
+            
+            perm = bo_perm[0]
+            
+            if perm.is_read_only:
+                # Read-only: can VIEW records, but cannot create/edit/delete
+                res['canCreate'] = False
+                res['canEdit'] = False
+                res['canDelete'] = False
+                res['canViewDetail'] = True  # ← READ-ONLY users CAN view/open records
+            elif not perm.is_full_access and not perm.is_read_only:
+                # No access at all
+                res['canCreate'] = False
+                res['canViewDetail'] = False
+                res['canEdit'] = False
+                res['canDelete'] = False
                     
         return res
+
 
 class HavanoWebManifest(WebManifest):
     def _get_webmanifest(self):

@@ -299,6 +299,9 @@ MODEL_FEATURE_MAP = {
     'havanoposdesk.subscription.plan': 'Subscription Plans',
 }
 
+import logging
+_logger = logging.getLogger(__name__)
+
 from odoo.models import BaseModel
 original_check_access_rights = BaseModel.check_access_rights
 
@@ -319,6 +322,8 @@ def enforce_backoffice_permissions(self, operation, raise_exception=True):
         profile = user.user_rights_profile_id
         feature_name = MODEL_FEATURE_MAP[self._name]
         
+        _logger.info("CHECK_ACCESS_RIGHTS: user=%s, model=%s, feature=%s, operation=%s, profile=%s", user.login, self._name, feature_name, operation, profile.name if profile else None)
+        
         if not profile:
             if raise_exception:
                 raise AccessError(f"Permission Denied: No User Rights Profile assigned.")
@@ -331,12 +336,14 @@ def enforce_backoffice_permissions(self, operation, raise_exception=True):
             return False
             
         perm = bo_perm[0]
+        _logger.info("CHECK_ACCESS_RIGHTS PERM: is_full=%s, is_read_only=%s", perm.is_full_access, perm.is_read_only)
         if not perm.is_full_access and not perm.is_read_only:
             if raise_exception:
                 raise AccessError(f"Permission Denied: You do not have access to '{feature_name}'.")
             return False
             
         if operation in ('write', 'create', 'unlink') and bo_perm[0].is_read_only:
+            _logger.info("CHECK_ACCESS_RIGHTS BLOCKING %s", operation)
             if raise_exception:
                 raise AccessError(f"Permission Denied: You have Read-Only access to '{feature_name}'. You cannot create, modify, or delete records.")
             return False
@@ -344,3 +351,34 @@ def enforce_backoffice_permissions(self, operation, raise_exception=True):
     return res
 
 BaseModel.check_access_rights = enforce_backoffice_permissions
+
+import xml.etree.ElementTree as ET
+
+class Base(models.AbstractModel):
+    _inherit = 'base'
+
+    @api.model
+    def get_views(self, views, options=None):
+        res = super(Base, self).get_views(views, options=options)
+        
+        if self._name in MODEL_FEATURE_MAP:
+            if not (self.env.su or self.env.user.id == 1 or getattr(self.env.user, 'havano_role', None) == 'super_admin'):
+                user = self.env.user
+                profile = user.user_rights_profile_id
+                feature_name = MODEL_FEATURE_MAP[self._name]
+                
+                if profile:
+                    bo_perm = profile.backoffice_permission_ids.filtered(lambda p: p.feature == feature_name)
+                    if bo_perm and bo_perm[0].is_read_only:
+                        for v_type, view_data in res.get('views', {}).items():
+                            if 'arch' in view_data:
+                                try:
+                                    arch_node = ET.fromstring(view_data['arch'])
+                                    arch_node.set('create', '0')
+                                    arch_node.set('edit', '0')
+                                    arch_node.set('delete', '0')
+                                    view_data['arch'] = ET.tostring(arch_node, encoding='unicode')
+                                except Exception as e:
+                                    _logger.error("Failed to inject read-only attributes into view: %s", e)
+                                    
+        return res
