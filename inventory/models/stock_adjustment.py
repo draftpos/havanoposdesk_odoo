@@ -237,7 +237,9 @@ class StockAdjustment(models.Model):
                     ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
                 ], limit=1)
                 if valuation:
+                    valuation.write({
                         'on_hand_qty': 0.0 if is_creation else line.on_hand,
+                    })
             adjustment.write({'state': 'cancelled'})
 
     def action_draft(self):

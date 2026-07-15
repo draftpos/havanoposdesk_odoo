@@ -99,7 +99,6 @@ class HavanoposdeskUserRightsProfile(models.Model):
                         'feature': feature,
                         'is_full_access': not is_cashier,
                         'is_read_only': is_cashier,
-                        'is_no_access': False,
                     }))
                 vals['backoffice_permission_ids'] = bo_permission_lines
                 
