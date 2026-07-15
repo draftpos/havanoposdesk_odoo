@@ -66,14 +66,15 @@ class HavanoposdeskUserRightsProfile(models.Model):
                     'Expenses', 'User Profiles'
                 ]
                 permission_lines = []
+                is_cashier = vals.get('havano_role') == 'cashier'
                 for feature in features:
                     permission_lines.append((0, 0, {
                         'feature': feature,
                         'can_read': True,
-                        'can_create': True,
-                        'can_update': True,
-                        'can_delete': True,
-                        'can_submit': True,
+                        'can_create': not is_cashier,
+                        'can_update': not is_cashier,
+                        'can_delete': not is_cashier,
+                        'can_submit': not is_cashier,
                     }))
                 vals['permission_ids'] = permission_lines
 
@@ -92,11 +93,13 @@ class HavanoposdeskUserRightsProfile(models.Model):
                     'Payment Providers', 'Support Tickets', 'My Preferences'
                 ]
                 bo_permission_lines = []
+                is_cashier = vals.get('havano_role') == 'cashier'
                 for feature in bo_features:
                     bo_permission_lines.append((0, 0, {
                         'feature': feature,
-                        'is_full_access': True,
-                        'is_read_only': False,
+                        'is_full_access': not is_cashier,
+                        'is_read_only': is_cashier,
+                        'is_no_access': False,
                     }))
                 vals['backoffice_permission_ids'] = bo_permission_lines
                 

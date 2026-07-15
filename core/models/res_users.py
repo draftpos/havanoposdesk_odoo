@@ -558,8 +558,8 @@ class ResUsers(models.Model):
             'default_store_id': store.id if store else False,
             'store_ids': [(4, store.id)] if store else False,
             'api_company_name': tenant_name,
-            'api_warehouse': 'Default Shop',
-            'api_cost_center': 'Default Shop',
+            'api_warehouse': store.name if store else '',
+            'api_cost_center': store.name if store else '',
             'api_currency': currency_code,
             'api_uom': 'Nos',
         })

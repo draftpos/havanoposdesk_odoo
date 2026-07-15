@@ -269,7 +269,6 @@ class Sale(models.Model):
                 if base_qty > 0:
                     if sale.is_return:
                         # Add back to stock
-                        line.product_id.sudo().opening_stock += base_qty
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
                             'in_qty': base_qty,
@@ -281,9 +280,8 @@ class Sale(models.Model):
                             'doc_no': sale.name,
                         })
                     else:
-                        # Update Product On Hand (opening_stock), selling_price, and buying_price
+                        # Update selling_price, and buying_price
                         line.product_id.sudo().write({
-                            'opening_stock': line.product_id.opening_stock - base_qty,
                             'selling_price': line.rate,
                             'buying_price': line.cost_price / line.uom_qty_multiplier if line.uom_qty_multiplier else line.cost_price,
                         })
@@ -319,8 +317,6 @@ class Sale(models.Model):
                         })
                 elif base_qty < 0:
                     # Return sale: add back to stock
-                    line.product_id.sudo().opening_stock += abs(base_qty)
-                    
                     # Create Ledger Entry using sudo()
                     self.env['havanoposdesk.stock.ledger'].sudo().create({
                         'product_id': line.product_id.id,
@@ -365,17 +361,6 @@ class Sale(models.Model):
             
             for line in sale.line_ids:
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
-                if base_qty > 0:
-                    if sale.is_return:
-                        # Revert: Subtract stock
-                        line.product_id.sudo().opening_stock -= base_qty
-                    else:
-                        # Revert: Add back to stock
-                        line.product_id.sudo().opening_stock += base_qty
-                elif base_qty < 0:
-                    # Revert: Subtract stock
-                    line.product_id.sudo().opening_stock -= abs(base_qty)
-
                 # Create reverse ledger entry using sudo()
                 orig_ledgers = self.env['havanoposdesk.stock.ledger'].sudo().search([
                     ('doc_no', '=', sale.name),

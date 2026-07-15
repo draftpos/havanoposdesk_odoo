@@ -166,10 +166,7 @@ class StockAdjustment(models.Model):
             for line in adjustment.line_ids:
                 if not is_creation and line.qty_difference == 0.0:
                     continue
-                # Update Product On Hand (opening_stock)
-                if not is_creation:
-                    line.product_id.opening_stock = line.counted
-                
+                # Do not modify opening_stock here anymore
                 # Create Ledger Entry using sudo() to bypass access rights
                 in_qty = line.counted if is_creation else (line.qty_difference if line.qty_difference > 0 else 0.0)
                 out_qty = 0.0 if is_creation else (abs(line.qty_difference) if line.qty_difference < 0 else 0.0)
@@ -216,12 +213,7 @@ class StockAdjustment(models.Model):
             for line in adjustment.line_ids:
                 if not is_creation and line.qty_difference == 0.0:
                     continue
-                # Revert Product On Hand (opening_stock)
-                if is_creation:
-                    line.product_id.opening_stock = 0.0
-                else:
-                    line.product_id.opening_stock = line.on_hand
-                
+                # Do not revert opening_stock anymore
                 # Create Reverse Ledger Entry
                 orig_ledger = self.env['havanoposdesk.stock.ledger'].sudo().search([
                     ('doc_no', '=', adjustment.name),
@@ -233,7 +225,7 @@ class StockAdjustment(models.Model):
                         'product_id': line.product_id.id,
                         'in_qty': orig_ledger.out_qty,
                         'out_qty': orig_ledger.in_qty,
-                        'balance_qty': line.product_id.opening_stock,
+                        'balance_qty': 0.0 if is_creation else line.on_hand,
                         'store': adjustment.store_id.name if adjustment.store_id else '',
                         'type': 'Adjustment Cancelled',
                         'doc_no': adjustment.name,
@@ -245,9 +237,7 @@ class StockAdjustment(models.Model):
                     ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
                 ], limit=1)
                 if valuation:
-                    valuation.write({
-                        'on_hand_qty': line.product_id.opening_stock,
-                    })
+                        'on_hand_qty': 0.0 if is_creation else line.on_hand,
             adjustment.write({'state': 'cancelled'})
 
     def action_draft(self):
@@ -255,7 +245,11 @@ class StockAdjustment(models.Model):
             if adjustment.state != 'cancelled':
                 continue
             for line in adjustment.line_ids:
-                line.on_hand = line.product_id.opening_stock
+                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                    ('product_id', '=', line.product_id.id),
+                    ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
+                ], limit=1)
+                line.on_hand = valuation.on_hand_qty if valuation else 0.0
             adjustment.write({'state': 'draft'})
 
 class StockAdjustmentLine(models.Model):

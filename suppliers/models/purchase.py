@@ -196,8 +196,7 @@ class Purchase(models.Model):
                 unit_rate = line.rate / line.uom_qty_multiplier if line.uom_qty_multiplier else line.rate
                 if base_qty > 0:
                     if purchase.is_return:
-                        # Revert/Subtract stock for return
-                        line.product_id.sudo().opening_stock -= base_qty
+                        # Revert/Subtract stock for return (no opening_stock update here)
                         
                         # Create Ledger Entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
@@ -232,16 +231,15 @@ class Purchase(models.Model):
                         # If quantity on hand is greater than 0, use the simple average (old_cost + new_cost) / 2
                         # If quantity on hand is 0 or less, use the new purchase cost directly
                         current_cost = line.product_id.buying_price or 0.0
-                        current_qty = line.product_id.opening_stock or 0.0
+                        current_qty = line.product_id.on_hand_qty or 0.0
                         
                         if current_qty > 0:
                             new_buying_price = (current_cost + unit_rate) / 2.0
                         else:
                             new_buying_price = unit_rate
                             
-                        # Update Product On Hand (opening_stock) and buying_price (last updated value) using sudo()
+                        # Update buying_price (last updated value) using sudo()
                         line.product_id.sudo().write({
-                            'opening_stock': current_qty + base_qty,
                             'buying_price': new_buying_price,
                             'cost_price': new_buying_price,
                         })
@@ -322,8 +320,7 @@ class Purchase(models.Model):
                 unit_rate = line.rate / line.uom_qty_multiplier if line.uom_qty_multiplier else line.rate
                 if base_qty > 0:
                     if purchase.is_return:
-                        # Revert return: Add stock back using sudo()
-                        line.product_id.sudo().opening_stock += base_qty
+                        # Revert return: Add stock back using sudo() (no opening_stock update)
                         
                         # Create reverse ledger entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
@@ -347,8 +344,7 @@ class Purchase(models.Model):
                             })
                     else:
                         # Normal Purchase Cancelled
-                        # Revert: Subtract stock using sudo()
-                        line.product_id.sudo().opening_stock -= base_qty
+                        # Revert: Subtract stock using sudo() (no opening_stock update)
                         
                         # Revert product buying price to the previous purchase's rate (if any)
                         last_purchase = self.env['havanoposdesk.purchase.line'].search([

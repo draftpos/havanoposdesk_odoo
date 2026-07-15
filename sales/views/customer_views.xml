@@ -17,7 +17,7 @@
                             <group>
                                 <field name="tin" class="border-bottom border-dark" />
                                 <field name="vat" class="border-bottom border-dark" />
-                                <field name="store_id" class="border-bottom border-dark" options="{'no_create': True}" />
+                                <field name="store_ids" widget="many2many_tags" class="border-bottom border-dark" options="{'no_create': True}" />
                                 <field name="customer_group_id" class="border-bottom border-dark" />
                                 <field name="phone" class="border-bottom border-dark" />
                                 <field name="address" class="border-bottom border-dark" />
@@ -42,7 +42,7 @@
                 <list string="Customers">
                     <field name="currency_id" column_invisible="True" />
                     <field name="name" optional="show" />
-                    <field name="store_id" optional="show" />
+                    <field name="store_ids" widget="many2many_tags" optional="show" />
                     <field name="phone" optional="show" />
                     <field name="address" optional="show" />
                     <field name="city" optional="show" />
