@@ -17,7 +17,7 @@ class IrHttp(models.AbstractModel):
         if request.db:
             try:
                 icp = request.env['ir.config_parameter'].sudo()
-                configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'havano').lower()
+                configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'Havano').lower()
                 lower_path = path.lower()
                 # Match /<base> or /<base>/<subpath>
                 if lower_path == f'/{configured_base}' or lower_path.startswith(f'/{configured_base}/'):
@@ -38,7 +38,7 @@ class IrHttp(models.AbstractModel):
             icp = request.env['ir.config_parameter'].sudo()
             result['havanoposdesk_app_name'] = icp.get_param('web.web_app_name', 'Havano')
             result['havanoposdesk_bot_name'] = icp.get_param('havanoposdesk.bot_name', 'HavanoBot')
-            result['havanoposdesk_web_base_url'] = icp.get_param('havanoposdesk.web_base_url', 'havano')
+            result['havanoposdesk_web_base_url'] = icp.get_param('havanoposdesk.web_base_url', 'Havano')
             
             # Override "My Company" in the Top Bar to show Store Name or Tenant Name
             user = request.env.user

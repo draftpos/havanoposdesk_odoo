@@ -21,7 +21,11 @@
             <field name="name">Havano Category Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_category"/>
             <field name="global" eval="True"/>
+<<<<<<< Updated upstream
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_ids', '=', False), ('store_ids', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+=======
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('store_ids', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+>>>>>>> Stashed changes
         </record>
 
         <!-- UOM Model Isolation Rule -->
@@ -267,6 +271,14 @@
         <record id="rule_havano_stock_adjustment_line_isolation" model="ir.rule">
             <field name="name">Havano Stock Adjustment Line Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_stock_adjustment_line"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Stock Entry Isolation Rule -->
+        <record id="rule_havano_stock_entry_isolation" model="ir.rule">
+            <field name="name">Havano Stock Entry Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_stock_entry"/>
             <field name="global" eval="True"/>
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>

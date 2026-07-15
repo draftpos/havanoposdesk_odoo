@@ -6,7 +6,7 @@
             <field name="name">havanoposdesk.stock.transfer.form</field>
             <field name="model">havanoposdesk.stock.transfer</field>
             <field name="arch" type="xml">
-                <form string="Stock Transfer">
+                <form string="Stock Transfer" js_class="havano_stock_transfer_form">
                     <header>
                         <button name="action_validate" type="object" string="Validate" class="btn-primary" invisible="state != 'draft'" />
                         <field name="state" widget="statusbar" statusbar_visible="draft,done" />
@@ -17,6 +17,14 @@
                             <h1>
                                 <field name="name" readonly="1" />
                             </h1>
+                        </div>
+                        <!-- Same-store warning banner (shown/hidden by JS) -->
+                        <div id="havano_same_store_warning"
+                             class="alert alert-warning d-none"
+                             role="alert"
+                             style="border-left: 4px solid #f0ad4e; padding: 10px 14px; margin-bottom: 12px; border-radius: 4px;">
+                            <strong>⚠ Same Store Selected!</strong>
+                            You cannot transfer stock to the same store. Please choose a different destination store.
                         </div>
                         <group>
                             <group>
@@ -43,16 +51,22 @@
                                         <field name="tenant_id" column_invisible="True" />
                                         <field name="product_id"
                                             domain="[('tenant_id', '=', parent.tenant_id)]"
-                                            width="40%"
+                                            width="35%"
                                             string="Item" />
                                         <field name="available_uom_ids" column_invisible="True" />
                                         <field name="uom_id"
                                             domain="[('id', 'in', available_uom_ids)]"
                                             readonly="not available_uom_ids"
                                             options="{'no_create': True}"
-                                            width="20%"
+                                            width="15%"
                                             string="Unit of Measure" />
-                                        <field name="qty" width="20%" string="Quantity" />
+                                        <field name="on_hand_qty"
+                                            readonly="1"
+                                            width="20%"
+                                            string="On Hand"
+                                            decoration-danger="on_hand_qty &lt;= 0"
+                                            decoration-warning="on_hand_qty &gt; 0 and on_hand_qty &lt; qty" />
+                                        <field name="qty" width="15%" string="Transfer Qty" />
                                     </list>
                                 </field>
                             </page>

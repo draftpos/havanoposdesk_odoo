@@ -1,45 +1,45 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- ============================== -->
-        <!-- Purchases Kanban View (Mobile) -->
-        <!-- ============================== -->
+        
+        
+        
         <record id="view_havanoposdesk_purchase_kanban_mobile" model="ir.ui.view">
             <field name="name">havanoposdesk.purchase.kanban.mobile</field>
             <field name="model">havanoposdesk.purchase</field>
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
-                    <field name="name"/>
-                    <field name="supplier"/>
-                    <field name="posting_date"/>
-                    <field name="amount_total"/>
-                    <field name="payment_status"/>
+                    <field name="name" />
+                    <field name="supplier" />
+                    <field name="posting_date" />
+                    <field name="amount_total" />
+                    <field name="payment_status" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
                                 <div class="havano-card-header">
                                     <div class="customer-name">
-                                        <field name="supplier"/>
+                                        <field name="supplier" />
                                     </div>
                                     <div class="sale-ref">
-                                        <field name="name"/>
+                                        <field name="name" />
                                     </div>
                                 </div>
                                 <div class="havano-card-date">
-                                    <field name="posting_date" widget="date"/>
+                                    <field name="posting_date" widget="date" />
                                 </div>
                                 <div t-attf-class="havano-card-badge #{record.payment_status.raw_value == 'cash' ? 'badge-paid' : 'badge-unpaid'}">
                                     <t t-if="record.payment_status.raw_value == 'cash'">PAID</t>
                                     <t t-else="">UNPAID</t>
                                 </div>
                                 <div class="havano-card-totals">
-                                    <div>Total : $<field name="amount_total"/></div>
-                                    <div>Balance : $<t t-if="record.payment_status.raw_value == 'cash'">0.00</t><t t-else=""><field name="amount_total"/></t></div>
+                                    <div>Total : $<field name="amount_total" /></div>
+                                    <div>Balance : $<t t-if="record.payment_status.raw_value == 'cash'">0.00</t><t t-else=""><field name="amount_total" /></t></div>
                                 </div>
                                 <div class="havano-card-actions">
-                                    <i class="fa fa-print" title="Print"/>
-                                    <i class="fa fa-share" title="Share"/>
-                                    <i class="fa fa-ellipsis-v" title="More"/>
+                                    <i class="fa fa-print" title="Print" />
+                                    <i class="fa fa-share" title="Share" />
+                                    <i class="fa fa-ellipsis-v" title="More" />
                                 </div>
                             </div>
                         </t>
@@ -48,40 +48,42 @@
             </field>
         </record>
 
-        <!-- Override existing action for Purchases -->
+        
         <record id="action_havanoposdesk_purchase" model="ir.actions.act_window">
+            <field name="name">Purchases</field>
+            <field name="res_model">havanoposdesk.purchase</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
-        <!-- ============================== -->
-        <!-- Suppliers Kanban View (Mobile) -->
-        <!-- ============================== -->
+        
+        
+        
         <record id="view_havanoposdesk_supplier_kanban_mobile" model="ir.ui.view">
             <field name="name">havanoposdesk.supplier.kanban.mobile</field>
             <field name="model">havanoposdesk.supplier</field>
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
-                    <field name="name"/>
-                    <field name="phone"/>
-                    <field name="email"/>
-                    <field name="balance"/>
+                    <field name="name" />
+                    <field name="phone" />
+                    <field name="email" />
+                    <field name="balance" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
                                 <div class="havano-card-header">
                                     <div class="customer-name">
-                                        <field name="name"/>
+                                        <field name="name" />
                                     </div>
                                     <div class="sale-ref">
-                                        <field name="phone"/>
+                                        <field name="phone" />
                                     </div>
                                 </div>
                                 <div class="havano-card-date">
-                                    <field name="email"/>
+                                    <field name="email" />
                                 </div>
                                 <div class="havano-card-totals mt-2">
-                                    <div>Balance : $<field name="balance"/></div>
+                                    <div>Balance : $<field name="balance" /></div>
                                 </div>
                             </div>
                         </t>
@@ -90,36 +92,37 @@
             </field>
         </record>
 
-        <!-- Override existing action for Suppliers -->
+        
         <record id="action_havanoposdesk_supplier" model="ir.actions.act_window">
+            <field name="name">Suppliers</field>
+            <field name="res_model">havanoposdesk.supplier</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
         <record id="action_havanoposdesk_purchase_view_list" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="1" />
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_purchase_tree"/>
-            <field name="act_window_id" ref="action_havanoposdesk_purchase"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_purchase_tree" />
+            <field name="act_window_id" ref="action_havanoposdesk_purchase" />
         </record>
         <record id="action_havanoposdesk_purchase_view_kanban" model="ir.actions.act_window.view">
-            <field name="sequence" eval="20"/>
+            <field name="sequence" eval="20" />
             <field name="view_mode">kanban</field>
-            <field name="view_id" ref="view_havanoposdesk_purchase_kanban_mobile"/>
-            <field name="act_window_id" ref="action_havanoposdesk_purchase"/>
+            <field name="view_id" ref="view_havanoposdesk_purchase_kanban_mobile" />
+            <field name="act_window_id" ref="action_havanoposdesk_purchase" />
         </record>
         <record id="action_havanoposdesk_supplier_view_list" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="1" />
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_supplier_tree"/>
-            <field name="act_window_id" ref="action_havanoposdesk_supplier"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_supplier_tree" />
+            <field name="act_window_id" ref="action_havanoposdesk_supplier" />
         </record>
         <record id="action_havanoposdesk_supplier_view_kanban" model="ir.actions.act_window.view">
-            <field name="sequence" eval="20"/>
+            <field name="sequence" eval="20" />
             <field name="view_mode">kanban</field>
-            <field name="view_id" ref="view_havanoposdesk_supplier_kanban_mobile"/>
-            <field name="act_window_id" ref="action_havanoposdesk_supplier"/>
+            <field name="view_id" ref="view_havanoposdesk_supplier_kanban_mobile" />
+            <field name="act_window_id" ref="action_havanoposdesk_supplier" />
         </record>
 
     </data>
 </odoo>
-
