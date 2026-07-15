@@ -250,6 +250,22 @@ class HavanoposdeskTenant(models.Model):
             queries.append("""INSERT INTO havanoposdesk_uom (name, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s)""")
             params.append((uom, tenant_id, uid, uid, now, now))
         
+        # 9. Default Taxes — seeded as INACTIVE so tenant manually activates what they need
+        default_taxes = [
+            ('VAT 15%',     15.0, 'percentage', 'tax'),
+            ('VAT 14.5%',   14.5, 'percentage', 'tax'),
+            ('VAT 10%',     10.0, 'percentage', 'tax'),
+            ('VAT 5%',       5.0, 'percentage', 'tax'),
+            ('Tourism Levy 2%', 2.0, 'percentage', 'tax'),
+            ('Service Charge 10%', 10.0, 'percentage', 'tax'),
+        ]
+        for (tax_name, tax_amount, tax_computation, tax_type) in default_taxes:
+            queries.append("""
+                INSERT INTO havanoposdesk_tax (name, amount, computation, type, active, tenant_id, create_uid, write_uid, create_date, write_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """)
+            params.append((tax_name, tax_amount, tax_computation, tax_type, False, tenant_id, uid, uid, now, now))
+        
         # Execute all inserts in a single rapid batch
         for i, query in enumerate(queries):
             self.env.cr.execute(query, params[i])

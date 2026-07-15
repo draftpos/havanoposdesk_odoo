@@ -161,4 +161,124 @@ class HavanoposdeskStore(models.Model):
 
         return super().create(vals_list)
 
+    def write(self, vals):
+        """
+        Override write() to cascade a store name change to every table that
+        stores the store name as a denormalised Char column.
+
+        Tables updated automatically on rename:
+          - havanoposdesk_sale              (store Char)
+          - havanoposdesk_stock_valuation   (store Char + store_id FK)
+          - havanoposdesk_stock_ledger      (store Char + store_id FK)
+          - havanoposdesk_stock_entry       (from_warehouse / to_warehouse Char)
+          - havanoposdesk_stock_entry_line  (store Char)
+          - havanoposdesk_stock_adjustment_line (store Char)
+          - havanoposdesk_purchase_line     (store Char)
+        """
+        new_name = vals.get('name')
+
+        if new_name:
+            # Snapshot old names before the ORM write changes them
+            old_names = {store.id: store.name for store in self}
+
+        result = super().write(vals)
+
+        if new_name:
+            for store in self:
+                old_name = old_names.get(store.id)
+                if old_name and old_name != new_name:
+                    self._cascade_store_rename(old_name, new_name, store.id, store.tenant_id.id)
+
+        return result
+
+    def _cascade_store_rename(self, old_name, new_name, store_id, tenant_id):
+        """Run raw SQL to update all denormalised store-name columns in one pass."""
+        import logging
+        _logger = logging.getLogger(__name__)
+        _logger.info(
+            "Havano: cascading store rename '%s' → '%s' (store_id=%s, tenant_id=%s)",
+            old_name, new_name, store_id, tenant_id
+        )
+        cr = self.env.cr
+
+        # 1. havanoposdesk_sale
+        cr.execute(
+            "UPDATE havanoposdesk_sale SET store = %s WHERE store = %s AND tenant_id = %s",
+            (new_name, old_name, tenant_id)
+        )
+        _logger.info("  sale: %s rows", cr.rowcount)
+
+        # 2. havanoposdesk_stock_valuation (Char + FK)
+        cr.execute(
+            """UPDATE havanoposdesk_stock_valuation
+                  SET store = %s, store_id = %s
+                WHERE store = %s AND tenant_id = %s""",
+            (new_name, store_id, old_name, tenant_id)
+        )
+        _logger.info("  stock_valuation: %s rows", cr.rowcount)
+
+        # 3. havanoposdesk_stock_ledger (Char + FK)
+        cr.execute(
+            """UPDATE havanoposdesk_stock_ledger
+                  SET store = %s, store_id = %s
+                WHERE store = %s AND tenant_id = %s""",
+            (new_name, store_id, old_name, tenant_id)
+        )
+        _logger.info("  stock_ledger: %s rows", cr.rowcount)
+
+        # 4a. havanoposdesk_stock_entry — from_warehouse
+        cr.execute(
+            """UPDATE havanoposdesk_stock_entry
+                  SET from_warehouse = %s
+                WHERE from_warehouse = %s AND tenant_id = %s""",
+            (new_name, old_name, tenant_id)
+        )
+        _logger.info("  stock_entry (from_warehouse): %s rows", cr.rowcount)
+
+        # 4b. havanoposdesk_stock_entry — to_warehouse
+        cr.execute(
+            """UPDATE havanoposdesk_stock_entry
+                  SET to_warehouse = %s
+                WHERE to_warehouse = %s AND tenant_id = %s""",
+            (new_name, old_name, tenant_id)
+        )
+        _logger.info("  stock_entry (to_warehouse): %s rows", cr.rowcount)
+
+        # 5. havanoposdesk_stock_entry_line — scoped via parent entry
+        cr.execute(
+            """UPDATE havanoposdesk_stock_entry_line sl
+                  SET store = %s
+                 FROM havanoposdesk_stock_entry se
+                WHERE sl.stock_entry_id = se.id
+                  AND sl.store = %s
+                  AND se.tenant_id = %s""",
+            (new_name, old_name, tenant_id)
+        )
+        _logger.info("  stock_entry_line: %s rows", cr.rowcount)
+
+        # 6. havanoposdesk_stock_adjustment_line — scoped via parent adjustment
+        cr.execute(
+            """UPDATE havanoposdesk_stock_adjustment_line sal
+                  SET store = %s
+                 FROM havanoposdesk_stock_adjustment sa
+                WHERE sal.adjustment_id = sa.id
+                  AND sal.store = %s
+                  AND sa.tenant_id = %s""",
+            (new_name, old_name, tenant_id)
+        )
+        _logger.info("  stock_adjustment_line: %s rows", cr.rowcount)
+
+        # 7. havanoposdesk_purchase_line — scoped via parent purchase
+        cr.execute(
+            """UPDATE havanoposdesk_purchase_line pl
+                  SET store = %s
+                 FROM havanoposdesk_purchase p
+                WHERE pl.purchase_id = p.id
+                  AND pl.store = %s
+                  AND p.tenant_id = %s""",
+            (new_name, old_name, tenant_id)
+        )
+        _logger.info("  purchase_line: %s rows", cr.rowcount)
+
+        _logger.info("Havano: store rename cascade complete.")
 

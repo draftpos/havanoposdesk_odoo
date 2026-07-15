@@ -12,339 +12,292 @@
                 <link rel="shortcut icon" t-att-href="havano_favicon" type="image/png"/>
                 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
                 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+                <!-- Select2 for searchable country dropdown -->
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"/>
+                <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
                 <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
                     body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f4f7f6; }
-                    .wrapper { position: relative; max-width: 340px; width: 100%; border-radius: 12px; padding: 20px 25px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+                    .wrapper { position: relative; max-width: 360px; width: 100%; border-radius: 12px; padding: 20px 25px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
                     .brand-logo-container { text-align: center; margin-bottom: 15px; }
                     .brand-logo { max-width: 120px; height: auto; }
-                    
+
                     /* Form Toggle Animation */
                     .form-container { display: none; animation: fadeIn 0.4s ease-in-out; }
                     .form-container.active { display: block; }
                     @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-                    
+
                     .form header { font-size: 22px; text-align: center; color: #333; font-weight: 600; margin-bottom: 2px; }
                     .form .sub-header { text-align: center; font-size: 13px; color: #666; margin-bottom: 15px; }
                     .form .sub-header span { color: #0278F3; cursor: pointer; font-weight: 500; transition: color 0.3s; }
                     .form .sub-header span:hover { color: #015bc2; text-decoration: underline; }
-                    
-                    .wrapper form { display: flex; flex-direction: column; gap: 16px; }
+
+                    .wrapper form { display: flex; flex-direction: column; gap: 14px; }
                     .input-field { position: relative; width: 100%; }
-                    .input-field i.icon-left { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #0278F3; font-size: 16px; }
-                    .input-field i.toggle-password { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #999; font-size: 16px; cursor: pointer; transition: color 0.3s; }
+                    .input-field i.icon-left { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #0278F3; font-size: 16px; z-index: 2; }
+                    .input-field i.toggle-password { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #999; font-size: 16px; cursor: pointer; transition: color 0.3s; z-index: 2; }
                     .input-field i.toggle-password:hover { color: #0278F3; }
                     form input[type="text"], form input[type="password"] { height: 46px; width: 100%; outline: none; border: 1px solid #e1e5ea; padding: 0 45px 0 45px; font-size: 14px; font-weight: 400; color: #333; border-radius: 8px; background: #fafbfc; transition: all 0.3s ease; }
                     form input[type="text"]:focus, form input[type="password"]:focus { border: 1px solid #0278F3; box-shadow: 0 0 0 3px rgba(14,77,144,0.1); background: #fff; }
-                    
-                    .btn-submit { margin-top: 10px; font-size: 15px; font-weight: 500; cursor: pointer; width: 100%; transition: all 0.3s ease; height: 44px; border-radius: 8px; background: #0278F3; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+                    .btn-submit { margin-top: 8px; font-size: 15px; font-weight: 500; cursor: pointer; width: 100%; transition: all 0.3s ease; height: 44px; border-radius: 8px; background: #0278F3; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; }
                     .btn-submit:hover { background: #0b3d73; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(14,77,144,0.2); }
                     .btn-submit:active { transform: translateY(0); }
-                    
-                    /* Custom support section styles */
+
                     .support-divider { margin: 30px 0 20px; text-align: center; position: relative; }
                     .support-divider::before { content: ""; position: absolute; left: 0; top: 50%; width: 100%; height: 1px; background: #eee; }
                     .support-divider span { background: #fff; padding: 0 15px; color: #999; font-size: 12px; position: relative; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
-                    
+
                     .support-details { text-align: center; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #edf2f7; }
                     .support-title { font-weight: 600; color: #333; font-size: 14px; margin-bottom: 4px; }
                     .support-subtitle { font-size: 12px; color: #666; margin-bottom: 15px; }
-                    
                     .support-list { display: flex; flex-direction: column; gap: 10px; }
                     .support-item { display: flex; align-items: center; justify-content: center; font-size: 13px; color: #444; font-weight: 500; background: #fff; padding: 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
                     .support-item i { margin-right: 10px; font-size: 16px; width: 20px; text-align: center; }
-                    .support-item .fa-headphones { color: #0278F3; }
-                    .support-item .fa-briefcase { color: #f59e0b; }
                     .support-item .fa-whatsapp { color: #25D366; font-size: 18px; }
-                    
-                    .alert { padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-size: 13px; }
+
+                    .alert { padding: 12px 15px; border-radius: 6px; margin-bottom: 12px; text-align: center; font-size: 13px; }
                     .alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
                     .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
-                    
-                    /* Step indicators */
-                    .step-indicators { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; }
-                    .step-dot { width: 8px; height: 8px; border-radius: 50%; background: #e1e5ea; transition: all 0.3s ease; }
-                    .step-dot.active { background: #0278F3; width: 16px; border-radius: 4px; }
-                    
-                    .signup-step { display: flex; flex-direction: column; gap: 16px; }
-                    .error-text { color: #dc2626; font-size: 11px; margin-top: 4px; margin-left: 5px; display: none; text-align: left; }
-                    form input.input-error { border: 1px solid #dc2626 !important; background: #fffafaf5 !important; }
+
+                    .signup-step { display: flex; flex-direction: column; gap: 14px; }
+
+                    /* Error text under fields */
+                    .error-text { color: #dc2626; font-size: 11px; margin-top: 3px; margin-left: 5px; display: none; text-align: left; line-height: 1.4; }
+                    form input.input-error { border: 1px solid #dc2626 !important; background: #fff5f5 !important; }
+
+                    /* Live password checklist */
+                    .pw-rules { margin-top: 4px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: none; }
+                    .pw-rules.visible { display: block; }
+                    .pw-rule { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #64748b; margin-bottom: 3px; transition: color 0.25s; }
+                    .pw-rule:last-child { margin-bottom: 0; }
+                    .pw-rule .rule-icon { width: 14px; height: 14px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.25s; }
+                    .pw-rule .rule-icon i { font-size: 8px; color: #94a3b8; }
+                    .pw-rule.ok { color: #16a34a; }
+                    .pw-rule.ok .rule-icon { background: #16a34a; }
+                    .pw-rule.ok .rule-icon i { color: #fff; }
+
+                    /* Select2 custom styling to match our input fields */
+                    .select2-container--default .select2-selection--single {
+                        height: 46px; border: 1px solid #e1e5ea; border-radius: 8px;
+                        background: #fafbfc; display: flex; align-items: center;
+                        padding-left: 45px; font-size: 14px; color: #333;
+                    }
+                    .select2-container--default .select2-selection--single .select2-selection__rendered {
+                        line-height: 46px; padding: 0; color: #333; font-size: 14px;
+                    }
+                    .select2-container--default .select2-selection--single .select2-selection__arrow {
+                        height: 46px; right: 12px;
+                    }
+                    .select2-container--default.select2-container--focus .select2-selection--single,
+                    .select2-container--default.select2-container--open .select2-selection--single {
+                        border-color: #0278F3; box-shadow: 0 0 0 3px rgba(14,77,144,0.1); background: #fff;
+                    }
+                    .select2-container { width: 100% !important; }
+                    .select2-dropdown { border: 1px solid #e1e5ea; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); font-size: 14px; }
+                    .select2-search--dropdown .select2-search__field { border: 1px solid #e1e5ea; border-radius: 6px; padding: 7px 10px; font-size: 13px; font-family: "Poppins", sans-serif; outline: none; }
+                    .select2-search--dropdown .select2-search__field:focus { border-color: #0278F3; box-shadow: 0 0 0 2px rgba(14,77,144,0.1); }
+                    .select2-results__option { padding: 8px 12px; font-size: 13px; }
+                    .select2-results__option--highlighted { background: #0278F3 !important; }
+                    .select2-container--default .select2-selection--single.input-error { border-color: #dc2626 !important; background: #fff5f5 !important; }
+
+                    /* Phone row */
+                    .phone-row { display: flex; align-items: center; height: 46px; border: 1px solid #e1e5ea; border-radius: 8px; background: #fafbfc; overflow: hidden; transition: all 0.3s ease; }
+                    .phone-row:focus-within { border-color: #0278F3; box-shadow: 0 0 0 3px rgba(14,77,144,0.1); background: #fff; }
+                    .phone-row.input-error { border-color: #dc2626 !important; background: #fff5f5 !important; }
+                    .phone-code-select { border: none; background: transparent; outline: none; padding: 0 6px 0 12px; font-size: 13px; font-family: "Poppins", sans-serif; color: #333; cursor: pointer; height: 100%; white-space: nowrap; flex-shrink: 0; width: auto; min-width: 82px; }
+                    .phone-divider { width: 1px; height: 24px; background: #e1e5ea; flex-shrink: 0; }
+                    .phone-number-input { border: none; background: transparent; outline: none; padding: 0 12px; font-size: 14px; color: #333; width: 100%; height: 100%; font-family: "Poppins", sans-serif; }
+                    .phone-number-input::placeholder { color: #aaa; }
                 </style>
             </head>
             <body>
                 <t t-set="support_phone" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.support_phone', '+263 779 973 4028')"/>
                 <t t-set="sales_phone" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.sales_phone', '+263 778 078 440')"/>
                 <t t-set="whatsapp_phone" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.whatsapp_phone', '+263 779 973 4028')"/>
-                
                 <t t-set="active_form" t-value="'signup' if '/web/signup' in request.httprequest.path else 'reset_password' if ('/web/reset_password' in request.httprequest.path or request.params.get('token')) else 'login'"/>
                 <t t-set="token" t-value="token if token is not None else request.params.get('token', '')"/>
                 <t t-set="invalid_token" t-value="invalid_token if invalid_token is not None else False"/>
-                
+                <t t-set="countries" t-value="request.env['res.country'].sudo().search([], order='name asc')"/>
+
                 <section class="wrapper">
                     <div class="brand-logo-container">
                         <img src="/havanoposdesk_odoo/static/src/img/logo.png" alt="Havano Logo" class="brand-logo"/>
                     </div>
-                    
-                    <!-- Signup Form -->
+
+                    <!-- ─── Signup Form ──────────────────────────────────── -->
                     <div t-attf-class="form-container form signup {{ 'active' if active_form == 'signup' else '' }}" id="signup-form">
-                        <div style="text-align: center; margin-bottom: 15px; display: none;">
-                            <i class="fa-solid fa-briefcase" style="font-size: 40px; color: #0278F3;"></i>
-                        </div>
                         <header>Create Your Account</header>
                         <div class="sub-header">Get started with your business in seconds</div>
-                        
+
                         <form action="/web/signup" method="post" id="signup-form-main" onsubmit="return validateSignupForm(event, this)" novalidate="novalidate">
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                             <input type="hidden" name="redirect" t-att-value="redirect"/>
                             <input type="hidden" name="token" t-att-value="token"/>
-                            
+
+                            <!-- Server-side error (email already in use, etc.) -->
                             <t t-if="error and active_form == 'signup'">
-                                <div class="alert alert-danger" role="alert"><t t-esc="error"/></div>
+                                <div class="alert alert-danger" role="alert" id="signup-server-error">
+                                    <i class="fa fa-exclamation-circle" style="margin-right:6px;"></i><t t-esc="error"/>
+                                </div>
                             </t>
-                            
+
                             <div id="signup-form-fields" class="signup-step">
+
+                                <!-- Email -->
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-regular fa-envelope icon-left"></i>
-                                        <input type="text" name="login" id="email" autocomplete="username" placeholder="Email *" t-att-value="login" required="required" />
+                                        <input type="text" name="login" id="email" autocomplete="username"
+                                               placeholder="Email address *" t-att-value="login" required="required"/>
                                     </div>
-                                    <div class="error-text">This field is required</div>
+                                    <div class="error-text" id="email-error"></div>
                                 </div>
-                                
+
+                                <!-- Shop Name -->
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-regular fa-building icon-left"></i>
-                                        <input type="text" name="organization_name" id="org_name" autocomplete="organization" placeholder="Shop Name *" required="required" />
+                                        <input type="text" name="organization_name" id="org_name" autocomplete="organization"
+                                               placeholder="Shop / Business Name *" required="required"/>
                                     </div>
-                                    <div class="error-text">This field is required</div>
+                                    <div class="error-text" id="org-error"></div>
                                 </div>
-                                
-                                <div>
-                                    <div class="input-field">
-                                        <i class="fa-solid fa-lock icon-left"></i>
-                                        <input type="password" name="password" id="password" autocomplete="new-password" placeholder="Password *" required="required" />
-                                        <i class="fa-regular fa-eye toggle-password" onclick="togglePassword(this, 'password')"></i>
-                                    </div>
-                                    <div class="error-text">This field is required</div>
-                                </div>
-                                
-                                <div>
-                                    <div class="input-field">
-                                        <i class="fa-solid fa-lock icon-left"></i>
-                                        <input type="password" name="confirm_password" id="confirm_password" autocomplete="new-password" placeholder="Confirm Password *" required="required" />
-                                        <i class="fa-regular fa-eye toggle-password" onclick="togglePassword(this, 'confirm_password')"></i>
-                                    </div>
-                                    <div class="error-text">This field is required</div>
-                                </div>
-                                
+
+                                <!-- Full Name -->
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-regular fa-user icon-left"></i>
-                                        <input type="text" name="name" id="full_name" autocomplete="name" placeholder="Full Name *" t-att-value="name" required="required" />
+                                        <input type="text" name="name" id="full_name" autocomplete="name"
+                                               placeholder="Full Name *" t-att-value="name" required="required"/>
                                     </div>
-                                    <div class="error-text">This field is required</div>
+                                    <div class="error-text" id="name-error"></div>
                                 </div>
-                                
+
+                                <!-- Country (Select2 searchable) -->
                                 <div>
                                     <div class="input-field">
-                                        <t t-set="countries" t-value="request.env['res.country'].sudo().search([])"/>
-                                        <i class="fa-solid fa-globe icon-left"></i>
-                                        <select name="country_id" id="country_id" required="required" style="height: 46px; width: 100%; outline: none; border: 1px solid #e1e5ea; padding: 0 45px 0 45px; font-size: 14px; font-weight: 400; color: #333; border-radius: 8px; background: #fafbfc; transition: all 0.3s ease; -webkit-appearance: none; -moz-appearance: none; appearance: none; cursor: pointer;">
-                                            <option value="" disabled="disabled" selected="selected">Select Country *</option>
+                                        <i class="fa-solid fa-globe icon-left" style="z-index:10;"></i>
+                                        <select name="country_id" id="country_id" required="required" style="display:none;">
+                                            <option value="">Select Country *</option>
                                             <t t-if="countries">
                                                 <t t-foreach="countries" t-as="country">
-                                                    <option t-att-value="country.id"><t t-esc="country.name"/></option>
+                                                    <option t-att-value="country.id"
+                                                            t-att-data-code="country.phone_code"
+                                                            t-att-data-flag="country.code.lower() if country.code else ''"
+                                                    ><t t-esc="country.name"/></option>
                                                 </t>
                                             </t>
                                         </select>
-                                        <i class="fa-solid fa-caret-down" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #999; font-size: 16px; cursor: pointer; transition: color 0.3s;"></i>
                                     </div>
-                                    <div class="error-text">This field is required</div>
+                                    <div class="error-text" id="country-error"></div>
                                 </div>
-                                
+
+                                <!-- Phone Number with auto country-code -->
                                 <div>
-                                    <div class="input-field" style="display: flex;">
-                                        <select id="country_code" name="country_code" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); border: none; background: transparent; outline: none; z-index: 10; color: #333; font-size: 14px; width: 85px; cursor: pointer; -webkit-appearance: none; -moz-appearance: none; appearance: none;">
+                                    <div class="phone-row" id="phone-row">
+                                        <select id="phone_code_select" name="country_code" class="phone-code-select">
                                             <option value="+263">🇿🇼 +263</option>
                                             <option value="+27">🇿🇦 +27</option>
                                             <option value="+260">🇿🇲 +260</option>
                                             <option value="+267">🇧🇼 +267</option>
                                             <option value="+265">🇲🇼 +265</option>
                                             <option value="+258">🇲🇿 +258</option>
+                                            <option value="+254">🇰🇪 +254</option>
+                                            <option value="+255">🇹🇿 +255</option>
+                                            <option value="+256">🇺🇬 +256</option>
+                                            <option value="+251">🇪🇹 +251</option>
+                                            <option value="+234">🇳🇬 +234</option>
+                                            <option value="+233">🇬🇭 +233</option>
+                                            <option value="+213">🇩🇿 +213</option>
+                                            <option value="+20">🇪🇬 +20</option>
+                                            <option value="+212">🇲🇦 +212</option>
+                                            <option value="+216">🇹🇳 +216</option>
+                                            <option value="+249">🇸🇩 +249</option>
+                                            <option value="+243">🇨🇩 +243</option>
+                                            <option value="+237">🇨🇲 +237</option>
+                                            <option value="+225">🇨🇮 +225</option>
+                                            <option value="+221">🇸🇳 +221</option>
                                             <option value="+44">🇬🇧 +44</option>
                                             <option value="+1">🇺🇸 +1</option>
+                                            <option value="+91">🇮🇳 +91</option>
+                                            <option value="+86">🇨🇳 +86</option>
+                                            <option value="+971">🇦🇪 +971</option>
+                                            <option value="+966">🇸🇦 +966</option>
+                                            <option value="+61">🇦🇺 +61</option>
+                                            <option value="+49">🇩🇪 +49</option>
+                                            <option value="+33">🇫🇷 +33</option>
                                         </select>
-                                        <i class="fa-solid fa-caret-down" style="position: absolute; left: 88px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #666; pointer-events: none; z-index: 10;"></i>
-                                        <input type="text" name="phone_number" id="phone_number" placeholder="Phone Number *" required="required" style="padding-left: 110px;" />
+                                        <div class="phone-divider"></div>
+                                        <input type="text" name="phone_number" id="phone_number"
+                                               class="phone-number-input" placeholder="Phone number *"
+                                               required="required" inputmode="tel"/>
                                     </div>
-                                    <div class="error-text">This field is required</div>
+                                    <div class="error-text" id="phone-error"></div>
                                 </div>
-                                
+
+                                <!-- Password -->
+                                <div>
+                                    <div class="input-field">
+                                        <i class="fa-solid fa-lock icon-left"></i>
+                                        <input type="password" name="password" id="password" autocomplete="new-password"
+                                               placeholder="Password *" required="required"/>
+                                        <i class="fa-regular fa-eye toggle-password" onclick="togglePassword(this, 'password')"></i>
+                                    </div>
+                                    <!-- Live password rule checklist -->
+                                    <div class="pw-rules" id="pw-rules">
+                                        <div class="pw-rule" id="rule-length">
+                                            <span class="rule-icon"><i class="fa fa-check"></i></span>At least 8 characters
+                                        </div>
+                                        <div class="pw-rule" id="rule-upper">
+                                            <span class="rule-icon"><i class="fa fa-check"></i></span>One uppercase letter (A–Z)
+                                        </div>
+                                        <div class="pw-rule" id="rule-lower">
+                                            <span class="rule-icon"><i class="fa fa-check"></i></span>One lowercase letter (a–z)
+                                        </div>
+                                        <div class="pw-rule" id="rule-number">
+                                            <span class="rule-icon"><i class="fa fa-check"></i></span>One number (0–9)
+                                        </div>
+                                        <div class="pw-rule" id="rule-special">
+                                            <span class="rule-icon"><i class="fa fa-check"></i></span>One special character (!@#$%^&amp;*)
+                                        </div>
+                                    </div>
+                                    <div class="error-text" id="pw-error"></div>
+                                </div>
+
+                                <!-- Confirm Password -->
+                                <div>
+                                    <div class="input-field">
+                                        <i class="fa-solid fa-lock icon-left"></i>
+                                        <input type="password" name="confirm_password" id="confirm_password" autocomplete="new-password"
+                                               placeholder="Confirm Password *" required="required"/>
+                                        <i class="fa-regular fa-eye toggle-password" onclick="togglePassword(this, 'confirm_password')"></i>
+                                    </div>
+                                    <div class="error-text" id="confirm-pw-error"></div>
+                                </div>
+
                                 <button type="submit" class="btn-submit" style="margin-top: 5px;">
                                     <span class="btn-text">Create Account</span>
                                 </button>
-                                
-                                <div style="text-align: center; margin-top: 15px; font-size: 13px;">
+
+                                <div style="text-align: center; margin-top: 12px; font-size: 13px;">
                                     <span style="color: #666;">Already have an account? <strong onclick="toggleForms('login')" style="color: #0278F3; cursor: pointer;">Log In</strong></span>
                                 </div>
                             </div>
                         </form>
                     </div>
 
-                    <script>
-                        function validateInputs(containerId) {
-                            var container = document.getElementById(containerId);
-                            var inputs = container.querySelectorAll('input[required="required"]');
-                            var isValid = true;
-                            inputs.forEach(function(input) {
-                                var errorSpan = input.parentNode.nextElementSibling;
-                                if (!input.value.trim()) {
-                                    input.classList.add('input-error');
-                                    if (errorSpan &amp;&amp; errorSpan.classList.contains('error-text')) {
-                                        errorSpan.innerText = 'This field is required';
-                                        errorSpan.style.display = 'block';
-                                    }
-                                    isValid = false;
-                                } else {
-                                    input.classList.remove('input-error');
-                                    if (errorSpan &amp;&amp; errorSpan.classList.contains('error-text')) {
-                                        errorSpan.style.display = 'none';
-                                    }
-                                }
-                            });
-                            return isValid;
-                        }
-                        
-                        function showCustomError(inputEl, msg) {
-                            inputEl.classList.add('input-error');
-                            var errorSpan = inputEl.parentNode.nextElementSibling;
-                            if (errorSpan &amp;&amp; errorSpan.classList.contains('error-text')) {
-                                errorSpan.innerText = msg;
-                                errorSpan.style.display = 'block';
-                            }
-                        }
-
-                        function validateSignupForm(event, form) {
-                            if(!validateInputs('signup-form-fields')) {
-                                event.preventDefault();
-                                return false;
-                            }
-                            
-                            let isValid = true;
-                            
-                            // Name Validation
-                            const nameInput = document.getElementById('full_name');
-                            if (nameInput &amp;&amp; !/^[A-Za-z\s]+$/.test(nameInput.value)) {
-                                showCustomError(nameInput, "Full Name can only contain letters and spaces.");
-                                isValid = false;
-                            }
-                            
-                            // Strict Email Validation
-                            const emailInput = document.getElementById('email');
-                            if (emailInput) {
-                                const emailVal = emailInput.value;
-                                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                                if (emailVal.length &gt; 254) {
-                                    showCustomError(emailInput, "Email is too long.");
-                                    isValid = false;
-                                } else if (!emailRegex.test(emailVal)) {
-                                    showCustomError(emailInput, "Please enter a valid email address (e.g. name@domain.com).");
-                                    isValid = false;
-                                } else {
-                                    const domain = emailVal.split('@')[1];
-                                    const tld = domain.split('.').pop();
-                                    if (tld.length &lt; 2) {
-                                        showCustomError(emailInput, "Top-level domain must be at least 2 letters.");
-                                        isValid = false;
-                                    }
-                                }
-                            }
-                            
-                            // Password Validation
-                            const pwInput = document.getElementById('password');
-                            if (pwInput &amp;&amp; !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&amp;*()_+\-=\[\]{};':"\\|,.&lt;&gt;\/?]).{8,}$/.test(pwInput.value)) {
-                                showCustomError(pwInput, "Password must be 8+ chars, with 1 uppercase, 1 number, 1 special char.");
-                                isValid = false;
-                            }
-                            
-                            if (!isValid) {
-                                event.preventDefault();
-                                return false;
-                            }
-                            
-                            showSpinner(form);
-                            return true;
-                        }
-                        
-                        function validateLoginForm(event, form) {
-                            if(!validateInputs('login-form-fields')) {
-                                event.preventDefault();
-                                return false;
-                            }
-                            showSpinner(form);
-                            return true;
-                        }
-                        
-                        function validateResetForm(event, form) {
-                            var containerId = document.getElementById('reset-form-fields') ? 'reset-form-fields' : 'new-password-fields';
-                            if(!validateInputs(containerId)) {
-                                event.preventDefault();
-                                return false;
-                            }
-                            showSpinner(form);
-                            return true;
-                        }
-                    </script>
-
-
-
-                    <script>
-                        function togglePassword(icon, inputId) {
-                            var input = document.getElementById(inputId);
-                            if (input.type === "password") {
-                                input.type = "text";
-                                icon.classList.remove('fa-eye');
-                                icon.classList.add('fa-eye-slash');
-                            } else {
-                                input.type = "password";
-                                icon.classList.remove('fa-eye-slash');
-                                icon.classList.add('fa-eye');
-                            }
-                        }
-
-                        document.addEventListener('DOMContentLoaded', function() {
-                            var phoneInput = document.getElementById('phone_number');
-                            var countryCode = document.getElementById('country_code');
-                            
-                            if (phoneInput &amp;&amp; countryCode) {
-                                phoneInput.addEventListener('input', function(e) {
-                                    if (countryCode.value === '+263') {
-                                        var val = this.value.replace(/\D/g, '');
-                                        if (val.length &gt; 9) val = val.substring(0, 9);
-                                        var formatted = '';
-                                        if (val.length &gt; 0) formatted += val.substring(0, 2);
-                                        if (val.length &gt; 2) formatted += ' ' + val.substring(2, 5);
-                                        if (val.length &gt; 5) formatted += ' ' + val.substring(5, 9);
-                                        this.value = formatted;
-                                    }
-                                });
-                                countryCode.addEventListener('change', function() {
-                                    phoneInput.dispatchEvent(new Event('input'));
-                                });
-                            }
-                        });
-                    </script>
-
-                    <!-- Login Form -->
+                    <!-- ─── Login Form ───────────────────────────────────── -->
                     <div t-attf-class="form-container form login {{ 'active' if active_form == 'login' and request.httprequest.path != '/web/reset_password' else '' }}" id="login-form">
-                        <!-- Support Details -->
-                        <div class="support-details" style="margin-bottom: 25px; padding: 20px;">
+                        <div class="support-details" style="margin-bottom: 20px; padding: 16px;">
                             <div class="support-title">Our support team is ready to help.</div>
                             <div class="support-subtitle">Reach out to us anytime.</div>
-                            
                             <div class="support-list">
                                 <t t-if="whatsapp_phone">
-                                    <div class="support-item" style="justify-content: flex-start;"><i class="fab fa-whatsapp" style="color: #25D366; font-size: 18px;"></i> WhatsApp: <t t-esc="whatsapp_phone"/></div>
+                                    <div class="support-item" style="justify-content: flex-start;">
+                                        <i class="fab fa-whatsapp" style="color: #25D366; font-size: 18px; margin-right:10px;"></i> WhatsApp: <t t-esc="whatsapp_phone"/>
+                                    </div>
                                 </t>
                             </div>
                         </div>
@@ -353,37 +306,50 @@
                         <form action="/web/login" method="post" onsubmit="return validateLoginForm(event, this)" novalidate="novalidate">
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                             <input type="hidden" name="redirect" t-att-value="redirect"/>
-                            
+
                             <t t-if="error and active_form == 'login'">
-                                <div class="alert alert-danger" role="alert"><t t-esc="error"/></div>
+                                <div class="alert alert-danger" role="alert">
+                                    <i class="fa fa-exclamation-circle" style="margin-right:6px;"></i>
+                                    <!-- Translate common Odoo error messages into friendly ones -->
+                                    <t t-if="'Wrong login/password' in (error or '') or 'wrong login' in (error or '').lower()">
+                                        Incorrect email or password. Please try again.
+                                    </t>
+                                    <t t-elif="'not confirmed' in (error or '').lower() or 'not active' in (error or '').lower()">
+                                        Your account is not yet activated. Please check your email for a verification link.
+                                    </t>
+                                    <t t-else="">
+                                        <t t-esc="error"/>
+                                    </t>
+                                </div>
                             </t>
                             <t t-if="message and active_form == 'login'">
                                 <div class="alert alert-success" role="alert"><t t-esc="message"/></div>
                             </t>
 
-                            <div id="login-form-fields" style="display: flex; flex-direction: column; gap: 16px;">
+                            <div id="login-form-fields" style="display: flex; flex-direction: column; gap: 14px;">
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-regular fa-envelope icon-left"></i>
-                                        <input type="text" name="login" placeholder="Email address" t-att-value="login" required="required" />
+                                        <input type="text" name="login" id="login_email" placeholder="Email address"
+                                               autocomplete="username" t-att-value="login" required="required"/>
                                     </div>
-                                    <div class="error-text">This field is required</div>
+                                    <div class="error-text" id="login-email-error"></div>
                                 </div>
-                                
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-solid fa-lock icon-left"></i>
-                                        <input type="password" name="password" id="login_password" placeholder="Password" required="required" />
+                                        <input type="password" name="password" id="login_password" placeholder="Password"
+                                               autocomplete="current-password" required="required"/>
                                         <i class="fa-regular fa-eye toggle-password" onclick="togglePassword(this, 'login_password')"></i>
                                     </div>
-                                    <div class="error-text">This field is required</div>
+                                    <div class="error-text" id="login-pw-error"></div>
                                 </div>
                             </div>
-                            
+
                             <button type="submit" class="btn-submit" style="margin-top: 10px;">
                                 <span class="btn-text">Login</span>
                             </button>
-                            
+
                             <div style="display: flex; justify-content: space-between; margin-top: 15px; font-size: 13px;">
                                 <span style="color: #666;">New to Havano? <strong onclick="toggleForms('signup')" style="color: #0278F3; cursor: pointer;">Sign up</strong></span>
                                 <span onclick="toggleForms('reset')" style="color: #0278F3; cursor: pointer; font-weight: 500;">Forgot Password?</span>
@@ -391,7 +357,7 @@
                         </form>
                     </div>
 
-                    <!-- Reset Password Form -->
+                    <!-- ─── Reset Password Form ──────────────────────────── -->
                     <div t-attf-class="form-container form reset {{ 'active' if active_form == 'reset_password' else '' }}" id="reset-form">
                         <t t-if="not token">
                             <header>Reset Password</header>
@@ -405,12 +371,12 @@
                             <header>Invalid Link</header>
                             <div class="sub-header">This password reset link is invalid or expired.</div>
                         </t>
-                        
+
                         <form action="/web/reset_password" method="post" id="reset-password-form" onsubmit="return validateResetForm(event, this)" novalidate="novalidate">
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                             <input type="hidden" name="redirect" t-att-value="redirect or '/web/login'"/>
                             <input type="hidden" name="token" t-att-value="token"/>
-                            
+
                             <t t-if="error and active_form == 'reset_password'">
                                 <div class="alert alert-danger" role="alert"><t t-esc="error"/></div>
                             </t>
@@ -420,13 +386,13 @@
                                     <br/><small style="color:#15803d;">Redirecting to login...</small>
                                 </div>
                             </t>
-                            
+
                             <t t-if="not token">
-                                <div id="reset-form-fields" style="display: flex; flex-direction: column; gap: 16px;">
+                                <div id="reset-form-fields" style="display: flex; flex-direction: column; gap: 14px;">
                                     <div>
                                         <div class="input-field">
                                             <i class="fa-regular fa-envelope icon-left"></i>
-                                            <input type="text" name="login" placeholder="Email address" t-att-value="login" required="required" />
+                                            <input type="text" name="login" placeholder="Email address" t-att-value="login" required="required"/>
                                         </div>
                                         <div class="error-text">This field is required</div>
                                     </div>
@@ -435,13 +401,13 @@
                                     <span class="btn-text">Send Reset Link</span>
                                 </button>
                             </t>
-                            
+
                             <t t-if="token and not invalid_token">
-                                <div id="new-password-fields" style="display: flex; flex-direction: column; gap: 16px;">
+                                <div id="new-password-fields" style="display: flex; flex-direction: column; gap: 14px;">
                                     <div>
                                         <div class="input-field">
                                             <i class="fa-solid fa-lock icon-left"></i>
-                                            <input type="password" name="password" id="reset_password" placeholder="New Password" required="required" />
+                                            <input type="password" name="password" id="reset_password" placeholder="New Password" required="required"/>
                                             <i class="fa-regular fa-eye toggle-password" onclick="togglePassword(this, 'reset_password')"></i>
                                         </div>
                                         <div class="error-text">This field is required</div>
@@ -449,7 +415,7 @@
                                     <div>
                                         <div class="input-field">
                                             <i class="fa-solid fa-lock icon-left"></i>
-                                            <input type="password" name="confirm_password" id="reset_confirm_password" placeholder="Confirm Password" required="required" />
+                                            <input type="password" name="confirm_password" id="reset_confirm_password" placeholder="Confirm Password" required="required"/>
                                             <i class="fa-regular fa-eye toggle-password" onclick="togglePassword(this, 'reset_confirm_password')"></i>
                                         </div>
                                         <div class="error-text">This field is required</div>
@@ -460,55 +426,459 @@
                                 </button>
                             </t>
                         </form>
-                        
+
                         <div class="sub-header" style="margin-top: 20px;">Remembered it? <span onclick="toggleForms('login')">Back to Login</span></div>
                     </div>
-                    
-                    <script>
-                        // Auto-redirect to login after successful password reset
-                        (function() {
-                            var successMsg = document.getElementById('reset-success-msg');
-                            if (successMsg) {
-                                setTimeout(function() {
-                                    window.location.href = '/web/login';
-                                }, 2000);
-                            }
-                        })();
-                    </script>
 
+                    <!-- ─── Scripts ──────────────────────────────────────── -->
                     <script>
-                        function toggleForms(target) {
-                            document.getElementById('signup-form').classList.remove('active');
-                            document.getElementById('login-form').classList.remove('active');
-                            document.getElementById('reset-form').classList.remove('active');
-                            
-                            if(target === 'login') {
-                                document.getElementById('login-form').classList.add('active');
-                                window.history.pushState({}, '', '/web/login');
-                            } else if(target === 'reset') {
-                                document.getElementById('reset-form').classList.add('active');
-                                window.history.pushState({}, '', '/web/reset_password');
-                            } else {
-                                document.getElementById('signup-form').classList.add('active');
-                                window.history.pushState({}, '', '/web/signup');
+                    // ──────────────────────────────────────────────────────
+                    // Country phone-code map (ISO2 -> dial code + flag)
+                    // ──────────────────────────────────────────────────────
+                    const COUNTRY_PHONE_MAP = {
+                        'ZW': { code: '+263', flag: '🇿🇼' }, 'ZA': { code: '+27',  flag: '🇿🇦' },
+                        'ZM': { code: '+260', flag: '🇿🇲' }, 'BW': { code: '+267', flag: '🇧🇼' },
+                        'MW': { code: '+265', flag: '🇲🇼' }, 'MZ': { code: '+258', flag: '🇲🇿' },
+                        'KE': { code: '+254', flag: '🇰🇪' }, 'TZ': { code: '+255', flag: '🇹🇿' },
+                        'UG': { code: '+256', flag: '🇺🇬' }, 'ET': { code: '+251', flag: '🇪🇹' },
+                        'NG': { code: '+234', flag: '🇳🇬' }, 'GH': { code: '+233', flag: '🇬🇭' },
+                        'DZ': { code: '+213', flag: '🇩🇿' }, 'EG': { code: '+20',  flag: '🇪🇬' },
+                        'MA': { code: '+212', flag: '🇲🇦' }, 'TN': { code: '+216', flag: '🇹🇳' },
+                        'SD': { code: '+249', flag: '🇸🇩' }, 'CD': { code: '+243', flag: '🇨🇩' },
+                        'CM': { code: '+237', flag: '🇨🇲' }, 'CI': { code: '+225', flag: '🇨🇮' },
+                        'SN': { code: '+221', flag: '🇸🇳' }, 'GB': { code: '+44',  flag: '🇬🇧' },
+                        'US': { code: '+1',   flag: '🇺🇸' }, 'IN': { code: '+91',  flag: '🇮🇳' },
+                        'CN': { code: '+86',  flag: '🇨🇳' }, 'AE': { code: '+971', flag: '🇦🇪' },
+                        'SA': { code: '+966', flag: '🇸🇦' }, 'AU': { code: '+61',  flag: '🇦🇺' },
+                        'DE': { code: '+49',  flag: '🇩🇪' }, 'FR': { code: '+33',  flag: '🇫🇷' },
+                        'JP': { code: '+81',  flag: '🇯🇵' }, 'BR': { code: '+55',  flag: '🇧🇷' },
+                        'MX': { code: '+52',  flag: '🇲🇽' }, 'RU': { code: '+7',   flag: '🇷🇺' },
+                        'ZZ': { code: '',     flag: '🌍' } // fallback
+                    };
+
+                    // ──────────────────────────────────────────────────────
+                    // Utility helpers
+                    // ──────────────────────────────────────────────────────
+                    function showError(elOrId, msg) {
+                        const errEl = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+                        if (!errEl) return;
+                        errEl.textContent = msg;
+                        errEl.style.display = msg ? 'block' : 'none';
+                    }
+                    function clearError(elOrId) { showError(elOrId, ''); }
+
+                    function setInputState(inputEl, hasError) {
+                        if (!inputEl) return;
+                        if (hasError) inputEl.classList.add('input-error');
+                        else inputEl.classList.remove('input-error');
+                    }
+
+                    // ──────────────────────────────────────────────────────
+                    // Toggle password visibility
+                    // ──────────────────────────────────────────────────────
+                    function togglePassword(icon, inputId) {
+                        const input = document.getElementById(inputId);
+                        if (!input) return;
+                        if (input.type === 'password') {
+                            input.type = 'text';
+                            icon.classList.replace('fa-eye', 'fa-eye-slash');
+                        } else {
+                            input.type = 'password';
+                            icon.classList.replace('fa-eye-slash', 'fa-eye');
+                        }
+                    }
+
+                    // ──────────────────────────────────────────────────────
+                    // Form toggle (login / signup / reset)
+                    // ──────────────────────────────────────────────────────
+                    function toggleForms(target) {
+                        ['signup-form','login-form','reset-form'].forEach(id => {
+                            document.getElementById(id).classList.remove('active');
+                        });
+                        const map = { login: 'login-form', signup: 'signup-form', reset: 'reset-form' };
+                        const pathMap = { login: '/web/login', signup: '/web/signup', reset: '/web/reset_password' };
+                        document.getElementById(map[target]).classList.add('active');
+                        window.history.pushState({}, '', pathMap[target]);
+                    }
+
+                    // ──────────────────────────────────────────────────────
+                    // Spinner on submit
+                    // ──────────────────────────────────────────────────────
+                    function showSpinner(form) {
+                        const btn = form.querySelector('.btn-submit');
+                        if (!btn) return;
+                        const textSpan = btn.querySelector('.btn-text');
+                        btn.style.pointerEvents = 'none';
+                        btn.style.opacity = '0.9';
+                        textSpan.innerHTML = '&lt;i class="fa fa-spinner fa-spin" style="margin-right:8px;"&gt;&lt;/i&gt;' + textSpan.innerText;
+                    }
+
+                    // ──────────────────────────────────────────────────────
+                    // Auto-redirect after password reset success
+                    // ──────────────────────────────────────────────────────
+                    (function() {
+                        const successMsg = document.getElementById('reset-success-msg');
+                        if (successMsg) setTimeout(() => { window.location.href = '/web/login'; }, 2000);
+                    })();
+
+                    // ──────────────────────────────────────────────────────
+                    // Live password rule checker
+                    // ──────────────────────────────────────────────────────
+                    const PW_RULES = [
+                        { id: 'rule-length',  test: v => v.length >= 8 },
+                        { id: 'rule-upper',   test: v => /[A-Z]/.test(v) },
+                        { id: 'rule-lower',   test: v => /[a-z]/.test(v) },
+                        { id: 'rule-number',  test: v => /\d/.test(v) },
+                        { id: 'rule-special', test: v => /[!@#$%^&amp;*()\-_=+\[\]{};':"\\|,.&lt;&gt;\/?`~]/.test(v) },
+                    ];
+
+                    function checkPasswordRules(val) {
+                        return PW_RULES.every(r => {
+                            const el = document.getElementById(r.id);
+                            const passes = r.test(val);
+                            if (el) el.classList.toggle('ok', passes);
+                            return passes;
+                        });
+                    }
+
+                    function isValidPassword(val) {
+                        return PW_RULES.every(r => r.test(val));
+                    }
+
+                    // ──────────────────────────────────────────────────────
+                    // DOMContentLoaded — wire up all live validators
+                    // ──────────────────────────────────────────────────────
+                    document.addEventListener('DOMContentLoaded', function () {
+
+                        // ── Select2 for country dropdown ──────────────────
+                        const $countrySelect = $('#country_id');
+                        if ($countrySelect.length) {
+                            $countrySelect.select2({
+                                placeholder: 'Select Country *',
+                                allowClear: false,
+                                width: '100%',
+                                dropdownParent: $('section.wrapper')
+                            });
+
+                            // Sync phone code when country changes
+                            $countrySelect.on('change', function () {
+                                const selected = this.options[this.selectedIndex];
+                                const flagAttr = selected ? selected.getAttribute('data-flag') : '';
+                                const codeAttr = selected ? selected.getAttribute('data-code') : '';
+
+                                if (flagAttr &amp;&amp; COUNTRY_PHONE_MAP[flagAttr.toUpperCase()]) {
+                                    const info = COUNTRY_PHONE_MAP[flagAttr.toUpperCase()];
+                                    syncPhoneCode(info.code, info.flag);
+                                } else if (codeAttr) {
+                                    // fallback: match by dial code
+                                    syncPhoneCode('+' + codeAttr, '');
+                                }
+                                clearError('country-error');
+                                $countrySelect[0].classList.remove('input-error');
+                            });
+                        }
+
+                        function syncPhoneCode(dialCode, flag) {
+                            const codeSelect = document.getElementById('phone_code_select');
+                            if (!codeSelect || !dialCode) return;
+                            for (let opt of codeSelect.options) {
+                                if (opt.value === dialCode) { opt.selected = true; return; }
                             }
+                            // code not in list — add it temporarily
+                            const newOpt = new Option((flag ? flag + ' ' : '') + dialCode, dialCode, true, true);
+                            codeSelect.prepend(newOpt);
                         }
-                        
-                        function showSpinner(form) {
-                            const btn = form.querySelector('.btn-submit');
-                            const textSpan = btn.querySelector('.btn-text');
-                            const originalText = textSpan.innerText;
-                            
-                            // Prevent multiple clicks
-                            btn.style.pointerEvents = 'none';
-                            btn.style.opacity = '0.9';
-                            
-                            // Add spinner icon
-                            textSpan.innerHTML = '<i class="fa fa-spinner fa-spin" style="margin-right: 8px;"></i>' + originalText;
-                            
-                            // Form will submit normally after this
-                            return true;
+
+                        // ── Full Name: letters only, live ─────────────────
+                        const nameInput = document.getElementById('full_name');
+                        if (nameInput) {
+                            nameInput.addEventListener('input', function () {
+                                const val = this.value;
+                                if (val &amp;&amp; !/^[A-Za-z\s]+$/.test(val)) {
+                                    setInputState(this, true);
+                                    showError('name-error', 'Full name can only contain letters and spaces.');
+                                } else {
+                                    setInputState(this, false);
+                                    clearError('name-error');
+                                }
+                            });
                         }
+
+                        // ── Password: live rule highlighting ──────────────
+                        const pwInput = document.getElementById('password');
+                        const pwRulesBox = document.getElementById('pw-rules');
+                        if (pwInput &amp;&amp; pwRulesBox) {
+                            pwInput.addEventListener('focus', () => pwRulesBox.classList.add('visible'));
+                            pwInput.addEventListener('input', function () {
+                                checkPasswordRules(this.value);
+                                if (isValidPassword(this.value)) {
+                                    setInputState(this, false);
+                                    clearError('pw-error');
+                                }
+                                // re-check confirm match
+                                const cpInput = document.getElementById('confirm_password');
+                                if (cpInput &amp;&amp; cpInput.value) {
+                                    if (cpInput.value !== this.value) {
+                                        setInputState(cpInput, true);
+                                        showError('confirm-pw-error', 'Passwords do not match.');
+                                    } else {
+                                        setInputState(cpInput, false);
+                                        clearError('confirm-pw-error');
+                                    }
+                                }
+                            });
+                        }
+
+                        // ── Confirm Password: live match check ────────────
+                        const cpInput = document.getElementById('confirm_password');
+                        if (cpInput) {
+                            cpInput.addEventListener('input', function () {
+                                const pw = document.getElementById('password');
+                                if (pw &amp;&amp; this.value &amp;&amp; this.value !== pw.value) {
+                                    setInputState(this, true);
+                                    showError('confirm-pw-error', 'Passwords do not match.');
+                                } else {
+                                    setInputState(this, false);
+                                    clearError('confirm-pw-error');
+                                }
+                            });
+                        }
+
+                        // ── Email: format check on blur only ──────────────
+                        const emailInput = document.getElementById('email');
+                        if (emailInput) {
+                            emailInput.addEventListener('blur', function () {
+                                validateEmailField(this);
+                            });
+                            emailInput.addEventListener('input', function () {
+                                // clear error while typing
+                                if (this.value &amp;&amp; /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(this.value)) {
+                                    setInputState(this, false);
+                                    clearError('email-error');
+                                }
+                            });
+                        }
+
+                        // ── Phone row focus styles ────────────────────────
+                        const phoneRow = document.getElementById('phone-row');
+                        const phoneNumberInput = document.getElementById('phone_number');
+                        if (phoneRow &amp;&amp; phoneNumberInput) {
+                            phoneNumberInput.addEventListener('input', function () {
+                                if (this.value.trim()) {
+                                    phoneRow.classList.remove('input-error');
+                                    clearError('phone-error');
+                                }
+                            });
+                        }
+
+                        // ── Login: basic field checks on blur ─────────────
+                        const loginEmailInput = document.getElementById('login_email');
+                        if (loginEmailInput) {
+                            loginEmailInput.addEventListener('blur', function () {
+                                if (!this.value.trim()) {
+                                    setInputState(this, true);
+                                    showError('login-email-error', 'Please enter your email address.');
+                                } else {
+                                    setInputState(this, false);
+                                    clearError('login-email-error');
+                                }
+                            });
+                        }
+                        const loginPwInput = document.getElementById('login_password');
+                        if (loginPwInput) {
+                            loginPwInput.addEventListener('blur', function () {
+                                if (!this.value.trim()) {
+                                    setInputState(this, true);
+                                    showError('login-pw-error', 'Please enter your password.');
+                                } else {
+                                    setInputState(this, false);
+                                    clearError('login-pw-error');
+                                }
+                            });
+                        }
+                    });
+
+                    // ──────────────────────────────────────────────────────
+                    // Email field validation helper
+                    // ──────────────────────────────────────────────────────
+                    function validateEmailField(input) {
+                        const val = (input.value || '').trim();
+                        if (!val) {
+                            setInputState(input, true);
+                            showError('email-error', 'Email address is required.');
+                            return false;
+                        }
+                        if (val.length > 254) {
+                            setInputState(input, true);
+                            showError('email-error', 'Email address is too long.');
+                            return false;
+                        }
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+                        if (!emailRegex.test(val)) {
+                            setInputState(input, true);
+                            showError('email-error', 'Please enter a valid email (e.g. name@domain.com).');
+                            return false;
+                        }
+                        setInputState(input, false);
+                        clearError('email-error');
+                        return true;
+                    }
+
+                    // ──────────────────────────────────────────────────────
+                    // Signup form: final submit validation
+                    // ──────────────────────────────────────────────────────
+                    function validateSignupForm(event, form) {
+                        let isValid = true;
+
+                        // Email
+                        const emailInput = document.getElementById('email');
+                        if (!validateEmailField(emailInput)) isValid = false;
+
+                        // Shop name
+                        const orgInput = document.getElementById('org_name');
+                        if (!orgInput || !orgInput.value.trim()) {
+                            setInputState(orgInput, true);
+                            showError('org-error', 'Shop / Business name is required.');
+                            isValid = false;
+                        } else {
+                            setInputState(orgInput, false);
+                            clearError('org-error');
+                        }
+
+                        // Full name
+                        const nameInput = document.getElementById('full_name');
+                        if (!nameInput || !nameInput.value.trim()) {
+                            setInputState(nameInput, true);
+                            showError('name-error', 'Full name is required.');
+                            isValid = false;
+                        } else if (!/^[A-Za-z\s]+$/.test(nameInput.value.trim())) {
+                            setInputState(nameInput, true);
+                            showError('name-error', 'Full name can only contain letters and spaces.');
+                            isValid = false;
+                        } else {
+                            setInputState(nameInput, false);
+                            clearError('name-error');
+                        }
+
+                        // Country
+                        const countryEl = document.getElementById('country_id');
+                        if (!countryEl || !countryEl.value) {
+                            const s2El = document.querySelector('.select2-selection');
+                            if (s2El) s2El.classList.add('input-error');
+                            showError('country-error', 'Please select your country.');
+                            isValid = false;
+                        } else {
+                            const s2El = document.querySelector('.select2-selection');
+                            if (s2El) s2El.classList.remove('input-error');
+                            clearError('country-error');
+                        }
+
+                        // Phone
+                        const phoneInput = document.getElementById('phone_number');
+                        const phoneRow = document.getElementById('phone-row');
+                        if (!phoneInput || !phoneInput.value.trim()) {
+                            if (phoneRow) phoneRow.classList.add('input-error');
+                            showError('phone-error', 'Phone number is required.');
+                            isValid = false;
+                        } else {
+                            if (phoneRow) phoneRow.classList.remove('input-error');
+                            clearError('phone-error');
+                        }
+
+                        // Password
+                        const pwInput = document.getElementById('password');
+                        if (!pwInput || !pwInput.value) {
+                            setInputState(pwInput, true);
+                            showError('pw-error', 'Password is required.');
+                            isValid = false;
+                        } else if (!isValidPassword(pwInput.value)) {
+                            setInputState(pwInput, true);
+                            showError('pw-error', 'Password does not meet all requirements above.');
+                            isValid = false;
+                        } else {
+                            setInputState(pwInput, false);
+                            clearError('pw-error');
+                        }
+
+                        // Confirm password
+                        const cpInput = document.getElementById('confirm_password');
+                        if (!cpInput || !cpInput.value) {
+                            setInputState(cpInput, true);
+                            showError('confirm-pw-error', 'Please confirm your password.');
+                            isValid = false;
+                        } else if (cpInput.value !== (pwInput ? pwInput.value : '')) {
+                            setInputState(cpInput, true);
+                            showError('confirm-pw-error', 'Passwords do not match.');
+                            isValid = false;
+                        } else {
+                            setInputState(cpInput, false);
+                            clearError('confirm-pw-error');
+                        }
+
+                        if (!isValid) {
+                            event.preventDefault();
+                            // Scroll to first error
+                            const firstErr = form.querySelector('.input-error');
+                            if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            return false;
+                        }
+
+                        showSpinner(form);
+                        return true;
+                    }
+
+                    // ──────────────────────────────────────────────────────
+                    // Login form validation
+                    // ──────────────────────────────────────────────────────
+                    function validateLoginForm(event, form) {
+                        let isValid = true;
+                        const loginEmailInput = document.getElementById('login_email');
+                        const loginPwInput = document.getElementById('login_password');
+
+                        if (!loginEmailInput || !loginEmailInput.value.trim()) {
+                            setInputState(loginEmailInput, true);
+                            showError('login-email-error', 'Please enter your email address.');
+                            isValid = false;
+                        } else {
+                            setInputState(loginEmailInput, false);
+                            clearError('login-email-error');
+                        }
+
+                        if (!loginPwInput || !loginPwInput.value.trim()) {
+                            setInputState(loginPwInput, true);
+                            showError('login-pw-error', 'Please enter your password.');
+                            isValid = false;
+                        } else {
+                            setInputState(loginPwInput, false);
+                            clearError('login-pw-error');
+                        }
+
+                        if (!isValid) { event.preventDefault(); return false; }
+                        showSpinner(form);
+                        return true;
+                    }
+
+                    // ──────────────────────────────────────────────────────
+                    // Reset password form validation
+                    // ──────────────────────────────────────────────────────
+                    function validateResetForm(event, form) {
+                        const inputs = form.querySelectorAll('input[required]');
+                        let isValid = true;
+                        inputs.forEach(input => {
+                            if (!input.value.trim()) {
+                                setInputState(input, true);
+                                const errEl = input.closest('div').nextElementSibling;
+                                if (errEl &amp;&amp; errEl.classList.contains('error-text')) {
+                                    errEl.textContent = 'This field is required';
+                                    errEl.style.display = 'block';
+                                }
+                                isValid = false;
+                            }
+                        });
+                        if (!isValid) { event.preventDefault(); return false; }
+                        showSpinner(form);
+                        return true;
+                    }
                     </script>
                 </section>
             </body>
@@ -521,6 +891,3 @@
         </xpath>
     </template>
 </odoo>
-
-
-
