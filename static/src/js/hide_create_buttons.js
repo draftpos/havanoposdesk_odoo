@@ -24,10 +24,17 @@ patch(BooleanToggleField.prototype, {
 });
 
 // ─── Custom Access Denied Dialog ──────────────────────────────────────────────
-function showAccessDeniedDialog(featureName) {
-    const readableMsg = featureName
-        ? `You don't have permission to open <strong>${featureName}</strong> records.<br>Please contact your administrator if you need access.`
-        : `You don't have permission to view this record.<br>Please contact your administrator if you need access.`;
+function showAccessDeniedDialog(featureName, action = 'view') {
+    let readableMsg;
+    if (action === 'create') {
+        readableMsg = featureName
+            ? `You have <strong>Read-Only</strong> access to <strong>${featureName}</strong>.<br>You cannot create new records here.<br><br>Please contact your administrator if you need full access.`
+            : `You don't have permission to create records here.<br>Please contact your administrator if you need access.`;
+    } else {
+        readableMsg = featureName
+            ? `You don't have permission to open <strong>${featureName}</strong> records.<br>Please contact your administrator if you need access.`
+            : `You don't have permission to view this record.<br>Please contact your administrator if you need access.`;
+    }
 
     document.querySelectorAll('.havano-access-overlay').forEach(el => el.remove());
 
@@ -116,10 +123,24 @@ patch(ListController.prototype, {
             const label = parts[parts.length - 1]
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, c => c.toUpperCase());
-            showAccessDeniedDialog(label);
+            showAccessDeniedDialog(label, 'view');
             return; // Block the form view from opening
         }
         return super.openRecord(record, { force, newWindow });
+    },
+
+    // Fallback: intercept createRecord if JS button hide fails
+    async createRecord() {
+        if (!this.__havanoAccess.canCreate) {
+            const modelLabel = this.props.resModel || '';
+            const parts = modelLabel.split('.');
+            const label = parts[parts.length - 1]
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
+            showAccessDeniedDialog(label, 'create');
+            return;
+        }
+        return super.createRecord();
     }
 });
 
@@ -158,9 +179,23 @@ patch(KanbanController.prototype, {
             const label = parts[parts.length - 1]
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, c => c.toUpperCase());
-            showAccessDeniedDialog(label);
+            showAccessDeniedDialog(label, 'view');
             return;
         }
         return super.openRecord(record, { newWindow });
+    },
+
+    // Fallback: intercept createRecord if JS button hide fails
+    async createRecord() {
+        if (!this.__havanoAccess.canCreate) {
+            const modelLabel = this.props.resModel || '';
+            const parts = modelLabel.split('.');
+            const label = parts[parts.length - 1]
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
+            showAccessDeniedDialog(label, 'create');
+            return;
+        }
+        return super.createRecord();
     }
 });

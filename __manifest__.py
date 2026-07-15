@@ -84,6 +84,7 @@
         'web.assets_backend': [
             'havanoposdesk_odoo/static/src/scss/backend_overrides.scss',
             'havanoposdesk_odoo/static/src/js/hide_create_buttons.js',
+            'havanoposdesk_odoo/static/src/js/access_error_handler.js',
             'havanoposdesk_odoo/static/src/js/lottie-player.js',
             'havanoposdesk_odoo/static/src/xml/loading_indicator.xml',
             'havanoposdesk_odoo/static/src/xml/nocontent_helpers.xml',
