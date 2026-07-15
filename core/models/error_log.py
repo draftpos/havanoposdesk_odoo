@@ -46,6 +46,7 @@ class HavanoErrorIssue(models.Model):
     stored_event_count = fields.Integer(string='Stored Events')
     is_resolved = fields.Boolean(string='Resolved')
     transaction = fields.Char(string='Transaction')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', index=True)
 
     # ── Rich metadata extracted from events ──────────────────────────────────
     site = fields.Char(string='Site')
@@ -258,6 +259,7 @@ class HavanoErrorEvent(models.Model):
     issue_id = fields.Many2one('havano.error.issue', string='Issue', ondelete='cascade')
     timestamp = fields.Datetime(string='Timestamp')
     stacktrace_md = fields.Text(string='Stacktrace')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', index=True)
 
     # ── Rich tag metadata ────────────────────────────────────────────────────
     site = fields.Char(string='Site')
