@@ -510,7 +510,7 @@ class HavanoPOSDeskAPI(http.Controller):
             cat = request.env['havanoposdesk.category'].sudo().create({
                 'name': data.get('name'),
                 'tenant_id': tenant_id,
-                'store_ids': [(6, 0, [store.id])] if store else [],
+                'store_ids': [(6, 0, [store.id])],
             })
             return request.make_response(json.dumps({'id': cat.id, 'name': cat.name, 'tenant_id': cat.tenant_id.id, 'store_id': cat.store_ids[0].id if cat.store_ids else None}), headers=[('Content-Type', 'application/json')], status=201)
 
@@ -892,7 +892,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
             vals = {
                 'name': name,
-                'store_id': store.id,
+                'store_ids': [(4, store.id)],
                 'tenant_id': tenant.id if tenant else False,
             }
             if 'customer_type' in request.env['havanoposdesk.customer']._fields:
@@ -927,7 +927,7 @@ class HavanoPOSDeskAPI(http.Controller):
         # Filter customers by store only (store already scopes to tenant)
         # This matches the login endpoint behaviour which returns customers correctly
         if store:
-            domain = [('store_id', '=', store.id)]
+            domain = [('store_ids', 'in', [store.id])]
         elif tenant:
             domain = [('tenant_id', '=', tenant.id)]
         else:
@@ -1133,7 +1133,7 @@ class HavanoPOSDeskAPI(http.Controller):
             
         customer = request.env['havanoposdesk.customer'].sudo().search([
             ('name', '=', customer_name),
-            ('store_id', '=', store.id)
+            ('store_ids', 'in', [store.id])
         ], limit=1)
         if not customer:
             return request.make_response(json.dumps({'error': f"Customer '{customer_name}' not found for store '{store.name}'"}), headers=[('Content-Type', 'application/json')], status=400)
@@ -1277,8 +1277,8 @@ class HavanoPOSDeskAPI(http.Controller):
         category_name = data.get('item_group') or 'Basics'
         category = request.env['havanoposdesk.category'].sudo().search([('name', '=', category_name), ('tenant_id', '=', tenant.id)], limit=1)
         if not category:
-            category = request.env['havanoposdesk.category'].sudo().create({'name': category_name, 'tenant_id': tenant.id, 'store_ids': [(4, store.id)] if store else False})
-        elif not (store in category.store_ids) and store:
+            category = request.env['havanoposdesk.category'].sudo().create({'name': category_name, 'tenant_id': tenant.id, 'store_ids': [(4, store.id)]})
+        elif store not in category.store_ids:
             category.sudo().write({'store_ids': [(4, store.id)]})
             
         uom_name = data.get('stock_uom') or 'Each'
@@ -1351,6 +1351,9 @@ class HavanoPOSDeskAPI(http.Controller):
         if not store:
             store = user.default_store_id or request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
             
+        if not store:
+            return request.make_response(json.dumps({'error': 'Store/Warehouse is required to create an Item Group'}), headers=[('Content-Type', 'application/json')], status=400)
+            
         category_name = data.get('item_group_name') or data.get('name')
         if not category_name:
             return request.make_response(json.dumps({'error': 'item_group_name is required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -1360,9 +1363,9 @@ class HavanoPOSDeskAPI(http.Controller):
             category = request.env['havanoposdesk.category'].sudo().create({
                 'name': category_name, 
                 'tenant_id': tenant.id,
-                'store_ids': [(4, store.id)] if store else False
+                'store_ids': [(4, store.id)]
             })
-        elif store and store not in category.store_ids:
+        elif store not in category.store_ids:
             category.sudo().write({'store_ids': [(4, store.id)]})
             
         res_data = {
@@ -1861,7 +1864,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
             customer = env['havanoposdesk.customer'].search([
                 ('name', '=', customer_name),
-                ('store_id', '=', store.id)
+                ('store_ids', 'in', [store.id])
             ], limit=1)
             if not customer:
                 return self._make_json_response({"error": f"Customer '{customer_name}' not found for store '{store.name}'"}, status=400)
@@ -2151,7 +2154,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if not store:
                 return self._make_json_response({"message": []})
 
-            domain = [('store_id', '=', store.id)]
+            domain = [('store_ids', 'in', [store.id])]
             if search_name:
                 domain.append(('name', 'ilike', search_name))
 
@@ -2654,7 +2657,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'name': name,
                     'customer_type': customer_type,
                     'phone': params.get('mobile_no') or params.get('phone') or '',
-                    'store_id': store.id,
+                    'store_ids': [(4, store.id)],
                     'tenant_id': tenant.id if tenant else False,
                 })
 
@@ -2816,7 +2819,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if not store:
                 return self._make_json_response({"data": []})
             
-            domain = [('store_id', '=', store.id)]
+            domain = [('store_ids', 'in', [store.id])]
             partners = env['havanoposdesk.customer'].search(domain)
             result = []
             for p in partners:
