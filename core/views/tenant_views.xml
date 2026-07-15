@@ -85,7 +85,7 @@
                                        readonly="not context.get('is_super_admin', False)"/>
                             </group>
                         </group>
-                        <group string="API &amp; Integration Settings">
+                        <group string="API &amp; Integration Settings" invisible="1">
                             <group>
                                 <field name="api_company_name"/>
                                 <field name="api_currency"/>
@@ -96,7 +96,7 @@
                                 <field name="api_warehouse" placeholder="Defaults to Store name if blank"/>
                             </group>
                         </group>
-                        <group string="Feature Toggles">
+                        <group string="Feature Toggles" invisible="1">
                             <group>
                                 <field name="enable_tax" widget="boolean_toggle"/>
                                 <field name="enable_barcode" widget="boolean_toggle"/>

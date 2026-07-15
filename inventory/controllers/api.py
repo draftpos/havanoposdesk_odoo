@@ -1277,13 +1277,8 @@ class HavanoPOSDeskAPI(http.Controller):
         category_name = data.get('item_group') or 'Basics'
         category = request.env['havanoposdesk.category'].sudo().search([('name', '=', category_name), ('tenant_id', '=', tenant.id)], limit=1)
         if not category:
-<<<<<<< Updated upstream
-            category = request.env['havanoposdesk.category'].sudo().create({'name': category_name, 'tenant_id': tenant.id, 'store_ids': [(6, 0, [store.id])] if store else []})
-        elif not category.store_ids and store:
-=======
             category = request.env['havanoposdesk.category'].sudo().create({'name': category_name, 'tenant_id': tenant.id, 'store_ids': [(4, store.id)] if store else False})
         elif not (store in category.store_ids) and store:
->>>>>>> Stashed changes
             category.sudo().write({'store_ids': [(4, store.id)]})
             
         uom_name = data.get('stock_uom') or 'Each'
@@ -1365,15 +1360,9 @@ class HavanoPOSDeskAPI(http.Controller):
             category = request.env['havanoposdesk.category'].sudo().create({
                 'name': category_name, 
                 'tenant_id': tenant.id,
-<<<<<<< Updated upstream
-                'store_ids': [(6, 0, [store.id])] if store else []
-            })
-        elif not category.store_ids and store:
-=======
                 'store_ids': [(4, store.id)] if store else False
             })
         elif store and store not in category.store_ids:
->>>>>>> Stashed changes
             category.sudo().write({'store_ids': [(4, store.id)]})
             
         res_data = {

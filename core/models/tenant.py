@@ -64,9 +64,9 @@ class HavanoposdeskTenant(models.Model):
                 
         return False
 
-    api_company_name = fields.Char(string="API Company Name", default="Havano POS Company")
+    api_company_name = fields.Char(string="API Company Name")
     api_currency = fields.Char(string="API Currency", default="USD")
-    api_uom = fields.Char(string="API Default UOM", default="Nos")
+    api_uom = fields.Char(string="API Default UOM", default="Each")
     # Products Sequence Config
     prod_seq_prefix = fields.Char(string='Product Sequence Prefix', default='')
     prod_seq_next = fields.Integer(string='Product Sequence Next Number', default=101)
@@ -267,8 +267,8 @@ class HavanoposdeskTenant(models.Model):
             'tenant_id': tenant_id,
         })
         
-        # 8. Default UOMs
-        uoms = ['Kg', 'Litre', 'Meter', 'Pieces', 'Box', 'Set']
+        # 8. Default UOMs — 'Each' is first and is the default for products and API
+        uoms = ['Each', 'Kg', 'Litre', 'Meter', 'Pieces', 'Box', 'Set']
         for uom in uoms:
             self.env['havanoposdesk.uom'].sudo().create({
                 'name': uom,
