@@ -7,6 +7,6 @@
         <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.bot_name', 'HavanoBot')"/>
         <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.vendor_url', 'https://havano.cloud')"/>
         <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.vendor_domain', 'havano.cloud')"/>
-        <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.web_base_url', 'havano')"/>
+        <function model="ir.config_parameter" name="set_param" eval="('havanoposdesk.web_base_url', 'Havano')"/>
     </data>
 </odoo>

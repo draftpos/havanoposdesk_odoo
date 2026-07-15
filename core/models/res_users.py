@@ -107,9 +107,9 @@ class ResUsers(models.Model):
     verification_token = fields.Char(string="Verification Token", copy=False)
     verification_sent_at = fields.Datetime(string="Verification Sent At", copy=False)
 
-    api_company_name = fields.Char(string="API Company Name", default="Havano POS Company")
+    api_company_name = fields.Char(string="API Company Name")
     api_currency = fields.Char(string="API Currency", default="USD")
-    api_uom = fields.Char(string="API Default UOM", default="Nos")
+    api_uom = fields.Char(string="API Default UOM", default="Each")
     api_cost_center = fields.Char(string="API Cost Center")
     api_warehouse = fields.Char(string="API Warehouse")
 
@@ -561,7 +561,7 @@ class ResUsers(models.Model):
             'api_warehouse': store.name if store else '',
             'api_cost_center': store.name if store else '',
             'api_currency': currency_code,
-            'api_uom': 'Nos',
+            'api_uom': 'Each',
         })
         if phone:
             values['phone'] = phone

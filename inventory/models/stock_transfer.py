@@ -139,6 +139,23 @@ class StockTransferLine(models.Model):
     uom_id = fields.Many2one('havanoposdesk.uom', string='Unit of Measure')
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
     qty = fields.Float(string='Quantity', default=1.0, required=True)
+    on_hand_qty = fields.Float(
+        string='On Hand (From Store)',
+        compute='_compute_on_hand_qty',
+        store=False,
+    )
+
+    @api.depends('product_id', 'transfer_id.from_store_id')
+    def _compute_on_hand_qty(self):
+        for line in self:
+            if not line.product_id or not line.transfer_id.from_store_id:
+                line.on_hand_qty = 0.0
+                continue
+            valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                ('product_id', '=', line.product_id.id),
+                ('store', '=', line.transfer_id.from_store_id.name),
+            ], limit=1)
+            line.on_hand_qty = valuation.on_hand_qty if valuation else 0.0
 
     @api.depends('product_id')
     def _compute_available_uom_ids(self):

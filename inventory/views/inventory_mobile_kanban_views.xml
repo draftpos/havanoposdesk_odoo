@@ -1,37 +1,37 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        <!-- ============================== -->
-        <!-- Products Kanban View (Mobile)  -->
-        <!-- ============================== -->
+        
+        
+        
         <record id="view_havanoposdesk_product_kanban_mobile" model="ir.ui.view">
             <field name="name">havanoposdesk.product.kanban.mobile</field>
             <field name="model">havanoposdesk.product</field>
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
-                    <field name="name"/>
-                    <field name="item_code"/>
-                    <field name="selling_price"/>
-                    <field name="cost_price"/>
-                    <field name="opening_stock"/>
+                    <field name="name" />
+                    <field name="item_code" />
+                    <field name="selling_price" />
+                    <field name="cost_price" />
+                    <field name="opening_stock" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
                                 <div class="havano-card-header">
                                     <div class="customer-name">
-                                        <field name="name"/>
+                                        <field name="name" />
                                     </div>
                                     <div class="sale-ref">
-                                        <field name="item_code"/>
+                                        <field name="item_code" />
                                     </div>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-end mt-2">
                                     <div class="havano-card-totals">
-                                        <div>Sell : $<field name="selling_price"/></div>
-                                        <div>Cost : $<field name="cost_price"/></div>
+                                        <div>Sell : $<field name="selling_price" /></div>
+                                        <div>Cost : $<field name="cost_price" /></div>
                                     </div>
                                     <div class="text-end">
-                                        <div class="fw-bolder fs-5 text-success"><field name="opening_stock"/></div>
+                                        <div class="fw-bolder fs-5 text-success"><field name="opening_stock" /></div>
                                         <div class="text-muted" style="font-size: 11px; text-transform: uppercase;">On Hand</div>
                                     </div>
                                 </div>
@@ -43,32 +43,34 @@
         </record>
 
         <record id="action_havanoposdesk_product" model="ir.actions.act_window">
+            <field name="name">Products</field>
+            <field name="res_model">havanoposdesk.product</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
-        <!-- ============================== -->
-        <!-- Pricelists Kanban View (Mobile)-->
-        <!-- ============================== -->
+        
+        
+        
         <record id="view_havanoposdesk_pricelist_kanban_mobile" model="ir.ui.view">
             <field name="name">havanoposdesk.pricelist.kanban.mobile</field>
             <field name="model">havanoposdesk.pricelist</field>
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
-                    <field name="name"/>
-                    <field name="type"/>
+                    <field name="name" />
+                    <field name="type" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
                                 <div class="havano-card-header">
                                     <div class="customer-name">
-                                        <field name="name"/>
+                                        <field name="name" />
                                     </div>
                                 </div>
                                 <div class="havano-card-date">
                                 </div>
                                 <div class="havano-card-totals mt-2">
-                                    <div>Type : <field name="type"/></div>
+                                    <div>Type : <field name="type" /></div>
                                 </div>
                             </div>
                         </t>
@@ -78,25 +80,27 @@
         </record>
 
         <record id="action_havanoposdesk_pricelist" model="ir.actions.act_window">
+            <field name="name">Pricelists</field>
+            <field name="res_model">havanoposdesk.pricelist</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
-        <!-- ============================== -->
-        <!-- Categories Kanban View (Mobile)-->
-        <!-- ============================== -->
+        
+        
+        
         <record id="view_havanoposdesk_category_kanban_mobile" model="ir.ui.view">
             <field name="name">havanoposdesk.category.kanban.mobile</field>
             <field name="model">havanoposdesk.category</field>
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
-                    <field name="name"/>
+                    <field name="name" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
                                 <div class="havano-card-header">
                                     <div class="customer-name">
-                                        <field name="name"/>
+                                        <field name="name" />
                                     </div>
                                 </div>
                             </div>
@@ -107,25 +111,27 @@
         </record>
 
         <record id="action_havanoposdesk_category" model="ir.actions.act_window">
+            <field name="name">Categories</field>
+            <field name="res_model">havanoposdesk.category</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
-        <!-- ============================== -->
-        <!-- UOM Kanban View (Mobile)       -->
-        <!-- ============================== -->
+        
+        
+        
         <record id="view_havanoposdesk_uom_kanban_mobile" model="ir.ui.view">
             <field name="name">havanoposdesk.uom.kanban.mobile</field>
             <field name="model">havanoposdesk.uom</field>
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
-                    <field name="name"/>
+                    <field name="name" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
                                 <div class="havano-card-header">
                                     <div class="customer-name">
-                                        <field name="name"/>
+                                        <field name="name" />
                                     </div>
                                 </div>
                             </div>
@@ -136,38 +142,40 @@
         </record>
 
         <record id="action_havanoposdesk_uom" model="ir.actions.act_window">
+            <field name="name">UOMs</field>
+            <field name="res_model">havanoposdesk.uom</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
-        <!-- ================================== -->
-        <!-- Stock Adjustment Kanban View       -->
-        <!-- ================================== -->
+        
+        
+        
         <record id="view_havanoposdesk_stock_adjustment_kanban_mobile" model="ir.ui.view">
             <field name="name">havanoposdesk.stock.adjustment.kanban.mobile</field>
             <field name="model">havanoposdesk.stock.adjustment</field>
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
-                    <field name="name"/>
-                    <field name="store_id"/>
-                    <field name="posting_date"/>
-                    <field name="total_qty_difference"/>
+                    <field name="name" />
+                    <field name="store_id" />
+                    <field name="posting_date" />
+                    <field name="total_qty_difference" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
                                 <div class="havano-card-header">
                                     <div class="customer-name">
-                                        <field name="name"/>
+                                        <field name="name" />
                                     </div>
                                     <div class="sale-ref">
-                                        <field name="store_id"/>
+                                        <field name="store_id" />
                                     </div>
                                 </div>
                                 <div class="havano-card-date">
-                                    <field name="posting_date"/>
+                                    <field name="posting_date" />
                                 </div>
                                 <div class="havano-card-totals mt-2">
-                                    <div>Variance : <field name="total_qty_difference"/></div>
+                                    <div>Variance : <field name="total_qty_difference" /></div>
                                 </div>
                             </div>
                         </t>
@@ -177,36 +185,38 @@
         </record>
 
         <record id="action_havanoposdesk_stock_adjustment" model="ir.actions.act_window">
+            <field name="name">Stock Adjustments</field>
+            <field name="res_model">havanoposdesk.stock.adjustment</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
-        <!-- ================================== -->
-        <!-- Stock Valuation Kanban View        -->
-        <!-- ================================== -->
+        
+        
+        
         <record id="view_havanoposdesk_stock_valuation_kanban_mobile" model="ir.ui.view">
             <field name="name">havanoposdesk.stock.valuation.kanban.mobile</field>
             <field name="model">havanoposdesk.stock.valuation</field>
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1" create="0">
-                    <field name="product_id"/>
-                    <field name="store"/>
-                    <field name="on_hand_qty"/>
-                    <field name="value_cost"/>
+                    <field name="product_id" />
+                    <field name="store" />
+                    <field name="on_hand_qty" />
+                    <field name="value_cost" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
                                 <div class="havano-card-header">
                                     <div class="customer-name">
-                                        <field name="product_id"/>
+                                        <field name="product_id" />
                                     </div>
                                 </div>
                                 <div class="havano-card-date">
-                                    <field name="store"/>
+                                    <field name="store" />
                                 </div>
                                 <div class="havano-card-totals mt-2">
-                                    <div>On Hand : <field name="on_hand_qty"/></div>
-                                    <div>Value : $<field name="value_cost"/></div>
+                                    <div>On Hand : <field name="on_hand_qty" /></div>
+                                    <div>Value : $<field name="value_cost" /></div>
                                 </div>
                             </div>
                         </t>
@@ -216,33 +226,35 @@
         </record>
 
         <record id="action_havanoposdesk_stock_valuation" model="ir.actions.act_window">
+            <field name="name">Stock Valuation</field>
+            <field name="res_model">havanoposdesk.stock.valuation</field>
             <field name="view_mode">list,kanban</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
 
-        <!-- ================================== -->
-        <!-- Stock Ledger Kanban View           -->
-        <!-- ================================== -->
+        
+        
+        
         <record id="view_havanoposdesk_stock_ledger_kanban_mobile" model="ir.ui.view">
             <field name="name">havanoposdesk.stock.ledger.kanban.mobile</field>
             <field name="model">havanoposdesk.stock.ledger</field>
             <field name="arch" type="xml">
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1" create="0">
-                    <field name="product_id"/>
-                    <field name="in_qty"/>
-                    <field name="out_qty"/>
-                    <field name="balance_qty"/>
+                    <field name="product_id" />
+                    <field name="in_qty" />
+                    <field name="out_qty" />
+                    <field name="balance_qty" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
                                 <div class="havano-card-header">
                                     <div class="customer-name">
-                                        <field name="product_id"/>
+                                        <field name="product_id" />
                                     </div>
                                 </div>
                                 <div class="havano-card-totals mt-2">
-                                    <div>In : <field name="in_qty"/> | Out : <field name="out_qty"/></div>
-                                    <div>Balance : <field name="balance_qty"/></div>
+                                    <div>In : <field name="in_qty" /> | Out : <field name="out_qty" /></div>
+                                    <div>Balance : <field name="balance_qty" /></div>
                                 </div>
                             </div>
                         </t>
@@ -252,101 +264,102 @@
         </record>
 
         <record id="action_havanoposdesk_stock_ledger" model="ir.actions.act_window">
+            <field name="name">Stock Ledger</field>
+            <field name="res_model">havanoposdesk.stock.ledger</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
         </record>
         
         <record id="action_havanoposdesk_category_view_list" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="1" />
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_category_tree"/>
-            <field name="act_window_id" ref="action_havanoposdesk_category"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_category_tree" />
+            <field name="act_window_id" ref="action_havanoposdesk_category" />
         </record>
         <record id="action_havanoposdesk_category_view_kanban" model="ir.actions.act_window.view">
-            <field name="sequence" eval="20"/>
+            <field name="sequence" eval="20" />
             <field name="view_mode">kanban</field>
-            <field name="view_id" ref="view_havanoposdesk_category_kanban_mobile"/>
-            <field name="act_window_id" ref="action_havanoposdesk_category"/>
+            <field name="view_id" ref="view_havanoposdesk_category_kanban_mobile" />
+            <field name="act_window_id" ref="action_havanoposdesk_category" />
         </record>
         
         <record id="action_havanoposdesk_uom_view_list" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="1" />
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_uom_tree"/>
-            <field name="act_window_id" ref="action_havanoposdesk_uom"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_uom_tree" />
+            <field name="act_window_id" ref="action_havanoposdesk_uom" />
         </record>
         <record id="action_havanoposdesk_uom_view_kanban" model="ir.actions.act_window.view">
-            <field name="sequence" eval="20"/>
+            <field name="sequence" eval="20" />
             <field name="view_mode">kanban</field>
-            <field name="view_id" ref="view_havanoposdesk_uom_kanban_mobile"/>
-            <field name="act_window_id" ref="action_havanoposdesk_uom"/>
+            <field name="view_id" ref="view_havanoposdesk_uom_kanban_mobile" />
+            <field name="act_window_id" ref="action_havanoposdesk_uom" />
         </record>
         
         <record id="action_havanoposdesk_pricelist_view_list" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="1" />
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_pricelist_tree"/>
-            <field name="act_window_id" ref="action_havanoposdesk_pricelist"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_pricelist_tree" />
+            <field name="act_window_id" ref="action_havanoposdesk_pricelist" />
         </record>
         <record id="action_havanoposdesk_pricelist_view_kanban" model="ir.actions.act_window.view">
-            <field name="sequence" eval="20"/>
+            <field name="sequence" eval="20" />
             <field name="view_mode">kanban</field>
-            <field name="view_id" ref="view_havanoposdesk_pricelist_kanban_mobile"/>
-            <field name="act_window_id" ref="action_havanoposdesk_pricelist"/>
+            <field name="view_id" ref="view_havanoposdesk_pricelist_kanban_mobile" />
+            <field name="act_window_id" ref="action_havanoposdesk_pricelist" />
         </record>
         
         <record id="action_havanoposdesk_product_view_list" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="1" />
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_product_tree"/>
-            <field name="act_window_id" ref="action_havanoposdesk_product"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_product_tree" />
+            <field name="act_window_id" ref="action_havanoposdesk_product" />
         </record>
         <record id="action_havanoposdesk_product_view_kanban" model="ir.actions.act_window.view">
-            <field name="sequence" eval="20"/>
+            <field name="sequence" eval="20" />
             <field name="view_mode">kanban</field>
-            <field name="view_id" ref="view_havanoposdesk_product_kanban_mobile"/>
-            <field name="act_window_id" ref="action_havanoposdesk_product"/>
+            <field name="view_id" ref="view_havanoposdesk_product_kanban_mobile" />
+            <field name="act_window_id" ref="action_havanoposdesk_product" />
         </record>
         
         <record id="action_havanoposdesk_stock_adjustment_view_list" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="1" />
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_stock_adjustment_tree"/>
-            <field name="act_window_id" ref="action_havanoposdesk_stock_adjustment"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_stock_adjustment_tree" />
+            <field name="act_window_id" ref="action_havanoposdesk_stock_adjustment" />
         </record>
         <record id="action_havanoposdesk_stock_adjustment_view_kanban" model="ir.actions.act_window.view">
-            <field name="sequence" eval="20"/>
+            <field name="sequence" eval="20" />
             <field name="view_mode">kanban</field>
-            <field name="view_id" ref="view_havanoposdesk_stock_adjustment_kanban_mobile"/>
-            <field name="act_window_id" ref="action_havanoposdesk_stock_adjustment"/>
+            <field name="view_id" ref="view_havanoposdesk_stock_adjustment_kanban_mobile" />
+            <field name="act_window_id" ref="action_havanoposdesk_stock_adjustment" />
         </record>
         
         <record id="action_havanoposdesk_stock_valuation_view_list" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="1" />
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_stock_valuation_tree"/>
-            <field name="act_window_id" ref="action_havanoposdesk_stock_valuation"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_stock_valuation_tree" />
+            <field name="act_window_id" ref="action_havanoposdesk_stock_valuation" />
         </record>
         <record id="action_havanoposdesk_stock_valuation_view_kanban" model="ir.actions.act_window.view">
-            <field name="sequence" eval="20"/>
+            <field name="sequence" eval="20" />
             <field name="view_mode">kanban</field>
-            <field name="view_id" ref="view_havanoposdesk_stock_valuation_kanban_mobile"/>
-            <field name="act_window_id" ref="action_havanoposdesk_stock_valuation"/>
+            <field name="view_id" ref="view_havanoposdesk_stock_valuation_kanban_mobile" />
+            <field name="act_window_id" ref="action_havanoposdesk_stock_valuation" />
         </record>
         
         <record id="action_havanoposdesk_stock_ledger_view_list" model="ir.actions.act_window.view">
-            <field name="sequence" eval="1"/>
+            <field name="sequence" eval="1" />
             <field name="view_mode">list</field>
-            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_stock_ledger_tree"/>
-            <field name="act_window_id" ref="action_havanoposdesk_stock_ledger"/>
+            <field name="view_id" ref="havanoposdesk_odoo.view_havanoposdesk_stock_ledger_tree" />
+            <field name="act_window_id" ref="action_havanoposdesk_stock_ledger" />
         </record>
         <record id="action_havanoposdesk_stock_ledger_view_kanban" model="ir.actions.act_window.view">
-            <field name="sequence" eval="20"/>
+            <field name="sequence" eval="20" />
             <field name="view_mode">kanban</field>
-            <field name="view_id" ref="view_havanoposdesk_stock_ledger_kanban_mobile"/>
-            <field name="act_window_id" ref="action_havanoposdesk_stock_ledger"/>
+            <field name="view_id" ref="view_havanoposdesk_stock_ledger_kanban_mobile" />
+            <field name="act_window_id" ref="action_havanoposdesk_stock_ledger" />
         </record>
 
     </data>
 </odoo>
-

@@ -271,6 +271,14 @@
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
+        <!-- Stock Entry Isolation Rule -->
+        <record id="rule_havano_stock_entry_isolation" model="ir.rule">
+            <field name="name">Havano Stock Entry Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_stock_entry"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
         <!-- Tenant Upgrade Wizard Isolation Rule -->
         <record id="rule_havano_tenant_upgrade_wizard_isolation" model="ir.rule">
             <field name="name">Havano Tenant Upgrade Wizard Isolation</field>

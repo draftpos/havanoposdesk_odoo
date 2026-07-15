@@ -101,11 +101,12 @@
             </field>
         </record>
 
-        <!-- Menu Item -->
+        <!-- Menu Item — hidden; Stock Transfers menu is used instead -->
         <menuitem id="menu_inventory_stock_entry" 
                   name="Stock Entry / Transfers" 
                   parent="menu_inventory_operations" 
                   action="action_havanoposdesk_stock_entry" 
-                  sequence="15"/>
+                  sequence="15"
+                  groups="base.group_no_one"/>
     </data>
 </odoo>

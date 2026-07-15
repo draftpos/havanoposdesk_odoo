@@ -2,16 +2,8 @@
 <templates xml:space="preserve">
     <t t-name="web.LoadingIndicator" t-inherit="web.LoadingIndicator" t-inherit-mode="extension" owl="1">
         <xpath expr="//span[hasclass('o_loading_indicator')]" position="replace">
-            <div class="o_loading_indicator custom-loading-indicator" t-att-class="transition.className">
-                <lottie-player 
-                    src="/havanoposdesk_odoo/static/src/json/loader.json" 
-                    background="transparent" 
-                    speed="1" 
-                    style="width: 150px; height: 150px;" 
-                    loop="true" 
-                    autoplay="true">
-                </lottie-player>
-            </div>
+            <!-- Loading animation removed -->
+            <span class="o_loading_indicator"/>
         </xpath>
     </t>
 </templates>
