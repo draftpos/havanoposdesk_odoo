@@ -4,7 +4,7 @@ import { ListController } from "@web/views/list/list_controller";
 import { KanbanController } from "@web/views/kanban/kanban_controller";
 import { BooleanToggleField } from "@web/views/fields/boolean_toggle/boolean_toggle_field";
 import { patch } from "@web/core/utils/patch";
-import { onWillStart, onMounted } from "@odoo/owl";
+import { onWillStart, onMounted, onWillUnmount } from "@odoo/owl";
 
 // ─── Havano Models Allowlist ───────────────────────────────────────────────────
 console.log("🔥 HAVANO JS LOADED: hide_create_buttons.js");
@@ -62,17 +62,22 @@ async function checkModelAccess(rpc, model) {
     }
 }
 
-function hideNewButtonInDom(rootEl) {
-    if (!rootEl) return;
+function hideNewButtonInDom() {
     const hide = () => {
-        rootEl.querySelectorAll('.o_list_button_add, button[data-hotkey="c"]').forEach(btn => {
+        document.body.querySelectorAll('.o_list_button_add, .o_kanban_button_new, button[data-hotkey="c"]').forEach(btn => {
             if (btn.textContent.trim() === 'New' || btn.dataset.hotkey === 'c') {
                 btn.style.setProperty('display', 'none', 'important');
             }
         });
     };
     hide();
-    new MutationObserver(hide).observe(rootEl, { childList: true, subtree: true });
+    
+    // Observer on document body to catch control panel rendering
+    const observer = new MutationObserver(hide);
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    // Return observer so we can disconnect it if needed
+    return observer;
 }
 
 // ─── List Controller Patch ────────────────────────────────────────────────────
@@ -91,8 +96,14 @@ patch(ListController.prototype, {
             });
 
         onMounted(() => {
-            if (!this.__havanoAccess.canCreate && this.rootRef?.el) {
-                hideNewButtonInDom(this.rootRef.el);
+            if (!this.__havanoAccess.canCreate) {
+                this.__havanoObserver = hideNewButtonInDom();
+            }
+        });
+
+        onWillUnmount(() => {
+            if (this.__havanoObserver) {
+                this.__havanoObserver.disconnect();
             }
         });
     },
@@ -129,8 +140,13 @@ patch(KanbanController.prototype, {
 
         onMounted(() => {
             if (!this.__havanoAccess.canCreate) {
-                const root = document.querySelector('.o_kanban_view');
-                if (root) hideNewButtonInDom(root);
+                this.__havanoObserver = hideNewButtonInDom();
+            }
+        });
+
+        onWillUnmount(() => {
+            if (this.__havanoObserver) {
+                this.__havanoObserver.disconnect();
             }
         });
     },

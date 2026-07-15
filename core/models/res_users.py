@@ -511,12 +511,12 @@ class ResUsers(models.Model):
         store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
         if store:
             store.sudo().write({
-                'name': 'Default Shop',
+                'name': tenant_name,
                 'is_default': True
             })
         else:
             store = self.env['havanoposdesk.store'].sudo().create({
-                'name': 'Default Shop',
+                'name': tenant_name,
                 'tenant_id': tenant.id,
                 'is_default': True
             })

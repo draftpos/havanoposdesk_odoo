@@ -67,7 +67,7 @@
                     .step-dot.active { background: #0278F3; width: 16px; border-radius: 4px; }
                     
                     .signup-step { display: flex; flex-direction: column; gap: 16px; }
-                    .error-text { color: #dc2626; font-size: 11px; margin-top: -12px; margin-left: 5px; display: none; text-align: left; }
+                    .error-text { color: #dc2626; font-size: 11px; margin-top: 4px; margin-left: 5px; display: none; text-align: left; }
                     form input.input-error { border: 1px solid #dc2626 !important; background: #fffafaf5 !important; }
                 </style>
             </head>
@@ -106,7 +106,7 @@
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-regular fa-envelope icon-left"></i>
-                                        <input type="text" name="login" id="email" placeholder="Email *" t-att-value="login" required="required" />
+                                        <input type="text" name="login" id="email" autocomplete="username" placeholder="Email *" t-att-value="login" required="required" />
                                     </div>
                                     <div class="error-text">This field is required</div>
                                 </div>
@@ -114,7 +114,7 @@
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-regular fa-building icon-left"></i>
-                                        <input type="text" name="organization_name" id="org_name" placeholder="Shop Name *" required="required" />
+                                        <input type="text" name="organization_name" id="org_name" autocomplete="organization" placeholder="Shop Name *" required="required" />
                                     </div>
                                     <div class="error-text">This field is required</div>
                                 </div>
@@ -122,7 +122,7 @@
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-solid fa-lock icon-left"></i>
-                                        <input type="password" name="password" id="password" placeholder="Password *" required="required" />
+                                        <input type="password" name="password" id="password" autocomplete="new-password" placeholder="Password *" required="required" />
                                         <i class="fa-regular fa-eye toggle-password" onclick="togglePassword(this, 'password')"></i>
                                     </div>
                                     <div class="error-text">This field is required</div>
@@ -131,7 +131,7 @@
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-solid fa-lock icon-left"></i>
-                                        <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password *" required="required" />
+                                        <input type="password" name="confirm_password" id="confirm_password" autocomplete="new-password" placeholder="Confirm Password *" required="required" />
                                         <i class="fa-regular fa-eye toggle-password" onclick="togglePassword(this, 'confirm_password')"></i>
                                     </div>
                                     <div class="error-text">This field is required</div>
@@ -140,7 +140,7 @@
                                 <div>
                                     <div class="input-field">
                                         <i class="fa-regular fa-user icon-left"></i>
-                                        <input type="text" name="name" id="full_name" placeholder="Full Name *" t-att-value="name" required="required" />
+                                        <input type="text" name="name" id="full_name" autocomplete="name" placeholder="Full Name *" t-att-value="name" required="required" />
                                     </div>
                                     <div class="error-text">This field is required</div>
                                 </div>

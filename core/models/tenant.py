@@ -227,8 +227,8 @@ class HavanoposdeskTenant(models.Model):
         # 4. Default Expenses Account
         expenses = ['Electricity', 'Rent', 'Utilities', 'Wages & Salaries', 'Breakages', 'Council Licenses', 'Maintanences', 'Fuel']
         for exp in expenses:
-            queries.append("""INSERT INTO havanoposdesk_account (name, type, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
-            params.append((exp, 'Expense', tenant_id, uid, uid, now, now))
+            queries.append("""INSERT INTO havanoposdesk_account (name, type, tenant_id, currency_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""")
+            params.append((exp, 'Expense', tenant_id, self.currency_id.id if self.currency_id else None, uid, uid, now, now))
             
         # 5. Default Customer
         queries.append("""INSERT INTO havanoposdesk_customer (name, customer_group_id, tenant_id, store_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""")
