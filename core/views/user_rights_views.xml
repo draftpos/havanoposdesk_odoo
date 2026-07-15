@@ -8,6 +8,7 @@
             <field name="arch" type="xml">
                 <list string="User Rights Profiles">
                     <field name="name" />
+                    <field name="havano_role" />
                     <field name="is_additional_tax_enabled" />
                     <field name="food_tax" invisible="not is_additional_tax_enabled" />
                     <field name="tourism_tax" invisible="not is_additional_tax_enabled" />
@@ -30,6 +31,9 @@
                             </h1>
                         </div>
                         <group>
+                            <group string="Basic Configuration">
+                                <field name="havano_role" />
+                            </group>
                             <group string="Tax Configuration">
                                 <field name="is_additional_tax_enabled" />
                                 <field name="food_tax" invisible="not is_additional_tax_enabled" required="is_additional_tax_enabled" />
@@ -40,9 +44,9 @@
                             </group>
                         </group>
                         <notebook>
-                            <page string="Permissions" name="permissions_page">
+                            <page string="POS Permissions" name="pos_permissions_page">
                                 <field name="permission_ids">
-                                    <list string="Permissions" editable="bottom" create="0" delete="0">
+                                    <list string="POS Permissions" editable="bottom" create="0" delete="0">
                                         <field name="feature" readonly="1" force_save="1" />
                                         <field name="can_read" widget="boolean_toggle" />
                                         <field name="can_create" widget="boolean_toggle" />
@@ -51,6 +55,55 @@
                                         <field name="can_submit" widget="boolean_toggle" optional="show" />
                                     </list>
                                 </field>
+                            </page>
+                            <page string="Back Office (Web Permissions)" name="backoffice_permissions_page">
+                                <notebook>
+                                    <page string="Sales">
+                                        <field name="bo_sales_ids">
+                                            <list string="Sales" editable="bottom" create="0" delete="0">
+                                                <field name="feature" readonly="1" force_save="1" />
+                                                <field name="is_full_access" widget="boolean_toggle" />
+                                                <field name="is_read_only" widget="boolean_toggle" />
+                                            </list>
+                                        </field>
+                                    </page>
+                                    <page string="Purchases &amp; Expenses">
+                                        <field name="bo_purchases_ids">
+                                            <list string="Purchases &amp; Expenses" editable="bottom" create="0" delete="0">
+                                                <field name="feature" readonly="1" force_save="1" />
+                                                <field name="is_full_access" widget="boolean_toggle" />
+                                                <field name="is_read_only" widget="boolean_toggle" />
+                                            </list>
+                                        </field>
+                                    </page>
+                                    <page string="Inventory">
+                                        <field name="bo_inventory_ids">
+                                            <list string="Inventory" editable="bottom" create="0" delete="0">
+                                                <field name="feature" readonly="1" force_save="1" />
+                                                <field name="is_full_access" widget="boolean_toggle" />
+                                                <field name="is_read_only" widget="boolean_toggle" />
+                                            </list>
+                                        </field>
+                                    </page>
+                                    <page string="Accounting &amp; Finance">
+                                        <field name="bo_accounting_ids">
+                                            <list string="Accounting &amp; Finance" editable="bottom" create="0" delete="0">
+                                                <field name="feature" readonly="1" force_save="1" />
+                                                <field name="is_full_access" widget="boolean_toggle" />
+                                                <field name="is_read_only" widget="boolean_toggle" />
+                                            </list>
+                                        </field>
+                                    </page>
+                                    <page string="Settings">
+                                        <field name="bo_settings_ids">
+                                            <list string="Settings" editable="bottom" create="0" delete="0">
+                                                <field name="feature" readonly="1" force_save="1" />
+                                                <field name="is_full_access" widget="boolean_toggle" />
+                                                <field name="is_read_only" widget="boolean_toggle" />
+                                            </list>
+                                        </field>
+                                    </page>
+                                </notebook>
                             </page>
                         </notebook>
                     </sheet>

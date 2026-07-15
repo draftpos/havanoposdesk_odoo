@@ -33,6 +33,25 @@
     }
 }
 
+/* -------------------------------------------------------
+   Hide Odoo navbar when custom home menu is active
+------------------------------------------------------- */
+body.o_home_menu_active .o_main_navbar {
+    display: none !important;
+}
+
+body.o_home_menu_active .o_action_manager,
+body.o_home_menu_active .o_web_client .o_content,
+body.o_home_menu_active .o_action {
+    height: 100vh !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+body.o_home_menu_active .o_web_client {
+    padding-top: 0 !important;
+}
+
 .custom_home_menu_overlay {
     position: fixed;
     top: 0;

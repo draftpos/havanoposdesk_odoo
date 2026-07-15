@@ -1,11 +1,35 @@
 from odoo import http, _
 from odoo.http import request
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
+from odoo.addons.web.controllers.session import Session
 from odoo.addons.web.controllers.webmanifest import WebManifest
 import werkzeug
 import logging
 
 _logger = logging.getLogger(__name__)
+
+class HavanoAccessController(http.Controller):
+    @http.route('/havano/check_access', type='json', auth='user')
+    def check_access(self, model):
+        # Default allow if not matched
+        res = {'canCreate': True, 'canViewDetail': True}
+        
+        from odoo.addons.havanoposdesk_odoo.core.models.user_rights import MODEL_FEATURE_MAP
+        
+        if model in MODEL_FEATURE_MAP:
+            user = request.env.user
+            if user.id == 1 or getattr(user, 'havano_role', None) == 'super_admin':
+                return res
+                
+            profile = user.user_rights_profile_id
+            if profile:
+                feature_name = MODEL_FEATURE_MAP[model]
+                bo_perm = profile.backoffice_permission_ids.filtered(lambda p: p.feature == feature_name)
+                if bo_perm and bo_perm[0].is_read_only:
+                    res['canCreate'] = False
+                    res['canViewDetail'] = False
+                    
+        return res
 
 class HavanoWebManifest(WebManifest):
     def _get_webmanifest(self):
@@ -18,7 +42,7 @@ class HavanoWebManifest(WebManifest):
         if configured_base.lower() == '/havano':
             configured_base = '/Havano'
             
-        manifest['start_url'] = f"{configured_base}/action-749"
+        manifest['start_url'] = f"{configured_base}"
         
         # Override the icons with the Havano logo
         manifest['icons'] = [{
@@ -39,15 +63,31 @@ class HavanoAuthSignup(AuthSignupHome):
         icp = request.env['ir.config_parameter'].sudo()
         configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'Havano')
         
-        # Format properly, e.g. /Havano/action-749
+        # Format properly
         if not configured_base.startswith('/'):
             configured_base = '/' + configured_base
-        
-        # Ensure capitalization if it's havano
+        return configured_base
+
+    @http.route('/web/login', type='http', auth="none")
+    def web_login(self, redirect=None, **kw):
+        icp = request.env['ir.config_parameter'].sudo()
+        configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'Havano')
+        if not configured_base.startswith('/'):
+            configured_base = '/' + configured_base
         if configured_base.lower() == '/havano':
             configured_base = '/Havano'
             
-        return f"{configured_base}/action-749"
+        if redirect and '/odoo' in redirect:
+            redirect = redirect.replace('/odoo', configured_base)
+        elif not redirect:
+            redirect = configured_base
+            
+        try:
+            _logger.info(f"Havano web_login called. self is: {type(self)}. _login_redirect evaluates to: {self._login_redirect(request.session.uid, redirect=redirect)}")
+        except Exception as e:
+            _logger.info(f"Exception calling _login_redirect: {e}")
+
+        return super(HavanoAuthSignup, self).web_login(redirect=redirect, **kw)
 
     @http.route('/web/signup', type='http', auth='public', website=True, sitemap=False, captcha='signup')
     def web_auth_signup(self, *args, **kw):
@@ -89,6 +129,7 @@ class HavanoAuthSignup(AuthSignupHome):
     def get_auth_signup_qcontext(self):
         qcontext = super(HavanoAuthSignup, self).get_auth_signup_qcontext()
         qcontext['countries'] = request.env['res.country'].sudo().search([])
+        qcontext['states'] = request.env['res.country.state'].sudo().search([])
         return qcontext
 
     def _prepare_signup_values(self, qcontext):
@@ -138,3 +179,10 @@ class HavanoAuthSignup(AuthSignupHome):
             values['phone'] = f"{country}{phone}"
             
         return values
+
+class HavanoSession(Session):
+    @http.route('/web/session/logout', type='http', auth="none")
+    def logout(self, redirect='/web/login'):
+        # Force a clean redirect to login without carrying over ?redirect=/odoo
+        return super(HavanoSession, self).logout(redirect='/web/login')
+

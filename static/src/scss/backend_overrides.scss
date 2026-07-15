@@ -1,0 +1,106 @@
+/* Backend overrides for Havano POS Desk */
+
+/* ─── Havano Access Denied Dialog ─────────────────────────────────────────── */
+.havano-access-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100000;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+
+    &.visible {
+        opacity: 1;
+    }
+
+    &.visible .havano-access-dialog {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+.havano-access-dialog {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 44px 40px 36px;
+    max-width: 420px;
+    width: calc(100% - 48px);
+    text-align: center;
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.04),
+        0 20px 50px rgba(0, 0, 0, 0.18),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    transform: translateY(24px) scale(0.96);
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+
+    .havano-access-dialog-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 24px;
+        box-shadow: 0 8px 24px rgba(238, 90, 36, 0.35);
+
+        svg {
+            width: 36px;
+            height: 36px;
+            color: #ffffff;
+        }
+    }
+
+    .havano-access-dialog-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 12px;
+        letter-spacing: -0.3px;
+    }
+
+    .havano-access-dialog-message {
+        color: #64748b;
+        font-size: 15px;
+        line-height: 1.65;
+        margin: 0 0 32px;
+
+        strong {
+            color: #334155;
+            font-weight: 600;
+        }
+    }
+
+    .havano-access-dialog-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        color: #ffffff;
+        border: none;
+        padding: 13px 36px;
+        border-radius: 50px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        letter-spacing: 0.2px;
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(59, 130, 246, 0.5);
+        }
+
+        &:active {
+            transform: translateY(0);
+            box-shadow: 0 3px 10px rgba(59, 130, 246, 0.35);
+        }
+    }
+}

@@ -1,4 +1,8 @@
 from odoo import models, fields, api
+from odoo.exceptions import AccessError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class HavanoposdeskUserRightsProfile(models.Model):
     _name = 'havanoposdesk.user.rights.profile'
@@ -15,21 +19,44 @@ class HavanoposdeskUserRightsProfile(models.Model):
     is_additional_tax_enabled = fields.Boolean(string='Is Additional Tax Enabled', default=False)
     food_tax = fields.Float(string='Food Tax %')
     tourism_tax = fields.Float(string='Tourism Tax %')
+    
+    @api.model
+    def _get_havano_role_selection(self):
+        roles = [
+            ('admin', 'Admin'),
+            ('user', 'Cashier')
+        ]
+        if self.env.user.id == 1 or getattr(self.env.user, 'havano_role', None) == 'super_admin':
+            roles.insert(0, ('super_admin', 'Super Admin'))
+        return roles
+
+    havano_role = fields.Selection(selection='_get_havano_role_selection', string="Role", default='user')
+    
     permission_ids = fields.One2many(
         'havanoposdesk.user.rights.permission', 
         'profile_id', 
-        string='Permissions', 
+        string='POS Permissions', 
         copy=True
     )
+    
+    backoffice_permission_ids = fields.One2many(
+        'havanoposdesk.backoffice.permission', 
+        'profile_id', 
+        string='Back Office Permissions', 
+        copy=True
+    )
+    bo_sales_ids = fields.One2many('havanoposdesk.backoffice.permission', 'profile_id', domain=[('category', '=', 'sales')], string='Sales')
+    bo_purchases_ids = fields.One2many('havanoposdesk.backoffice.permission', 'profile_id', domain=[('category', '=', 'purchases')], string='Purchases')
+    bo_inventory_ids = fields.One2many('havanoposdesk.backoffice.permission', 'profile_id', domain=[('category', '=', 'inventory')], string='Inventory')
+    bo_accounting_ids = fields.One2many('havanoposdesk.backoffice.permission', 'profile_id', domain=[('category', '=', 'accounting')], string='Accounting')
+    bo_settings_ids = fields.One2many('havanoposdesk.backoffice.permission', 'profile_id', domain=[('category', '=', 'settings')], string='Settings')
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            # Force tenant_id from context if not specified
             if not vals.get('tenant_id') and self.env.user.tenant_id:
                 vals['tenant_id'] = self.env.user.tenant_id.id
             
-            # Default pre-populate all 10 features if permissions not specified
             if 'permission_ids' not in vals or not vals['permission_ids']:
                 features = [
                     'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
@@ -49,7 +76,56 @@ class HavanoposdeskUserRightsProfile(models.Model):
                         'can_submit': True,
                     }))
                 vals['permission_ids'] = permission_lines
-        return super().create(vals_list)
+
+            if 'backoffice_permission_ids' not in vals or not vals['backoffice_permission_ids']:
+                bo_features = [
+                    'Sales Invoices', 'Purchases', 'Customers', 'Customer Groups',
+                    'Taxes', 'Exchange Rate', 'Currencies', 'Stores', 'Users',
+                    'User Rights Profiles', 'My Subscription', 'Chart of Accounts',
+                    'Stock Transfers', 'Stock Adjustments', 'Stock Evaluations',
+                    'Stock Ledger', 'Products', 'UOM', 'Pricelists', 'Categories',
+                    'Item Profitability', 'Category Profitability', 'Sales Returns',
+                    'Expense Posting', 'Payments', 'POS Terminals', 'Profit and Loss',
+                    'Cash Balance', 'Daily Sales', 'Cashier Profitability', 'Shop Profitability',
+                    'Suppliers', 'System Logs', 'Issues', 'Sync Issues', 'Configs',
+                    'Settings', 'Dashboard', 'Tenants', 'Subscription Plans',
+                    'Payment Providers', 'Support Tickets', 'My Preferences'
+                ]
+                bo_permission_lines = []
+                for feature in bo_features:
+                    bo_permission_lines.append((0, 0, {
+                        'feature': feature,
+                        'is_full_access': True,
+                        'is_read_only': False,
+                    }))
+                vals['backoffice_permission_ids'] = bo_permission_lines
+                
+        records = super().create(vals_list)
+        for record in records:
+            if record.havano_role and record.tenant_id:
+                users = self.env['res.users'].search([
+                    ('tenant_id', '=', record.tenant_id.id),
+                    ('havano_role', '=', record.havano_role),
+                    ('user_rights_profile_id', '!=', record.id)
+                ])
+                if users:
+                    users.sudo().with_context(bypass_sync_role_groups=True).write({'user_rights_profile_id': record.id})
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        if 'havano_role' in vals:
+            for record in self:
+                if record.havano_role and record.tenant_id:
+                    users = self.env['res.users'].search([
+                        ('tenant_id', '=', record.tenant_id.id),
+                        ('havano_role', '=', record.havano_role),
+                        ('user_rights_profile_id', '!=', record.id)
+                    ])
+                    if users:
+                        users.sudo().with_context(bypass_sync_role_groups=True).write({'user_rights_profile_id': record.id})
+        return res
+
 
 class HavanoposdeskUserRightsPermission(models.Model):
     _name = 'havanoposdesk.user.rights.permission'
@@ -88,3 +164,183 @@ class HavanoposdeskUserRightsPermission(models.Model):
     _sql_constraints = [
         ('profile_feature_uniq', 'unique(profile_id, feature)', 'A feature permission already exists for this profile!')
     ]
+
+
+class HavanoposdeskBackofficePermission(models.Model):
+    _name = 'havanoposdesk.backoffice.permission'
+    _description = 'Back Office Permission'
+    _order = 'id'
+
+    profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string='Profile', ondelete='cascade', required=True)
+    feature = fields.Selection([
+        ('Sales Invoices', 'Sales Invoices'),
+        ('Purchases', 'Purchases'),
+        ('Customers', 'Customers'),
+        ('Customer Groups', 'Customer Groups'),
+        ('Taxes', 'Taxes'),
+        ('Exchange Rate', 'Exchange Rate'),
+        ('Currencies', 'Currencies'),
+        ('Stores', 'Stores'),
+        ('Users', 'Users'),
+        ('User Rights Profiles', 'User Rights Profiles'),
+        ('My Subscription', 'My Subscription'),
+        ('Chart of Accounts', 'Chart of Accounts'),
+        ('Stock Transfers', 'Stock Transfers'),
+        ('Stock Adjustments', 'Stock Adjustments'),
+        ('Stock Evaluations', 'Stock Evaluations'),
+        ('Stock Ledger', 'Stock Ledger'),
+        ('Products', 'Products'),
+        ('UOM', 'UOM'),
+        ('Pricelists', 'Pricelists'),
+        ('Categories', 'Categories'),
+        ('Item Profitability', 'Item Profitability'),
+        ('Category Profitability', 'Category Profitability'),
+        ('Sales Returns', 'Sales Returns'),
+        ('Expense Posting', 'Expense Posting'),
+        ('Payments', 'Payments'),
+        ('POS Terminals', 'POS Terminals'),
+        ('Profit and Loss', 'Profit and Loss'),
+        ('Cash Balance', 'Cash Balance'),
+        ('Daily Sales', 'Daily Sales'),
+        ('Cashier Profitability', 'Cashier Profitability'),
+        ('Shop Profitability', 'Shop Profitability'),
+        ('Suppliers', 'Suppliers'),
+        ('System Logs', 'System Logs'),
+        ('Issues', 'Issues'),
+        ('Sync Issues', 'Sync Issues'),
+        ('Configs', 'Configs'),
+        ('Settings', 'Settings'),
+        ('Dashboard', 'Dashboard'),
+        ('Tenants', 'Tenants'),
+        ('Subscription Plans', 'Subscription Plans'),
+        ('Payment Providers', 'Payment Providers'),
+        ('Support Tickets', 'Support Tickets'),
+        ('My Preferences', 'My Preferences')
+    ], string='Feature', required=True)
+
+    category = fields.Selection([
+        ('sales', 'Sales'),
+        ('purchases', 'Purchases & Expenses'),
+        ('inventory', 'Inventory'),
+        ('accounting', 'Accounting & Finance'),
+        ('settings', 'Settings & Configuration')
+    ], string='Category', compute='_compute_category', store=True)
+
+    @api.depends('feature')
+    def _compute_category(self):
+        cat_map = {
+            'sales': ['Sales Invoices', 'Customers', 'Customer Groups', 'Sales Returns'],
+            'purchases': ['Purchases', 'Expense Posting', 'Payments', 'Suppliers'],
+            'inventory': ['Products', 'Categories', 'UOM', 'Pricelists', 'Stock Transfers', 'Stock Adjustments', 'Stock Evaluations', 'Stock Ledger', 'Stores'],
+            'accounting': ['Taxes', 'Exchange Rate', 'Currencies', 'Chart of Accounts', 'Item Profitability', 'Category Profitability'],
+            'settings': ['Users', 'User Rights Profiles', 'My Subscription', 'POS Terminals', 'Profit and Loss', 'Cash Balance', 'Daily Sales', 'Cashier Profitability', 'Shop Profitability', 'System Logs', 'Issues', 'Sync Issues', 'Configs', 'Settings', 'Dashboard', 'Tenants', 'Subscription Plans', 'Payment Providers', 'Support Tickets', 'My Preferences']
+        }
+        feature_to_cat = {}
+        for cat, features in cat_map.items():
+            for f in features:
+                feature_to_cat[f] = cat
+                
+        for record in self:
+            record.category = feature_to_cat.get(record.feature, 'settings')
+
+    is_read_only = fields.Boolean(string='Read Only', default=False)
+    is_full_access = fields.Boolean(string='Full Access', default=True)
+
+    _sql_constraints = [
+        ('bo_profile_feature_uniq', 'unique(profile_id, feature)', 'A feature permission already exists for this profile!')
+    ]
+
+
+MODEL_FEATURE_MAP = {
+    'account.move': 'Sales Invoices',
+    'havanoposdesk.sale': 'Sales Invoices',
+    'havanoposdesk.sale.line': 'Sales Invoices',
+    'purchase.order': 'Purchases',
+    'havanoposdesk.purchase': 'Purchases',
+    'havanoposdesk.purchase.line': 'Purchases',
+    'res.partner': 'Customers',
+    'havanoposdesk.customer': 'Customers',
+    'havanoposdesk.supplier': 'Suppliers',
+    'havanoposdesk.customer.group': 'Customer Groups',
+    'account.tax': 'Taxes',
+    'res.currency.rate': 'Exchange Rate',
+    'res.currency': 'Currencies',
+    'havanoposdesk.store': 'Stores',
+    'res.users': 'Users',
+    'havanoposdesk.user.rights.profile': 'User Rights Profiles',
+    'havanoposdesk.subscription': 'My Subscription',
+    'account.account': 'Chart of Accounts',
+    'havanoposdesk.stock.transfer': 'Stock Transfers',
+    'havanoposdesk.stock.adjustment': 'Stock Adjustments',
+    'havanoposdesk.stock.valuation': 'Stock Evaluations',
+    'havanoposdesk.stock.ledger': 'Stock Ledger',
+    'havanoposdesk.product': 'Products',
+    'uom.uom': 'UOM',
+    'product.pricelist': 'Pricelists',
+    'havanoposdesk.category': 'Categories',
+    'havanoposdesk.item.profitability.report': 'Item Profitability',
+    'havanoposdesk.category.profitability.report': 'Category Profitability',
+    'havanoposdesk.sales.return': 'Sales Returns',
+    'havanoposdesk.expense': 'Expense Posting',
+    'account.payment': 'Payments',
+    'havanoposdesk.payment': 'Payments',
+    'havanoposdesk.pos.terminal': 'POS Terminals',
+    'havanoposdesk.profit.loss.report': 'Profit and Loss',
+    'havanoposdesk.cash.balance': 'Cash Balance',
+    'havanoposdesk.daily.sales.report': 'Daily Sales',
+    'havanoposdesk.cashier.profitability.report': 'Cashier Profitability',
+    'havanoposdesk.shop.profitability.report': 'Shop Profitability',
+    'havanoposdesk.system.log': 'System Logs',
+    'havanoposdesk.issue': 'Issues',
+    'havanoposdesk.sync.issue': 'Sync Issues',
+    'havanoposdesk.config': 'Configs',
+    'res.config.settings': 'Settings',
+    'havanoposdesk.tenant': 'Tenants',
+    'havanoposdesk.subscription.plan': 'Subscription Plans',
+}
+
+from odoo.models import BaseModel
+original_check_access_rights = BaseModel.check_access_rights
+
+def enforce_backoffice_permissions(self, operation, raise_exception=True):
+    if not isinstance(operation, str) or operation not in ('read', 'write', 'create', 'unlink'):
+        return True
+
+    res = original_check_access_rights(self, operation, raise_exception)
+    
+    if self._name in MODEL_FEATURE_MAP:
+        if self.env.su or self.env.user.id == 1:
+            return res
+        
+        if getattr(self.env.user, 'havano_role', None) == 'super_admin':
+            return res
+
+        user = self.env.user
+        profile = user.user_rights_profile_id
+        feature_name = MODEL_FEATURE_MAP[self._name]
+        
+        if not profile:
+            if raise_exception:
+                raise AccessError(f"Permission Denied: No User Rights Profile assigned.")
+            return False
+            
+        bo_perm = profile.backoffice_permission_ids.filtered(lambda p: p.feature == feature_name)
+        if not bo_perm:
+            if raise_exception:
+                raise AccessError(f"Permission Denied: You do not have access to '{feature_name}'.")
+            return False
+            
+        perm = bo_perm[0]
+        if not perm.is_full_access and not perm.is_read_only:
+            if raise_exception:
+                raise AccessError(f"Permission Denied: You do not have access to '{feature_name}'.")
+            return False
+            
+        if operation in ('write', 'create', 'unlink') and bo_perm[0].is_read_only:
+            if raise_exception:
+                raise AccessError(f"Permission Denied: You have Read-Only access to '{feature_name}'. You cannot create, modify, or delete records.")
+            return False
+                
+    return res
+
+BaseModel.check_access_rights = enforce_backoffice_permissions

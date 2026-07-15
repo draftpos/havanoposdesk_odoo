@@ -14,7 +14,7 @@ class HavanoposdeskTenant(models.Model):
     active = fields.Boolean(default=True)
     currency_id = fields.Many2one('res.currency', string='Default Currency', default=lambda self: self.env.ref('base.USD').id)
     allow_multi_currency = fields.Boolean(string='Allow Multi Currency', default=False)
-    allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=False)
+    allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=True)
     
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan')
     subscription_state = fields.Selection([
@@ -35,7 +35,7 @@ class HavanoposdeskTenant(models.Model):
         ('lowercase', 'lowercase'),
         ('title', 'Title Case'),
         ('asis', 'As-Is')
-    ], string='Product Naming Format', default='asis')
+    ], string='Product Naming Format', default='title')
     
     restrict_price_modification = fields.Boolean(
         string="Restrict Price Modification",
@@ -112,6 +112,11 @@ class HavanoposdeskTenant(models.Model):
     exp_seq_prefix = fields.Char(string='Expense Sequence Prefix', default='')
     exp_seq_next = fields.Integer(string='Expense Sequence Next Number', default=1)
     exp_seq_padding = fields.Integer(string='Expense Sequence Padding', default=4)
+
+    # Stock Transfer Sequence Config
+    trn_seq_prefix = fields.Char(string='Stock Transfer Sequence Prefix', default='TRN')
+    trn_seq_next = fields.Integer(string='Stock Transfer Sequence Next Number', default=1)
+    trn_seq_padding = fields.Integer(string='Stock Transfer Sequence Padding', default=4)
     api_cost_center = fields.Char(string="API Cost Center")
     api_warehouse = fields.Char(string="API Warehouse")
 
@@ -158,6 +163,25 @@ class HavanoposdeskTenant(models.Model):
                 'store_id': store.id,
                 'tenant_id': tenant.id,
             })
+            
+            # Auto-create the 3 default profiles
+            self.env['havanoposdesk.user.rights.profile'].sudo().create([
+                {
+                    'name': 'Super Admin Profile',
+                    'tenant_id': tenant.id,
+                    'havano_role': 'super_admin'
+                },
+                {
+                    'name': 'Admin Profile',
+                    'tenant_id': tenant.id,
+                    'havano_role': 'admin'
+                },
+                {
+                    'name': 'Cashier Profile',
+                    'tenant_id': tenant.id,
+                    'havano_role': 'cashier'
+                }
+            ])
             
             tenant._seed_default_data()
         return tenants

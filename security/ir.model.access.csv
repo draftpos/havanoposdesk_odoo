@@ -3,8 +3,8 @@ access_havanoposdesk_tenant,havanoposdesk.tenant,model_havanoposdesk_tenant,base
 access_havanoposdesk_category,havanoposdesk.category,model_havanoposdesk_category,base.group_user,1,1,1,1
 access_havanoposdesk_uom,havanoposdesk.uom,model_havanoposdesk_uom,base.group_user,1,1,1,1
 access_havanoposdesk_product,havanoposdesk.product,model_havanoposdesk_product,base.group_user,1,1,1,1
-access_havanoposdesk_stock_valuation,havanoposdesk.stock.valuation,model_havanoposdesk_stock_valuation,base.group_user,1,0,0,0
-access_havanoposdesk_stock_ledger,havanoposdesk.stock.ledger,model_havanoposdesk_stock_ledger,base.group_user,1,0,0,0
+access_havanoposdesk_stock_valuation,havanoposdesk.stock.valuation,model_havanoposdesk_stock_valuation,base.group_user,1,1,1,1
+access_havanoposdesk_stock_ledger,havanoposdesk.stock.ledger,model_havanoposdesk_stock_ledger,base.group_user,1,1,1,1
 access_havanoposdesk_stock_adjustment,havanoposdesk.stock.adjustment,model_havanoposdesk_stock_adjustment,base.group_user,1,1,1,1
 access_havanoposdesk_stock_adjustment_line,havanoposdesk.stock.adjustment.line,model_havanoposdesk_stock_adjustment_line,base.group_user,1,1,1,1
 access_havanoposdesk_stock_entry,havanoposdesk.stock.entry,model_havanoposdesk_stock_entry,base.group_user,1,1,1,1
@@ -24,7 +24,7 @@ access_havanoposdesk_subscription_pay_wizard,havanoposdesk.subscription.pay.wiza
 access_havanoposdesk_customer_group,havanoposdesk.customer.group,model_havanoposdesk_customer_group,base.group_user,1,1,1,1
 access_havanoposdesk_account_user,havanoposdesk.account user,model_havanoposdesk_account,base.group_user,1,1,1,1
 access_havanoposdesk_expense_user,havanoposdesk.expense user,model_havanoposdesk_expense,base.group_user,1,1,1,1
-access_havanoposdesk_item_profitability_report_user,havanoposdesk.item.profitability.report user,model_havanoposdesk_item_profitability_report,base.group_user,1,0,0,0
+access_havanoposdesk_item_profitability_report_user,havanoposdesk.item.profitability.report user,model_havanoposdesk_item_profitability_report,base.group_user,1,1,1,1
 access_havanoposdesk_tax_user,havanoposdesk.tax user,model_havanoposdesk_tax,base.group_user,1,1,1,1
 access_havanoposdesk_payment_user,havanoposdesk.payment user,model_havanoposdesk_payment,base.group_user,1,1,1,1
 access_havanoposdesk_sale_return_wizard_user,havanoposdesk.sale.return.wizard user,model_havanoposdesk_sale_return_wizard,base.group_user,1,1,1,1
@@ -46,6 +46,7 @@ access_wizard_clear_data_tenant_admin,wizard.clear.data tenant admin,model_wizar
 access_havanoposdesk_profit_and_loss,havanoposdesk.profit.and.loss,model_havanoposdesk_profit_and_loss,base.group_user,1,1,1,1
 access_havanoposdesk_user_rights_profile,havanoposdesk.user.rights.profile,model_havanoposdesk_user_rights_profile,base.group_user,1,1,1,1
 access_havanoposdesk_user_rights_permission,havanoposdesk.user.rights.permission,model_havanoposdesk_user_rights_permission,base.group_user,1,1,1,1
+access_havanoposdesk_backoffice_permission,havanoposdesk.backoffice.permission,model_havanoposdesk_backoffice_permission,base.group_user,1,1,1,1
 access_havanoposdesk_dashboard,havanoposdesk.dashboard,model_havanoposdesk_dashboard,base.group_user,1,1,1,1
 access_havano_change_pin_wizard,havano.change.pin.wizard,model_havano_change_pin_wizard,base.group_user,1,1,1,1
 access_havano_change_password_wizard,havano.change.password.wizard,model_havano_change_password_wizard,base.group_user,1,1,1,1

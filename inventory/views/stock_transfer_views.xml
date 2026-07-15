@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        
+
         <record id="view_stock_transfer_form" model="ir.ui.view">
             <field name="name">havanoposdesk.stock.transfer.form</field>
             <field name="model">havanoposdesk.stock.transfer</field>
@@ -9,32 +9,50 @@
                 <form string="Stock Transfer">
                     <header>
                         <button name="action_validate" type="object" string="Validate" class="btn-primary" invisible="state != 'draft'" />
-                        <field name="state" widget="statusbar" />
+                        <field name="state" widget="statusbar" statusbar_visible="draft,done" />
                     </header>
                     <sheet>
-                        <div class="oe_title">
+                        <!-- Only show reference once the record is saved (has an ID) -->
+                        <div class="oe_title" invisible="not id">
                             <h1>
                                 <field name="name" readonly="1" />
                             </h1>
                         </div>
                         <group>
                             <group>
-                                <field name="from_store_id" options="{'no_create': True}" class="border-bottom border-dark" />
-                                <field name="to_store_id" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="tenant_id" invisible="1" />
+                                <field name="from_store_id"
+                                    options="{'no_create': True}"
+                                    readonly="state == 'done'"
+                                    class="border-bottom border-dark" />
+                                <field name="to_store_id"
+                                    options="{'no_create': True}"
+                                    readonly="state == 'done'"
+                                    class="border-bottom border-dark" />
                             </group>
                             <group>
-                                <field name="date" class="border-bottom border-dark" />
-                                <field name="tenant_id" invisible="1" />
+                                <field name="date"
+                                    readonly="state == 'done'"
+                                    class="border-bottom border-dark" />
                             </group>
                         </group>
                         <notebook>
                             <page string="Items">
-                                <field name="line_ids">
+                                <field name="line_ids" readonly="state == 'done'">
                                     <list editable="bottom">
                                         <field name="tenant_id" column_invisible="True" />
-                                        <field name="product_id" domain="[('store_ids', 'in', parent.from_store_id)]" />
-                                        <field name="uom_id" />
-                                        <field name="qty" optional="show" />
+                                        <field name="product_id"
+                                            domain="[('tenant_id', '=', parent.tenant_id)]"
+                                            width="40%"
+                                            string="Item" />
+                                        <field name="available_uom_ids" column_invisible="True" />
+                                        <field name="uom_id"
+                                            domain="[('id', 'in', available_uom_ids)]"
+                                            readonly="not available_uom_ids"
+                                            options="{'no_create': True}"
+                                            width="20%"
+                                            string="Unit of Measure" />
+                                        <field name="qty" width="20%" string="Quantity" />
                                     </list>
                                 </field>
                             </page>
@@ -44,7 +62,7 @@
             </field>
         </record>
 
-        
+
         <record id="view_stock_transfer_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.stock.transfer.tree</field>
             <field name="model">havanoposdesk.stock.transfer</field>
@@ -59,7 +77,7 @@
             </field>
         </record>
 
-        
+
         <record id="view_stock_transfer_search" model="ir.ui.view">
             <field name="name">havanoposdesk.stock.transfer.search</field>
             <field name="model">havanoposdesk.stock.transfer</field>
@@ -79,7 +97,7 @@
             </field>
         </record>
 
-        
+
         <record id="action_stock_transfer" model="ir.actions.act_window">
             <field name="name">Stock Transfers</field>
             <field name="res_model">havanoposdesk.stock.transfer</field>
@@ -87,7 +105,7 @@
             <field name="search_view_id" ref="view_stock_transfer_search" />
         </record>
 
-        
+
         <menuitem id="menu_stock_transfer" name="Stock Transfers" parent="menu_inventory_operations" action="action_stock_transfer" sequence="30" />
 
     </data>

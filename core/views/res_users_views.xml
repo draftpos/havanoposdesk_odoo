@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <!-- Admin form view (full editable, for super_admin viewing a user's record) -->
         <record id="view_users_form_inherit_havano" model="ir.ui.view">
             <field name="name">res.users.form.inherit.havano</field>
             <field name="model">res.users</field>
@@ -41,6 +42,7 @@
             </field>
         </record>
 
+        <!-- My Preferences modal - single, clean Havano SaaS tab (no duplicates) -->
         <record id="view_users_form_simple_modif_inherit_havano" model="ir.ui.view">
             <field name="name">res.users.preferences.form.inherit.havano</field>
             <field name="model">res.users</field>

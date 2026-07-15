@@ -6,11 +6,17 @@ import datetime
 class ResUsers(models.Model):
     _inherit = "res.users"
     
-    havano_role = fields.Selection([
-        ('super_admin', 'Super Admin'),
-        ('admin', 'Admin'),
-        ('user', 'Cashier')
-    ], string="Havano Role", default='user')
+    @api.model
+    def _get_havano_role_selection(self):
+        roles = [
+            ('admin', 'Admin'),
+            ('user', 'Cashier')
+        ]
+        if self.env.user.id == 1 or getattr(self.env.user, 'havano_role', None) == 'super_admin':
+            roles.insert(0, ('super_admin', 'Super Admin'))
+        return roles
+
+    havano_role = fields.Selection(selection='_get_havano_role_selection', string="Havano Role", default='user')
     tenant_id = fields.Many2one('havanoposdesk.tenant', string="Tenant")
     saas_state = fields.Selection([
         ('unverified', 'Unverified'),
@@ -45,7 +51,26 @@ class ResUsers(models.Model):
         for user in self:
             user.allow_backoffice = (user.havano_role in ['admin', 'super_admin'])
 
-
+    @api.onchange('havano_role')
+    def _onchange_havano_role_profile(self):
+        """Auto-select the default User Rights Profile based on the selected role."""
+        for user in self:
+            if user.havano_role and user.tenant_id:
+                profile_name = ''
+                if user.havano_role == 'super_admin':
+                    profile_name = 'Super Admin Profile'
+                elif user.havano_role == 'admin':
+                    profile_name = 'Admin Profile'
+                elif user.havano_role == 'user':
+                    profile_name = 'Cashier Profile'
+                    
+                if profile_name:
+                    profile = self.env['havanoposdesk.user.rights.profile'].search([
+                        ('tenant_id', '=', user.tenant_id.id),
+                        ('name', '=', profile_name)
+                    ], limit=1)
+                    if profile:
+                        user.user_rights_profile_id = profile.id
 
     def _inverse_allow_backoffice(self):
         for user in self:
@@ -88,6 +113,41 @@ class ResUsers(models.Model):
     api_cost_center = fields.Char(string="API Cost Center")
     api_warehouse = fields.Char(string="API Warehouse")
 
+    @api.onchange('default_store_id')
+    def _onchange_default_store_id_api_fields(self):
+        """Live UI update: auto-fill API Cost Centre and API Warehouse from the default store."""
+        for user in self:
+            if user.default_store_id:
+                store_name = user.default_store_id.name
+                if not user.api_cost_center:
+                    user.api_cost_center = store_name
+                if not user.api_warehouse:
+                    user.api_warehouse = store_name
+
+    @api.model
+    def default_get(self, fields_list):
+        """Pre-fill default_store_id, store_ids, and API fields when a new user form opens."""
+        res = super().default_get(fields_list)
+        current_user = self.env.user
+        store = current_user.default_store_id
+        if not store and current_user.tenant_id:
+            store = self.env['havanoposdesk.store'].search([('tenant_id', '=', current_user.tenant_id.id)], limit=1)
+            
+        if store:
+            if 'default_store_id' in fields_list and not res.get('default_store_id'):
+                res['default_store_id'] = store.id
+            if 'store_ids' in fields_list and not res.get('store_ids'):
+                res['store_ids'] = [(4, store.id)]
+            if 'api_cost_center' in fields_list and not res.get('api_cost_center'):
+                res['api_cost_center'] = store.name
+            if 'api_warehouse' in fields_list and not res.get('api_warehouse'):
+                res['api_warehouse'] = store.name
+                
+        if current_user.tenant_id and 'tenant_id' in fields_list and not res.get('tenant_id'):
+            res['tenant_id'] = current_user.tenant_id.id
+        return res
+
+
     allow_discount = fields.Boolean(string="Allow Discount", default=True)
     max_discount_percent = fields.Float(string="Max Discount Percent", default=100.0)
     require_shift = fields.Boolean(string="Require Shift", default=False)
@@ -106,6 +166,17 @@ class ResUsers(models.Model):
                 vals['havano_role'] = 'admin' if vals['allow_backoffice'] else 'user'
                 
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            
+            # Auto-link profile if not provided
+            if 'user_rights_profile_id' not in vals and tenant_id:
+                role = vals.get('havano_role') or 'user'
+                profile = self.env['havanoposdesk.user.rights.profile'].search([
+                    ('tenant_id', '=', tenant_id),
+                    ('havano_role', '=', role)
+                ], limit=1)
+                if profile:
+                    vals['user_rights_profile_id'] = profile.id
+
             if 'login' not in vals or not vals.get('login'):
                 name = vals.get('name', 'user').lower().replace(' ', '')
                 store_id = vals.get('default_store_id') or self.env.user.default_store_id.id
@@ -284,6 +355,9 @@ class ResUsers(models.Model):
             if user.saas_state == 'unverified' and user.verification_token:
                 user.sudo().send_verification_email()
 
+        # Auto-assign User Rights Profile based on role after creation
+        users._auto_assign_rights_profile()
+
         return users
 
     def write(self, vals):
@@ -346,7 +420,30 @@ class ResUsers(models.Model):
                         group_cmds.append((3, erp_manager_group.id, 0))
                     if group_cmds:
                         user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
+
+        # Auto-assign User Rights Profile whenever havano_role changes
+        if 'havano_role' in vals:
+            self._auto_assign_rights_profile()
+
         return res
+
+    def _auto_assign_rights_profile(self):
+        """Automatically link the correct User Rights Profile based on havano_role."""
+        for user in self:
+            role = user.havano_role
+            if not role:
+                continue
+            tenant_id = user.tenant_id.id if user.tenant_id else False
+            if not tenant_id:
+                continue
+            profile = self.env['havanoposdesk.user.rights.profile'].search([
+                ('tenant_id', '=', tenant_id),
+                ('havano_role', '=', role),
+            ], limit=1)
+            if profile and user.user_rights_profile_id.id != profile.id:
+                user.sudo().with_context(bypass_sync_role_groups=True).write(
+                    {'user_rights_profile_id': profile.id}
+                )
 
     def action_verify_user(self):
         for user in self:

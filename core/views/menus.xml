@@ -4,6 +4,21 @@
         <!-- Enable Free Sign Up (B2C Registration) by default -->
         <!-- Removed config parameters to prevent UniqueViolation error on module upgrade -->
 
+        <!-- The Client Action for the Custom Home Menu -->
+        <record id="action_custom_home_menu" model="ir.actions.client">
+            <field name="name">Home</field>
+            <field name="tag">custom_home_menu.action</field>
+            <field name="target">main</field>
+        </record>
+
+        <!-- The Menu Item that triggers it. Sequence 0 guarantees it's the very first app loaded. -->
+        <record id="menu_custom_home_menu_root" model="ir.ui.menu">
+            <field name="name">Home</field>
+            <field name="action" ref="action_custom_home_menu"/>
+            <field name="sequence">0</field>
+            <field name="active">True</field>
+        </record>
+
         <!-- Top-level Menus acting as Apps on the Dashboard -->
         <menuitem id="menu_inventory_root" name="Stock" sequence="10" web_icon="havanoposdesk_odoo,static/description/stock.png"/>
         <menuitem id="menu_sales_root" name="Sales" sequence="20" web_icon="havanoposdesk_odoo,static/description/sales.png"/>
@@ -56,10 +71,7 @@
         <menuitem id="menu_saas_stores" name="Stores" parent="menu_saas_root" action="action_havanoposdesk_store" sequence="30"/>
         <menuitem id="menu_saas_plans" name="Subscription Plans" parent="menu_saas_root" action="action_subscription_plans" sequence="40"/>
         <menuitem id="menu_saas_payment_providers" name="Payment Providers" parent="menu_saas_root" action="payment.action_payment_provider" sequence="50"/>
-        
-        <!-- Also keep Tenants and Stores in native users menu just in case -->
-        <menuitem id="menu_tenant" name="Tenants" parent="base.menu_users" action="action_havanoposdesk_tenant" sequence="100"/>
-        <menuitem id="menu_store" name="Stores" parent="base.menu_users" action="action_havanoposdesk_store" sequence="110"/>
+
 
         <!-- Action: Purchases Analytics fallback -->
         <record id="action_purchases_analysis" model="ir.actions.act_window">

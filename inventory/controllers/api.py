@@ -2984,17 +2984,16 @@ class HavanoPOSDeskAPI(http.Controller):
             tax_ids = []
             if 'item_tax' in data and data['item_tax']:
                 tax_cat = data['item_tax']
-                tax = env['havanoposdesk.tax'].search([
+                tax = env['havanoposdesk.tax'].with_context(active_test=False).search([
                     ('name', 'ilike', tax_cat),
-                    ('tax_type', '=', 'Sales'),
-                    ('active', '=', True)
+                    ('tax_type', '=', 'Sales')
                 ], limit=1)
                 if not tax:
                     tax = env['havanoposdesk.tax'].create({
                         'name': tax_cat,
                         'tax_type': 'Sales',
                         'rate': 15.5 if tax_cat == 'VAT' else 0.0,
-                        'active': True,
+                        'active': False,
                         'tenant_id': tenant.id if tenant else False
                     })
                 tax_ids.append(tax.id)
@@ -3002,17 +3001,16 @@ class HavanoPOSDeskAPI(http.Controller):
             if data.get('food_and_tourism_tax') == 1:
                 # Ensure Food Tax and Tourism Tax are linked
                 for extra_tax_name, rate in [('Food Tax', 2.0), ('Tourism Tax', 2.0)]:
-                    extra_tax = env['havanoposdesk.tax'].search([
+                    extra_tax = env['havanoposdesk.tax'].with_context(active_test=False).search([
                         ('name', 'ilike', extra_tax_name),
-                        ('tax_type', '=', 'Sales'),
-                        ('active', '=', True)
+                        ('tax_type', '=', 'Sales')
                     ], limit=1)
                     if not extra_tax:
                         extra_tax = env['havanoposdesk.tax'].create({
                             'name': extra_tax_name,
                             'tax_type': 'Sales',
                             'rate': rate,
-                            'active': True,
+                            'active': False,
                             'tenant_id': tenant.id if tenant else False
                         })
                     if extra_tax.id not in tax_ids:

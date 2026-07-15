@@ -101,7 +101,7 @@
             <field name="name">Havano User Isolation</field>
             <field name="model_id" ref="base.model_res_users"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('havano_role', '!=', 'super_admin')]</field>
         </record>
 
         <!-- Account Model Isolation Rule -->
@@ -189,7 +189,7 @@
             <field name="name">Havano User Rights Profile Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_user_rights_profile"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('havano_role', '!=', 'super_admin')]</field>
         </record>
 
         <!-- User Rights Permission Model Isolation Rule -->
