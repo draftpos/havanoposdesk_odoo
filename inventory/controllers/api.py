@@ -166,7 +166,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if user.tenant_id:
                     product_domain.append(('tenant_id', '=', user.tenant_id.id))
                 if user.havano_role == 'user':
-                    product_domain.append(('store_id', 'in', user.store_ids.ids))
+                    product_domain.append(('store_ids', 'in', user.store_ids.ids))
                     
             limit_val = None
             if items_limit is not None:
@@ -351,7 +351,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
                 domain.append(('tenant_id', '=', user.tenant_id.id))
                 if user.havano_role == 'user':
-                    domain.append(('store_id', 'in', user.store_ids.ids))
+                    domain.append(('store_ids', 'in', user.store_ids.ids))
                     
             products = request.env['havanoposdesk.product'].sudo().search(domain)
             data = []
@@ -369,7 +369,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'category': p.category_id.id if p.category_id else None,
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
-                    'store_id': p.store_id.id if p.store_id else None,
+                    'store_id': p.store_ids[0].id if p.store_ids else None,
                 })
             return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
         
@@ -454,7 +454,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'category': product.category_id.id if product.category_id else None,
                 'uom': product.uom_id.id if product.uom_id else None,
                 'tenant_id': product.tenant_id.id,
-                'store_id': product.store_id.id,
+                'store_id': product.store_ids[0].id if product.store_ids else None,
             }
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')], status=201)
 
@@ -485,7 +485,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
                 domain.append(('tenant_id', '=', user.tenant_id.id))
             categories = request.env['havanoposdesk.category'].sudo().search(domain)
-            data = [{'id': c.id, 'name': c.name, 'tenant_id': c.tenant_id.id, 'store_id': c.store_id.id if c.store_id else None} for c in categories]
+            data = [{'id': c.id, 'name': c.name, 'tenant_id': c.tenant_id.id, 'store_id': c.store_ids[0].id if c.store_ids else None} for c in categories]
             return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
         
         elif request.httprequest.method == 'POST':
@@ -510,9 +510,9 @@ class HavanoPOSDeskAPI(http.Controller):
             cat = request.env['havanoposdesk.category'].sudo().create({
                 'name': data.get('name'),
                 'tenant_id': tenant_id,
-                'store_id': store.id,
+                'store_ids': [(6, 0, [store.id])] if store else [],
             })
-            return request.make_response(json.dumps({'id': cat.id, 'name': cat.name, 'tenant_id': cat.tenant_id.id, 'store_id': cat.store_id.id if cat.store_id else None}), headers=[('Content-Type', 'application/json')], status=201)
+            return request.make_response(json.dumps({'id': cat.id, 'name': cat.name, 'tenant_id': cat.tenant_id.id, 'store_id': cat.store_ids[0].id if cat.store_ids else None}), headers=[('Content-Type', 'application/json')], status=201)
 
     # UOMS
     @http.route('/api/uoms/', auth='public', methods=['GET', 'POST'], type='http', csrf=False, cors='*')
@@ -1277,9 +1277,9 @@ class HavanoPOSDeskAPI(http.Controller):
         category_name = data.get('item_group') or 'Basics'
         category = request.env['havanoposdesk.category'].sudo().search([('name', '=', category_name), ('tenant_id', '=', tenant.id)], limit=1)
         if not category:
-            category = request.env['havanoposdesk.category'].sudo().create({'name': category_name, 'tenant_id': tenant.id, 'store_id': store.id})
-        elif not category.store_id and store:
-            category.sudo().write({'store_id': store.id})
+            category = request.env['havanoposdesk.category'].sudo().create({'name': category_name, 'tenant_id': tenant.id, 'store_ids': [(6, 0, [store.id])] if store else []})
+        elif not category.store_ids and store:
+            category.sudo().write({'store_ids': [(4, store.id)]})
             
         uom_name = data.get('stock_uom') or 'Each'
         uom = request.env['havanoposdesk.uom'].sudo().search([('name', '=', uom_name), ('tenant_id', '=', tenant.id)], limit=1)
@@ -1360,10 +1360,10 @@ class HavanoPOSDeskAPI(http.Controller):
             category = request.env['havanoposdesk.category'].sudo().create({
                 'name': category_name, 
                 'tenant_id': tenant.id,
-                'store_id': store.id if store else False
+                'store_ids': [(6, 0, [store.id])] if store else []
             })
-        elif not category.store_id and store:
-            category.sudo().write({'store_id': store.id})
+        elif not category.store_ids and store:
+            category.sudo().write({'store_ids': [(4, store.id)]})
             
         res_data = {
             'message': {
@@ -1409,7 +1409,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
             if user.havano_role == 'user':
-                product_domain.append(('store_id', 'in', user.store_ids.ids))
+                product_domain.append(('store_ids', 'in', user.store_ids.ids))
                 
         total_count = request.env['havanoposdesk.product'].sudo().search_count(product_domain)
         products = request.env['havanoposdesk.product'].sudo().search(product_domain, limit=limit, offset=offset)
@@ -2747,7 +2747,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 if tenant:
                     domain.append(('tenant_id', '=', tenant.id))
                 if user.havano_role == 'user':
-                    domain.append(('store_id', 'in', user.store_ids.ids))
+                    domain.append('|')
+                    domain.append(('store_ids', '=', False))
+                    domain.append(('store_ids', 'in', user.store_ids.ids))
 
             categories = env['havanoposdesk.category'].search(domain)
             result = []
@@ -2758,7 +2760,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "name": c.name,
                     "item_group_name": c.name,
                     "parent_item_group": "All Item Groups",
-                    "default_warehouse": c.store_id.name if c.store_id else (user.default_store_id.name if user.default_store_id else "")
+                    "default_warehouse": c.store_ids[0].name if c.store_ids else (user.default_store_id.name if user.default_store_id else "")
                 })
             return self._make_json_response({"data": result})
         finally:
