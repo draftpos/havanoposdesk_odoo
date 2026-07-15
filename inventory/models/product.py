@@ -38,6 +38,12 @@ class HavanoposdeskProduct(models.Model):
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
+    on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
+
+    def _compute_on_hand_qty(self):
+        for record in self:
+            valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', '=', record.id)])
+            record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
 
     sale_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_sale_tax_rel', 'product_id', 'tax_id', string='Sales Taxes', domain=[('tax_type', '=', 'Sales'), ('active', '=', True)])
     purchase_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_purchase_tax_rel', 'product_id', 'tax_id', string='Purchase Taxes', domain=[('tax_type', '=', 'Purchases'), ('active', '=', True)])

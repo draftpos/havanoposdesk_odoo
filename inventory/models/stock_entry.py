@@ -123,11 +123,7 @@ class StockEntry(models.Model):
                         'doc_no': entry.name,
                     })
 
-                # 3. Overall product opening_stock update
-                if entry.from_warehouse and not entry.to_warehouse:
-                    line.product_id.sudo().opening_stock -= line.qty
-                elif entry.to_warehouse and not entry.from_warehouse:
-                    line.product_id.sudo().opening_stock += line.qty
+                # 3. Overall product opening_stock update removed
 
             entry.write({'state': 'submitted', 'docstatus': 1})
 
@@ -174,12 +170,7 @@ class StockEntry(models.Model):
                         'doc_no': entry.name,
                     })
 
-                # Revert overall opening stock
-                if entry.from_warehouse and not entry.to_warehouse:
-                    line.product_id.sudo().opening_stock += line.qty
-                elif entry.to_warehouse and not entry.from_warehouse:
-                    line.product_id.sudo().opening_stock -= line.qty
-
+                # Revert overall opening stock removed
             entry.write({'state': 'cancelled', 'docstatus': 2})
 
 

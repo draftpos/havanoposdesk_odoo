@@ -199,56 +199,81 @@ class HavanoposdeskTenant(models.Model):
 
     def _seed_default_data(self):
         self.ensure_one()
-        _logger.info("SEED_DEFAULT_DATA CALLED VIA RAW SQL FOR PERFORMANCE")
+        _logger.info("SEED_DEFAULT_DATA CALLED VIA ORM")
         store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', self.id)], limit=1)
-        store_id = store.id if store else None
+        store_id = store.id if store else False
         tenant_id = self.id
-        uid = self.env.uid or 1
-        now = fields.Datetime.now()
         
-        # 1. Customer Group (need ID for Customer)
-        self.env.cr.execute("""
-            INSERT INTO havanoposdesk_customer_group (name, tenant_id, create_uid, write_uid, create_date, write_date)
-            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;
-        """, ('Default Group', tenant_id, uid, uid, now, now))
-        cg_id = self.env.cr.fetchone()[0]
+        usd = self.env.ref('base.USD', raise_if_not_found=False)
+        currency_id = self.currency_id.id if self.currency_id else (usd.id if usd else False)
         
-        queries = []
-        params = []
+        # 1. Customer Group
+        cg = self.env['havanoposdesk.customer.group'].sudo().create({
+            'name': 'Default Group',
+            'tenant_id': tenant_id,
+        })
         
         # 2. Supplier
-        queries.append("""INSERT INTO havanoposdesk_supplier (name, tenant_id, store_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
-        params.append(('General Supplier', tenant_id, store_id, uid, uid, now, now))
+        self.env['havanoposdesk.supplier'].sudo().create({
+            'name': 'General Supplier',
+            'tenant_id': tenant_id,
+            'store_id': store_id,
+        })
         
         # 3. Default Deposit Account
-        queries.append("""INSERT INTO havanoposdesk_account (name, type, tenant_id, currency_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""")
-        params.append(('Cash', 'Cash', tenant_id, self.currency_id.id if self.currency_id else None, uid, uid, now, now))
+        self.env['havanoposdesk.account'].sudo().create({
+            'name': 'Cash',
+            'type': 'Cash',
+            'tenant_id': tenant_id,
+            'currency_id': currency_id,
+        })
         
         # 4. Default Expenses Account
         expenses = ['Electricity', 'Rent', 'Utilities', 'Wages & Salaries', 'Breakages', 'Council Licenses', 'Maintanences', 'Fuel']
         for exp in expenses:
-            queries.append("""INSERT INTO havanoposdesk_account (name, type, tenant_id, currency_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""")
-            params.append((exp, 'Expense', tenant_id, self.currency_id.id if self.currency_id else None, uid, uid, now, now))
+            self.env['havanoposdesk.account'].sudo().create({
+                'name': exp,
+                'type': 'Expense',
+                'tenant_id': tenant_id,
+                'currency_id': currency_id,
+            })
             
         # 5. Default Customer
-        queries.append("""INSERT INTO havanoposdesk_customer (name, customer_group_id, tenant_id, store_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""")
-        params.append(('Cash Customer', cg_id, tenant_id, store_id, uid, uid, now, now))
+        self.env['havanoposdesk.customer'].sudo().create({
+            'name': 'Cash Customer',
+            'customer_group_id': cg.id,
+            'tenant_id': tenant_id,
+            'store_ids': [(6, 0, [store_id])] if store_id else False,
+        })
         
         # 6. Default Categories
-        queries.append("""INSERT INTO havanoposdesk_category (name, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s)""")
-        params.append(('Basic', tenant_id, uid, uid, now, now))
-        queries.append("""INSERT INTO havanoposdesk_category (name, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s)""")
-        params.append(('Beveragies', tenant_id, uid, uid, now, now))
+        self.env['havanoposdesk.category'].sudo().create([
+            {
+                'name': 'Basic',
+                'tenant_id': tenant_id,
+                'store_ids': [(6, 0, [store_id])] if store_id else False,
+            },
+            {
+                'name': 'Beverages',
+                'tenant_id': tenant_id,
+                'store_ids': [(6, 0, [store_id])] if store_id else False,
+            }
+        ])
         
         # 7. Default Pricelist
-        queries.append("""INSERT INTO havanoposdesk_pricelist (name, type, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s, %s)""")
-        params.append(('Retail', 'selling', tenant_id, uid, uid, now, now))
+        self.env['havanoposdesk.pricelist'].sudo().create({
+            'name': 'Retail',
+            'type': 'selling',
+            'tenant_id': tenant_id,
+        })
         
         # 8. Default UOMs
         uoms = ['Kg', 'Litre', 'Meter', 'Pieces', 'Box', 'Set']
         for uom in uoms:
-            queries.append("""INSERT INTO havanoposdesk_uom (name, tenant_id, create_uid, write_uid, create_date, write_date) VALUES (%s, %s, %s, %s, %s, %s)""")
-            params.append((uom, tenant_id, uid, uid, now, now))
+            self.env['havanoposdesk.uom'].sudo().create({
+                'name': uom,
+                'tenant_id': tenant_id,
+            })
         
         # 9. Default Taxes — seeded as INACTIVE so tenant manually activates what they need
         default_taxes = [
@@ -260,15 +285,13 @@ class HavanoposdeskTenant(models.Model):
             ('Service Charge 10%', 10.0, 'Sales'),
         ]
         for (tax_name, tax_rate, tax_type) in default_taxes:
-            queries.append("""
-                INSERT INTO havanoposdesk_tax (name, rate, tax_type, active, tenant_id, create_uid, write_uid, create_date, write_date)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """)
-            params.append((tax_name, tax_rate, tax_type, False, tenant_id, uid, uid, now, now))
-        
-        # Execute all inserts in a single rapid batch
-        for i, query in enumerate(queries):
-            self.env.cr.execute(query, params[i])
+            self.env['havanoposdesk.tax'].sudo().create({
+                'name': tax_name,
+                'rate': tax_rate,
+                'tax_type': tax_type,
+                'active': False,
+                'tenant_id': tenant_id,
+            })
 
     def action_approve(self):
         for tenant in self:

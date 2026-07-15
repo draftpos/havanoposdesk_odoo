@@ -36,7 +36,7 @@ class Customer(models.Model):
         required=True, 
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
-    currency_id = fields.Many2one(related='store_id.currency_id', string='Currency', store=False)
+    currency_id = fields.Many2one(related='tenant_id.currency_id', string='Currency', store=False)
     phone = fields.Char(string='Phone')
     address = fields.Char(string='Address')
     city = fields.Char(string='City')
@@ -57,7 +57,7 @@ class Customer(models.Model):
     sale_ids = fields.One2many('havanoposdesk.sale', 'customer', string='Sales')
     payment_ids = fields.One2many('havanoposdesk.payment', 'customer_id', string='Payments')
     balance = fields.Float(string='Balance', compute='_compute_balance', store=False)
-    store_id = fields.Many2one('havanoposdesk.store', string='Store')
+    store_ids = fields.Many2many('havanoposdesk.store', string='Stores')
 
     @api.depends('sale_ids.amount_total', 'sale_ids.is_return', 'sale_ids.payment_status', 'payment_ids.amount', 'payment_ids.payment_type', 'payment_ids.state')
     def _compute_balance(self):
