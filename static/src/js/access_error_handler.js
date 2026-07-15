@@ -7,28 +7,15 @@
  * When the server raises an AccessError (e.g., "Permission Denied" from
  * user_rights.py), instead of showing the default Odoo red error dialog,
  * we display our custom branded "Access Restricted" modal.
- *
- * This acts as the FALLBACK SAFETY NET — if the JS button-hiding fails for
- * any reason and the user somehow triggers a create/write/unlink, the server
- * will reject it and this handler will intercept the error and show the
- * correct UI response.
  */
-
-import { patch } from "@web/core/utils/patch";
-import { ErrorHandler } from "@web/core/errors/error_handler";
-import { RPCError } from "@web/core/network/rpc";
 
 console.log("🛡️ HAVANO: access_error_handler.js loaded");
 
 // ─── Shared Modal Renderer ─────────────────────────────────────────────────────
-// This function is self-contained so it works even if the other JS file hasn't
-// loaded (defence-in-depth).
 function showHavanoAccessDeniedModal(message) {
     // Remove any existing modal first to avoid stacking
     document.querySelectorAll('.havano-access-overlay').forEach(el => el.remove());
 
-    // Extract feature name from the error message if present
-    // Our Python raises: "Permission Denied: You have Read-Only access to 'Sales Invoices'."
     let featureName = '';
     const match = message && message.match(/access to '([^']+)'/i);
     if (match) {
@@ -60,39 +47,6 @@ function showHavanoAccessDeniedModal(message) {
     requestAnimationFrame(() => overlay.classList.add('visible'));
 }
 
-// ─── Patch the ErrorHandler to intercept AccessError ─────────────────────────
-patch(ErrorHandler.prototype, {
-    /**
-     * Odoo calls handleError() when an unhandled error propagates up from an
-     * async OWL component or a failed RPC. We check here if it is one of our
-     * Permission Denied errors and, if so, render our modal and mark the error
-     * as handled so Odoo's default crash dialog never appears.
-     */
-    handleError(error, component, info) {
-        // Walk through the error cause chain to find an RPC error
-        let cause = error;
-        while (cause) {
-            if (cause instanceof RPCError || (cause && cause.name === 'RPC_ERROR')) {
-                const serverMsg = cause.data?.message || cause.message || '';
-                if (
-                    serverMsg.includes('Permission Denied') ||
-                    serverMsg.includes('permission denied') ||
-                    serverMsg.includes('AccessError') ||
-                    serverMsg.includes('Read-Only access') ||
-                    serverMsg.includes('No User Rights Profile')
-                ) {
-                    showHavanoAccessDeniedModal(serverMsg);
-                    // Return true to mark error as "handled" — suppresses Odoo's default crash
-                    return true;
-                }
-            }
-            cause = cause.cause || null;
-        }
-        // Not a permission error — let Odoo handle it normally
-        return super.handleError(error, component, info);
-    }
-});
-
 // ─── Global unhandledrejection fallback ───────────────────────────────────────
 // Belt-and-suspenders: if a rejected promise with a permission error bubbles
 // all the way up to the window without being caught by the ErrorHandler patch
@@ -108,7 +62,19 @@ window.addEventListener('unhandledrejection', (event) => {
         msg.includes('Read-Only access') ||
         msg.includes('No User Rights Profile')
     ) {
-        event.preventDefault(); // Suppress default browser error
+        // We do NOT preventDefault so Odoo's error handler doesn't get completely disabled for other things,
+        // but we intercept to show our custom dialog.
+        // Actually, preventing default stops the browser from logging it, and stops Odoo's unhandledrejection listener if we're first.
+        event.stopImmediatePropagation(); // Try to stop Odoo from showing its own dialog if we caught it first
+        event.preventDefault(); 
+        
+        // Remove Odoo's default error dialog if it appeared
+        setTimeout(() => {
+            document.querySelectorAll('.o_error_dialog').forEach(el => el.remove());
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+        }, 100);
+
         showHavanoAccessDeniedModal(msg);
     }
 });
