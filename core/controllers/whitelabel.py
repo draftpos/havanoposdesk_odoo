@@ -21,7 +21,7 @@ class HavanoHome(Home):
             raise request.not_found()
             
         icp = request.env['ir.config_parameter'].sudo()
-        configured_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
+        configured_base = (icp.get_param('havanoposdesk.web_base_url', 'havano')).lower()
         
         if base_path == configured_base:
             return self.web_client(s_action=s_action, **kw)
@@ -34,7 +34,7 @@ class HavanoHome(Home):
         # pyrefly: ignore [missing-import]
         from odoo.addons.web.controllers.utils import is_user_internal
         icp = request.env['ir.config_parameter'].sudo()
-        configured_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
+        configured_base = (icp.get_param('havanoposdesk.web_base_url', 'havano')).lower()
         
         if request.db and request.session.uid and not is_user_internal(request.session.uid):
             return request.redirect_query('/web/login_successful', query=request.params)
@@ -55,7 +55,7 @@ class HavanoWebManifest(WebManifest):
         web_app_name = icp.get_param('web.web_app_name', 'Havano')
         theme_color = icp.get_param('havanoposdesk.theme_color', '#714B67')
         bg_color = icp.get_param('havanoposdesk.pwa_background_color', '#714B67')
-        base_path = icp.get_param('havanoposdesk.web_base_url', 'havano')
+        base_path = (icp.get_param('havanoposdesk.web_base_url', 'havano')).lower()
         scope = f'/{base_path}'
 
         manifest = {
@@ -102,7 +102,7 @@ class HavanoWebManifest(WebManifest):
     def service_worker(self):
         """Override service worker to use /havano scope."""
         icp = request.env['ir.config_parameter'].sudo()
-        base_path = icp.get_param('havanoposdesk.web_base_url', 'havano')
+        base_path = (icp.get_param('havanoposdesk.web_base_url', 'havano')).lower()
         scope = f'/{base_path}'
         response = request.make_response(
             self._get_service_worker_content(),

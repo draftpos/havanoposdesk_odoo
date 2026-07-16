@@ -56,7 +56,7 @@ class HavanoWebManifest(WebManifest):
         manifest = super()._get_webmanifest()
         
         icp = request.env['ir.config_parameter'].sudo()
-        configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'Havano')
+        configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'havano').lower()
         if not configured_base.startswith('/'):
             configured_base = '/' + configured_base
             
@@ -79,7 +79,7 @@ class HavanoAuthSignup(AuthSignupHome):
 
     def _login_redirect(self, uid, redirect=None):
         icp = request.env['ir.config_parameter'].sudo()
-        configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'Havano')
+        configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'havano').lower()
         
         # Format properly
         if not configured_base.startswith('/'):
@@ -89,12 +89,12 @@ class HavanoAuthSignup(AuthSignupHome):
     @http.route('/web/login', type='http', auth="none")
     def web_login(self, redirect=None, **kw):
         icp = request.env['ir.config_parameter'].sudo()
-        configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'Havano')
+        configured_base = (icp.get_param('havanoposdesk.web_base_url') or 'havano').lower()
         if not configured_base.startswith('/'):
             configured_base = '/' + configured_base
             
-        if redirect and '/odoo' in redirect:
-            redirect = redirect.replace('/odoo', configured_base)
+        if redirect and ('/odoo' in redirect or redirect == '/web' or redirect == '/'):
+            redirect = configured_base
         elif not redirect:
             redirect = configured_base
             

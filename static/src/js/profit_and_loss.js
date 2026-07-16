@@ -32,10 +32,12 @@ export class ProfitAndLossReport extends Component {
             ]
         });
 
-        onWillStart(async () => {
-            await this.loadStores();
-            this.setPresetDates('this_year');
-            await this.loadData();
+        onWillStart(() => {
+            // Load stores and data asynchronously without blocking the render
+            this.loadStores().then(() => {
+                this.setPresetDates('this_year');
+                this.loadData();
+            });
         });
     }
 

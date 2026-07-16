@@ -149,30 +149,29 @@ patch(ListController.prototype, {
         super.setup(...arguments);
         this.__havanoAccess = { canCreate: true, canViewDetail: true, canEdit: true, canDelete: true };
 
-        onWillStart(async () => {
+        onWillStart(() => {
             const rpc = this.env.services.rpc;
-            this.__havanoAccess = await checkModelAccess(rpc, this.props.resModel);
-
-            if (!this.__havanoAccess.canCreate) {
-                // Mutate activeActions to prevent the "New" button from rendering
-                if (this.props.archInfo && this.props.archInfo.activeActions) {
-                    this.props.archInfo.activeActions.create = false;
+            checkModelAccess(rpc, this.props.resModel).then(access => {
+                this.__havanoAccess = access;
+                if (!access.canCreate || !access.canEdit || !access.canDelete) {
+                    if (this.props.archInfo && this.props.archInfo.activeActions) {
+                        this.props.archInfo.activeActions.create = access.canCreate;
+                        this.props.archInfo.activeActions.delete = access.canDelete;
+                    }
+                    if (this.activeActions) {
+                        this.activeActions.create = access.canCreate;
+                    }
+                    if (!this.__havanoObserver && this.__mounted) {
+                        this.__havanoObserver = startButtonHider(this.__havanoAccess);
+                    }
                 }
-                if (this.activeActions) {
-                    this.activeActions.create = false;
-                }
-            }
-
-            if (!this.__havanoAccess.canDelete) {
-                if (this.props.archInfo && this.props.archInfo.activeActions) {
-                    this.props.archInfo.activeActions.delete = false;
-                }
-            }
+            });
         });
 
         onMounted(() => {
+            this.__mounted = true;
             const needsHiding = !this.__havanoAccess.canCreate || !this.__havanoAccess.canEdit || !this.__havanoAccess.canDelete;
-            if (needsHiding) {
+            if (needsHiding && !this.__havanoObserver) {
                 this.__havanoObserver = startButtonHider(this.__havanoAccess);
             }
         });
@@ -212,23 +211,28 @@ patch(KanbanController.prototype, {
         super.setup(...arguments);
         this.__havanoAccess = { canCreate: true, canViewDetail: true, canEdit: true, canDelete: true };
 
-        onWillStart(async () => {
+        onWillStart(() => {
             const rpc = this.env.services.rpc;
-            this.__havanoAccess = await checkModelAccess(rpc, this.props.resModel);
-
-            if (!this.__havanoAccess.canCreate) {
-                if (this.props.archInfo && this.props.archInfo.activeActions) {
-                    this.props.archInfo.activeActions.create = false;
+            checkModelAccess(rpc, this.props.resModel).then(access => {
+                this.__havanoAccess = access;
+                if (!access.canCreate || !access.canEdit || !access.canDelete) {
+                    if (this.props.archInfo && this.props.archInfo.activeActions) {
+                        this.props.archInfo.activeActions.create = access.canCreate;
+                    }
+                    if (this.activeActions) {
+                        this.activeActions.create = access.canCreate;
+                    }
+                    if (!this.__havanoObserver && this.__mounted) {
+                        this.__havanoObserver = startButtonHider(this.__havanoAccess);
+                    }
                 }
-                if (this.activeActions) {
-                    this.activeActions.create = false;
-                }
-            }
+            });
         });
 
         onMounted(() => {
+            this.__mounted = true;
             const needsHiding = !this.__havanoAccess.canCreate || !this.__havanoAccess.canEdit || !this.__havanoAccess.canDelete;
-            if (needsHiding) {
+            if (needsHiding && !this.__havanoObserver) {
                 this.__havanoObserver = startButtonHider(this.__havanoAccess);
             }
         });
@@ -267,24 +271,27 @@ patch(FormController.prototype, {
         super.setup(...arguments);
         this.__havanoAccess = { canCreate: true, canViewDetail: true, canEdit: true, canDelete: true };
 
-        onWillStart(async () => {
+        onWillStart(() => {
             const rpc = this.env.services.rpc;
-            this.__havanoAccess = await checkModelAccess(rpc, this.props.resModel);
-
-            if (!this.__havanoAccess.canCreate && this.props.archInfo && this.props.archInfo.activeActions) {
-                this.props.archInfo.activeActions.create = false;
-            }
-            if (!this.__havanoAccess.canEdit && this.props.archInfo && this.props.archInfo.activeActions) {
-                this.props.archInfo.activeActions.edit = false;
-            }
-            if (!this.__havanoAccess.canDelete && this.props.archInfo && this.props.archInfo.activeActions) {
-                this.props.archInfo.activeActions.delete = false;
-            }
+            checkModelAccess(rpc, this.props.resModel).then(access => {
+                this.__havanoAccess = access;
+                if (!access.canCreate || !access.canEdit || !access.canDelete) {
+                    if (this.props.archInfo && this.props.archInfo.activeActions) {
+                        if (!access.canCreate) this.props.archInfo.activeActions.create = false;
+                        if (!access.canEdit) this.props.archInfo.activeActions.edit = false;
+                        if (!access.canDelete) this.props.archInfo.activeActions.delete = false;
+                    }
+                    if (!this.__havanoObserver && this.__mounted) {
+                        this.__havanoObserver = startButtonHider(this.__havanoAccess);
+                    }
+                }
+            });
         });
 
         onMounted(() => {
+            this.__mounted = true;
             const needsHiding = !this.__havanoAccess.canCreate || !this.__havanoAccess.canEdit || !this.__havanoAccess.canDelete;
-            if (needsHiding) {
+            if (needsHiding && !this.__havanoObserver) {
                 this.__havanoObserver = startButtonHider(this.__havanoAccess);
             }
         });

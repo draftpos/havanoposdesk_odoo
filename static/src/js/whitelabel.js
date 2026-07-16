@@ -12,6 +12,23 @@ import { registry } from "@web/core/registry";
 import { onMounted } from "@odoo/owl";
 import { session } from "@web/session";
 
+// ── 0. Patch localStorage to prevent Menu Quota errors from spamming the console ──
+const originalSetItem = Storage.prototype.setItem;
+Storage.prototype.setItem = function(key, value) {
+    try {
+        originalSetItem.apply(this, arguments);
+    } catch (e) {
+        if (e.name === 'QuotaExceededError' || e.message.includes('quota')) {
+            if (key === 'menus' || key.includes('menus')) {
+                // Silently ignore Odoo menu cache size limit to prevent console spam
+                return;
+            }
+            throw e;
+        }
+        throw e;
+    }
+};
+
 // ── 1. Rename OdooBot to HavanoBot everywhere ──────────────────────────────
 //  The discuss channel for OdooBot has partner name "OdooBot"
 //  We intercept the session_info and patch the name in the DOM after load.
@@ -107,8 +124,10 @@ setTimeout(applyWhiteLabel, 800);
 setTimeout(applyWhiteLabel, 2000);
 
 // Watch for future DOM mutations (e.g. route changes) and re-apply
+let patchTimeout;
 const domObserver = new MutationObserver(() => {
-    patchOdooReferences();
+    if (patchTimeout) clearTimeout(patchTimeout);
+    patchTimeout = setTimeout(patchOdooReferences, 300);
 });
 document.addEventListener("DOMContentLoaded", () => {
     domObserver.observe(document.body, { childList: true, subtree: true });
