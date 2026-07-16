@@ -50,6 +50,7 @@
             <field name="arch" type="xml">
                 <list string="Stock Ledger" create="0" decoration-danger="balance_qty &lt; 0">
                     <field name="currency_id" column_invisible="True"/>
+                    <field name="tenant_id" column_invisible="True"/>
                     <field name="item_code" optional="hide"/>
                     <field name="product_id" optional="hide"/>
                     <field name="item_name" optional="show"/>
