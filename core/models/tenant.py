@@ -277,10 +277,8 @@ class HavanoposdeskTenant(models.Model):
         
         # 9. Default Taxes — seeded as INACTIVE so tenant manually activates what they need
         default_taxes = [
-            ('VAT 15.5%', 15.5, 'Sales'),
-            ('VAT 15.5%', 15.5, 'Purchases'),
-            ('EXEMPT',     0.0, 'Sales'),
-            ('EXEMPT',     0.0, 'Purchases'),
+            ('VAT', 15.0, 'Sales'),
+            ('Exempt', 0.0, 'Sales'),
         ]
         for (tax_name, tax_rate, tax_type) in default_taxes:
             self.env['havanoposdesk.tax'].sudo().create({

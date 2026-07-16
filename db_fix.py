@@ -50,6 +50,34 @@ def fix_database(dbname='odoo_driving_backedup', user='odoo', password='odoo', h
     except Exception as e:
         print(f"Error deactivating taxes: {e}")
         conn.rollback()
+        
+    # 3. Backfill tenant_id for all tables that have a tenant_id column
+    try:
+        cur.execute("""
+            SELECT table_name 
+            FROM information_schema.columns 
+            WHERE column_name = 'tenant_id' AND table_schema = 'public';
+        """)
+        tables = cur.fetchall()
+        
+        # Get the default tenant ID (usually 1, or the lowest ID)
+        cur.execute("SELECT id FROM havanoposdesk_tenant ORDER BY id LIMIT 1;")
+        tenant_res = cur.fetchone()
+        if tenant_res:
+            default_tenant_id = tenant_res[0]
+            updated_tables = 0
+            for (table_name,) in tables:
+                # Update existing records where tenant_id is NULL
+                cur.execute(f"UPDATE {table_name} SET tenant_id = %s WHERE tenant_id IS NULL", (default_tenant_id,))
+                if cur.rowcount > 0:
+                    updated_tables += 1
+            conn.commit()
+            print(f"Backfilled missing tenant_ids in {updated_tables} tables to tenant ID {default_tenant_id}.")
+        else:
+            print("No tenants found in havanoposdesk_tenant to backfill.")
+    except Exception as e:
+        print(f"Error backfilling tenant_id: {e}")
+        conn.rollback()
 
     conn.close()
     print("Database fix completed.")
