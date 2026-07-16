@@ -14,7 +14,6 @@ _logger = logging.getLogger(__name__)
 class HavanoPOSDeskAPI(http.Controller):
 
     # AUTHENTICATION
-    # AUTHENTICATION
     @http.route(['/api/auth/login', '/api/method/saas_api.www.api.login'], auth='public', methods=['POST'], type='http', csrf=False, cors='*')
     def api_login(self, **kw):
         try:
