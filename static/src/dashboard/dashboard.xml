@@ -37,20 +37,24 @@
             <div class="row g-3 mb-4">
                 <div class="col-6 col-md-3">
                     <div class="card h-100 border-0 shadow-sm rounded-3">
-                        <div class="card-body position-relative overflow-hidden">
-                            <div class="top-indicator bg-primary"></div>
-                            <div class="d-flex justify-content-between">
-                                <h6 class="card-title text-muted fw-bold mb-2">Gross sales</h6>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-center" style="gap: 12px;">
+                                    <div class="icon-circle bg-primary-light">
+                                        <i class="fa fa-line-chart"></i>
+                                    </div>
+                                    <h6 class="card-title text-muted fw-bold mb-0">Gross sales</h6>
+                                </div>
                                 <span t-attf-class="badge #{state.kpis.gross_trend >= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
                                     <t t-if="state.kpis.gross_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.gross_trend)"/>%
                                 </span>
                             </div>
-                            <div class="d-flex justify-content-between align-items-end mt-1">
-                                <div>
+                            <div class="row align-items-end">
+                                <div class="col-7">
                                     <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.gross_sales)"/></h3>
                                     <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                                 </div>
-                                <div style="height: 40px; width: 80px;">
+                                <div class="col-5" style="height: 50px;">
                                     <canvas t-ref="sparklineGross"></canvas>
                                 </div>
                             </div>
@@ -59,20 +63,24 @@
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="card h-100 border-0 shadow-sm rounded-3">
-                        <div class="card-body position-relative overflow-hidden">
-                            <div class="top-indicator bg-success"></div>
-                            <div class="d-flex justify-content-between">
-                                <h6 class="card-title text-muted fw-bold mb-2">Net sales</h6>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-center" style="gap: 12px;">
+                                    <div class="icon-circle bg-success-light">
+                                        <i class="fa fa-money"></i>
+                                    </div>
+                                    <h6 class="card-title text-muted fw-bold mb-0">Net sales</h6>
+                                </div>
                                 <span t-attf-class="badge #{state.kpis.net_trend >= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
                                     <t t-if="state.kpis.net_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.net_trend)"/>%
                                 </span>
                             </div>
-                            <div class="d-flex justify-content-between align-items-end mt-1">
-                                <div>
+                            <div class="row align-items-end">
+                                <div class="col-7">
                                     <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.net_sales)"/></h3>
                                     <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                                 </div>
-                                <div style="height: 40px; width: 80px;">
+                                <div class="col-5" style="height: 50px;">
                                     <canvas t-ref="sparklineNet"></canvas>
                                 </div>
                             </div>
@@ -81,20 +89,24 @@
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="card h-100 border-0 shadow-sm rounded-3">
-                        <div class="card-body position-relative overflow-hidden">
-                            <div class="top-indicator bg-purple"></div>
-                            <div class="d-flex justify-content-between">
-                                <h6 class="card-title text-muted fw-bold mb-2">Cost of sales</h6>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-center" style="gap: 12px;">
+                                    <div class="icon-circle bg-purple-light">
+                                        <i class="fa fa-shopping-cart"></i>
+                                    </div>
+                                    <h6 class="card-title text-muted fw-bold mb-0">Cost of sales</h6>
+                                </div>
                                 <span t-attf-class="badge #{state.kpis.cost_trend &lt;= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
                                     <t t-if="state.kpis.cost_trend &lt;= 0">▼</t><t t-else="">▲</t> <t t-esc="Math.abs(state.kpis.cost_trend)"/>%
                                 </span>
                             </div>
-                            <div class="d-flex justify-content-between align-items-end mt-1">
-                                <div>
+                            <div class="row align-items-end">
+                                <div class="col-7">
                                     <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.cost_of_sales)"/></h3>
                                     <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                                 </div>
-                                <div style="height: 40px; width: 80px;">
+                                <div class="col-5" style="height: 50px;">
                                     <canvas t-ref="sparklineCost"></canvas>
                                 </div>
                             </div>
@@ -103,20 +115,24 @@
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="card h-100 border-0 shadow-sm rounded-3">
-                        <div class="card-body position-relative overflow-hidden">
-                            <div class="top-indicator bg-warning"></div>
-                            <div class="d-flex justify-content-between">
-                                <h6 class="card-title text-muted fw-bold mb-2">Gross profit</h6>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-center" style="gap: 12px;">
+                                    <div class="icon-circle bg-warning-light">
+                                        <i class="fa fa-pie-chart"></i>
+                                    </div>
+                                    <h6 class="card-title text-muted fw-bold mb-0">Gross profit</h6>
+                                </div>
                                 <span t-attf-class="badge #{state.kpis.profit_trend >= 0 ? 'text-success bg-success-light' : 'text-danger bg-danger-light'}">
                                     <t t-if="state.kpis.profit_trend >= 0">▲</t><t t-else="">▼</t> <t t-esc="Math.abs(state.kpis.profit_trend)"/>%
                                 </span>
                             </div>
-                            <div class="d-flex justify-content-between align-items-end mt-1">
-                                <div>
+                            <div class="row align-items-end">
+                                <div class="col-7">
                                     <h3 class="card-text fw-bolder mb-1"><t t-esc="formatCurrency(state.kpis.gross_profit)"/></h3>
                                     <small class="text-muted"><t t-esc="state.periodLabel"/></small>
                                 </div>
-                                <div style="height: 40px; width: 80px;">
+                                <div class="col-5" style="height: 50px;">
                                     <canvas t-ref="sparklineProfit"></canvas>
                                 </div>
                             </div>

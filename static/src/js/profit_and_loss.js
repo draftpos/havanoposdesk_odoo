@@ -46,6 +46,7 @@ export class ProfitAndLossReport extends Component {
             []
         );
         this.state.availableStores = stores;
+        this.state.selectedStores = stores.map(s => s.id);
     }
 
     setPresetDates(preset) {

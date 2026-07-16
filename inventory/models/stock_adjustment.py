@@ -34,7 +34,7 @@ class StockAdjustment(models.Model):
         res = super().default_get(fields_list)
         if res.get('fetch_all_data'):
             store_id = res.get('store_id')
-            domain = [('store_id', '=', store_id)] if store_id else []
+            domain = [('store_ids', 'in', [store_id])] if store_id else []
             products = self.env['havanoposdesk.product'].search(domain)
             lines = []
             for product in products:
@@ -67,7 +67,7 @@ class StockAdjustment(models.Model):
     @api.onchange('fetch_all_data')
     def _onchange_fetch_all_data(self):
         if self.fetch_all_data:
-            domain = [('store_id', '=', self.store_id.id)] if self.store_id else []
+            domain = [('store_ids', 'in', [self.store_id.id])] if self.store_id else []
             products = self.env['havanoposdesk.product'].search(domain)
             lines = [(5, 0, 0)]
             for product in products:
@@ -84,7 +84,7 @@ class StockAdjustment(models.Model):
         if self.fetch_category_id:
             domain = [('category_id', '=', self.fetch_category_id.id)]
             if self.store_id:
-                domain.append(('store_id', '=', self.store_id.id))
+                domain.append(('store_ids', 'in', [self.store_id.id]))
             products = self.env['havanoposdesk.product'].search(domain)
             lines = [(5, 0, 0)]
             for product in products:
@@ -99,7 +99,7 @@ class StockAdjustment(models.Model):
     @api.onchange('store_id')
     def _onchange_store_id(self):
         if self.store_id:
-            domain = [('store_id', '=', self.store_id.id)]
+            domain = [('store_ids', 'in', [self.store_id.id])]
             if self.fetch_category_id:
                 domain.append(('category_id', '=', self.fetch_category_id.id))
             
@@ -179,6 +179,7 @@ class StockAdjustment(models.Model):
                     'store': adjustment.store_id.name if adjustment.store_id else '',
                     'type': 'Opening Stock' if is_creation else 'Stock Adjustment',
                     'doc_no': adjustment.name,
+                    'tenant_id': line.product_id.tenant_id.id,
                 })
 
                 # Update or Create Valuation Entry using sudo()
@@ -196,6 +197,7 @@ class StockAdjustment(models.Model):
                         'product_id': line.product_id.id,
                         'store': adjustment.store_id.name if adjustment.store_id else '',
                         'on_hand_qty': line.counted,
+                        'tenant_id': line.product_id.tenant_id.id,
                     })
             adjustment.write({'state': 'posted'})
 
@@ -229,6 +231,7 @@ class StockAdjustment(models.Model):
                         'store': adjustment.store_id.name if adjustment.store_id else '',
                         'type': 'Adjustment Cancelled',
                         'doc_no': adjustment.name,
+                        'tenant_id': line.product_id.tenant_id.id,
                     })
 
                 # Update Valuation Entry

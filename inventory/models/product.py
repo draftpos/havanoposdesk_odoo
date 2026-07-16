@@ -156,6 +156,7 @@ class HavanoposdeskProduct(models.Model):
                 adj = self.env['havanoposdesk.stock.adjustment'].with_context(from_product_creation=True).create({
                     'store_id': product.store_ids[0].id if product.store_ids else False,
                     'fetch_all_data': False,
+                    'tenant_id': product.tenant_id.id,
                     'line_ids': [(0, 0, {
                         'product_id': product.id,
                         'on_hand': product.opening_stock,

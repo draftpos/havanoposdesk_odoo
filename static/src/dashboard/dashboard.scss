@@ -1,9 +1,10 @@
+
 .havano-dashboard-container {
-    background-color: #f4f6f9;
+    background-color: #f8fafc;
     padding: 32px 40px;
     min-height: 100vh;
     overflow-y: auto;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
     .dashboard-header {
         .dropdown {
@@ -32,112 +33,86 @@
 
     .card {
         border: none !important;
-        border-radius: 20px !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
-        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
-        background: #ffffff;
+        border-radius: 30px !important;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04) !important;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        background: #ffffff !important;
 
         &:hover {
             transform: translateY(-5px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
-        }
-
-        .top-indicator {
-            position: absolute;
-            top: 24px;
-            right: 24px;
-            width: 48px;
-            height: 6px;
-            border-radius: 6px;
-            
-            &.bg-primary { background: linear-gradient(135deg, #3498db, #2980b9) !important; }
-            &.bg-success { background: linear-gradient(135deg, #2ecc71, #27ae60) !important; }
-            &.bg-purple { background: linear-gradient(135deg, #9b59b6, #8e44ad) !important; }
-            &.bg-warning { background: linear-gradient(135deg, #f1c40f, #f39c12) !important; }
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08) !important;
         }
 
         .card-body {
-            padding: 28px;
+            padding: 24px;
             
+            .icon-circle {
+                width: 48px;
+                height: 48px;
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 22px;
+                
+                &.bg-primary-light { background-color: rgba(13, 110, 253, 0.1); color: #0d6efd; }
+                &.bg-success-light { background-color: rgba(25, 135, 84, 0.1); color: #198754; }
+                &.bg-purple-light { background-color: rgba(111, 66, 193, 0.1); color: #6f42c1; }
+                &.bg-warning-light { background-color: rgba(253, 126, 20, 0.1); color: #fd7e14; }
+            }
+
             h6 {
                 font-size: 14px;
-                font-weight: 600;
-                color: #6c757d !important;
-                letter-spacing: 0.3px;
+                font-weight: 700;
+                color: #64748b !important;
+                letter-spacing: 0.5px;
                 text-transform: uppercase;
+                margin: 0;
             }
             
             h3 {
-                font-size: 32px;
-                font-weight: 700;
-                color: #2c3e50;
-                margin-top: 8px;
+                font-size: 34px;
+                font-weight: 800;
+                color: #1e293b;
+                margin-top: 10px;
                 letter-spacing: -0.5px;
             }
             
             small {
-                font-size: 13px;
-                color: #95a5a6 !important;
-                font-weight: 500;
+                font-size: 14px;
+                color: #94a3b8 !important;
+                font-weight: 600;
             }
             
             .badge {
-                font-weight: 600;
-                padding: 6px 10px;
-                border-radius: 8px;
-                font-size: 12px;
+                font-weight: 700;
+                padding: 8px 12px;
+                border-radius: 10px;
+                font-size: 13px;
                 
                 &.bg-success-light {
-                    background-color: rgba(46, 204, 113, 0.15) !important;
-                    color: #27ae60 !important;
+                    background-color: #ecfdf5 !important;
+                    color: #059669 !important;
                 }
                 
                 &.bg-danger-light {
-                    background-color: rgba(231, 76, 60, 0.15) !important;
-                    color: #c0392b !important;
+                    background-color: #fef2f2 !important;
+                    color: #dc2626 !important;
                 }
             }
         }
     }
 
     h5.card-title {
-        font-size: 18px;
-        font-weight: 700;
-        color: #2c3e50 !important;
+        font-size: 20px;
+        font-weight: 800;
+        color: #1e293b !important;
     }
 
     .chart-container {
         canvas {
             user-select: none;
             padding: 10px 0;
-        }
-    }
-
-    @media (max-width: 768px) {
-        padding: 16px 20px;
-
-        .row.g-3 {
-            .col-6 {
-                width: 100%; // Stack cards vertically on mobile
-            }
-        }
-        
-        .dashboard-header {
-            flex-direction: column;
-            align-items: flex-start !important;
-            gap: 12px;
-            
-            .dropdown {
-                width: 100%;
-                button {
-                    width: 100%;
-                    justify-content: space-between;
-                }
-            }
-        }
-        
-        .chart-container {
-            height: 250px !important; // Slightly smaller on mobile
         }
     }
 }

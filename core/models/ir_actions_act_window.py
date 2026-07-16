@@ -49,5 +49,19 @@ class IrActionsActWindow(models.Model):
                         return mode_order.get(v_type, 999)
                         
                     record['views'] = sorted(record['views'], key=view_sort_key)
-                    
+            
+            # Super admin grouping by tenant
+            if self.env.user.havano_role == 'super_admin' and res_model:
+                model = self.env.get(res_model)
+                if model is not None and 'tenant_id' in model._fields:
+                    try:
+                        import ast
+                        context_str = record.get('context') or '{}'
+                        ctx = ast.literal_eval(context_str.strip())
+                        if isinstance(ctx, dict) and 'group_by' not in ctx:
+                            ctx['group_by'] = ['tenant_id']
+                            record['context'] = str(ctx)
+                    except Exception:
+                        pass
+                        
         return res

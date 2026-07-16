@@ -118,46 +118,50 @@ class HavanoPOSDeskAPI(http.Controller):
                     default_customer = user_env['havanoposdesk.customer'].sudo().search([('store_ids', 'in', store.id)], limit=1)
                 if default_customer:
                     default_customer_name = default_customer.name
-                customers_records = user_env['havanoposdesk.customer'].sudo().search([('store_ids', 'in', store.id)])
+                customers_records = user_env['havanoposdesk.customer'].sudo().search_read(
+                [('store_ids', 'in', store.id)],
+                ['name', 'customer_group_id']
+            )
             customers_data = []
             for c in customers_records:
+                group_name = c['customer_group_id'][1] if c.get('customer_group_id') else "All Customer Groups"
                 customers_data.append({
-                    "name": c.name,
-                    "customer_name": c.name,
-                    "customer_group": c.customer_group_id.name or "All Customer Groups",
+                    "name": c['name'],
+                    "customer_name": c['name'],
+                    "customer_group": group_name,
                     "territory": None,
                     "custom_cost_center": cost_center
                 })
             # Fetch suppliers
-            suppliers_records = user_env['havanoposdesk.supplier'].sudo().search([('store_id', '=', store.id)])
+            suppliers_records = user_env['havanoposdesk.supplier'].sudo().search_read([('store_id', '=', store.id)], ['id', 'name'])
             suppliers_data = []
             for s in suppliers_records:
                 suppliers_data.append({
-                    "id": s.id,
-                    "name": s.name
+                    "id": s['id'],
+                    "name": s['name']
                 })
 
             # Fetch currencies
-            currencies_records = user_env['res.currency'].sudo().search([('active', '=', True)])
+            currencies_records = user_env['res.currency'].sudo().search_read([('active', '=', True)], ['id', 'name', 'symbol'])
             currencies_data = []
             for cur in currencies_records:
                 currencies_data.append({
-                    "id": cur.id,
-                    "name": cur.name,
-                    "symbol": cur.symbol
+                    "id": cur['id'],
+                    "name": cur['name'],
+                    "symbol": cur['symbol']
                 })
 
             # Fetch payment methods
-            payment_methods_records = user_env['havanoposdesk.account'].sudo().search([
+            payment_methods_records = user_env['havanoposdesk.account'].sudo().search_read([
                 ('tenant_id', '=', user.tenant_id.id),
                 ('type', 'in', ['Cash', 'Bank'])
-            ])
+            ], ['id', 'name', 'type'])
             payment_methods_data = []
             for pm in payment_methods_records:
                 payment_methods_data.append({
-                    "id": pm.id,
-                    "name": pm.name,
-                    "type": pm.type
+                    "id": pm['id'],
+                    "name": pm['name'],
+                    "type": pm['type']
                 })
                 
             # Fetch warehouse items/products
@@ -177,16 +181,19 @@ class HavanoPOSDeskAPI(http.Controller):
                     
             products = user_env['havanoposdesk.product'].sudo().search(product_domain, limit=limit_val)
             warehouse_items = []
+            
+            # Pre-fetch all valuations to avoid N+1 DB queries in the loop
+            valuation_map = {}
+            if products and store:
+                valuations = user_env['havanoposdesk.stock.valuation'].sudo().search_read([
+                    ('product_id', 'in', products.ids),
+                    ('store', '=', store.name)
+                ], ['product_id', 'on_hand_qty'])
+                for val in valuations:
+                    valuation_map[val['product_id'][0]] = val['on_hand_qty']
+
             for p in products:
-                qty = p.opening_stock
-                # Try to get quantity from valuation for user's warehouse store if store exists
-                if store:
-                    valuation = user_env['havanoposdesk.stock.valuation'].sudo().search([
-                        ('product_id', '=', p.id),
-                        ('store', '=', store.name)
-                    ], limit=1)
-                    if valuation:
-                        qty = valuation.on_hand_qty
+                qty = valuation_map.get(p.id, p.opening_stock)
                         
                 warehouse_items.append({
                     "item_code": p.item_code,
@@ -240,30 +247,33 @@ class HavanoPOSDeskAPI(http.Controller):
                     shop_domain = [('tenant_id', '=', user.tenant_id.id)]
                     if user.havano_role == 'user' and user.store_ids:
                         shop_domain.append(('id', 'in', user.store_ids.ids))
-                    shops = user_env['havanoposdesk.store'].sudo().search(shop_domain)
-                    for s in shops:
-                        terminals = user_env['havanoposdesk.pos.terminal'].sudo().search([
-                            '&', '&',
-                            ('store_id', '=', s.id),
+                    shops = user_env['havanoposdesk.store'].sudo().search_read(shop_domain, ['id', 'name'])
+                    if shops:
+                        shop_ids = [s['id'] for s in shops]
+                        terminals = user_env['havanoposdesk.pos.terminal'].sudo().search_read([
+                            ('store_id', 'in', shop_ids),
                             ('status', '!=', 'offline'),
                             '|',
                             ('taken_by_user_id', '=', False),
                             ('taken_by_user_id', '=', user.id)
-                        ])
-                        terminals_data = []
+                        ], ['id', 'name', 'status', 'taken_by_user_id', 'store_id'])
+                        
+                        terms_by_shop = {}
                         for t in terminals:
-                            terminals_data.append({
-                                "id": t.id,
-                                "name": t.name,
-                                "status": t.status,
-                                "is_taken": bool(t.taken_by_user_id),
-                                "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None
+                            terms_by_shop.setdefault(t['store_id'][0], []).append({
+                                "id": t['id'],
+                                "name": t['name'],
+                                "status": t['status'],
+                                "is_taken": bool(t['taken_by_user_id']),
+                                "taken_by_user_id": t['taken_by_user_id'][0] if t['taken_by_user_id'] else None
                             })
-                        shops_data.append({
-                            "id": s.id,
-                            "name": s.name,
-                            "terminals": terminals_data
-                        })
+                            
+                        for s in shops:
+                            shops_data.append({
+                                "id": s['id'],
+                                "name": s['name'],
+                                "terminals": terms_by_shop.get(s['id'], [])
+                            })
 
                 res_data.update({
                     "access_token": token_base64,

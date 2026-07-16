@@ -189,25 +189,29 @@ export class HavanoDashboard extends Component {
                             label: 'Gross profit',
                             data: this.salesChartData.gross_profit,
                             backgroundColor: '#f39c12',
-                            borderRadius: 4
+                            borderRadius: 4,
+                            maxBarThickness: 50
                         },
                         {
                             label: 'Net sales',
                             data: this.salesChartData.net_sales,
                             backgroundColor: '#2ecc71',
-                            borderRadius: 4
+                            borderRadius: 4,
+                            maxBarThickness: 50
                         },
                         {
                             label: 'Cost of sales',
                             data: this.salesChartData.cost_of_sales,
                             backgroundColor: '#9b59b6',
-                            borderRadius: 4
+                            borderRadius: 4,
+                            maxBarThickness: 50
                         },
                         {
                             label: 'Gross sales',
                             data: this.salesChartData.gross_sales,
                             backgroundColor: '#3498db',
-                            borderRadius: 4
+                            borderRadius: 4,
+                            maxBarThickness: 50
                         }
                     ]
                 },
@@ -244,7 +248,8 @@ export class HavanoDashboard extends Component {
                             label: 'Valuation',
                             data: this.stockChartData.valuation,
                             backgroundColor: '#3498db',
-                            borderRadius: 4
+                            borderRadius: 4,
+                            maxBarThickness: 50
                         }
                     ]
                 },
