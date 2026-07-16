@@ -87,7 +87,6 @@
                                 <field name="type"/>
                                 <field name="doc_no"/>
                                 <field name="store"/>
-                                <field name="store_id"/>
                             </group>
                             <group>
                                 <field name="currency_id" invisible="1"/>
@@ -99,6 +98,7 @@
                                 <field name="in_value"/>
                                 <field name="out_value"/>
                                 <field name="balance_value"/>
+                                <field name="store_id"/>
                             </group>
                         </group>
                     </sheet>
