@@ -22,6 +22,9 @@
                             <h2>
                                 <span invisible="not is_return" class="text-danger">Debit Note</span>
                             </h2>
+                            <h3>
+                                <field name="external_ref" readonly="1" invisible="not external_ref"/>
+                            </h3>
                         </div>
                         <group>
                             <group>
@@ -74,6 +77,7 @@
                     <field name="currency_id" column_invisible="True"/>
                     <field name="posting_date" string="Datetime" optional="show"/>
                     <field name="name" string="Reference" optional="show"/>
+                    <field name="external_ref" string="External Ref" optional="show"/>
                     <field name="supplier" optional="show"/>
                     <field name="store_id" optional="show"/>
                     <field name="payment_status" optional="show"/>

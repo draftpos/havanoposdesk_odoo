@@ -2310,95 +2310,111 @@ class HavanoPOSDeskAPI(http.Controller):
                     user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
 
-                # Deduplication check
-                local_invoice_id = params.get('reference_number') or params.get('local_invoice_id')
-                if local_invoice_id:
-                    existing_sale = env['havanoposdesk.sale'].search([
-                        ('tenant_id', '=', tenant.id),
-                        ('local_invoice_id', '=', local_invoice_id)
-                    ], limit=1)
-                    if existing_sale:
-                        if custom_cr:
-                            custom_cr.commit()
-                        return self._make_json_response({
-                            "data": {
-                                "name": existing_sale.name
-                            }
-                        })
-
-                store = self._get_current_store(user, tenant, params)
-                if not store:
-                    raise Exception("Store/Warehouse is required")
-
-                customer_name = params.get('customer')
-                if not customer_name:
-                    return self._make_json_response({"error": "Oops! Customer is required."}, status=400)
-
-                customer = env['havanoposdesk.customer'].search([
-                    ('name', '=', customer_name),
-                    ('tenant_id', '=', tenant.id)
-                ], limit=1)
-                if not customer:
-                    return self._make_json_response({"error": f"Oops! The customer '{customer_name}' does not exist for your business."}, status=400)
+                sales_data = params.get('sales')
+                if not sales_data:
+                    sales_data = [params]
                 
-                payment_status = params.get('payment_status', 'cash')
-                if payment_status != 'cash' and not tenant.allow_credit_sales:
-                    return self._make_json_response({"error": "Oops! Creating sales on credit is disabled. Please enable 'Allow Sales on Credit' in Settings."}, status=400)
+                responses = []
                 
-                store_name = store.name
+                for sale_data in sales_data:
+                    try:
+                        # Deduplication check
+                        local_invoice_id = sale_data.get('reference_number') or sale_data.get('local_invoice_id')
+                        if local_invoice_id:
+                            existing_sale = env['havanoposdesk.sale'].search([
+                                ('tenant_id', '=', tenant.id),
+                                ('local_invoice_id', '=', local_invoice_id)
+                            ], limit=1)
+                            if existing_sale:
+                                responses.append({"name": existing_sale.name, "local_invoice_id": local_invoice_id, "status": "exists"})
+                                continue
 
-                lines = []
-                for item in params.get('items', []):
-                    item_code = item.get('item_code') or item.get('item_name')
-                    qty = float(item.get('qty', 1.0))
-                    rate = float(item.get('rate', 0.0))
+                        store = self._get_current_store(user, tenant, sale_data)
+                        if not store:
+                            responses.append({"error": "Store/Warehouse is required", "local_invoice_id": local_invoice_id})
+                            continue
 
-                    product = env['havanoposdesk.product'].search([
-                        ('tenant_id', '=', tenant.id),
-                        '|', ('item_code', '=', item_code), ('name', '=', item_code)
-                    ], limit=1)
-                    if not product:
-                        product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
-                    if not product:
-                        product = env['havanoposdesk.product'].create({
-                            'name': item_code,
-                            'item_code': item_code or 'New',
-                            'selling_price': rate,
+                        customer_name = sale_data.get('customer')
+                        if not customer_name:
+                            responses.append({"error": "Oops! Customer is required.", "local_invoice_id": local_invoice_id})
+                            continue
+
+                        customer = env['havanoposdesk.customer'].search([
+                            ('name', '=', customer_name),
+                            ('tenant_id', '=', tenant.id)
+                        ], limit=1)
+                        if not customer:
+                            responses.append({"error": f"Oops! The customer '{customer_name}' does not exist for your business.", "local_invoice_id": local_invoice_id})
+                            continue
+                        
+                        payment_status = sale_data.get('payment_status', 'cash')
+                        if payment_status != 'cash' and not tenant.allow_credit_sales:
+                            responses.append({"error": "Oops! Creating sales on credit is disabled.", "local_invoice_id": local_invoice_id})
+                            continue
+                        
+                        store_name = store.name
+
+                        lines = []
+                        for item in sale_data.get('items', []):
+                            item_code = item.get('item_code') or item.get('item_name')
+                            qty = float(item.get('qty', 1.0))
+                            rate = float(item.get('rate', 0.0))
+
+                            product = env['havanoposdesk.product'].search([
+                                ('tenant_id', '=', tenant.id),
+                                '|', ('item_code', '=', item_code), ('name', '=', item_code)
+                            ], limit=1)
+                            if not product:
+                                product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
+                            if not product:
+                                product = env['havanoposdesk.product'].create({
+                                    'name': item_code,
+                                    'item_code': item_code or 'New',
+                                    'selling_price': rate,
+                                    'tenant_id': tenant.id,
+                                    'all_stores': True,
+                                })
+
+                            lines.append((0, 0, {
+                                'product_id': product.id,
+                                'accepted_qty': qty,
+                                'rate': rate or product.selling_price or 1.0,
+                            }))
+
+                        terminal = user.selected_terminal_id
+                        if not terminal:
+                            responses.append({"error": "No terminal assigned.", "local_invoice_id": local_invoice_id})
+                            continue
+
+                        sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create({
+                            'customer': customer.id,
+                            'store': store.name,
+                            'store_id': store.id,
                             'tenant_id': tenant.id,
-                            'all_stores': True,
+                            'terminal_id': terminal.id if terminal else False,
+                            'line_ids': lines,
+                            'state': 'done',
+                            'salesperson_id': user.id,
+                            'payment_status': payment_status,
+                            'local_invoice_id': local_invoice_id,
                         })
-
-                    lines.append((0, 0, {
-                        'product_id': product.id,
-                        'accepted_qty': qty,
-                        'rate': rate or product.selling_price or 1.0,
-                    }))
-
-                terminal = user.selected_terminal_id
-                if not terminal:
-                    raise Exception("No terminal assigned. Please select a terminal first.")
-
-                sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create({
-                    'customer': customer.id,
-                    'store': store.name,
-                    'store_id': store.id,
-                    'tenant_id': tenant.id,
-                    'terminal_id': terminal.id if terminal else False,
-                    'line_ids': lines,
-                    'state': 'done',
-                    'salesperson_id': user.id,
-                    'payment_status': payment_status,
-                    'local_invoice_id': local_invoice_id,
-                })
+                        
+                        responses.append({"name": sale.name, "local_invoice_id": local_invoice_id, "status": "created"})
+                    except Exception as e:
+                        responses.append({"error": str(e), "local_invoice_id": local_invoice_id})
 
                 if custom_cr:
                     custom_cr.commit()
 
-                return self._make_json_response({
-                    "data": {
-                        "name": sale.name
-                    }
-                })
+                if params.get('sales'):
+                    return self._make_json_response({"data": responses})
+                else:
+                    if responses and "error" in responses[0]:
+                        return self._make_json_response({"error": responses[0]["error"]}, status=400)
+                    elif responses:
+                        return self._make_json_response({"data": {"name": responses[0]["name"]}})
+                    else:
+                        return self._make_json_response({"error": "Unknown error"}, status=500)
             except Exception as e:
                 if custom_cr:
                     custom_cr.rollback()
@@ -2476,6 +2492,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                     result.append({
                         "name": purchase.name or "",
+                        "external_ref": purchase.external_ref or "",
                         "supplier": purchase.supplier.name if purchase.supplier else "",
                         "company": purchase.tenant_id.name if purchase.tenant_id else "Havano POS Company",
                         "posting_date": posting_date,
@@ -2590,6 +2607,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     }))
 
                 purchase_vals = {
+                    'external_ref': params.get('external_ref') or params.get('name') or '',
                     'supplier': supplier.id,
                     'store_id': store.id if store else False,
                     'tenant_id': tenant_id,
@@ -4810,6 +4828,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     }))
 
             adj_vals = {
+                'external_ref': data.get('external_ref') or data.get('name') or '',
                 'tenant_id': tenant_id,
                 'store_id': store_id,
                 'fetch_all_data': False,
@@ -4917,6 +4936,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     
                 result.append({
                     'name': adj.name,
+                    'external_ref': adj.external_ref or '',
                     'company': tenant.name if tenant else 'Havano Co',
                     'posting_date': str(adj.posting_date),
                     'purpose': 'Stock Reconciliation',

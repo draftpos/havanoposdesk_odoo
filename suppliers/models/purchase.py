@@ -12,6 +12,7 @@ class Purchase(models.Model):
         return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
 
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default=lambda self: 'New')
+    external_ref = fields.Char(string='External Reference', copy=False, readonly=True, help="Reference from external POS system")
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
         string='Tenant', 
