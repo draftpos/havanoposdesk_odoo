@@ -138,7 +138,7 @@ class StockAdjustment(models.Model):
                     if line_cmd[0] == 0:  # Create command (0, 0, {values})
                         line_vals = line_cmd[2]
                         product_id = line_vals.get('product_id')
-                        if product_id and not line_vals.get('on_hand'):
+                        if product_id and 'on_hand' not in line_vals:
                             product = self.env['havanoposdesk.product'].browse(product_id)
                             if product:
                                 line_vals['on_hand'] = product.opening_stock
