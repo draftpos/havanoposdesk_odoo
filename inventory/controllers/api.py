@@ -297,7 +297,17 @@ class HavanoPOSDeskAPI(http.Controller):
                     "store_ids": user.store_ids.ids if hasattr(user, 'store_ids') and user.store_ids else [],
                     "shops": shops_data,
                     "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
-                    "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None,
+                })
+                
+                # Hardware based terminal assignment
+                hardware_terminal_id = None
+                if device_hardware_id:
+                    assigned_terminal = user_env['havanoposdesk.pos.terminal'].sudo().search([('device_hardware_id', '=', device_hardware_id)], limit=1)
+                    if assigned_terminal:
+                        hardware_terminal_id = assigned_terminal.id
+                
+                res_data["user"].update({
+                    "selected_terminal_id": hardware_terminal_id,
                     "user_rights": self._get_user_rights_dict(user)
                 })
 
@@ -5810,9 +5820,17 @@ class HavanoPOSDeskAPI(http.Controller):
         env, custom_cr = self._get_env(user_id=uid)
         try:
             user = env['res.users'].browse(uid)
+            
+            device_hardware_id = request.httprequest.headers.get('device_hardware_id') or kwargs.get('device_hardware_id')
+            hardware_terminal_id = None
+            if device_hardware_id:
+                assigned_terminal = env['havanoposdesk.pos.terminal'].sudo().search([('device_hardware_id', '=', device_hardware_id)], limit=1)
+                if assigned_terminal:
+                    hardware_terminal_id = assigned_terminal.id
+            
             res_data = {
                 "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
-                "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None
+                "selected_terminal_id": hardware_terminal_id
             }
             return self._make_json_response(res_data, status=200)
         except Exception as e:
@@ -5864,6 +5882,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     "terminals": terminals_data
                 })
 
+        hardware_terminal_id = None
+        if device_hardware_id:
+            assigned_terminal = env['havanoposdesk.pos.terminal'].sudo().search([('device_hardware_id', '=', device_hardware_id)], limit=1)
+            if assigned_terminal:
+                hardware_terminal_id = assigned_terminal.id
+
         return {
             "id": user.id,
             "first_name": first_name,
@@ -5874,7 +5898,7 @@ class HavanoPOSDeskAPI(http.Controller):
             "tenant_id": user.tenant_id.id if user.tenant_id else None,
             "shops": shops_data,
             "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
-            "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None,
+            "selected_terminal_id": hardware_terminal_id,
             "user_rights": self._get_user_rights_dict(user)
         }
 
