@@ -19,8 +19,8 @@ class HavanoposdeskPosTerminal(models.Model):
         required=True, 
         default=lambda self: self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1).id
     )
-    user_id = fields.Many2one('res.users', string='Assigned Cashier')
-    taken_by_user_id = fields.Many2one('res.users', string='Taken By User')
+    device_hardware_id = fields.Char(string='Device Hardware ID')
+    last_logged_in_user_id = fields.Many2one('res.users', string='Last Logged In By', readonly=True)
     status = fields.Selection([
         ('open', 'Open'),
         ('closed', 'Closed'),
@@ -117,10 +117,3 @@ class HavanoposdeskPosTerminal(models.Model):
             vals['tenant_id'] = tenant_id
 
         return super().create(vals_list)
-
-    def write(self, vals):
-        if 'taken_by_user_id' in vals and not vals['taken_by_user_id']:
-            vals['status'] = 'open'
-        return super().write(vals)
-
-
