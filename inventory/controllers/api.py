@@ -254,32 +254,21 @@ class HavanoPOSDeskAPI(http.Controller):
                             ('store_id', 'in', shop_ids),
                             ('status', '!=', 'offline'),
                         ]
-                        if device_hardware_id:
-                            terminals_domain.extend([
-                                '|',
-                                ('device_hardware_id', '=', False),
-                                ('device_hardware_id', '=', device_hardware_id)
-                            ])
-                        else:
-                            terminals_domain.append(('device_hardware_id', '=', False))
 
-                        terminals = user_env['havanoposdesk.pos.terminal'].sudo().search_read(
-                            terminals_domain,
-                            ['id', 'name', 'status', 'device_hardware_id', 'last_logged_in_user_id', 'store_id', 'taken_by_user_id']
-                        )
+                        terminals = user_env['havanoposdesk.pos.terminal'].sudo().search(terminals_domain)
                         
                         terms_by_shop = {}
                         for t in terminals:
-                            taken_by = t.get('taken_by_user_id')
-                            taken_by_id = taken_by[0] if taken_by else None
-                            terms_by_shop.setdefault(t['store_id'][0], []).append({
-                                "id": t['id'],
-                                "name": t['name'],
-                                "status": t['status'],
-                                "device_hardware_id": t.get('device_hardware_id'),
-                                "is_taken": bool(taken_by_id),
-                                "taken_by_user_id": taken_by_id,
-                                "last_logged_in_user_id": t['last_logged_in_user_id'][0] if t.get('last_logged_in_user_id') else None
+                            terms_by_shop.setdefault(t.store_id.id, []).append({
+                                "id": t.id,
+                                "name": t.name,
+                                "status": t.status,
+                                "device_hardware_id": t.device_hardware_id,
+                                "is_taken": bool(t.taken_by_user_id),
+                                "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
+                                "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
+                                "taken_by_user_email": t.taken_by_user_id.login if t.taken_by_user_id else None,
+                                "last_logged_in_user_id": t.last_logged_in_user_id.id if t.last_logged_in_user_id else None
                             })
                             
                         for s in shops:
@@ -5670,19 +5659,6 @@ class HavanoPOSDeskAPI(http.Controller):
                     ('store_id', '=', s.id),
                     ('status', '!=', 'offline')
                 ]
-                if device_hardware_id:
-                    terminals_domain.extend([
-                        '|', '|',
-                        ('taken_by_user_id', '=', False),
-                        ('taken_by_user_id', '=', user.id),
-                        ('device_hardware_id', '=', device_hardware_id)
-                    ])
-                else:
-                    terminals_domain.extend([
-                        '|',
-                        ('taken_by_user_id', '=', False),
-                        ('taken_by_user_id', '=', user.id)
-                    ])
                 terminals = env['havanoposdesk.pos.terminal'].sudo().search(terminals_domain)
                 terminals_data = []
                 for t in terminals:
@@ -5692,7 +5668,9 @@ class HavanoPOSDeskAPI(http.Controller):
                         "status": t.status,
                         "device_hardware_id": t.device_hardware_id,
                         "is_taken": bool(t.taken_by_user_id),
-                        "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None
+                        "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
+                        "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
+                        "taken_by_user_email": t.taken_by_user_id.login if t.taken_by_user_id else None
                     })
                 shops_data.append({
                     "id": s.id,
@@ -5901,14 +5879,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     ('store_id', '=', s.id),
                     ('status', '!=', 'offline'),
                 ]
-                if device_hardware_id:
-                    terminals_domain.extend([
-                        '|',
-                        ('device_hardware_id', '=', False),
-                        ('device_hardware_id', '=', device_hardware_id)
-                    ])
-                else:
-                    terminals_domain.append(('device_hardware_id', '=', False))
+
 
                 terminals = env['havanoposdesk.pos.terminal'].sudo().search(terminals_domain)
                 terminals_data = []
@@ -5920,6 +5891,8 @@ class HavanoPOSDeskAPI(http.Controller):
                         "device_hardware_id": t.device_hardware_id,
                         "is_taken": bool(t.taken_by_user_id),
                         "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
+                        "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
+                        "taken_by_user_email": t.taken_by_user_id.login if t.taken_by_user_id else None,
                         "last_logged_in_user_id": t.last_logged_in_user_id.id if t.last_logged_in_user_id else None
                     })
                 shops_data.append({
