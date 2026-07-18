@@ -5758,6 +5758,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
             terminal_id = data.get('terminal_id')
             device_hardware_id = data.get('device_hardware_id')
+            take_over = data.get('take_over', False)
+
             if not terminal_id:
                 return self._make_json_response({"error": "terminal_id is required"}, status=400)
 
@@ -5779,20 +5781,39 @@ class HavanoPOSDeskAPI(http.Controller):
             if terminal.status == 'offline':
                 return self._make_json_response({"error": "Terminal is offline"}, status=400)
 
+            is_admin = user.havano_role in ('admin', 'super_admin')
+
+            # Validate hardware device assignment
             if terminal.device_hardware_id and terminal.device_hardware_id != device_hardware_id:
-                return self._make_json_response({"error": "Terminal is already assigned to another hardware device"}, status=400)
+                if not take_over:
+                    return self._make_json_response({"error": "Terminal is already assigned to another hardware device. Specify take_over=True to forcefully reassign it."}, status=400)
+                elif not is_admin:
+                    return self._make_json_response({"error": "Access denied. Only admins can take over a terminal from another hardware device."}, status=403)
+
+            # Validate user assignment (taken_by_user_id)
+            if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
+                if not take_over:
+                    return self._make_json_response({"error": "Terminal is currently in use by another user. Specify take_over=True to forcefully reassign it."}, status=400)
+                elif not is_admin:
+                    return self._make_json_response({"error": "Access denied. Only admins can take over a terminal in use by another user."}, status=403)
 
             # Cashier checks: cashier can only select open or online terminals
-            if user.havano_role != 'admin' and user.havano_role != 'super_admin':
+            if not is_admin:
                 if terminal.status not in ('open', 'online') and (not terminal.device_hardware_id or terminal.device_hardware_id != device_hardware_id):
                     return self._make_json_response({"error": "Selected terminal is not available"}, status=400)
 
-            # Update selected terminal
+            # Reassign terminal from old user if taking over
+            if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
+                old_user = terminal.taken_by_user_id
+                old_user.sudo().write({'selected_terminal_id': False})
+
+            # Update selected terminal for new user
             user.sudo().write({'selected_terminal_id': terminal.id})
             terminal.write({
                 'status': 'online',
                 'device_hardware_id': device_hardware_id,
-                'last_logged_in_user_id': user.id
+                'last_logged_in_user_id': user.id,
+                'taken_by_user_id': user.id
             })
 
             user_data = self._get_user_info_dict(user, env, device_hardware_id=device_hardware_id)
