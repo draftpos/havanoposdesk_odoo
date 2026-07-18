@@ -26,7 +26,7 @@ class HavanoPOSDeskAPI(http.Controller):
         password = data.get('pwd') or data.get('password')
         timezone = data.get('timezone')
         items_limit = data.get('items_limit')
-        device_hardware_id = data.get('device_hardware_id')
+        device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
         
         if not login or not password:
             return request.make_response(json.dumps({'error': 'Username and password are required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -265,16 +265,20 @@ class HavanoPOSDeskAPI(http.Controller):
 
                         terminals = user_env['havanoposdesk.pos.terminal'].sudo().search_read(
                             terminals_domain,
-                            ['id', 'name', 'status', 'device_hardware_id', 'last_logged_in_user_id', 'store_id']
+                            ['id', 'name', 'status', 'device_hardware_id', 'last_logged_in_user_id', 'store_id', 'taken_by_user_id']
                         )
                         
                         terms_by_shop = {}
                         for t in terminals:
+                            taken_by = t.get('taken_by_user_id')
+                            taken_by_id = taken_by[0] if taken_by else None
                             terms_by_shop.setdefault(t['store_id'][0], []).append({
                                 "id": t['id'],
                                 "name": t['name'],
                                 "status": t['status'],
                                 "device_hardware_id": t.get('device_hardware_id'),
+                                "is_taken": bool(taken_by_id),
+                                "taken_by_user_id": taken_by_id,
                                 "last_logged_in_user_id": t['last_logged_in_user_id'][0] if t.get('last_logged_in_user_id') else None
                             })
                             
@@ -5657,16 +5661,29 @@ class HavanoPOSDeskAPI(http.Controller):
             if not shops:
                 return self._make_json_response({"error": "No shops available for this user"}, status=400)
 
+            device_hardware_id = request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id') or kwargs.get('device_hardware_id')
+
             shops_data = []
             for s in shops:
-                terminals = env['havanoposdesk.pos.terminal'].sudo().search([
-                    '&', '&',
+                terminals_domain = [
+                    '&',
                     ('store_id', '=', s.id),
-                    ('status', '!=', 'offline'),
-                    '|',
-                    ('taken_by_user_id', '=', False),
-                    ('taken_by_user_id', '=', user.id)
-                ])
+                    ('status', '!=', 'offline')
+                ]
+                if device_hardware_id:
+                    terminals_domain.extend([
+                        '|', '|',
+                        ('taken_by_user_id', '=', False),
+                        ('taken_by_user_id', '=', user.id),
+                        ('device_hardware_id', '=', device_hardware_id)
+                    ])
+                else:
+                    terminals_domain.extend([
+                        '|',
+                        ('taken_by_user_id', '=', False),
+                        ('taken_by_user_id', '=', user.id)
+                    ])
+                terminals = env['havanoposdesk.pos.terminal'].sudo().search(terminals_domain)
                 terminals_data = []
                 for t in terminals:
                     terminals_data.append({
@@ -5759,7 +5776,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"error": "Invalid JSON body"}, status=400)
 
             terminal_id = data.get('terminal_id')
-            device_hardware_id = data.get('device_hardware_id')
+            device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
             take_over = data.get('take_over', False)
 
             if not terminal_id:
@@ -5794,10 +5811,13 @@ class HavanoPOSDeskAPI(http.Controller):
 
             # Validate user assignment (taken_by_user_id)
             if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
-                if not take_over:
-                    return self._make_json_response({"error": "Terminal is currently in use by another user. Specify take_over=True to forcefully reassign it."}, status=400)
-                elif not is_admin:
-                    return self._make_json_response({"error": "Access denied. Only admins can take over a terminal in use by another user."}, status=403)
+                if device_hardware_id and terminal.device_hardware_id == device_hardware_id:
+                    pass
+                else:
+                    if not take_over:
+                        return self._make_json_response({"error": "Terminal is currently in use by another user. Specify take_over=True to forcefully reassign it."}, status=400)
+                    elif not is_admin:
+                        return self._make_json_response({"error": "Access denied. Only admins can take over a terminal in use by another user."}, status=403)
 
             # Cashier checks: cashier can only select open or online terminals
             if not is_admin:
@@ -5897,6 +5917,8 @@ class HavanoPOSDeskAPI(http.Controller):
                         "name": t.name,
                         "status": t.status,
                         "device_hardware_id": t.device_hardware_id,
+                        "is_taken": bool(t.taken_by_user_id),
+                        "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
                         "last_logged_in_user_id": t.last_logged_in_user_id.id if t.last_logged_in_user_id else None
                     })
                 shops_data.append({
