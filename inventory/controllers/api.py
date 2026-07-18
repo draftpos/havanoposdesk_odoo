@@ -3503,6 +3503,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     
             sales = env['havanoposdesk.sale'].search(domain)
             total_amount = sum(sales.mapped('amount_total'))
+            total_tax_amount = sum(sales.mapped('amount_tax'))
             total_count = len(sales)
 
             return self._make_json_response({
@@ -3510,7 +3511,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "message": {
                         "status": "success",
                         "total_count": total_count,
-                        "total_amount": total_amount
+                        "total_amount": total_amount,
+                        "total_tax_amount": total_tax_amount
                     }
                 }
             })
