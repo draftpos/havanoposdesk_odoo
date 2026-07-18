@@ -5690,6 +5690,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         "id": t.id,
                         "name": t.name,
                         "status": t.status,
+                        "device_hardware_id": t.device_hardware_id,
                         "is_taken": bool(t.taken_by_user_id),
                         "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None
                     })
