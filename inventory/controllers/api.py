@@ -108,6 +108,8 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id
             company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
             
+            currency = user.api_currency or (tenant.api_currency if tenant else False) or (tenant.currency_id.name if tenant and hasattr(tenant, 'currency_id') and tenant.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and hasattr(user.company_id, 'currency_id') and user.company_id.currency_id else False) or 'USD'
+            
             # Fetch default customer from database, or fallback/create
             default_customer_name = ""
             customers_records = []
@@ -225,6 +227,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "cost_center": cost_center,
                     "default_customer": default_customer_name,
                     "company": company_name,
+                    "currency": currency,
                     "customers": customers_data,
                     "suppliers": suppliers_data,
                     "currencies": currencies_data,
