@@ -3515,7 +3515,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
-    @http.route('/api/method/havano_addons.www.api.user_stock_report', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route(['/api/method/havano_addons.www.api.user_stock_report', '/api/method/saas_api.www.api.user_stock_report'], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_user_stock_report(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
