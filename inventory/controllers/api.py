@@ -3544,6 +3544,16 @@ class HavanoPOSDeskAPI(http.Controller):
             product_domain = []
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
+                
+            from_date = params.get('from_date')
+            to_date = params.get('to_date')
+            if from_date and from_date != 'null':
+                product_domain.append(('create_date', '>=', from_date))
+            if to_date and to_date != 'null':
+                if len(to_date) == 10:
+                    to_date += " 23:59:59"
+                product_domain.append(('create_date', '<=', to_date))
+
             products = env['havanoposdesk.product'].search(product_domain)
             
             store_domain = []
