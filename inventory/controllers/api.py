@@ -2343,8 +2343,11 @@ class HavanoPOSDeskAPI(http.Controller):
                                 ('local_invoice_id', '=', local_invoice_id)
                             ], limit=1)
                             if existing_sale:
-                                responses.append({"name": existing_sale.name, "local_invoice_id": local_invoice_id, "status": "exists"})
-                                continue
+                                return self._make_json_response({
+                                    "error": f"Sale with local_invoice_id '{local_invoice_id}' already exists in cloud",
+                                    "existing_sale": existing_sale.name,
+                                    "local_invoice_id": local_invoice_id
+                                }, status=409)
 
                         store = self._get_current_store(user, tenant, sale_data)
                         if not store:
