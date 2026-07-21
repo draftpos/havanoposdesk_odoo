@@ -5840,7 +5840,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 'status': 'online',
                 'device_hardware_id': device_hardware_id,
                 'last_logged_in_user_id': user.id,
-                'taken_by_user_id': user.id
+                'taken_by_user_id': user.id,
+                'sequence_prefix': sale_id_prefix
             })
 
             user_data = self._get_user_info_dict(user, env, device_hardware_id=device_hardware_id)

@@ -19,7 +19,8 @@ class HavanoposdeskPosTerminal(models.Model):
         required=True, 
         default=lambda self: self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1).id
     )
-    device_hardware_id = fields.Char(string='Device Hardware ID')
+    device_hardware_id = fields.Char(string='Device Hardware ID', readonly=True)
+    sequence_prefix = fields.Char(string='Sequence Prefix')
     last_logged_in_user_id = fields.Many2one('res.users', string='Last Logged In By', readonly=True)
     taken_by_user_id = fields.Many2one('res.users', string='Taken By User')
     status = fields.Selection([
@@ -32,7 +33,12 @@ class HavanoposdeskPosTerminal(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        import random
+        import string
         for vals in vals_list:
+            if not vals.get('sequence_prefix'):
+                vals['sequence_prefix'] = ''.join(random.choices(string.ascii_uppercase, k=4))
+
             if self.env.user.havano_role == 'super_admin':
                 continue
                 
