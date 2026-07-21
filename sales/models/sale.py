@@ -106,7 +106,8 @@ class Sale(models.Model):
     state = fields.Selection([
         ('draft', 'Draft'),
         ('confirmed', 'Confirmed'),
-        ('done', 'Done')
+        ('done', 'Done'),
+        ('cancelled', 'Cancelled')
     ], string='Status', default='draft', required=True)
 
     @api.depends('line_ids.price_subtotal', 'line_ids.price_tax', 'line_ids.amount')
