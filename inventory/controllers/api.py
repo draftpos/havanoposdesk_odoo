@@ -1,12 +1,13 @@
 from datetime import datetime
 from dataclasses import fields
 from odoo.orm import environments
-from odoo.orm import environments
 import odoo.orm.environments
 from odoo import http
 from odoo.http import request
 import json
 import logging
+import random
+import string
 from odoo.exceptions import ValidationError, UserError
 
 _logger = logging.getLogger(__name__)
@@ -5830,6 +5831,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 old_user = terminal.taken_by_user_id
                 old_user.sudo().write({'selected_terminal_id': False})
 
+            # Generate a unique 4-letter uppercase sale ID prefix for this terminal takeover/selection
+            sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
+
             # Update selected terminal for new user
             user.sudo().write({'selected_terminal_id': terminal.id})
             terminal.write({
@@ -5840,7 +5844,12 @@ class HavanoPOSDeskAPI(http.Controller):
             })
 
             user_data = self._get_user_info_dict(user, env, device_hardware_id=device_hardware_id)
-            return self._make_json_response({"message": "Terminal Selected", "user": user_data}, status=200)
+            user_data['sale_id_prefix'] = sale_id_prefix
+            return self._make_json_response({
+                "message": "Terminal Selected",
+                "sale_id_prefix": sale_id_prefix,
+                "user": user_data
+            }, status=200)
         except Exception as e:
             if custom_cr:
                 custom_cr.rollback()
