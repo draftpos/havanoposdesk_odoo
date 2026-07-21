@@ -28,10 +28,10 @@
                             <group>
                                 <field name="name" />
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" />
-                                <field name="sequence_prefix" />
                                 <field name="device_hardware_id" readonly="1" />
                             </group>
                             <group>
+                                <field name="sequence_prefix" />
                                 <field name="status" />
                                 <field name="last_logged_in_user_id" string="Last Logged In By" />
                                 <field name="tenant_id" invisible="1" />
