@@ -2407,7 +2407,17 @@ class HavanoPOSDeskAPI(http.Controller):
                             responses.append({"error": "No terminal assigned.", "local_invoice_id": local_invoice_id})
                             continue
 
-                        sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create({
+                        payment_method_name = sale_data.get('payment_method')
+                        account_id = False
+                        if payment_method_name:
+                            acc = env['havanoposdesk.account'].search([
+                                ('tenant_id', '=', tenant.id), 
+                                ('name', 'ilike', payment_method_name)
+                            ], limit=1)
+                            if acc:
+                                account_id = acc.id
+
+                        sale_vals = {
                             'customer': customer.id,
                             'store': store.name,
                             'store_id': store.id,
@@ -2418,7 +2428,11 @@ class HavanoPOSDeskAPI(http.Controller):
                             'salesperson_id': user.id,
                             'payment_status': payment_status,
                             'local_invoice_id': local_invoice_id,
-                        })
+                        }
+                        if account_id:
+                            sale_vals['account_id'] = account_id
+
+                        sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create(sale_vals)
                         
                         responses.append({"name": sale.name, "local_invoice_id": local_invoice_id, "status": "created"})
                     except Exception as e:
