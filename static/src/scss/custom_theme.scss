@@ -129,6 +129,7 @@
 .o_menu_systray .o-mail-MessagingMenu,
 .o_menu_systray .o-mail-ActivityMenu,
 .o_menu_systray .o_MessagingMenu,
-.o_menu_systray .o_ActivityMenu {
+.o_menu_systray .o_ActivityMenu,
+.o-mail-DiscussSystray-class {
     display: none !important;
 }
