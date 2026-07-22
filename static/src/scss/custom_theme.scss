@@ -124,3 +124,11 @@
     display: none !important;
     background-image: none !important;
 }
+
+/* Hide notifications and activity icons from the navbar */
+.o_menu_systray .o-mail-MessagingMenu,
+.o_menu_systray .o-mail-ActivityMenu,
+.o_menu_systray .o_MessagingMenu,
+.o_menu_systray .o_ActivityMenu {
+    display: none !important;
+}
