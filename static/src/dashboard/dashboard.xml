@@ -146,7 +146,7 @@
                 <div class="card-body">
                     <h5 class="card-title fw-bolder text-dark mb-1">Sales summary</h5>
                     <small class="text-muted d-block mb-4"><t t-esc="state.periodLabel"/></small>
-                    <div class="chart-container" style="position: relative; height:300px; width:100%">
+                    <div class="chart-container" style="position: relative;">
                         <canvas t-ref="salesChart"></canvas>
                     </div>
                 </div>
@@ -173,7 +173,7 @@
                         <div class="card-body">
                             <h5 class="card-title fw-bolder text-dark mb-1">Stock valuation</h5>
                             <small class="text-muted d-block mb-4"><t t-esc="state.periodLabel"/></small>
-                            <div class="chart-container" style="position: relative; height:300px; width:100%">
+                            <div class="chart-container" style="position: relative;">
                                 <canvas t-ref="stockChart"></canvas>
                             </div>
                         </div>
