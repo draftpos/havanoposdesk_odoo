@@ -3340,6 +3340,12 @@ class HavanoPOSDeskAPI(http.Controller):
                 cost_center = filters.get('cost_center')
                 from_date = filters.get('from_date')
                 to_date = filters.get('to_date')
+                cashier = filters.get('cashier') or filters.get('user') or filters.get('pos_profile')
+
+                if cashier:
+                    cashier_user = env['res.users'].search([('login', '=', cashier)], limit=1)
+                    if cashier_user:
+                        domain.append(('salesperson_id', '=', cashier_user.id))
 
                 if user_rec.havano_role != 'super_admin':
                     if cost_center:
