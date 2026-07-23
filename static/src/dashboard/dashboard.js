@@ -68,14 +68,29 @@ export class HavanoDashboard extends Component {
         });
     }
     
+    getAspectRatio() {
+        const width = window.innerWidth;
+        if (width < 576) return 1.5;
+        if (width < 992) return 2;
+        return 3;
+    }
+
     onResize = () => {
-        if (this.salesChartInstance) this.salesChartInstance.resize();
-        if (this.stockChartInstance) this.stockChartInstance.resize();
+        const ratio = this.getAspectRatio();
+        if (this.salesChartInstance) {
+            this.salesChartInstance.options.aspectRatio = ratio;
+            this.salesChartInstance.resize();
+        }
+        if (this.stockChartInstance) {
+            this.stockChartInstance.options.aspectRatio = ratio;
+            this.stockChartInstance.resize();
+        }
         if (this.sparklineGrossInstance) this.sparklineGrossInstance.resize();
         if (this.sparklineNetInstance) this.sparklineNetInstance.resize();
         if (this.sparklineCostInstance) this.sparklineCostInstance.resize();
         if (this.sparklineProfitInstance) this.sparklineProfitInstance.resize();
     }
+
 
     async fetchData() {
         // Calculate date range based on period
@@ -174,6 +189,7 @@ export class HavanoDashboard extends Component {
     }
 
     renderCharts() {
+        const ratio = this.getAspectRatio();
         // Sales Summary Chart
         if (this.salesChartInstance) {
             this.salesChartInstance.destroy();
@@ -217,7 +233,8 @@ export class HavanoDashboard extends Component {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: true,
+                    aspectRatio: ratio,
                     plugins: {
                         legend: {
                             position: 'top',
@@ -255,7 +272,8 @@ export class HavanoDashboard extends Component {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: true,
+                    aspectRatio: ratio,
                     plugins: {
                         legend: {
                             position: 'top',

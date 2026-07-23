@@ -120,12 +120,9 @@
 /* Responsive container height overrides for charts (previously inline) */
 .havano-dashboard-container {
     .chart-container {
-        height: 300px !important;
+        position: relative;
         width: 100%;
-        
-        @media (max-width: 768px) {
-            height: 280px !important; /* Prevents squishing by allocating more vertical space */
-        }
+        height: auto !important; /* Let canvas aspect-ratio control container height */
     }
 }
 
