@@ -124,7 +124,7 @@
         width: 100%;
         
         @media (max-width: 768px) {
-            height: 220px !important;
+            height: 280px !important; /* Prevents squishing by allocating more vertical space */
         }
     }
 }
@@ -156,7 +156,7 @@
             border-radius: 16px !important;
             
             .card-body {
-                padding: 16px !important;
+                padding: 20px !important; /* Balanced mobile padding */
 
                 /* Stack card header elements vertically to prevent horizontal crowding */
                 .d-flex.justify-content-between.align-items-center.mb-3 {
@@ -177,21 +177,21 @@
                 }
 
                 h6 {
-                    font-size: 11px !important;
+                    font-size: 12px !important; /* Scaled up for readability */
                 }
 
                 h3 {
-                    font-size: 20px !important;
+                    font-size: 24px !important; /* Scaled up for readability */
                     margin-top: 5px !important;
                     word-break: break-all;
                 }
 
                 small {
-                    font-size: 11px !important;
+                    font-size: 12px !important; /* Scaled up for readability */
                 }
 
                 .badge {
-                    font-size: 11px !important;
+                    font-size: 12px !important; /* Scaled up for readability */
                     padding: 4px 6px !important;
                 }
 
@@ -209,11 +209,12 @@
                     }
                     
                     .col-5 {
-                        height: 40px !important;
+                        height: 50px !important; /* Prevents vertical compression of the sparkline */
                     }
                 }
             }
         }
     }
 }
+
 
