@@ -48,6 +48,7 @@
                                         <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark" />
                                         <field name="tenant_id" invisible="1" />
                                         <field name="track_qty" class="border-bottom border-dark" />
+                                        <field name="is_bundle" class="border-bottom border-dark" />
                                         <field name="has_multiple_stores" invisible="1" />
                                         <field name="all_stores" invisible="has_multiple_stores == False" class="border-bottom border-dark" />
                                         <field name="store_ids" widget="many2many_tags" invisible="has_multiple_stores == True and all_stores == True" class="border-bottom border-dark" options="{'no_create': True}" />
@@ -114,6 +115,16 @@
                                         <field name="discount_percentage" class="border-bottom border-dark" />
                                         <field name="tax_percentage" class="border-bottom border-dark" />
                                     </group>
+                                </group>
+                            </page>
+                            <page string="Bundle Components" invisible="is_bundle == False">
+                                <group>
+                                    <field name="bundle_item_ids" nolabel="1">
+                                        <list editable="bottom">
+                                            <field name="product_id" string="Component Product" domain="[('id', '!=', parent.id), ('is_bundle', '=', False), ('tenant_id', '=', parent.tenant_id)]" options="{'no_create': True}" />
+                                            <field name="qty" string="Quantity" />
+                                        </list>
+                                    </field>
                                 </group>
                             </page>
                         </notebook>

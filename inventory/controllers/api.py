@@ -4154,7 +4154,37 @@ class HavanoPOSDeskAPI(http.Controller):
     def api_get_product_bundles(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
-        return self._make_json_response({"message": []})
+
+        user = self._get_user()
+        tenant = user.tenant_id
+
+        domain = [('is_bundle', '=', True)]
+        if user.havano_role != 'super_admin' and tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+        
+        bundle_products = request.env['havanoposdesk.product'].sudo().search(domain)
+
+        bundles_data = []
+        for product in bundle_products:
+            items = []
+            for item in product.bundle_item_ids:
+                items.append({
+                    'item_code': item.product_id.item_code,
+                    'qty': item.qty
+                })
+            
+            if not items:
+                continue
+
+            bundles_data.append({
+                'new_item_code': product.item_code,
+                'name': product.name,
+                'description': product.internal_notes or '',
+                'items': items
+            })
+
+        return self._make_json_response({"message": bundles_data})
+
 
     @http.route('/api/method/havano_pos_integration.api.get_single_product', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_single_product(self, **kwargs):
