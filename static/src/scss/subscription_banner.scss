@@ -1,0 +1,104 @@
+/* ===================================================================
+   Subscription Expiry Banner
+   =================================================================== */
+
+.havano-sub-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 1050;
+    animation: havano-banner-slide-in 0.35s ease-out;
+
+    &__content {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+    }
+
+    &__icon {
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    &__message {
+        line-height: 1.4;
+    }
+
+    &__dismiss {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        opacity: 0.7;
+        transition: opacity 0.2s, background-color 0.2s;
+        flex-shrink: 0;
+        margin-left: 12px;
+
+        &:hover {
+            opacity: 1;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .fa {
+            font-size: 14px;
+        }
+    }
+
+    /* Warning theme (≤ 3 days left) */
+    &--warning {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        color: #856404;
+        border-bottom: 1px solid #ffc107;
+
+        .havano-sub-banner__icon {
+            color: #e67e22;
+        }
+
+        .havano-sub-banner__dismiss {
+            color: #856404;
+        }
+    }
+
+    /* Danger theme (expired) */
+    &--danger {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
+        border-bottom: 1px solid #f5c6cb;
+
+        .havano-sub-banner__icon {
+            color: #dc3545;
+        }
+
+        .havano-sub-banner__dismiss {
+            color: #721c24;
+        }
+    }
+}
+
+@keyframes havano-banner-slide-in {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .havano-sub-banner {
+        padding: 8px 12px;
+        font-size: 12px;
+
+        &__icon {
+            font-size: 14px;
+        }
+    }
+}

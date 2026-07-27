@@ -308,6 +308,24 @@ class HavanoPOSDeskAPI(http.Controller):
                     "user_rights": self._get_user_rights_dict(user)
                 })
 
+                # Subscription expiry info for mobile banner
+                if tenant:
+                    from odoo import fields as odoo_fields
+                    days_left = None
+                    if tenant.subscription_end_date:
+                        today = odoo_fields.Date.context_today(tenant)
+                        days_left = (tenant.subscription_end_date - today).days
+                    is_expiring_soon = days_left is not None and days_left <= 3
+                    is_expired = tenant.subscription_state in ('expired', 'cancelled')
+                    res_data["subscription"] = {
+                        "state": tenant.subscription_state,
+                        "days_left": days_left,
+                        "end_date": str(tenant.subscription_end_date) if tenant.subscription_end_date else None,
+                        "plan_name": tenant.subscription_plan_id.name if tenant.subscription_plan_id else None,
+                        "is_expiring_soon": is_expiring_soon,
+                        "is_expired": is_expired,
+                    }
+
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
         except Exception as e:
             return request.make_response(json.dumps({'error': 'Authentication failed', 'message': str(e)}), headers=[('Content-Type', 'application/json')], status=401)
@@ -621,12 +639,25 @@ class HavanoPOSDeskAPI(http.Controller):
         cashiers_count = request.env['res.users'].sudo().search_count([('tenant_id', '=', tenant.id), ('havano_role', '=', 'user')])
         
         plan = tenant.subscription_plan_id
+
+        # Compute days left until expiry
+        from odoo import fields as odoo_fields
+        days_left = None
+        if tenant.subscription_end_date:
+            today = odoo_fields.Date.context_today(tenant)
+            days_left = (tenant.subscription_end_date - today).days
+        is_expiring_soon = days_left is not None and days_left <= 3
+        is_expired = tenant.subscription_state in ('expired', 'cancelled')
+
         res_data = {
             'tenant_id': tenant.id,
             'tenant_name': tenant.name,
             'subscription_state': tenant.subscription_state,
             'subscription_start_date': str(tenant.subscription_start_date) if tenant.subscription_start_date else None,
             'subscription_end_date': str(tenant.subscription_end_date) if tenant.subscription_end_date else None,
+            'days_left': days_left,
+            'is_expiring_soon': is_expiring_soon,
+            'is_expired': is_expired,
             'payment_status': tenant.payment_status,
             'plan': {
                 'id': plan.id,

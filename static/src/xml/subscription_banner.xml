@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="havanoposdesk_odoo.SubscriptionBanner" owl="1">
+        <div t-if="isVisible" t-attf-class="havano-sub-banner {{ bannerClass }}">
+            <div class="havano-sub-banner__content">
+                <i t-attf-class="fa {{ bannerIcon }} havano-sub-banner__icon"/>
+                <span class="havano-sub-banner__message">
+                    <t t-esc="bannerMessage"/>
+                </span>
+            </div>
+            <button class="havano-sub-banner__dismiss" t-on-click="dismiss" title="Dismiss">
+                <i class="fa fa-times"/>
+            </button>
+        </div>
+    </t>
+
+</templates>
