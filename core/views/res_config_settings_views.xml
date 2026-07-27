@@ -115,7 +115,7 @@
                         </div>
                     </block>
                     <block title="User Verification &amp; Subscription" name="saas_verification">
-                        <setting id="verification_grace_period_setting" help="Specify the grace period for self-registered users to verify their email before their account gets suspended.">
+                        <setting id="verification_grace_period_setting" string="User Verification Grace Period" help="Specify the grace period for self-registered users to verify their email before their account gets suspended.">
                             <div class="content-group">
                                 <div class="d-flex align-items-center gap-2">
                                     <span>Grace Period:</span>
@@ -124,12 +124,21 @@
                                 </div>
                             </div>
                         </setting>
-                        <setting id="subscription_grace_days_setting" help="Specify the subscription grace period (in days) allowed for tenants after their subscription has expired.">
+                        <setting id="subscription_grace_days_setting" string="Subscription Grace Days" help="Specify the subscription grace period (in days) allowed for tenants after their subscription has expired.">
                             <div class="content-group">
                                 <div class="d-flex align-items-center gap-2">
                                     <span>Subscription Grace Days:</span>
                                     <field name="havano_subscription_grace_days" class="oe_inline" style="width: 80px;"/>
                                     <span>Days</span>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting id="subscription_expiry_warning_days_setting" string="Expiry Warning Banner" help="Number of days before subscription expiry to start showing the warning banner to users on login.">
+                            <div class="content-group">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>Expiry Warning Banner:</span>
+                                    <field name="havano_subscription_expiry_warning_days" class="oe_inline" style="width: 80px;"/>
+                                    <span>Days before expiry</span>
                                 </div>
                             </div>
                         </setting>

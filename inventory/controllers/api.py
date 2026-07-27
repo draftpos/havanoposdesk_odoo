@@ -311,11 +311,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 # Subscription expiry info for mobile banner
                 if tenant:
                     from odoo import fields as odoo_fields
+                    warning_days = int(request.env['ir.config_parameter'].sudo().get_param(
+                        'havanoposdesk.subscription_expiry_warning_days', '3'))
                     days_left = None
                     if tenant.subscription_end_date:
                         today = odoo_fields.Date.context_today(tenant)
                         days_left = (tenant.subscription_end_date - today).days
-                    is_expiring_soon = days_left is not None and days_left <= 3
+                    is_expiring_soon = days_left is not None and days_left <= warning_days
                     is_expired = tenant.subscription_state in ('expired', 'cancelled')
                     res_data["subscription"] = {
                         "state": tenant.subscription_state,
@@ -324,6 +326,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         "plan_name": tenant.subscription_plan_id.name if tenant.subscription_plan_id else None,
                         "is_expiring_soon": is_expiring_soon,
                         "is_expired": is_expired,
+                        "warning_days": warning_days,
                     }
 
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
@@ -642,11 +645,13 @@ class HavanoPOSDeskAPI(http.Controller):
 
         # Compute days left until expiry
         from odoo import fields as odoo_fields
+        warning_days = int(request.env['ir.config_parameter'].sudo().get_param(
+            'havanoposdesk.subscription_expiry_warning_days', '3'))
         days_left = None
         if tenant.subscription_end_date:
             today = odoo_fields.Date.context_today(tenant)
             days_left = (tenant.subscription_end_date - today).days
-        is_expiring_soon = days_left is not None and days_left <= 3
+        is_expiring_soon = days_left is not None and days_left <= warning_days
         is_expired = tenant.subscription_state in ('expired', 'cancelled')
 
         res_data = {
