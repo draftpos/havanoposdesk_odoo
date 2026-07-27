@@ -934,6 +934,65 @@ class HavanoPOSDeskAPI(http.Controller):
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
 
 
+    # 1.1 CREATE SUPPLIER
+    @http.route('/api/method/saas_api.www.api.create_supplier', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
+    def api_create_supplier(self, **kw):
+        try:
+            data = json.loads(request.httprequest.data)
+        except Exception:
+            return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        name = data.get('supplier_name') or data.get('name')
+        if not name:
+            return request.make_response(json.dumps({'error': 'supplier_name or name is required'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        user = self._get_user()
+        tenant = user.tenant_id
+        
+        # Check if supplier already exists for this tenant
+        domain = [('name', '=', name)]
+        if tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+        
+        supplier = request.env['havanoposdesk.supplier'].sudo().search(domain, limit=1)
+        if not supplier:
+            store = self._get_current_store(user, tenant, data)
+            if not store:
+                # Find any store under tenant
+                store = request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+                if not store:
+                    store_name = f"{tenant.name or 'Default'} Store"
+                    store = request.env['havanoposdesk.store'].sudo().create({
+                        'name': store_name,
+                        'tenant_id': tenant.id if tenant else False,
+                    })
+            
+            vals = {
+                'name': name,
+                'tenant_id': tenant.id if tenant else False,
+                'store_id': store.id if store else False,
+            }
+            
+            # Map other optional fields
+            if data.get('supplier_primary_contact'):
+                vals['phone'] = data.get('supplier_primary_contact')
+            if data.get('supplier_primary_address'):
+                vals['address'] = data.get('supplier_primary_address')
+            if data.get('email'):
+                vals['email'] = data.get('email')
+
+            supplier = request.env['havanoposdesk.supplier'].sudo().create(vals)
+            
+        res_data = {
+            'message': {
+                'status': 'success',
+                'supplier_id': supplier.id,
+                'name': supplier.name
+            }
+        }
+        return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+
+
     # 2. GET CUSTOMERS
     @http.route('/api/method/saas_api.www.api.get_customers', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
     def api_get_customers(self, **kw):
