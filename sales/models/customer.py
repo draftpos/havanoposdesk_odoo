@@ -30,13 +30,29 @@ class Customer(models.Model):
     _description = 'Customer'
 
     name = fields.Char(string='Customer Name', required=True)
+    
+    @api.constrains('currency_id', 'secondary_currency_id')
+    def _check_currencies(self):
+        for record in self:
+            if record.allow_multi_currency and record.currency_id and record.secondary_currency_id:
+                if record.currency_id == record.secondary_currency_id:
+                    from odoo.exceptions import ValidationError
+                    raise ValidationError("The primary and secondary currencies cannot be the same.")
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
-    currency_id = fields.Many2one(related='tenant_id.currency_id', string='Currency', store=False)
+    tenant_allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency', store=False)
+    tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
+    currency_id = fields.Many2one(
+        'res.currency', 
+        string='Currency', 
+        default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
+    )
+    allow_multi_currency = fields.Boolean(string='Allow Multi Currency', default=False)
+    secondary_currency_id = fields.Many2one('res.currency', string='Secondary Currency')
     phone = fields.Char(string='Phone')
     address = fields.Char(string='Address')
     city = fields.Char(string='City')
@@ -57,17 +73,29 @@ class Customer(models.Model):
     sale_ids = fields.One2many('havanoposdesk.sale', 'customer', string='Sales')
     payment_ids = fields.One2many('havanoposdesk.payment', 'customer_id', string='Payments')
     balance = fields.Float(string='Balance', compute='_compute_balance', store=False)
+    secondary_balance = fields.Float(string='Secondary Balance', compute='_compute_secondary_balance', store=False)
     store_ids = fields.Many2many('havanoposdesk.store', string='Stores')
 
-    @api.depends('sale_ids.amount_total', 'sale_ids.is_return', 'sale_ids.payment_status', 'payment_ids.amount', 'payment_ids.payment_type', 'payment_ids.state')
+    @api.depends('balance', 'secondary_currency_id', 'allow_multi_currency')
+    def _compute_secondary_balance(self):
+        for record in self:
+            if record.allow_multi_currency and record.secondary_currency_id and record.tenant_currency_id:
+                rate = record.tenant_currency_id._get_conversion_rate(
+                    record.tenant_currency_id, record.secondary_currency_id, self.env.company, fields.Date.context_today(record)
+                )
+                record.secondary_balance = record.balance * rate
+            else:
+                record.secondary_balance = 0.0
+
+    @api.depends('sale_ids.amount_total_base', 'sale_ids.is_return', 'sale_ids.payment_status', 'payment_ids.amount_base', 'payment_ids.payment_type', 'payment_ids.state')
     def _compute_balance(self):
         for record in self:
             account_sales = record.sale_ids.filtered(lambda s: s.payment_status == 'account')
-            total_sales = sum(account_sales.mapped('amount_total'))
+            total_sales = sum(account_sales.mapped('amount_total_base'))
             
             posted_payments = record.payment_ids.filtered(lambda p: p.state == 'posted')
-            receipts = sum(posted_payments.filtered(lambda p: p.payment_type == 'receipt').mapped('amount'))
-            refunds = sum(posted_payments.filtered(lambda p: p.payment_type == 'payment').mapped('amount'))
+            receipts = sum(posted_payments.filtered(lambda p: p.payment_type == 'receipt').mapped('amount_base'))
+            refunds = sum(posted_payments.filtered(lambda p: p.payment_type == 'payment').mapped('amount_base'))
             
             record.balance = total_sales - receipts + refunds
 

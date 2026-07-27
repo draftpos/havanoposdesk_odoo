@@ -18,6 +18,7 @@ class Account(models.Model):
         'res.currency',
         string='Currency',
         help='Currency used for this Cash or Bank account.',
+        default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
     )
     balance = fields.Float(string='Balance', default=0.0)
     

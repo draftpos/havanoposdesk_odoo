@@ -10,7 +10,7 @@
                     <field name="name" />
                     <field name="type" />
                     <field name="currency_id" optional="show" invisible="type not in ['Cash', 'Bank']" />
-                    <field name="balance" optional="show" />
+                    <field name="balance" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 </list>
             </field>
         </record>
@@ -27,7 +27,7 @@
                                 <field name="name" />
                                 <field name="type" />
                                 <field name="currency_id" invisible="type not in ['Cash', 'Bank']" />
-                                <field name="balance" />
+                                <field name="balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             </group>
                         </group>
                     </sheet>

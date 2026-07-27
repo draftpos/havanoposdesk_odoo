@@ -18,6 +18,11 @@ class Sale(models.Model):
 
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default=lambda self: 'New')
     customer = fields.Many2one('havanoposdesk.customer', string='Customer', required=True)
+    customer_balance = fields.Float(related='customer.balance', string='Customer Balance')
+    customer_secondary_balance = fields.Float(related='customer.secondary_balance', string='Secondary Balance')
+    customer_allow_multi_currency = fields.Boolean(related='customer.allow_multi_currency', string='Customer Multi Currency')
+    customer_secondary_currency_id = fields.Many2one('res.currency', related='customer.secondary_currency_id')
+    
     store = fields.Char(string='Store')
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
@@ -79,14 +84,39 @@ class Sale(models.Model):
         required=True, 
         default=_default_store_id
     )
-    currency_id = fields.Many2one('res.currency', string='Currency', compute='_compute_currency_id', store=True, readonly=False)
+    currency_id = fields.Many2one('res.currency', string='Currency', required=True)
+    exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
+    available_currency_ids = fields.Many2many('res.currency', compute='_compute_available_currencies', store=False)
     allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency')
 
-    @api.depends('store_id')
-    def _compute_currency_id(self):
+    @api.depends('customer')
+    def _compute_available_currencies(self):
         for record in self:
-            if record.store_id and not record.currency_id:
-                record.currency_id = record.store_id.currency_id
+            if record.customer:
+                currencies = record.customer.currency_id
+                if record.customer.allow_multi_currency and record.customer.secondary_currency_id:
+                    currencies |= record.customer.secondary_currency_id
+                record.available_currency_ids = currencies.ids
+            else:
+                record.available_currency_ids = False
+
+    @api.onchange('customer')
+    def _onchange_customer(self):
+        if self.customer:
+            self.currency_id = self.customer.currency_id.id
+
+    @api.onchange('currency_id', 'tenant_id')
+    def _onchange_currency_id(self):
+        if self.currency_id and self.tenant_id and self.tenant_id.currency_id:
+            if self.currency_id == self.tenant_id.currency_id:
+                self.exchange_rate = 1.0
+            else:
+                # Odoo's res.currency stores rate as: 1 base = X foreign
+                date = self.date or fields.Date.context_today(self)
+                rate = self.currency_id._get_conversion_rate(self.tenant_id.currency_id, self.currency_id, self.env.company, date)
+                self.exchange_rate = rate or 1.0
+            if self.line_ids:
+                self.line_ids._recompute_prices_for_currency()
     terminal_id = fields.Many2one(
         'havanoposdesk.pos.terminal', 
         string='POS Terminal', 
@@ -117,16 +147,13 @@ class Sale(models.Model):
             record.amount_tax = sum(record.line_ids.mapped('price_tax'))
             record.amount_total = sum(record.line_ids.mapped('amount'))
 
-    @api.depends('amount_total', 'currency_id', 'tenant_currency_id', 'date')
+    @api.depends('amount_total', 'exchange_rate')
     def _compute_amount_total_base(self):
         for record in self:
-            if not record.currency_id or not record.tenant_currency_id or record.currency_id == record.tenant_currency_id:
-                record.amount_total_base = record.amount_total
+            if record.exchange_rate and record.exchange_rate != 0:
+                record.amount_total_base = record.amount_total / record.exchange_rate
             else:
-                date = record.date or fields.Date.context_today(self)
-                record.amount_total_base = record.currency_id._convert(
-                    record.amount_total, record.tenant_currency_id, self.env.company, date
-                )
+                record.amount_total_base = record.amount_total
 
     @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
     def _compute_total_cost(self):
@@ -284,9 +311,11 @@ class Sale(models.Model):
                 if base_qty > 0:
                     # Update price on parent product
                     if not sale.is_return:
+                        base_rate = line.rate / (sale.exchange_rate or 1.0)
+                        base_cost = line.cost_price / (sale.exchange_rate or 1.0)
                         line.product_id.sudo().write({
-                            'selling_price': line.rate,
-                            'buying_price': line.cost_price / line.uom_qty_multiplier if line.uom_qty_multiplier else line.cost_price,
+                            'selling_price': base_rate,
+                            'buying_price': (base_cost / line.uom_qty_multiplier) if line.uom_qty_multiplier else base_cost,
                         })
 
                     # Determine products for inventory changes
@@ -456,7 +485,8 @@ class SaleLine(models.Model):
     )
     sale_id = fields.Many2one('havanoposdesk.sale', string='Sale', required=True, ondelete='cascade')
     store_id = fields.Many2one(related='sale_id.store_id', store=True)
-    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
+    currency_id = fields.Many2one('res.currency', related='sale_id.currency_id', readonly=True)
+    exchange_rate = fields.Float(related='sale_id.exchange_rate', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
@@ -547,8 +577,12 @@ class SaleLine(models.Model):
             line.tax_ids = [(6, 0, line.product_id.sale_tax_ids.ids)]
             
             if line.uom_id == line.product_id.uom_id:
-                line.rate = line.product_id.selling_price
-                line.cost_price = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                # Convert the base selling price to the transaction currency using the exchange rate
+                base_price = line.product_id.selling_price
+                line.rate = base_price * (line.exchange_rate or 1.0)
+                
+                base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                line.cost_price = base_cost * (line.exchange_rate or 1.0)
                 line.uom_qty_multiplier = 1.0
             else:
                 price_record = self.env['havanoposdesk.product.uom.price'].search([
@@ -557,18 +591,43 @@ class SaleLine(models.Model):
                     ('pricelist_id.type', '=', 'selling')
                 ], limit=1)
                 if price_record:
-                    line.rate = price_record.price
+                    line.rate = price_record.price * (line.exchange_rate or 1.0)
                     line.uom_qty_multiplier = price_record.qty_to_be_sold
                     base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                    line.cost_price = base_cost * price_record.qty_to_be_sold
+                    line.cost_price = (base_cost * price_record.qty_to_be_sold) * (line.exchange_rate or 1.0)
                 else:
-                    line.rate = line.product_id.selling_price
+                    line.rate = line.product_id.selling_price * (line.exchange_rate or 1.0)
                     line.uom_qty_multiplier = 1.0
+
+    def _recompute_prices_for_currency(self):
+        for line in self:
+            if not line.product_id:
+                continue
+            rate = line.sale_id.exchange_rate or 1.0
+            if line.uom_id == line.product_id.uom_id:
+                line.rate = line.product_id.selling_price * rate
+                base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                line.cost_price = base_cost * rate
+            else:
+                price_record = self.env['havanoposdesk.product.uom.price'].search([
+                    ('product_id', '=', line.product_id.id),
+                    ('uom_id', '=', line.uom_id.id),
+                    ('pricelist_id.type', '=', 'selling')
+                ], limit=1)
+                if price_record:
+                    line.rate = price_record.price * rate
+                    base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                    line.cost_price = (base_cost * price_record.qty_to_be_sold) * rate
+                else:
+                    line.rate = line.product_id.selling_price * rate
+                    base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                    line.cost_price = base_cost * rate
 
     @api.onchange('rate')
     def _onchange_rate(self):
         if self.tenant_id.restrict_price_modification and not self.env.user.has_group('havanoposdesk_odoo.group_tenant_admin'):
-            self.rate = self._origin.rate if getattr(self, '_origin', False) else (self.product_id.selling_price if self.product_id else 0.0)
+            base_price = self.product_id.selling_price if self.product_id else 0.0
+            self.rate = self._origin.rate if getattr(self, '_origin', False) else (base_price * (self.exchange_rate or 1.0))
             return {
                 'warning': {
                     'title': 'Price Modification Restricted',
@@ -577,14 +636,17 @@ class SaleLine(models.Model):
             }
 
         if self.product_id:
-            if self.rate != self.product_id.selling_price:
+            expected_rate = self.product_id.selling_price * (self.exchange_rate or 1.0)
+            if abs(self.rate - expected_rate) > 0.01:
                 avg_cost_rec = self.env['havanoposdesk.product.costing'].sudo().search([
                     ('product_id', '=', self.product_id.id),
                     ('cost_type', '=', 'average')
                 ], order='id desc', limit=1)
-                self.cost_price = avg_cost_rec.price if avg_cost_rec else (self.product_id.buying_price or self.product_id.cost_price or 0.0)
+                base_cost = avg_cost_rec.price if avg_cost_rec else (self.product_id.buying_price or self.product_id.cost_price or 0.0)
+                self.cost_price = base_cost * (self.exchange_rate or 1.0)
             else:
-                self.cost_price = self.product_id.buying_price or self.product_id.cost_price or 0.0
+                base_cost = self.product_id.buying_price or self.product_id.cost_price or 0.0
+                self.cost_price = base_cost * (self.exchange_rate or 1.0)
 
     @api.onchange('accepted_qty', 'product_id')
     def _onchange_qty(self):

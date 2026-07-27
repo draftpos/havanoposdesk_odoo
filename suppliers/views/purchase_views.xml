@@ -28,11 +28,18 @@
                         </div>
                         <group>
                             <group>
+                                <field name="available_currency_ids" invisible="1" />
                                 <field name="allow_multi_currency" invisible="1"/>
-                                <field name="currency_id" invisible="allow_multi_currency == False" options="{'no_create': True}" class="border-bottom border-dark"/>
+                                <field name="currency_id" invisible="allow_multi_currency == False" domain="[('id', 'in', available_currency_ids)]" options="{'no_create': True}" class="border-bottom border-dark"/>
+                                <field name="exchange_rate" invisible="allow_multi_currency == False" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="is_tax_enabled" invisible="1"/>
                                 <field name="invoice_type" readonly="1" class="border-bottom border-dark"/>
                                 <field name="supplier" readonly="state != 'draft'" class="border-bottom border-dark"/>
+                                <field name="tenant_currency_id" invisible="1"/>
+                                <field name="supplier_balance" string="Supplier Balance" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" invisible="not supplier" class="text-muted"/>
+                                <field name="supplier_allow_multi_currency" invisible="1"/>
+                                <field name="supplier_secondary_currency_id" invisible="1"/>
+                                <field name="supplier_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'supplier_secondary_currency_id'}" invisible="not supplier_allow_multi_currency" class="text-muted"/>
                                 <field name="store_id" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark"/>
                                 <field name="is_return" invisible="1"/>
                                 <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark"/>
@@ -52,14 +59,14 @@
                                           <field name="available_uom_ids" column_invisible="True" />
                                           <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{'no_create': True}" width="15%" />
                                           <field name="accepted_qty" width="10%"/>
-                                        <field name="rate" string="Cost Price" width="20%" optional="show" widget="monetary"/>
-                                        <field name="amount" width="20%" optional="show" widget="monetary"/>
+                                        <field name="rate" string="Cost Price" width="20%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                        <field name="amount" width="20%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="purchase_total">
-                                    <field name="amount_untaxed" widget="monetary" string="Total Excl" invisible="not is_tax_enabled"/>
-                                    <field name="amount_tax" widget="monetary" string="Total Tax" invisible="not is_tax_enabled"/>
-                                    <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl"/>
+                                    <field name="amount_untaxed" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Excl" invisible="not is_tax_enabled"/>
+                                    <field name="amount_tax" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Tax" invisible="not is_tax_enabled"/>
+                                    <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Incl"/>
                                 </group>
                             </page>
                         </notebook>
@@ -75,13 +82,15 @@
             <field name="arch" type="xml">
                 <list  string="Purchases">
                     <field name="currency_id" column_invisible="True"/>
+                    <field name="tenant_currency_id" column_invisible="True" />
                     <field name="posting_date" string="Datetime" optional="show"/>
                     <field name="name" string="Reference" optional="show"/>
                     <field name="external_ref" string="External Ref" optional="show"/>
                     <field name="supplier" optional="show"/>
                     <field name="store_id" optional="show"/>
                     <field name="payment_status" optional="show"/>
-                    <field name="amount_total" string="Total Incl" sum="Total Incl" widget="monetary"/>
+                    <field name="amount_total" string="Total" widget="monetary" optional="show"/>
+                    <field name="amount_total_base" string="Base Total" sum="Base Total" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="show" />
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'" optional="show"/>
                 </list>
             </field>
@@ -106,6 +115,7 @@
                         <filter string="Supplier" name="group_by_supplier" context="{'group_by': 'supplier'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'posting_date:day'}"/>
+                        <filter string="Currency" name="group_by_currency" context="{'group_by': 'currency_id'}" />
                         <filter string="Today" name="group_today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'posting_date:day'}"/>
                         <filter string="This Month" name="group_month" domain="[('posting_date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'posting_date:month'}"/>
                     </group>

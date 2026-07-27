@@ -39,12 +39,23 @@
                                 <field name="payment_type" widget="radio" class="border-bottom border-dark" readonly="state != 'draft'" />
                                 <field name="partner_type" widget="radio" class="border-bottom border-dark" readonly="state != 'draft'" />
                                 <field name="customer_id" class="border-bottom border-dark" invisible="partner_type != 'customer'" required="partner_type == 'customer'" readonly="state != 'draft'" />
+                                <field name="tenant_currency_id" invisible="1"/>
+                                <field name="customer_balance" string="Customer Balance" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" invisible="partner_type != 'customer' or not customer_id" class="text-muted"/>
+                                <field name="customer_allow_multi_currency" invisible="1"/>
+                                <field name="customer_secondary_currency_id" invisible="1"/>
+                                <field name="customer_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'customer_secondary_currency_id'}" invisible="partner_type != 'customer' or not customer_allow_multi_currency" class="text-muted"/>
+                                
                                 <field name="supplier_id" class="border-bottom border-dark" invisible="partner_type != 'supplier'" required="partner_type == 'supplier'" readonly="state != 'draft'" />
+                                <field name="supplier_balance" string="Supplier Balance" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" invisible="partner_type != 'supplier' or not supplier_id" class="text-muted"/>
+                                <field name="supplier_allow_multi_currency" invisible="1"/>
+                                <field name="supplier_secondary_currency_id" invisible="1"/>
+                                <field name="supplier_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'supplier_secondary_currency_id'}" invisible="partner_type != 'supplier' or not supplier_allow_multi_currency" class="text-muted"/>
                             </group>
                             <group>
                                 <field name="account_id" options="{'no_create': True}" class="border-bottom border-dark" readonly="state != 'draft'" />
-                                <field name="currency_id" invisible="1" />
-                                <field name="amount" class="border-bottom border-dark" readonly="state != 'draft'" widget="monetary" />
+                                <field name="currency_id" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <field name="exchange_rate" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <field name="amount" class="border-bottom border-dark" readonly="state != 'draft'" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                 <field name="date" class="border-bottom border-dark" readonly="state != 'draft'" />
                                 <field name="reference" class="border-bottom border-dark" readonly="state != 'draft'" />
                             </group>

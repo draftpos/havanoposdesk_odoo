@@ -9,6 +9,7 @@
                 <list string="Sales Invoices" default_order="date desc">
                     <field name="is_return" column_invisible="True" />
                     <field name="currency_id" column_invisible="True" />
+                    <field name="tenant_currency_id" column_invisible="True" />
                     <field name="name" string="Reference" optional="show" />
                     <field name="local_invoice_id" optional="hide" />
                     <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-bf="is_return" />
@@ -18,9 +19,10 @@
                     <field name="store_id" optional="show" />
                     <field name="terminal_id" optional="hide" />
                     <field name="salesperson_id" optional="show" />
-                    <field name="amount_untaxed" string="Total Exclu" sum="Total Exclu" widget="monetary" optional="hide" />
-                    <field name="amount_tax" string="Total Tax" sum="Total Tax" widget="monetary" optional="hide" />
-                    <field name="amount_total" string="Total Inclu" sum="Total Inclu" widget="monetary" optional="show" />
+                    <field name="amount_untaxed" string="Total Exclu" widget="monetary" optional="hide" />
+                    <field name="amount_tax" string="Total Tax" widget="monetary" optional="hide" />
+                    <field name="amount_total" string="Total" widget="monetary" optional="show" />
+                    <field name="amount_total_base" string="Base Total" sum="Base Total" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="show" />
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return" optional="show" />
                 </list>
             </field>
@@ -51,11 +53,18 @@
                         <group>
                             <group>
                                 <field name="customer" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <field name="tenant_currency_id" invisible="1"/>
+                                <field name="customer_balance" string="Customer Balance" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" invisible="not customer" class="text-muted"/>
+                                <field name="customer_allow_multi_currency" invisible="1"/>
+                                <field name="customer_secondary_currency_id" invisible="1"/>
+                                <field name="customer_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'customer_secondary_currency_id'}" invisible="not customer_allow_multi_currency" class="text-muted"/>
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="date" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="is_return" invisible="1" />
+                                <field name="available_currency_ids" invisible="1" />
                                 <field name="allow_multi_currency" invisible="1" />
-                                <field name="currency_id" invisible="allow_multi_currency == False" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="currency_id" invisible="allow_multi_currency == False" domain="[('id', 'in', available_currency_ids)]" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="exchange_rate" invisible="allow_multi_currency == False" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="is_tax_enabled" invisible="1" />
                                 <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark" />
                             </group>
@@ -75,16 +84,16 @@
                                         <field name="available_uom_ids" column_invisible="True" />
                                         <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{'no_create': True}" width="15%" />
                                         <field name="accepted_qty" string="Qty" width="15%" />
-                                        <field name="rate" width="15%" widget="monetary" />
-                                        <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary" />
-                                        <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary" />
-                                        <field name="amount" width="20%" widget="monetary" />
+                                        <field name="rate" width="15%" widget="monetary" options="{'currency_field': 'currency_id'}" />
+                                        <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}" />
+                                        <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary" options="{'currency_field': 'currency_id'}" />
+                                        <field name="amount" width="20%" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
-                                    <field name="amount_untaxed" widget="monetary" string="Total Excl" invisible="not is_tax_enabled" />
-                                    <field name="amount_tax" widget="monetary" string="Total Tax" invisible="not is_tax_enabled" />
-                                    <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" string="Total Incl" />
+                                    <field name="amount_untaxed" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Excl" invisible="not is_tax_enabled" />
+                                    <field name="amount_tax" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Tax" invisible="not is_tax_enabled" />
+                                    <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Incl" />
                                 </group>
                             </page>
                             <page string="Payment Entries" name="payment_entries">
@@ -155,6 +164,7 @@
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'date:day'}" />
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}" />
                         <filter string="Customer" name="group_by_customer" context="{'group_by': 'customer'}" />
+                        <filter string="Currency" name="group_by_currency" context="{'group_by': 'currency_id'}" />
                         <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}" />
                         <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}" />
                     </group>

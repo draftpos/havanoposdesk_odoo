@@ -56,6 +56,10 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.currency_id',
         readonly=False
     )
+    has_transactions = fields.Boolean(
+        string="Has Transactions",
+        related='tenant_id.has_transactions'
+    )
     biz_allow_multi_currency = fields.Boolean(
         string="Allow Multi Currency",
         related='tenant_id.allow_multi_currency',

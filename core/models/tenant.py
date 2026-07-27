@@ -15,7 +15,22 @@ class HavanoposdeskTenant(models.Model):
     currency_id = fields.Many2one('res.currency', string='Default Currency', default=lambda self: self.env.ref('base.USD').id)
     allow_multi_currency = fields.Boolean(string='Allow Multi Currency', default=False)
     allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=True)
+    has_transactions = fields.Boolean(string="Has Transactions", compute="_compute_has_transactions")
     
+    def _compute_has_transactions(self):
+        for tenant in self:
+            Sale = self.env['havanoposdesk.sale'].sudo()
+            Purchase = self.env['havanoposdesk.purchase'].sudo()
+            Payment = self.env['havanoposdesk.payment'].sudo()
+            has_tx = False
+            if Sale.search_count([('tenant_id', '=', tenant.id)], limit=1) > 0:
+                has_tx = True
+            elif Purchase.search_count([('tenant_id', '=', tenant.id)], limit=1) > 0:
+                has_tx = True
+            elif Payment.search_count([('tenant_id', '=', tenant.id)], limit=1) > 0:
+                has_tx = True
+            tenant.has_transactions = has_tx
+            
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan')
     subscription_state = fields.Selection([
         ('active', 'Active'),

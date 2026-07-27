@@ -12,6 +12,24 @@ class HavanoposdeskSupplier(models.Model):
     phone = fields.Char(string='Phone')
     email = fields.Char(string='Email')
     address = fields.Text(string='Address')
+    
+    tenant_allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency', store=False)
+    currency_id = fields.Many2one(
+        'res.currency', 
+        string='Currency', 
+        default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
+    )
+    allow_multi_currency = fields.Boolean(string='Allow Multi Currency', default=False)
+    secondary_currency_id = fields.Many2one('res.currency', string='Secondary Currency')
+    tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
+    
+    @api.constrains('currency_id', 'secondary_currency_id')
+    def _check_currencies(self):
+        for record in self:
+            if record.allow_multi_currency and record.currency_id and record.secondary_currency_id:
+                if record.currency_id == record.secondary_currency_id:
+                    from odoo.exceptions import ValidationError
+                    raise ValidationError("The primary and secondary currencies cannot be the same.")
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
         string='Tenant', 
@@ -37,14 +55,26 @@ class HavanoposdeskSupplier(models.Model):
     purchase_ids = fields.One2many('havanoposdesk.purchase', 'supplier', string='Purchases')
     payment_ids = fields.One2many('havanoposdesk.payment', 'supplier_id', string='Payments')
     balance = fields.Float(string='Balance', compute='_compute_balance', store=False)
+    secondary_balance = fields.Float(string='Secondary Balance', compute='_compute_secondary_balance', store=False)
 
-    @api.depends('purchase_ids.amount_total', 'payment_ids.amount', 'payment_ids.payment_type', 'payment_ids.state')
+    @api.depends('balance', 'secondary_currency_id', 'allow_multi_currency')
+    def _compute_secondary_balance(self):
+        for record in self:
+            if record.allow_multi_currency and record.secondary_currency_id and record.tenant_currency_id:
+                rate = record.tenant_currency_id._get_conversion_rate(
+                    record.tenant_currency_id, record.secondary_currency_id, self.env.company, fields.Date.context_today(record)
+                )
+                record.secondary_balance = record.balance * rate
+            else:
+                record.secondary_balance = 0.0
+
+    @api.depends('purchase_ids.amount_total_base', 'payment_ids.amount_base', 'payment_ids.payment_type', 'payment_ids.state')
     def _compute_balance(self):
         for record in self:
-            total_purchases = sum(record.purchase_ids.mapped('amount_total'))
+            total_purchases = sum(record.purchase_ids.mapped('amount_total_base'))
             
             posted_payments = record.payment_ids.filtered(lambda p: p.state == 'posted')
-            payments = sum(posted_payments.filtered(lambda p: p.payment_type == 'payment').mapped('amount'))
-            refunds = sum(posted_payments.filtered(lambda p: p.payment_type == 'receipt').mapped('amount'))
+            payments = sum(posted_payments.filtered(lambda p: p.payment_type == 'payment').mapped('amount_base'))
+            refunds = sum(posted_payments.filtered(lambda p: p.payment_type == 'receipt').mapped('amount_base'))
             
             record.balance = total_purchases - payments + refunds
