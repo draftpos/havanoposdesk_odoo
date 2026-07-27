@@ -53,3 +53,5 @@ access_havano_change_password_wizard,havano.change.password.wizard,model_havano_
 
 access_havanoposdesk_stock_transfer,havanoposdesk.stock.transfer,model_havanoposdesk_stock_transfer,base.group_user,1,1,1,1
 access_havanoposdesk_stock_transfer_line,havanoposdesk.stock.transfer.line,model_havanoposdesk_stock_transfer_line,base.group_user,1,1,1,1
+access_havanoposdesk_product_bundle_item,havanoposdesk.product.bundle.item,model_havanoposdesk_product_bundle_item,base.group_user,1,1,1,1
+

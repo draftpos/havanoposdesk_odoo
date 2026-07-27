@@ -18,6 +18,9 @@
                             <h1>
                                 <field name="name"/>
                             </h1>
+                            <h3>
+                                <field name="external_ref" readonly="1" invisible="not external_ref"/>
+                            </h3>
                         </div>
                         <group>
                             <group>
@@ -66,6 +69,7 @@
                 <list  string="Stock Adjustments">
                     <field name="currency_id" column_invisible="True"/>
                     <field  name="name" optional="show"/>
+                    <field name="external_ref" string="External Ref" optional="show"/>
                     <field  name="store_id" optional="show"/>
                     <field  name="posting_date" optional="show"/>
                     <field  name="total_qty_difference" string="Variance" optional="show"/>

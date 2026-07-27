@@ -101,7 +101,7 @@ class HavanoposdeskDashboard(models.AbstractModel):
         }
 
         # Stock Valuation
-        valuations = self.env['havanoposdesk.stock.valuation'].search(domain_val)
+        valuations = self.env['havanoposdesk.stock.valuation'].sudo().search(domain_val)
         
         # Here we just want a summary of valuation. Since stock valuation isn't usually a time-series 
         # unless logged daily, we will group by Product Category to show in a bar chart or line chart 

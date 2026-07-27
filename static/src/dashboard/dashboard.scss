@@ -116,3 +116,102 @@
         }
     }
 }
+
+/* Responsive container height overrides for charts (previously inline) */
+.havano-dashboard-container {
+    .chart-container {
+        position: relative;
+        width: 100%;
+        height: auto !important; /* Let canvas aspect-ratio control container height */
+    }
+}
+
+/* Media query for tablet and mobile view adjustments */
+@media (max-width: 768px) {
+    .havano-dashboard-container {
+        padding: 16px 12px !important;
+
+        .dashboard-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px;
+            
+            .dropdown {
+                width: 100%;
+                
+                button {
+                    width: 100% !important;
+                }
+            }
+        }
+    }
+}
+
+@media (max-width: 576px) {
+    .havano-dashboard-container {
+        .card {
+            border-radius: 16px !important;
+            
+            .card-body {
+                padding: 20px !important; /* Balanced mobile padding */
+
+                /* Stack card header elements vertically to prevent horizontal crowding */
+                .d-flex.justify-content-between.align-items-center.mb-3 {
+                    flex-direction: column !important;
+                    align-items: flex-start !important;
+                    gap: 8px !important;
+                    
+                    .d-flex.align-items-center {
+                        gap: 8px !important;
+                    }
+                }
+
+                .icon-circle {
+                    width: 36px !important;
+                    height: 36px !important;
+                    font-size: 16px !important;
+                    border-radius: 10px !important;
+                }
+
+                h6 {
+                    font-size: 12px !important; /* Scaled up for readability */
+                }
+
+                h3 {
+                    font-size: 24px !important; /* Scaled up for readability */
+                    margin-top: 5px !important;
+                    word-break: break-all;
+                }
+
+                small {
+                    font-size: 12px !important; /* Scaled up for readability */
+                }
+
+                .badge {
+                    font-size: 12px !important; /* Scaled up for readability */
+                    padding: 4px 6px !important;
+                }
+
+                /* Stack currency text and sparkline canvas vertically on mobile */
+                .row.align-items-end {
+                    flex-direction: column !important;
+                    align-items: flex-start !important;
+                    gap: 8px !important;
+                    
+                    .col-7, .col-5 {
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        flex: 0 0 100% !important;
+                        padding: 0 !important;
+                    }
+                    
+                    .col-5 {
+                        height: 50px !important; /* Prevents vertical compression of the sparkline */
+                    }
+                }
+            }
+        }
+    }
+}
+
+

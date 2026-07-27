@@ -1,12 +1,13 @@
 from datetime import datetime
 from dataclasses import fields
 from odoo.orm import environments
-from odoo.orm import environments
 import odoo.orm.environments
 from odoo import http
 from odoo.http import request
 import json
 import logging
+import random
+import string
 from odoo.exceptions import ValidationError, UserError
 
 _logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ class HavanoPOSDeskAPI(http.Controller):
         password = data.get('pwd') or data.get('password')
         timezone = data.get('timezone')
         items_limit = data.get('items_limit')
+        device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
         
         if not login or not password:
             return request.make_response(json.dumps({'error': 'Username and password are required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -106,6 +108,8 @@ class HavanoPOSDeskAPI(http.Controller):
             
             tenant = user.tenant_id
             company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
+            
+            currency = user.api_currency or (tenant.api_currency if tenant else False) or (tenant.currency_id.name if tenant and hasattr(tenant, 'currency_id') and tenant.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and hasattr(user.company_id, 'currency_id') and user.company_id.currency_id else False) or 'USD'
             
             # Fetch default customer from database, or fallback/create
             default_customer_name = ""
@@ -224,6 +228,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "cost_center": cost_center,
                     "default_customer": default_customer_name,
                     "company": company_name,
+                    "currency": currency,
                     "customers": customers_data,
                     "suppliers": suppliers_data,
                     "currencies": currencies_data,
@@ -249,22 +254,25 @@ class HavanoPOSDeskAPI(http.Controller):
                     shops = user_env['havanoposdesk.store'].sudo().search_read(shop_domain, ['id', 'name'])
                     if shops:
                         shop_ids = [s['id'] for s in shops]
-                        terminals = user_env['havanoposdesk.pos.terminal'].sudo().search_read([
+                        terminals_domain = [
                             ('store_id', 'in', shop_ids),
                             ('status', '!=', 'offline'),
-                            '|',
-                            ('taken_by_user_id', '=', False),
-                            ('taken_by_user_id', '=', user.id)
-                        ], ['id', 'name', 'status', 'taken_by_user_id', 'store_id'])
+                        ]
+
+                        terminals = user_env['havanoposdesk.pos.terminal'].sudo().search(terminals_domain)
                         
                         terms_by_shop = {}
                         for t in terminals:
-                            terms_by_shop.setdefault(t['store_id'][0], []).append({
-                                "id": t['id'],
-                                "name": t['name'],
-                                "status": t['status'],
-                                "is_taken": bool(t['taken_by_user_id']),
-                                "taken_by_user_id": t['taken_by_user_id'][0] if t['taken_by_user_id'] else None
+                            terms_by_shop.setdefault(t.store_id.id, []).append({
+                                "id": t.id,
+                                "name": t.name,
+                                "status": t.status,
+                                "device_hardware_id": t.device_hardware_id,
+                                "is_taken": bool(t.taken_by_user_id),
+                                "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
+                                "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
+                                "taken_by_user_email": t.taken_by_user_id.login if t.taken_by_user_id else None,
+                                "last_logged_in_user_id": t.last_logged_in_user_id.id if t.last_logged_in_user_id else None
                             })
                             
                         for s in shops:
@@ -286,7 +294,17 @@ class HavanoPOSDeskAPI(http.Controller):
                     "store_ids": user.store_ids.ids if hasattr(user, 'store_ids') and user.store_ids else [],
                     "shops": shops_data,
                     "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
-                    "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None,
+                })
+                
+                # Hardware based terminal assignment
+                hardware_terminal_id = None
+                if device_hardware_id:
+                    assigned_terminal = user_env['havanoposdesk.pos.terminal'].sudo().search([('device_hardware_id', '=', device_hardware_id)], limit=1)
+                    if assigned_terminal:
+                        hardware_terminal_id = assigned_terminal.id
+                
+                res_data["user"].update({
+                    "selected_terminal_id": hardware_terminal_id,
                     "user_rights": self._get_user_rights_dict(user)
                 })
 
@@ -2310,95 +2328,128 @@ class HavanoPOSDeskAPI(http.Controller):
                     user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
 
-                # Deduplication check
-                local_invoice_id = params.get('reference_number') or params.get('local_invoice_id')
-                if local_invoice_id:
-                    existing_sale = env['havanoposdesk.sale'].search([
-                        ('tenant_id', '=', tenant.id),
-                        ('local_invoice_id', '=', local_invoice_id)
-                    ], limit=1)
-                    if existing_sale:
-                        if custom_cr:
-                            custom_cr.commit()
-                        return self._make_json_response({
-                            "data": {
-                                "name": existing_sale.name
-                            }
-                        })
-
-                store = self._get_current_store(user, tenant, params)
-                if not store:
-                    raise Exception("Store/Warehouse is required")
-
-                customer_name = params.get('customer')
-                if not customer_name:
-                    return self._make_json_response({"error": "Oops! Customer is required."}, status=400)
-
-                customer = env['havanoposdesk.customer'].search([
-                    ('name', '=', customer_name),
-                    ('tenant_id', '=', tenant.id)
-                ], limit=1)
-                if not customer:
-                    return self._make_json_response({"error": f"Oops! The customer '{customer_name}' does not exist for your business."}, status=400)
+                sales_data = params.get('sales')
+                if not sales_data:
+                    sales_data = [params]
                 
-                payment_status = params.get('payment_status', 'cash')
-                if payment_status != 'cash' and not tenant.allow_credit_sales:
-                    return self._make_json_response({"error": "Oops! Creating sales on credit is disabled. Please enable 'Allow Sales on Credit' in Settings."}, status=400)
+                responses = []
                 
-                store_name = store.name
+                for sale_data in sales_data:
+                    try:
+                        # Deduplication check
+                        local_invoice_id = sale_data.get('reference_number') or sale_data.get('local_invoice_id')
+                        if local_invoice_id:
+                            existing_sale = env['havanoposdesk.sale'].search([
+                                ('tenant_id', '=', tenant.id),
+                                ('local_invoice_id', '=', local_invoice_id)
+                            ], limit=1)
+                            if existing_sale:
+                                return self._make_json_response({
+                                    "error": f"Sale with local_invoice_id '{local_invoice_id}' already exists in cloud",
+                                    "existing_sale": existing_sale.name,
+                                    "local_invoice_id": local_invoice_id
+                                }, status=409)
 
-                lines = []
-                for item in params.get('items', []):
-                    item_code = item.get('item_code') or item.get('item_name')
-                    qty = float(item.get('qty', 1.0))
-                    rate = float(item.get('rate', 0.0))
+                        store = self._get_current_store(user, tenant, sale_data)
+                        if not store:
+                            responses.append({"error": "Store/Warehouse is required", "local_invoice_id": local_invoice_id})
+                            continue
 
-                    product = env['havanoposdesk.product'].search([
-                        ('tenant_id', '=', tenant.id),
-                        '|', ('item_code', '=', item_code), ('name', '=', item_code)
-                    ], limit=1)
-                    if not product:
-                        product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
-                    if not product:
-                        product = env['havanoposdesk.product'].create({
-                            'name': item_code,
-                            'item_code': item_code or 'New',
-                            'selling_price': rate,
+                        customer_name = sale_data.get('customer')
+                        if not customer_name:
+                            responses.append({"error": "Oops! Customer is required.", "local_invoice_id": local_invoice_id})
+                            continue
+
+                        customer = env['havanoposdesk.customer'].search([
+                            ('name', '=', customer_name),
+                            ('tenant_id', '=', tenant.id)
+                        ], limit=1)
+                        if not customer:
+                            responses.append({"error": f"Oops! The customer '{customer_name}' does not exist for your business.", "local_invoice_id": local_invoice_id})
+                            continue
+                        
+                        payment_status = sale_data.get('payment_status', 'cash')
+                        if payment_status != 'cash' and not tenant.allow_credit_sales:
+                            responses.append({"error": "Oops! Creating sales on credit is disabled.", "local_invoice_id": local_invoice_id})
+                            continue
+                        
+                        store_name = store.name
+
+                        lines = []
+                        for item in sale_data.get('items', []):
+                            item_code = item.get('item_code') or item.get('item_name')
+                            qty = float(item.get('qty', 1.0))
+                            rate = float(item.get('rate', 0.0))
+
+                            product = env['havanoposdesk.product'].search([
+                                ('tenant_id', '=', tenant.id),
+                                '|', ('item_code', '=', item_code), ('name', '=', item_code)
+                            ], limit=1)
+                            if not product:
+                                product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
+                            if not product:
+                                product = env['havanoposdesk.product'].create({
+                                    'name': item_code,
+                                    'item_code': item_code or 'New',
+                                    'selling_price': rate,
+                                    'tenant_id': tenant.id,
+                                    'all_stores': True,
+                                })
+
+                            lines.append((0, 0, {
+                                'product_id': product.id,
+                                'accepted_qty': qty,
+                                'rate': rate or product.selling_price or 1.0,
+                            }))
+
+                        terminal = user.selected_terminal_id
+                        if not terminal:
+                            responses.append({"error": "No terminal assigned.", "local_invoice_id": local_invoice_id})
+                            continue
+
+                        payment_method_name = sale_data.get('payment_method')
+                        account_id = False
+                        if payment_method_name:
+                            acc = env['havanoposdesk.account'].search([
+                                ('tenant_id', '=', tenant.id), 
+                                ('name', 'ilike', payment_method_name)
+                            ], limit=1)
+                            if acc:
+                                account_id = acc.id
+
+                        sale_vals = {
+                            'customer': customer.id,
+                            'store': store.name,
+                            'store_id': store.id,
                             'tenant_id': tenant.id,
-                            'all_stores': True,
-                        })
+                            'terminal_id': terminal.id if terminal else False,
+                            'line_ids': lines,
+                            'state': 'done',
+                            'salesperson_id': user.id,
+                            'payment_status': payment_status,
+                            'local_invoice_id': local_invoice_id,
+                        }
+                        if account_id:
+                            sale_vals['account_id'] = account_id
 
-                    lines.append((0, 0, {
-                        'product_id': product.id,
-                        'accepted_qty': qty,
-                        'rate': rate or product.selling_price or 1.0,
-                    }))
-
-                terminal = user.selected_terminal_id
-                if not terminal:
-                    raise Exception("No terminal assigned. Please select a terminal first.")
-
-                sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create({
-                    'customer': customer.id,
-                    'store': store.name,
-                    'store_id': store.id,
-                    'tenant_id': tenant.id,
-                    'terminal_id': terminal.id if terminal else False,
-                    'line_ids': lines,
-                    'state': 'done',
-                    'salesperson_id': user.id,
-                    'payment_status': payment_status,
-                    'local_invoice_id': local_invoice_id,
-                })
+                        sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create(sale_vals)
+                        
+                        responses.append({"name": sale.name, "local_invoice_id": local_invoice_id, "status": "created"})
+                    except Exception as e:
+                        responses.append({"error": str(e), "local_invoice_id": local_invoice_id})
 
                 if custom_cr:
                     custom_cr.commit()
 
-                return self._make_json_response({
-                    "data": {
-                        "name": sale.name
-                    }
-                })
+                if params.get('sales'):
+                    return self._make_json_response({"data": responses})
+                else:
+                    if responses and "error" in responses[0]:
+                        return self._make_json_response({"error": responses[0]["error"]}, status=400)
+                    elif responses:
+                        return self._make_json_response({"data": {"name": responses[0]["name"]}})
+                    else:
+                        return self._make_json_response({"error": "Unknown error"}, status=500)
             except Exception as e:
                 if custom_cr:
                     custom_cr.rollback()
@@ -2476,6 +2527,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                     result.append({
                         "name": purchase.name or "",
+                        "external_ref": purchase.external_ref or "",
                         "supplier": purchase.supplier.name if purchase.supplier else "",
                         "company": purchase.tenant_id.name if purchase.tenant_id else "Havano POS Company",
                         "posting_date": posting_date,
@@ -2590,6 +2642,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     }))
 
                 purchase_vals = {
+                    'external_ref': params.get('external_ref') or params.get('name') or '',
                     'supplier': supplier.id,
                     'store_id': store.id if store else False,
                     'tenant_id': tenant_id,
@@ -3287,6 +3340,12 @@ class HavanoPOSDeskAPI(http.Controller):
                 cost_center = filters.get('cost_center')
                 from_date = filters.get('from_date')
                 to_date = filters.get('to_date')
+                cashier = filters.get('cashier') or filters.get('user') or filters.get('pos_profile')
+
+                if cashier:
+                    cashier_user = env['res.users'].search([('login', '=', cashier)], limit=1)
+                    if cashier_user:
+                        domain.append(('salesperson_id', '=', cashier_user.id))
 
                 if user_rec.havano_role != 'super_admin':
                     if cost_center:
@@ -3464,6 +3523,10 @@ class HavanoPOSDeskAPI(http.Controller):
                     
             sales = env['havanoposdesk.sale'].search(domain)
             total_amount = sum(sales.mapped('amount_total'))
+            total_tax_amount = sum(sales.mapped('amount_tax'))
+            total_income = sum(sales.mapped('amount_untaxed'))
+            total_expense = sum(sales.mapped('total_cost'))
+            gross_profit = total_income - total_expense
             total_count = len(sales)
 
             return self._make_json_response({
@@ -3471,7 +3534,11 @@ class HavanoPOSDeskAPI(http.Controller):
                     "message": {
                         "status": "success",
                         "total_count": total_count,
-                        "total_amount": total_amount
+                        "total_amount": total_amount,
+                        "total_tax_amount": total_tax_amount,
+                        "total_income": total_income,
+                        "total_expense": total_expense,
+                        "gross_profit": gross_profit
                     }
                 }
             })
@@ -3481,7 +3548,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
-    @http.route('/api/method/havano_addons.www.api.user_stock_report', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route(['/api/method/havano_addons.www.api.user_stock_report', '/api/method/saas_api.www.api.user_stock_report'], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_user_stock_report(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
@@ -3504,6 +3571,16 @@ class HavanoPOSDeskAPI(http.Controller):
             product_domain = []
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
+                
+            from_date = params.get('from_date')
+            to_date = params.get('to_date')
+            if from_date and from_date != 'null':
+                product_domain.append(('create_date', '>=', from_date))
+            if to_date and to_date != 'null':
+                if len(to_date) == 10:
+                    to_date += " 23:59:59"
+                product_domain.append(('create_date', '<=', to_date))
+
             products = env['havanoposdesk.product'].search(product_domain)
             
             store_domain = []
@@ -4077,7 +4154,37 @@ class HavanoPOSDeskAPI(http.Controller):
     def api_get_product_bundles(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
-        return self._make_json_response({"message": []})
+
+        user = self._get_user()
+        tenant = user.tenant_id
+
+        domain = [('is_bundle', '=', True)]
+        if user.havano_role != 'super_admin' and tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+        
+        bundle_products = request.env['havanoposdesk.product'].sudo().search(domain)
+
+        bundles_data = []
+        for product in bundle_products:
+            items = []
+            for item in product.bundle_item_ids:
+                items.append({
+                    'item_code': item.product_id.item_code,
+                    'qty': item.qty
+                })
+            
+            if not items:
+                continue
+
+            bundles_data.append({
+                'new_item_code': product.item_code,
+                'name': product.name,
+                'description': product.internal_notes or '',
+                'items': items
+            })
+
+        return self._make_json_response({"message": bundles_data})
+
 
     @http.route('/api/method/havano_pos_integration.api.get_single_product', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_single_product(self, **kwargs):
@@ -4810,6 +4917,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     }))
 
             adj_vals = {
+                'external_ref': data.get('external_ref') or data.get('name') or '',
                 'tenant_id': tenant_id,
                 'store_id': store_id,
                 'fetch_all_data': False,
@@ -4917,6 +5025,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     
                 result.append({
                     'name': adj.name,
+                    'external_ref': adj.external_ref or '',
                     'company': tenant.name if tenant else 'Havano Co',
                     'posting_date': str(adj.posting_date),
                     'purpose': 'Stock Reconciliation',
@@ -5614,24 +5723,27 @@ class HavanoPOSDeskAPI(http.Controller):
             if not shops:
                 return self._make_json_response({"error": "No shops available for this user"}, status=400)
 
+            device_hardware_id = request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id') or kwargs.get('device_hardware_id')
+
             shops_data = []
             for s in shops:
-                terminals = env['havanoposdesk.pos.terminal'].sudo().search([
-                    '&', '&',
+                terminals_domain = [
+                    '&',
                     ('store_id', '=', s.id),
-                    ('status', '!=', 'offline'),
-                    '|',
-                    ('taken_by_user_id', '=', False),
-                    ('taken_by_user_id', '=', user.id)
-                ])
+                    ('status', '!=', 'offline')
+                ]
+                terminals = env['havanoposdesk.pos.terminal'].sudo().search(terminals_domain)
                 terminals_data = []
                 for t in terminals:
                     terminals_data.append({
                         "id": t.id,
                         "name": t.name,
                         "status": t.status,
+                        "device_hardware_id": t.device_hardware_id,
                         "is_taken": bool(t.taken_by_user_id),
-                        "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None
+                        "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
+                        "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
+                        "taken_by_user_email": t.taken_by_user_id.login if t.taken_by_user_id else None
                     })
                 shops_data.append({
                     "id": s.id,
@@ -5685,6 +5797,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
             user.sudo().write({'selected_shop_id': shop.id})
             
+            # TODO: Add device_hardware_id if shop select also sends it?
             user_data = self._get_user_info_dict(user, env)
             return self._make_json_response({"message": "Shop Selected", "user": user_data}, status=200)
         except Exception as e:
@@ -5715,6 +5828,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"error": "Invalid JSON body"}, status=400)
 
             terminal_id = data.get('terminal_id')
+            device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
+            take_over = data.get('take_over', False)
+
             if not terminal_id:
                 return self._make_json_response({"error": "terminal_id is required"}, status=400)
 
@@ -5736,28 +5852,55 @@ class HavanoPOSDeskAPI(http.Controller):
             if terminal.status == 'offline':
                 return self._make_json_response({"error": "Terminal is offline"}, status=400)
 
-            if terminal.status == 'taken' and terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
-                return self._make_json_response({"error": "Terminal is already in use by another user"}, status=400)
+            is_admin = user.havano_role in ('admin', 'super_admin')
+
+            # Validate hardware device assignment
+            if terminal.device_hardware_id and terminal.device_hardware_id != device_hardware_id:
+                if not take_over:
+                    return self._make_json_response({"error": "Terminal is already assigned to another hardware device. Specify take_over=True to forcefully reassign it."}, status=400)
+                elif not is_admin:
+                    return self._make_json_response({"error": "Access denied. Only admins can take over a terminal from another hardware device."}, status=403)
+
+            # Validate user assignment (taken_by_user_id)
+            if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
+                if device_hardware_id and terminal.device_hardware_id == device_hardware_id:
+                    pass
+                else:
+                    if not take_over:
+                        return self._make_json_response({"error": "Terminal is currently in use by another user. Specify take_over=True to forcefully reassign it."}, status=400)
+                    elif not is_admin:
+                        return self._make_json_response({"error": "Access denied. Only admins can take over a terminal in use by another user."}, status=403)
 
             # Cashier checks: cashier can only select open or online terminals
-            if user.havano_role != 'admin' and user.havano_role != 'super_admin':
-                if terminal.status not in ('open', 'online') and (not terminal.taken_by_user_id or terminal.taken_by_user_id.id != user.id):
+            if not is_admin:
+                if terminal.status not in ('open', 'online') and (not terminal.device_hardware_id or terminal.device_hardware_id != device_hardware_id):
                     return self._make_json_response({"error": "Selected terminal is not available"}, status=400)
 
-            # If it was previously taking a terminal, release it
-            old_terminal = env['havanoposdesk.pos.terminal'].sudo().search([('taken_by_user_id', '=', user.id)])
-            if old_terminal:
-                old_terminal.write({'status': 'open', 'taken_by_user_id': False})
+            # Reassign terminal from old user if taking over
+            if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
+                old_user = terminal.taken_by_user_id
+                old_user.sudo().write({'selected_terminal_id': False})
 
-            # Update selected terminal
+            # Generate a unique 4-letter uppercase sale ID prefix for this terminal takeover/selection
+            sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
+
+            # Update selected terminal for new user
             user.sudo().write({'selected_terminal_id': terminal.id})
             terminal.write({
-                'status': 'taken',
-                'taken_by_user_id': user.id
+                'status': 'online',
+                'device_hardware_id': device_hardware_id,
+                'last_logged_in_user_id': user.id,
+                'taken_by_user_id': user.id,
+                'sequence_prefix': sale_id_prefix
             })
 
-            user_data = self._get_user_info_dict(user, env)
-            return self._make_json_response({"message": "Terminal Selected", "user": user_data}, status=200)
+            user_data = self._get_user_info_dict(user, env, device_hardware_id=device_hardware_id)
+            user_data['sale_id_prefix'] = sale_id_prefix
+            return self._make_json_response({
+                "message": "Terminal Selected",
+                "sale_id_prefix": sale_id_prefix,
+                "user": user_data
+            }, status=200)
         except Exception as e:
             if custom_cr:
                 custom_cr.rollback()
@@ -5781,9 +5924,17 @@ class HavanoPOSDeskAPI(http.Controller):
         env, custom_cr = self._get_env(user_id=uid)
         try:
             user = env['res.users'].browse(uid)
+            
+            device_hardware_id = request.httprequest.headers.get('device_hardware_id') or kwargs.get('device_hardware_id')
+            hardware_terminal_id = None
+            if device_hardware_id:
+                assigned_terminal = env['havanoposdesk.pos.terminal'].sudo().search([('device_hardware_id', '=', device_hardware_id)], limit=1)
+                if assigned_terminal:
+                    hardware_terminal_id = assigned_terminal.id
+            
             res_data = {
                 "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
-                "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None
+                "selected_terminal_id": hardware_terminal_id
             }
             return self._make_json_response(res_data, status=200)
         except Exception as e:
@@ -5792,7 +5943,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
-    def _get_user_info_dict(self, user, env):
+    def _get_user_info_dict(self, user, env, device_hardware_id=None):
         names = (user.name or "").split(' ', 1)
         first_name = names[0] if names else ""
         last_name = names[1] if len(names) > 1 else ""
@@ -5806,28 +5957,37 @@ class HavanoPOSDeskAPI(http.Controller):
                 shop_domain.append(('id', 'in', user.store_ids.ids))
             shops = env['havanoposdesk.store'].sudo().search(shop_domain)
             for s in shops:
-                terminals = env['havanoposdesk.pos.terminal'].sudo().search([
-                    '&', '&',
+                terminals_domain = [
                     ('store_id', '=', s.id),
                     ('status', '!=', 'offline'),
-                    '|',
-                    ('taken_by_user_id', '=', False),
-                    ('taken_by_user_id', '=', user.id)
-                ])
+                ]
+
+
+                terminals = env['havanoposdesk.pos.terminal'].sudo().search(terminals_domain)
                 terminals_data = []
                 for t in terminals:
                     terminals_data.append({
                         "id": t.id,
                         "name": t.name,
                         "status": t.status,
+                        "device_hardware_id": t.device_hardware_id,
                         "is_taken": bool(t.taken_by_user_id),
-                        "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None
+                        "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
+                        "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
+                        "taken_by_user_email": t.taken_by_user_id.login if t.taken_by_user_id else None,
+                        "last_logged_in_user_id": t.last_logged_in_user_id.id if t.last_logged_in_user_id else None
                     })
                 shops_data.append({
                     "id": s.id,
                     "name": s.name,
                     "terminals": terminals_data
                 })
+
+        hardware_terminal_id = None
+        if device_hardware_id:
+            assigned_terminal = env['havanoposdesk.pos.terminal'].sudo().search([('device_hardware_id', '=', device_hardware_id)], limit=1)
+            if assigned_terminal:
+                hardware_terminal_id = assigned_terminal.id
 
         return {
             "id": user.id,
@@ -5839,7 +5999,7 @@ class HavanoPOSDeskAPI(http.Controller):
             "tenant_id": user.tenant_id.id if user.tenant_id else None,
             "shops": shops_data,
             "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
-            "selected_terminal_id": user.selected_terminal_id.id if user.selected_terminal_id else None,
+            "selected_terminal_id": hardware_terminal_id,
             "user_rights": self._get_user_rights_dict(user)
         }
 

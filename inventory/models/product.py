@@ -241,6 +241,9 @@ class HavanoposdeskProduct(models.Model):
     currency_id = fields.Many2one(related='tenant_id.currency_id', string='Currency', store=False)
     advanced_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='Advanced Prices')
     allow_advanced_pricing = fields.Boolean(related='tenant_id.allow_advanced_pricing', readonly=True)
+    is_bundle = fields.Boolean(string='Is Bundle', default=False)
+    bundle_item_ids = fields.One2many('havanoposdesk.product.bundle.item', 'parent_product_id', string='Bundle Items')
+
 
     def _get_default_stores(self):
         tenant_id = self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
