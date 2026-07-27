@@ -1465,6 +1465,54 @@ class HavanoPOSDeskAPI(http.Controller):
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
 
 
+    @http.route('/api/method/saas_api.www.api.edit_item_group', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_edit_item_group(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return request.make_response(json.dumps({}), headers=[('Content-Type', 'application/json')])
+
+        try:
+            data = json.loads(request.httprequest.data)
+        except Exception:
+            return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        user = self._get_user()
+        if not user:
+            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+            
+        tenant = user.tenant_id
+        if not tenant:
+            tenant = request.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+            if not tenant:
+                tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
+                
+        old_name = data.get('old_item_group_name') or data.get('old_name')
+        new_name = data.get('new_item_group_name') or data.get('new_name') or data.get('item_group_name')
+        
+        if not old_name or not new_name:
+            return request.make_response(json.dumps({'error': 'old_item_group_name and new_item_group_name are required'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        category = request.env['havanoposdesk.category'].sudo().search([('name', '=', old_name), ('tenant_id', '=', tenant.id)], limit=1)
+        if not category:
+            return request.make_response(json.dumps({'error': f"Item Group '{old_name}' not found"}), headers=[('Content-Type', 'application/json')], status=404)
+            
+        if old_name != new_name:
+            existing_category = request.env['havanoposdesk.category'].sudo().search([('name', '=', new_name), ('tenant_id', '=', tenant.id)], limit=1)
+            if existing_category:
+                return request.make_response(json.dumps({'error': f"Item Group '{new_name}' already exists"}), headers=[('Content-Type', 'application/json')], status=400)
+            category.sudo().write({'name': new_name})
+            
+        res_data = {
+            'message': {
+                'status': 'success',
+                'message': f"Item Group updated successfully to '{new_name}'.",
+                'name': category.name,
+                'item_group_name': category.name
+            }
+        }
+        return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+
+
+
     # 10. GET PRODUCTS
     @http.route('/api/method/havano_pos_integration.api.get_products', auth='public', methods=['GET', 'POST'], type='http', csrf=False, cors='*')
     def api_get_products(self, **kw):
