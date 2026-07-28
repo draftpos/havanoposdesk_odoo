@@ -578,7 +578,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
                 domain.append(('tenant_id', '=', user.tenant_id.id))
             uoms = request.env['havanoposdesk.uom'].sudo().search(domain)
-            data = [{'id': u.id, 'name': u.name, 'abbreviation': u.abbreviation, 'tenant_id': u.tenant_id.id} for u in uoms]
+            data = [{'id': u.id, 'name': u.name, 'abbreviation': getattr(u, 'abbreviation', u.name), 'tenant_id': u.tenant_id.id} for u in uoms]
             return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
         
         elif request.httprequest.method == 'POST':
@@ -597,12 +597,15 @@ class HavanoPOSDeskAPI(http.Controller):
                     tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
                 tenant_id = tenant.id
                 
-            uom = request.env['havanoposdesk.uom'].sudo().create({
+            uom_vals = {
                 'name': data.get('name'),
-                'abbreviation': data.get('abbreviation'),
                 'tenant_id': tenant_id,
-            })
-            return request.make_response(json.dumps({'id': uom.id, 'name': uom.name, 'abbreviation': uom.abbreviation, 'tenant_id': uom.tenant_id.id}), headers=[('Content-Type', 'application/json')], status=201)
+            }
+            if hasattr(request.env['havanoposdesk.uom'], 'abbreviation') and data.get('abbreviation'):
+                uom_vals['abbreviation'] = data.get('abbreviation')
+
+            uom = request.env['havanoposdesk.uom'].sudo().create(uom_vals)
+            return request.make_response(json.dumps({'id': uom.id, 'name': uom.name, 'abbreviation': getattr(uom, 'abbreviation', uom.name), 'tenant_id': uom.tenant_id.id}), headers=[('Content-Type', 'application/json')], status=201)
 
     # SUBSCRIPTIONS & PAYMENTS
     @http.route('/api/subscription/plans', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
@@ -1289,7 +1292,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if uom_name:
                 uom_rec = request.env['havanoposdesk.uom'].sudo().search([
                     ('tenant_id', '=', tenant.id),
-                    '|', ('name', '=ilike', str(uom_name).strip()), ('abbreviation', '=ilike', str(uom_name).strip())
+                    ('name', '=ilike', str(uom_name).strip())
                 ], limit=1)
                 if uom_rec:
                     line_vals['uom_id'] = uom_rec.id
@@ -2096,7 +2099,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if uom_name:
                     uom_rec = env['havanoposdesk.uom'].search([
                         ('tenant_id', '=', tenant.id),
-                        '|', ('name', '=ilike', str(uom_name).strip()), ('abbreviation', '=ilike', str(uom_name).strip())
+                        ('name', '=ilike', str(uom_name).strip())
                     ], limit=1)
                     if uom_rec:
                         line_vals['uom_id'] = uom_rec.id
@@ -2589,7 +2592,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             if uom_name:
                                 uom_rec = env['havanoposdesk.uom'].search([
                                     ('tenant_id', '=', tenant.id),
-                                    '|', ('name', '=ilike', str(uom_name).strip()), ('abbreviation', '=ilike', str(uom_name).strip())
+                                    ('name', '=ilike', str(uom_name).strip())
                                 ], limit=1)
                                 if uom_rec:
                                     line_vals['uom_id'] = uom_rec.id
