@@ -473,34 +473,30 @@ class SaleLine(models.Model):
 
     def _resolve_uom_multiplier(self, product_id, uom_id):
         """Return the qty_to_be_sold multiplier for a given product + UOM pair.
-        Falls back to 1.0 when the UOM is the product's base UOM or no price
-        record is found.  This is the single authoritative lookup used by both
-        create/write (server-side) and the onchange (client-side) so that the
-        correct base-unit quantity is always applied during stock deduction."""
+        Searches product.uom.price for the matching UOM, falling back to 1.0."""
         if not product_id or not uom_id:
-            return 1.0
-        product = self.env['havanoposdesk.product'].browse(product_id)
-        if product.uom_id and product.uom_id.id == uom_id:
             return 1.0
         price_rec = self.env['havanoposdesk.product.uom.price'].search([
             ('product_id', '=', product_id),
             ('uom_id', '=', uom_id),
-            ('pricelist_id.type', '=', 'selling'),
         ], limit=1)
-        return price_rec.qty_to_be_sold if price_rec and price_rec.qty_to_be_sold else 1.0
+        if price_rec and price_rec.qty_to_be_sold:
+            return price_rec.qty_to_be_sold
+        return 1.0
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            # If the caller set a uom_id but did NOT explicitly provide a
-            # non-default multiplier, resolve it from the UOM price table.
-            # This covers the web form (where uom_qty_multiplier is not in the
-            # view and therefore never sent by the client on save).
-            uom_id = vals.get('uom_id')
             product_id = vals.get('product_id')
-            if uom_id and product_id:
-                provided = vals.get('uom_qty_multiplier', 1.0)
-                if provided == 1.0:
+            if product_id:
+                if not vals.get('uom_id'):
+                    product = self.env['havanoposdesk.product'].browse(product_id)
+                    if product.uom_id:
+                        vals['uom_id'] = product.uom_id.id
+
+                uom_id = vals.get('uom_id')
+                provided = vals.get('uom_qty_multiplier')
+                if not provided or provided == 1.0:
                     vals['uom_qty_multiplier'] = self._resolve_uom_multiplier(product_id, uom_id)
         return super().create(vals_list)
 

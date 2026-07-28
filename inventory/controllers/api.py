@@ -1266,7 +1266,7 @@ class HavanoPOSDeskAPI(http.Controller):
             item_name = item.get('item_name') or item_code
             qty = float(item.get('qty', 1))
             rate = float(item.get('rate') or item.get('standard_rate') or 0.0) or 10.0
-            uom_name = item.get('uom') or item.get('stock_uom')
+            uom_name = item.get('uom') or item.get('stock_uom') or item.get('uom_name')
 
             product = request.env['havanoposdesk.product'].sudo().search([
                 ('tenant_id', '=', tenant.id),
@@ -1281,9 +1281,6 @@ class HavanoPOSDeskAPI(http.Controller):
                     'all_stores': True,
                 })
 
-            # Resolve UOM: if caller supplies a uom name that differs from the
-            # product's base UOM, look up the uom price record so the line
-            # carries the correct uom_id and uom_qty_multiplier (e.g. 1 Box = 24 pcs)
             line_vals = {
                 'product_id': product.id,
                 'accepted_qty': qty,
@@ -1291,20 +1288,22 @@ class HavanoPOSDeskAPI(http.Controller):
             }
             if uom_name:
                 uom_rec = request.env['havanoposdesk.uom'].sudo().search([
-                    ('name', '=ilike', uom_name),
-                    ('tenant_id', '=', tenant.id)
+                    ('tenant_id', '=', tenant.id),
+                    '|', ('name', '=ilike', str(uom_name).strip()), ('abbreviation', '=ilike', str(uom_name).strip())
                 ], limit=1)
                 if uom_rec:
                     line_vals['uom_id'] = uom_rec.id
-                    # Only set multiplier if this UOM differs from the product's base UOM
-                    if product.uom_id and uom_rec.id != product.uom_id.id:
-                        price_rec = request.env['havanoposdesk.product.uom.price'].sudo().search([
-                            ('product_id', '=', product.id),
-                            ('uom_id', '=', uom_rec.id),
-                            ('pricelist_id.type', '=', 'selling')
-                        ], limit=1)
-                        if price_rec and price_rec.qty_to_be_sold:
-                            line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+            if not line_vals.get('uom_id') and product.uom_id:
+                line_vals['uom_id'] = product.uom_id.id
+
+            if line_vals.get('uom_id'):
+                price_rec = request.env['havanoposdesk.product.uom.price'].sudo().search([
+                    ('product_id', '=', product.id),
+                    ('uom_id', '=', line_vals['uom_id']),
+                ], limit=1)
+                if price_rec and price_rec.qty_to_be_sold:
+                    line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
 
             lines.append((0, 0, line_vals))
             
@@ -2070,7 +2069,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 price_val = line.get('price') or line.get('rate')
                 price = float(price_val) if price_val is not None else 0.0
 
-                uom_name = line.get('uom') or line.get('stock_uom')
+                uom_name = line.get('uom') or line.get('stock_uom') or line.get('uom_name')
 
                 product = env['havanoposdesk.product'].search([
                     ('tenant_id', '=', tenant.id),
@@ -2089,9 +2088,6 @@ class HavanoPOSDeskAPI(http.Controller):
                         'all_stores': True,
                     })
 
-                # Resolve UOM: if caller supplies a uom name that differs from the
-                # product's base UOM, look up the uom price record so the line
-                # carries the correct uom_id and uom_qty_multiplier (e.g. 1 Box = 24 pcs)
                 line_vals = {
                     'product_id': product.id,
                     'accepted_qty': qty,
@@ -2099,20 +2095,22 @@ class HavanoPOSDeskAPI(http.Controller):
                 }
                 if uom_name:
                     uom_rec = env['havanoposdesk.uom'].search([
-                        ('name', '=ilike', uom_name),
-                        ('tenant_id', '=', tenant.id)
+                        ('tenant_id', '=', tenant.id),
+                        '|', ('name', '=ilike', str(uom_name).strip()), ('abbreviation', '=ilike', str(uom_name).strip())
                     ], limit=1)
                     if uom_rec:
                         line_vals['uom_id'] = uom_rec.id
-                        # Only set multiplier if this UOM differs from the product's base UOM
-                        if product.uom_id and uom_rec.id != product.uom_id.id:
-                            price_rec = env['havanoposdesk.product.uom.price'].search([
-                                ('product_id', '=', product.id),
-                                ('uom_id', '=', uom_rec.id),
-                                ('pricelist_id.type', '=', 'selling')
-                            ], limit=1)
-                            if price_rec and price_rec.qty_to_be_sold:
-                                line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+                if not line_vals.get('uom_id') and product.uom_id:
+                    line_vals['uom_id'] = product.uom_id.id
+
+                if line_vals.get('uom_id'):
+                    price_rec = env['havanoposdesk.product.uom.price'].search([
+                        ('product_id', '=', product.id),
+                        ('uom_id', '=', line_vals['uom_id']),
+                    ], limit=1)
+                    if price_rec and price_rec.qty_to_be_sold:
+                        line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
 
                 sale_lines.append((0, 0, line_vals))
 
@@ -2560,14 +2558,13 @@ class HavanoPOSDeskAPI(http.Controller):
                         if payment_status != 'cash' and not tenant.allow_credit_sales:
                             responses.append({"error": "Oops! Creating sales on credit is disabled.", "local_invoice_id": local_invoice_id})
                             continue
-                        
-                        store_name = store.name
 
                         lines = []
                         for item in sale_data.get('items', []):
                             item_code = item.get('item_code') or item.get('item_name')
                             qty = float(item.get('qty', 1.0))
                             rate = float(item.get('rate', 0.0))
+                            uom_name = item.get('uom') or item.get('stock_uom') or item.get('uom_name')
 
                             product = env['havanoposdesk.product'].search([
                                 ('tenant_id', '=', tenant.id),
@@ -2584,11 +2581,31 @@ class HavanoPOSDeskAPI(http.Controller):
                                     'all_stores': True,
                                 })
 
-                            lines.append((0, 0, {
+                            line_vals = {
                                 'product_id': product.id,
                                 'accepted_qty': qty,
                                 'rate': rate or product.selling_price or 1.0,
-                            }))
+                            }
+                            if uom_name:
+                                uom_rec = env['havanoposdesk.uom'].search([
+                                    ('tenant_id', '=', tenant.id),
+                                    '|', ('name', '=ilike', str(uom_name).strip()), ('abbreviation', '=ilike', str(uom_name).strip())
+                                ], limit=1)
+                                if uom_rec:
+                                    line_vals['uom_id'] = uom_rec.id
+
+                            if not line_vals.get('uom_id') and product.uom_id:
+                                line_vals['uom_id'] = product.uom_id.id
+
+                            if line_vals.get('uom_id'):
+                                price_rec = env['havanoposdesk.product.uom.price'].search([
+                                    ('product_id', '=', product.id),
+                                    ('uom_id', '=', line_vals['uom_id']),
+                                ], limit=1)
+                                if price_rec and price_rec.qty_to_be_sold:
+                                    line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+                            lines.append((0, 0, line_vals))
 
                         terminal = user.selected_terminal_id
                         if not terminal:
