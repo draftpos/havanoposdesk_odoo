@@ -52,7 +52,8 @@
                                 <field name="supplier_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'supplier_secondary_currency_id'}" invisible="partner_type != 'supplier' or not supplier_allow_multi_currency" class="text-muted"/>
                             </group>
                             <group>
-                                <field name="account_id" options="{'no_create': True}" class="border-bottom border-dark" readonly="state != 'draft'" />
+                                <field name="is_multi_currency" class="border-bottom border-dark" readonly="state != 'draft'" />
+                                <field name="account_id" options="{'no_create': True}" class="border-bottom border-dark" readonly="state != 'draft'" invisible="is_multi_currency == True" />
                                 <field name="currency_id" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="exchange_rate" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="amount" class="border-bottom border-dark" readonly="state != 'draft'" widget="monetary" options="{'currency_field': 'currency_id'}" />
@@ -60,8 +61,19 @@
                                 <field name="reference" class="border-bottom border-dark" readonly="state != 'draft'" />
                             </group>
                         </group>
-                        <notebook invisible="reference != 'POS Payments'">
-                            <page string="POS Sales Breakdown">
+                        <notebook>
+                            <page string="Payment Breakdown" invisible="is_multi_currency == False">
+                                <field name="payment_line_ids" readonly="state != 'draft'">
+                                    <list editable="bottom">
+                                        <field name="account_id" options="{'no_create': True}" />
+                                        <field name="currency_id" />
+                                        <field name="exchange_rate" />
+                                        <field name="amount" sum="Total Amounts" />
+                                        <field name="amount_base" sum="Total Base Amounts" readonly="1" force_save="1"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="POS Sales Breakdown" invisible="reference != 'POS Payments'">
                                 <field name="pos_sale_ids" readonly="1">
                                     <list>
                                         <field name="date" />

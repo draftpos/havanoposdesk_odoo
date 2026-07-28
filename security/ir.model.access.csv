@@ -54,4 +54,6 @@ access_havano_change_password_wizard,havano.change.password.wizard,model_havano_
 access_havanoposdesk_stock_transfer,havanoposdesk.stock.transfer,model_havanoposdesk_stock_transfer,base.group_user,1,1,1,1
 access_havanoposdesk_stock_transfer_line,havanoposdesk.stock.transfer.line,model_havanoposdesk_stock_transfer_line,base.group_user,1,1,1,1
 access_havanoposdesk_product_bundle_item,havanoposdesk.product.bundle.item,model_havanoposdesk_product_bundle_item,base.group_user,1,1,1,1
-
+access_havanoposdesk_stock_valuation_date_wizard,havanoposdesk.stock.valuation.date.wizard,model_havanoposdesk_stock_valuation_date_wizard,base.group_user,1,1,1,1
+access_havanoposdesk_stock_valuation_date_report,havanoposdesk.stock.valuation.date.report,model_havanoposdesk_stock_valuation_date_report,base.group_user,1,1,1,1
+access_havanoposdesk_payment_line,havanoposdesk.payment.line,model_havanoposdesk_payment_line,base.group_user,1,1,1,1

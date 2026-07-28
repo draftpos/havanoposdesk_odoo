@@ -202,7 +202,7 @@ export class HavanoDashboard extends Component {
                     labels: this.salesChartData.labels,
                     datasets: [
                         {
-                            label: 'Gross profit',
+                            label: 'Net profit',
                             data: this.salesChartData.gross_profit,
                             backgroundColor: '#f39c12',
                             borderRadius: 4,
@@ -223,7 +223,7 @@ export class HavanoDashboard extends Component {
                             maxBarThickness: 50
                         },
                         {
-                            label: 'Gross sales',
+                            label: 'Gross profit',
                             data: this.salesChartData.gross_sales,
                             backgroundColor: '#3498db',
                             borderRadius: 4,

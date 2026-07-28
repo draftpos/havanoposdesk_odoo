@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Wizard Form View -->
+    <record id="view_stock_valuation_date_wizard_form" model="ir.ui.view">
+        <field name="name">havanoposdesk.stock.valuation.date.wizard.form</field>
+        <field name="model">havanoposdesk.stock.valuation.date.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Stock Valuation By Date">
+                <group>
+                    <field name="date_to"/>
+                    <field name="tenant_id" invisible="1"/>
+                </group>
+                <footer>
+                    <button name="action_compute" string="Compute" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Wizard Action -->
+    <record id="action_stock_valuation_date_wizard" model="ir.actions.act_window">
+        <field name="name">Stock Valuation By Date</field>
+        <field name="res_model">havanoposdesk.stock.valuation.date.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_stock_valuation_date" 
+              name="Stock Valuation By Date" 
+              parent="menu_inventory_reports" 
+              action="action_stock_valuation_date_wizard" 
+              sequence="20" />
+
+    <!-- Report Tree View -->
+    <record id="view_stock_valuation_date_report_tree" model="ir.ui.view">
+        <field name="name">havanoposdesk.stock.valuation.date.report.tree</field>
+        <field name="model">havanoposdesk.stock.valuation.date.report</field>
+        <field name="arch" type="xml">
+            <list string="Stock Valuation Report" create="false" edit="false" delete="false">
+                <field name="item_name"/>
+                <field name="item_code"/>
+                <field name="category_id"/>
+                <field name="store"/>
+                <field name="on_hand_qty"/>
+                <field name="value_cost"/>
+                <field name="value_selling"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Report Pivot View -->
+    <record id="view_stock_valuation_date_report_pivot" model="ir.ui.view">
+        <field name="name">havanoposdesk.stock.valuation.date.report.pivot</field>
+        <field name="model">havanoposdesk.stock.valuation.date.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Stock Valuation Report">
+                <field name="store" type="row"/>
+                <field name="item_name" type="row"/>
+                <field name="on_hand_qty" type="measure"/>
+                <field name="value_cost" type="measure"/>
+                <field name="value_selling" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Report Search View -->
+    <record id="view_stock_valuation_date_report_search" model="ir.ui.view">
+        <field name="name">havanoposdesk.stock.valuation.date.report.search</field>
+        <field name="model">havanoposdesk.stock.valuation.date.report</field>
+        <field name="arch" type="xml">
+            <search string="Search Valuation">
+                <field name="product_id"/>
+                <field name="item_name"/>
+                <field name="item_code"/>
+                <field name="store"/>
+                <field name="category_id"/>
+                <group>
+                    <filter string="Store" name="group_by_store" context="{'group_by':'store'}"/>
+                    <filter string="Category" name="group_by_category" context="{'group_by':'category_id'}"/>
+                    <filter string="Product" name="group_by_product" context="{'group_by':'product_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo>

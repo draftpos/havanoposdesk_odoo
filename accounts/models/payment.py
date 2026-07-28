@@ -55,9 +55,12 @@ class Payment(models.Model):
     supplier_allow_multi_currency = fields.Boolean(related='supplier_id.allow_multi_currency', string='Supplier Multi Currency')
     supplier_secondary_currency_id = fields.Many2one('res.currency', related='supplier_id.secondary_currency_id')
     
-    account_id = fields.Many2one('havanoposdesk.account', string='Bank/Cash Account', required=True, domain="[('type', 'in', ['Bank', 'Cash'])]")
+    is_multi_currency = fields.Boolean(string='Multi-currencies on payment', default=False)
+    payment_line_ids = fields.One2many('havanoposdesk.payment.line', 'payment_id', string='Payment Breakdown')
+    account_id = fields.Many2one('havanoposdesk.account', string='Bank/Cash Account', domain="[('type', 'in', ['Bank', 'Cash'])]")
     
-    amount = fields.Float(string='Amount', required=True, default=0.0)
+
+    amount = fields.Float(string='Amount', required=True, default=0.0, compute='_compute_amount', store=True, readonly=False)
     date = fields.Date(string='Date', default=fields.Date.context_today, required=True)
     reference = fields.Char(string='Memo / Reference')
     pos_sale_ids = fields.One2many('havanoposdesk.sale', 'pos_payment_id', string='POS Sales Breakdown')
@@ -113,6 +116,16 @@ class Payment(models.Model):
             else:
                 record.amount_base = record.amount
 
+    @api.depends('payment_line_ids.amount_base', 'is_multi_currency', 'exchange_rate')
+    def _compute_amount(self):
+        for record in self:
+            if record.is_multi_currency:
+                total_base = sum(record.payment_line_ids.mapped('amount_base'))
+                if record.exchange_rate and record.exchange_rate != 0:
+                    record.amount = total_base * record.exchange_rate
+                else:
+                    record.amount = total_base
+
     def action_post(self):
         for payment in self:
             if payment.state != 'draft':
@@ -120,24 +133,48 @@ class Payment(models.Model):
             if payment.amount <= 0:
                 raise UserError("Payment amount must be greater than zero.")
                 
-            # Determine the amount in the account's currency
-            account_currency = payment.account_id.currency_id or payment.tenant_id.currency_id
-            if account_currency == payment.currency_id:
-                account_amount = payment.amount
-            elif account_currency == payment.tenant_id.currency_id:
-                account_amount = payment.amount_base
-            else:
-                date = payment.date or fields.Date.context_today(payment)
-                rate = payment.tenant_id.currency_id._get_conversion_rate(
-                    payment.tenant_id.currency_id, account_currency, payment.env.company, date
-                )
-                account_amount = payment.amount_base * rate
+            if payment.is_multi_currency:
+                if not payment.payment_line_ids:
+                    raise UserError("Please add at least one payment line for multi-currency payment.")
                 
-            # Update Account Balance using sudo()
-            if payment.payment_type == 'receipt':
-                payment.account_id.sudo().balance += account_amount
+                for line in payment.payment_line_ids:
+                    account_currency = line.account_id.currency_id or payment.tenant_id.currency_id
+                    if account_currency == line.currency_id:
+                        account_amount = line.amount
+                    elif account_currency == payment.tenant_id.currency_id:
+                        account_amount = line.amount_base
+                    else:
+                        date = payment.date or fields.Date.context_today(payment)
+                        rate = payment.tenant_id.currency_id._get_conversion_rate(
+                            payment.tenant_id.currency_id, account_currency, payment.env.company, date
+                        )
+                        account_amount = line.amount_base * rate
+                    
+                    if payment.payment_type == 'receipt':
+                        line.account_id.sudo().balance += account_amount
+                    else:
+                        line.account_id.sudo().balance -= account_amount
             else:
-                payment.account_id.sudo().balance -= account_amount
+                if not payment.account_id:
+                    raise UserError("Bank/Cash Account is required for single currency payment.")
+                # Determine the amount in the account's currency
+                account_currency = payment.account_id.currency_id or payment.tenant_id.currency_id
+                if account_currency == payment.currency_id:
+                    account_amount = payment.amount
+                elif account_currency == payment.tenant_id.currency_id:
+                    account_amount = payment.amount_base
+                else:
+                    date = payment.date or fields.Date.context_today(payment)
+                    rate = payment.tenant_id.currency_id._get_conversion_rate(
+                        payment.tenant_id.currency_id, account_currency, payment.env.company, date
+                    )
+                    account_amount = payment.amount_base * rate
+                    
+                # Update Account Balance using sudo()
+                if payment.payment_type == 'receipt':
+                    payment.account_id.sudo().balance += account_amount
+                else:
+                    payment.account_id.sudo().balance -= account_amount
                 
             payment.write({'state': 'posted'})
 
@@ -147,24 +184,43 @@ class Payment(models.Model):
                 payment.write({'state': 'cancelled'})
                 continue
                 
-            # Determine the amount in the account's currency
-            account_currency = payment.account_id.currency_id or payment.tenant_id.currency_id
-            if account_currency == payment.currency_id:
-                account_amount = payment.amount
-            elif account_currency == payment.tenant_id.currency_id:
-                account_amount = payment.amount_base
+            if payment.is_multi_currency:
+                for line in payment.payment_line_ids:
+                    account_currency = line.account_id.currency_id or payment.tenant_id.currency_id
+                    if account_currency == line.currency_id:
+                        account_amount = line.amount
+                    elif account_currency == payment.tenant_id.currency_id:
+                        account_amount = line.amount_base
+                    else:
+                        date = payment.date or fields.Date.context_today(payment)
+                        rate = payment.tenant_id.currency_id._get_conversion_rate(
+                            payment.tenant_id.currency_id, account_currency, payment.env.company, date
+                        )
+                        account_amount = line.amount_base * rate
+                    
+                    if payment.payment_type == 'receipt':
+                        line.account_id.sudo().balance -= account_amount
+                    else:
+                        line.account_id.sudo().balance += account_amount
             else:
-                date = payment.date or fields.Date.context_today(payment)
-                rate = payment.tenant_id.currency_id._get_conversion_rate(
-                    payment.tenant_id.currency_id, account_currency, payment.env.company, date
-                )
-                account_amount = payment.amount_base * rate
-                
-            # Reverse Account Balance using sudo()
-            if payment.payment_type == 'receipt':
-                payment.account_id.sudo().balance -= account_amount
-            else:
-                payment.account_id.sudo().balance += account_amount
+                # Determine the amount in the account's currency
+                account_currency = payment.account_id.currency_id or payment.tenant_id.currency_id
+                if account_currency == payment.currency_id:
+                    account_amount = payment.amount
+                elif account_currency == payment.tenant_id.currency_id:
+                    account_amount = payment.amount_base
+                else:
+                    date = payment.date or fields.Date.context_today(payment)
+                    rate = payment.tenant_id.currency_id._get_conversion_rate(
+                        payment.tenant_id.currency_id, account_currency, payment.env.company, date
+                    )
+                    account_amount = payment.amount_base * rate
+                    
+                # Reverse Account Balance using sudo()
+                if payment.payment_type == 'receipt':
+                    payment.account_id.sudo().balance -= account_amount
+                else:
+                    payment.account_id.sudo().balance += account_amount
                 
             payment.write({'state': 'cancelled'})
 
@@ -172,3 +228,38 @@ class Payment(models.Model):
         for payment in self:
             if payment.state == 'cancelled':
                 payment.write({'state': 'draft'})
+
+class PaymentLine(models.Model):
+    _name = 'havanoposdesk.payment.line'
+    _description = 'Payment Line'
+
+    payment_id = fields.Many2one('havanoposdesk.payment', string='Payment Reference', ondelete='cascade', required=True)
+    tenant_id = fields.Many2one(related='payment_id.tenant_id', store=True)
+    account_id = fields.Many2one('havanoposdesk.account', string='Bank/Cash Account', required=True, domain="[('type', 'in', ['Bank', 'Cash'])]")
+    currency_id = fields.Many2one(
+        'res.currency', 
+        string='Currency', 
+        required=True,
+        default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
+    )
+    exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
+    amount = fields.Float(string='Amount', required=True, default=0.0)
+    amount_base = fields.Float(string='Base Amount', compute='_compute_amount_base', store=True)
+
+    @api.onchange('currency_id', 'payment_id')
+    def _onchange_currency_id(self):
+        if self.currency_id and self.tenant_id and self.tenant_id.currency_id:
+            if self.currency_id == self.tenant_id.currency_id:
+                self.exchange_rate = 1.0
+            else:
+                date = self.payment_id.date or fields.Date.context_today(self)
+                rate = self.currency_id._get_conversion_rate(self.tenant_id.currency_id, self.currency_id, self.env.company, date)
+                self.exchange_rate = rate or 1.0
+
+    @api.depends('amount', 'exchange_rate')
+    def _compute_amount_base(self):
+        for record in self:
+            if record.exchange_rate and record.exchange_rate != 0:
+                record.amount_base = record.amount / record.exchange_rate
+            else:
+                record.amount_base = record.amount
