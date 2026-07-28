@@ -38,6 +38,8 @@ class HavanoposdeskProduct(models.Model):
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
+    on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
+
     @api.depends('is_bundle')
     def _compute_on_hand_qty(self):
         for record in self:
