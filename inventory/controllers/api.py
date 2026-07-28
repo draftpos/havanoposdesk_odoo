@@ -1266,7 +1266,8 @@ class HavanoPOSDeskAPI(http.Controller):
             item_name = item.get('item_name') or item_code
             qty = float(item.get('qty', 1))
             rate = float(item.get('rate') or item.get('standard_rate') or 0.0) or 10.0
-            
+            uom_name = item.get('uom') or item.get('stock_uom')
+
             product = request.env['havanoposdesk.product'].sudo().search([
                 ('tenant_id', '=', tenant.id),
                 '|', ('item_code', '=', item_code), ('name', '=', item_name)
@@ -1279,12 +1280,33 @@ class HavanoPOSDeskAPI(http.Controller):
                     'tenant_id': tenant.id,
                     'all_stores': True,
                 })
-                
-            lines.append((0, 0, {
+
+            # Resolve UOM: if caller supplies a uom name that differs from the
+            # product's base UOM, look up the uom price record so the line
+            # carries the correct uom_id and uom_qty_multiplier (e.g. 1 Box = 24 pcs)
+            line_vals = {
                 'product_id': product.id,
                 'accepted_qty': qty,
                 'rate': rate or product.selling_price or 1.0,
-            }))
+            }
+            if uom_name:
+                uom_rec = request.env['havanoposdesk.uom'].sudo().search([
+                    ('name', '=ilike', uom_name),
+                    ('tenant_id', '=', tenant.id)
+                ], limit=1)
+                if uom_rec:
+                    line_vals['uom_id'] = uom_rec.id
+                    # Only set multiplier if this UOM differs from the product's base UOM
+                    if product.uom_id and uom_rec.id != product.uom_id.id:
+                        price_rec = request.env['havanoposdesk.product.uom.price'].sudo().search([
+                            ('product_id', '=', product.id),
+                            ('uom_id', '=', uom_rec.id),
+                            ('pricelist_id.type', '=', 'selling')
+                        ], limit=1)
+                        if price_rec and price_rec.qty_to_be_sold:
+                            line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+            lines.append((0, 0, line_vals))
             
         sale = request.env['havanoposdesk.sale'].with_user(user.id).sudo().create({
             'customer': customer.id,
@@ -2048,6 +2070,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 price_val = line.get('price') or line.get('rate')
                 price = float(price_val) if price_val is not None else 0.0
 
+                uom_name = line.get('uom') or line.get('stock_uom')
+
                 product = env['havanoposdesk.product'].search([
                     ('tenant_id', '=', tenant.id),
                     '|', ('item_code', '=', item_code), ('name', '=', item_code)
@@ -2055,7 +2079,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 if not product:
                     product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
-                    
+
                 if not product:
                     product = env['havanoposdesk.product'].create({
                         'name': item_code,
@@ -2065,11 +2089,32 @@ class HavanoPOSDeskAPI(http.Controller):
                         'all_stores': True,
                     })
 
-                sale_lines.append((0, 0, {
+                # Resolve UOM: if caller supplies a uom name that differs from the
+                # product's base UOM, look up the uom price record so the line
+                # carries the correct uom_id and uom_qty_multiplier (e.g. 1 Box = 24 pcs)
+                line_vals = {
                     'product_id': product.id,
                     'accepted_qty': qty,
                     'rate': price or product.selling_price or 1.0,
-                }))
+                }
+                if uom_name:
+                    uom_rec = env['havanoposdesk.uom'].search([
+                        ('name', '=ilike', uom_name),
+                        ('tenant_id', '=', tenant.id)
+                    ], limit=1)
+                    if uom_rec:
+                        line_vals['uom_id'] = uom_rec.id
+                        # Only set multiplier if this UOM differs from the product's base UOM
+                        if product.uom_id and uom_rec.id != product.uom_id.id:
+                            price_rec = env['havanoposdesk.product.uom.price'].search([
+                                ('product_id', '=', product.id),
+                                ('uom_id', '=', uom_rec.id),
+                                ('pricelist_id.type', '=', 'selling')
+                            ], limit=1)
+                            if price_rec and price_rec.qty_to_be_sold:
+                                line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+                sale_lines.append((0, 0, line_vals))
 
             terminal = user.selected_terminal_id
             if not terminal:
