@@ -32,8 +32,8 @@ class HavanoposdeskProduct(models.Model):
         if name:
             args += ['|', ('name', operator, name), ('item_code', operator, name)]
         return self._search(args, limit=limit, order=order)
-    buying_price = fields.Float(string='Cost price', default=0.0)
-    selling_price = fields.Float(string='Sell price')
+    buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
+    selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', store=True, readonly=False)
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
