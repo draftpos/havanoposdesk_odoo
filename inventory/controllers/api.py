@@ -7019,3 +7019,221 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
+    @http.route('/api/resource/Employee', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_employees(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            domain = []
+            if user.havano_role != 'super_admin' and user.tenant_id:
+                domain.append(('tenant_id', '=', user.tenant_id.id))
+            
+            users = env['res.users'].search(domain)
+            result = []
+            for u in users:
+                result.append({
+                    "name": u.name,
+                    "employee_name": u.name,
+                    "company": u.tenant_id.name if u.tenant_id else "Default Tenant"
+                })
+            return self._make_json_response({"data": result})
+        except Exception:
+            return self._make_json_response({"data": []})
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/resource/Account', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_accounts(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            domain = []
+            if user.havano_role != 'super_admin' and user.tenant_id:
+                domain.append(('tenant_id', '=', user.tenant_id.id))
+            
+            accounts = env['havanoposdesk.account'].search(domain)
+            result = []
+            for a in accounts:
+                result.append({
+                    "name": a.name,
+                    "account_type": a.type,
+                    "root_type": "Asset" if a.type in ["Cash", "Bank"] else "Expense"
+                })
+            return self._make_json_response({"data": result})
+        except Exception:
+            return self._make_json_response({"data": []})
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/resource/Expense Claim', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_expense_claims(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            from odoo import fields
+            user = env['res.users'].browse(uid)
+            tenant_id = user.tenant_id.id if user.tenant_id else False
+
+            if request.httprequest.method == 'GET':
+                domain = []
+                if user.havano_role != 'super_admin' and tenant_id:
+                    domain.append(('tenant_id', '=', tenant_id))
+                
+                expenses = env['havanoposdesk.expense'].search(domain)
+                result = []
+                for e in expenses:
+                    result.append({
+                        "name": e.name,
+                        "employee": e.create_uid.name if e.create_uid else "POS Cashier",
+                        "posting_date": str(e.date) if e.date else "",
+                        "status": "Paid" if e.state == "Posted" else ("Rejected" if e.state == "Cancelled" else "Draft"),
+                        "total_claimed_amount": e.amount,
+                        "company": e.tenant_id.name if e.tenant_id else ""
+                    })
+                return self._make_json_response({"data": result})
+
+            elif request.httprequest.method == 'POST':
+                data = json.loads(request.httprequest.data)
+                expenses_list = data.get('expenses') or []
+                if not expenses_list:
+                    return self._make_json_response({"error": "No expenses provided"}, status=400)
+                
+                created_names = []
+                for item in expenses_list:
+                    expense_type = item.get('expense_type')
+                    claim_amount = float(item.get('claim_amount') or 0.0)
+                    description = item.get('description') or ''
+                    
+                    account = env['havanoposdesk.account'].search([
+                        ('name', '=', expense_type),
+                        ('type', '=', 'Expense')
+                    ], limit=1)
+                    if not account:
+                        account = env['havanoposdesk.account'].search([
+                            ('name', '=', expense_type)
+                        ], limit=1)
+                        if not account:
+                            account = env['havanoposdesk.account'].create({
+                                'name': expense_type,
+                                'type': 'Expense',
+                                'tenant_id': tenant_id
+                            })
+                    
+                    expense_vals = {
+                        'date': data.get('posting_date') or fields.Date.context_today(env.user),
+                        'account_id': account.id,
+                        'amount': claim_amount,
+                        'description': description,
+                        'is_paid': False,
+                        'state': 'Draft',
+                        'tenant_id': tenant_id,
+                        'store_id': user.default_store_id.id if user.default_store_id else False
+                    }
+                    new_expense = env['havanoposdesk.expense'].create(expense_vals)
+                    created_names.append(new_expense.name)
+                
+                return self._make_json_response({
+                    "data": {
+                        "name": ", ".join(created_names),
+                        "status": "Draft"
+                    }
+                })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/resource/Expense Claim Type', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_expense_claim_types(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant_id = user.tenant_id.id if user.tenant_id else False
+
+            if request.httprequest.method == 'GET':
+                domain = [('type', '=', 'Expense')]
+                if user.havano_role != 'super_admin' and tenant_id:
+                    domain.append(('tenant_id', '=', tenant_id))
+                
+                accounts = env['havanoposdesk.account'].search(domain)
+                result = []
+                for a in accounts:
+                    result.append({
+                        "name": a.name,
+                        "expense_type": a.name,
+                        "default_account": a.name,
+                        "description": "Expense Account"
+                    })
+                return self._make_json_response({"data": result})
+
+            elif request.httprequest.method == 'POST':
+                data = json.loads(request.httprequest.data)
+                expense_type = data.get('expense_type')
+                if not expense_type:
+                    return self._make_json_response({"error": "expense_type is required"}, status=400)
+                
+                existing = env['havanoposdesk.account'].search([
+                    ('name', '=', expense_type),
+                    ('tenant_id', '=', tenant_id)
+                ], limit=1)
+                
+                if not existing:
+                    new_acc = env['havanoposdesk.account'].create({
+                        'name': expense_type,
+                        'type': 'Expense',
+                        'tenant_id': tenant_id
+                    })
+                    name_val = new_acc.name
+                else:
+                    name_val = existing.name
+                    
+                return self._make_json_response({
+                    "data": {
+                        "name": name_val,
+                        "expense_type": name_val
+                    }
+                })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+

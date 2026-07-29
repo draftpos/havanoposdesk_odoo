@@ -59,12 +59,12 @@
                                     <group string="Price information">
                                         <label for="buying_price" />
                                         <div class="o_row">
-                                            <field name="buying_price" readonly="is_bundle == True" class="border-bottom border-dark" />
+                                            <field name="buying_price" readonly="is_bundle == True" force_save="1" class="border-bottom border-dark" />
                                         </div>
                                         
                                         <label for="selling_price" />
                                         <div class="o_row">
-                                            <field name="selling_price" readonly="is_bundle == True" class="border-bottom border-dark" />
+                                            <field name="selling_price" readonly="is_bundle == True" force_save="1" class="border-bottom border-dark" />
                                         </div>
                                         <field name="markup" class="border-bottom border-dark" />
                                         <field name="id" invisible="1" />
@@ -125,8 +125,8 @@
                                             <field name="qty" string="Quantity" />
                                             <field name="buying_price" string="Cost Price" widget="monetary" />
                                             <field name="selling_price" string="Sell Price" widget="monetary" />
-                                            <field name="subtotal_cost" string="Total Cost" widget="monetary" />
-                                            <field name="subtotal_selling" string="Total Sell" widget="monetary" />
+                                            <field name="subtotal_cost" string="Total Cost" widget="monetary" readonly="1" force_save="1" />
+                                            <field name="subtotal_selling" string="Total Sell" widget="monetary" readonly="1" force_save="1" />
                                         </list>
                                     </field>
                                 </group>

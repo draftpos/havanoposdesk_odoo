@@ -255,14 +255,19 @@ class HavanoposdeskProduct(models.Model):
                 record.buying_price = sum(item.subtotal_cost for item in record.bundle_item_ids)
                 record.selling_price = sum(item.subtotal_selling for item in record.bundle_item_ids)
 
-    @api.onchange('is_bundle')
-    def _onchange_is_bundle(self):
+    @api.onchange('is_bundle', 'bundle_item_ids')
+    def _onchange_bundle_item_ids(self):
         if self.is_bundle:
             self.track_qty = False
             self.opening_stock = 0.0
-            if self.bundle_item_ids:
-                self.buying_price = sum(item.subtotal_cost for item in self.bundle_item_ids)
-                self.selling_price = sum(item.subtotal_selling for item in self.bundle_item_ids)
+            self.buying_price = sum(
+                item.subtotal_cost or ((item.qty or 0.0) * (item.buying_price or 0.0))
+                for item in self.bundle_item_ids
+            )
+            self.selling_price = sum(
+                item.subtotal_selling or ((item.qty or 0.0) * (item.selling_price or 0.0))
+                for item in self.bundle_item_ids
+            )
 
 
     def _get_default_stores(self):

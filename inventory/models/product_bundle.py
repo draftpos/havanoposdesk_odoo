@@ -34,7 +34,7 @@ class HavanoposdeskProductBundleItem(models.Model):
         for item in self:
             if item.product_id:
                 if not item.buying_price:
-                    item.buying_price = item.product_id.buying_price or 0.0
+                    item.buying_price = item.product_id.buying_price or item.product_id.cost_price or 0.0
                 if not item.selling_price:
                     item.selling_price = item.product_id.selling_price or 0.0
 
@@ -47,5 +47,12 @@ class HavanoposdeskProductBundleItem(models.Model):
     @api.onchange('product_id')
     def _onchange_product_id(self):
         if self.product_id:
-            self.buying_price = self.product_id.buying_price or 0.0
+            self.buying_price = self.product_id.buying_price or self.product_id.cost_price or 0.0
             self.selling_price = self.product_id.selling_price or 0.0
+            self.subtotal_cost = (self.qty or 1.0) * self.buying_price
+            self.subtotal_selling = (self.qty or 1.0) * self.selling_price
+
+    @api.onchange('qty', 'buying_price', 'selling_price')
+    def _onchange_subtotals(self):
+        self.subtotal_cost = (self.qty or 0.0) * (self.buying_price or 0.0)
+        self.subtotal_selling = (self.qty or 0.0) * (self.selling_price or 0.0)
