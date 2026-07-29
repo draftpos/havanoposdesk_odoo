@@ -34,7 +34,13 @@ class Expense(models.Model):
         required=True, 
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
-    store_id = fields.Many2one('havanoposdesk.store', string='Store')
+    def _default_store_id(self):
+        store = self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1)
+        if not store and self.env.user.tenant_id:
+            store = self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1)
+        return store.id if store else False
+
+    store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
 
     @api.model_create_multi

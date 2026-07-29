@@ -14,6 +14,8 @@ class HavanoposdeskTenant(models.Model):
     active = fields.Boolean(default=True)
     currency_id = fields.Many2one('res.currency', string='Default Currency', default=lambda self: self.env.ref('base.USD').id)
     allow_multi_currency = fields.Boolean(string='Allow Multi Currency', default=False)
+    global_multi_currency_customers = fields.Boolean(string='Global Multi-Currency Customers', default=False)
+    global_secondary_currency_id = fields.Many2one('res.currency', string='Default Secondary Currency')
     allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=True)
     has_transactions = fields.Boolean(string="Has Transactions", compute="_compute_has_transactions")
     

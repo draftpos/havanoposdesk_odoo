@@ -51,13 +51,34 @@ class Customer(models.Model):
         string='Currency', 
         default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
     )
-    allow_multi_currency = fields.Boolean(string='Allow Multi Currency', default=False)
-    secondary_currency_id = fields.Many2one('res.currency', string='Secondary Currency')
+    allow_multi_currency = fields.Boolean(
+        string='Allow Multi Currency', 
+        default=lambda self: self.env.user.tenant_id.global_multi_currency_customers if self.env.user.tenant_id else False
+    )
+    secondary_currency_id = fields.Many2one(
+        'res.currency', 
+        string='Secondary Currency',
+        default=lambda self: self.env.user.tenant_id.global_secondary_currency_id.id if self.env.user.tenant_id and self.env.user.tenant_id.global_multi_currency_customers else False
+    )
+    def _default_country_id(self):
+        return self.env['res.country'].search([('name', '=', 'Zimbabwe')], limit=1).id
+
+    def _default_customer_group_id(self):
+        tenant_id = self.env.user.tenant_id.id if self.env.user.tenant_id else False
+        domain = [('tenant_id', '=', tenant_id)] if tenant_id else []
+        return self.env['havanoposdesk.customer.group'].search(domain, limit=1).id
+
+    def _default_store_ids(self):
+        store = self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1)
+        if not store and self.env.user.tenant_id:
+            store = self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1)
+        return [(6, 0, [store.id])] if store else []
+
     phone = fields.Char(string='Phone')
     address = fields.Char(string='Address')
     city = fields.Char(string='City')
-    country_id = fields.Many2one('res.country', string='Country')
-    customer_group_id = fields.Many2one('havanoposdesk.customer.group', string='Customer Group')
+    country_id = fields.Many2one('res.country', string='Country', default=_default_country_id)
+    customer_group_id = fields.Many2one('havanoposdesk.customer.group', string='Customer Group', default=_default_customer_group_id)
     tin = fields.Char(string='TIN')
     vat = fields.Char(string='VAT')
 
@@ -74,7 +95,7 @@ class Customer(models.Model):
     payment_ids = fields.One2many('havanoposdesk.payment', 'customer_id', string='Payments')
     balance = fields.Float(string='Balance', compute='_compute_balance', store=False)
     secondary_balance = fields.Float(string='Secondary Balance', compute='_compute_secondary_balance', store=False)
-    store_ids = fields.Many2many('havanoposdesk.store', string='Stores')
+    store_ids = fields.Many2many('havanoposdesk.store', string='Stores', default=_default_store_ids)
 
     @api.depends('balance', 'secondary_currency_id', 'allow_multi_currency')
     def _compute_secondary_balance(self):

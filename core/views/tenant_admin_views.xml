@@ -1,11 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <data>
-        
-        <menuitem id="menu_my_business_root" name="My Business" sequence="5" web_icon="havanoposdesk_odoo,static/description/mybusiness.png" groups="base.group_user" />
-
-        
-        <menuitem id="menu_tenant_admin_settings_root" name="Configs" web_icon="havanoposdesk_odoo,static/description/configs.png" sequence="550" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system" action="action_havanoposdesk_settings_my_business" />
+        <menuitem id="menu_tenant_admin_settings_root" name="Configurations" web_icon="havanoposdesk_odoo,static/description/configs.png" sequence="550" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system" action="action_havanoposdesk_settings_my_business" />
 
         
         <record id="action_my_stores" model="ir.actions.act_window">
@@ -13,15 +9,7 @@
             <field name="res_model">havanoposdesk.store</field>
             <field name="view_mode">list,form</field>
         </record>
-        <menuitem id="menu_my_stores" name="Stores" parent="menu_my_business_root" action="action_my_stores" sequence="10" />
 
-        
-        <record id="action_my_terminals" model="ir.actions.act_window">
-            <field name="name">My POS Terminals</field>
-            <field name="res_model">havanoposdesk.pos.terminal</field>
-            <field name="view_mode">list,form</field>
-        </record>
-        <menuitem id="menu_my_terminals" name="POS Terminals" parent="menu_my_business_root" action="action_my_terminals" sequence="20" />
 
         
         <record id="view_havano_change_password_wizard_form" model="ir.ui.view">
@@ -147,12 +135,7 @@
             <field name="context">{'default_havano_role': 'user'}</field>
             <field name="view_ids" eval="[(5, 0, 0),                 (0, 0, {'view_mode': 'list', 'view_id': ref('view_my_cashiers_tree')}),                 (0, 0, {'view_mode': 'form', 'view_id': ref('view_my_cashiers_form')})]" />
         </record>
-        <!-- Users & Roles Parent Menu -->
-        <menuitem id="menu_my_users_and_roles" name="Users &amp; Roles" parent="menu_my_business_root" sequence="30" />
 
-        <menuitem id="menu_my_cashiers" name="Users" parent="menu_my_users_and_roles" action="action_my_cashiers" sequence="10" />
-
-        <menuitem id="menu_my_user_rights_profiles" name="User Rights Profiles" parent="menu_my_users_and_roles" action="action_user_rights_profiles" sequence="20" />
 
         
         <record id="action_my_subscription" model="ir.actions.server">
@@ -187,9 +170,7 @@ else:
     }
             </field>
         </record>
-        <menuitem id="menu_my_subscription" name="My Subscription" parent="menu_my_business_root" action="action_my_subscription" sequence="40" />
-        
-        <menuitem id="menu_my_business_settings_parent" name="Currencies" parent="menu_my_business_root" sequence="100" />
+
         
         
         <menuitem id="menu_my_business_currency" name="Currencies" parent="menu_accounts_master" action="base.action_currency_form" sequence="20" />
@@ -224,6 +205,6 @@ else:
         <menuitem id="menu_my_business_exchange_rate" name="Exchange Rates" parent="menu_accounts_master" action="action_havanoposdesk_exchange_rates" sequence="30" />
 
         
-        <menuitem id="menu_my_business_analytics" name="Analytics" parent="menu_my_business_root" sequence="40" />
+
     </data>
 </odoo>

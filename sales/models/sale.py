@@ -57,14 +57,13 @@ class Sale(models.Model):
         ('cash', 'Cash (Paid)'),
         ('account', 'On Account')
     ], string='Payment Status', default='cash', required=True)
+    payment_policy = fields.Selection([
+        ('single', 'Single Payment'),
+        ('multi', 'Split / Multi-Currency Payment')
+    ], string='Payment Policy', default='single')
     account_id = fields.Many2one('havanoposdesk.account', string='Deposit Account', domain="[('type', 'in', ['Cash', 'Bank'])]", default=_default_account_id)
     pos_payment_id = fields.Many2one('havanoposdesk.payment', string='POS Payment Batch')
-    payment_ids = fields.Many2many('havanoposdesk.payment', compute='_compute_payment_ids', string='Payments')
-
-    @api.depends('pos_payment_id')
-    def _compute_payment_ids(self):
-        for record in self:
-            record.payment_ids = [(6, 0, [record.pos_payment_id.id])] if record.pos_payment_id else False
+    payment_ids = fields.One2many('havanoposdesk.payment', 'sale_id', string='Payments')
     
     line_ids = fields.One2many('havanoposdesk.sale.line', 'sale_id', string='Items')
 
@@ -129,6 +128,9 @@ class Sale(models.Model):
     
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
     amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
+    amount_paid_base = fields.Float(string='Paid (Base)', compute='_compute_amount_paid_base', store=True)
+    amount_balance_base = fields.Float(string='Balance Due (Base)', compute='_compute_amount_paid_base', store=True)
+    single_payment_amount = fields.Float(string='Payment Amount', compute='_compute_single_payment_amount', store=True, readonly=False)
     
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
     salesperson_id = fields.Many2one('res.users', string='Salesperson', default=lambda self: self.env.user.id)
@@ -154,6 +156,17 @@ class Sale(models.Model):
                 record.amount_total_base = record.amount_total / record.exchange_rate
             else:
                 record.amount_total_base = record.amount_total
+
+    @api.depends('payment_ids.amount_base', 'amount_total_base')
+    def _compute_amount_paid_base(self):
+        for record in self:
+            record.amount_paid_base = sum(record.payment_ids.mapped('amount_base'))
+            record.amount_balance_base = record.amount_total_base - record.amount_paid_base
+
+    @api.depends('amount_total')
+    def _compute_single_payment_amount(self):
+        for record in self:
+            record.single_payment_amount = record.amount_total
 
     @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
     def _compute_total_cost(self):
@@ -274,37 +287,32 @@ class Sale(models.Model):
             if sale.state != 'draft':
                 continue
             
-            # Auto-create payment if cash
-            if sale.payment_status == 'cash' and sale.account_id:
-                payment_type = 'payment' if sale.is_return else 'receipt'
-                
-                existing_payment = self.env['havanoposdesk.payment'].search([
-                    ('tenant_id', '=', sale.tenant_id.id),
-                    ('date', '=', fields.Date.context_today(self)),
-                    ('reference', '=', 'POS Payments'),
-                    ('account_id', '=', sale.account_id.id),
-                    ('payment_type', '=', payment_type),
-                    ('state', 'in', ['draft', 'posted']),
-                ], limit=1)
-
-                if existing_payment:
-                    existing_payment.with_context(bypass_payment_check=True).write({'amount': existing_payment.amount + abs(sale.amount_total)})
-                    if existing_payment.state == 'posted':
-                        existing_payment.account_id.sudo().balance += sale.amount_total_base
-                    sale.pos_payment_id = existing_payment.id
+            # Handle payments if cash
+            if sale.payment_status == 'cash':
+                if sale.payment_policy == 'multi':
+                    if not sale.payment_ids:
+                        raise ValidationError("You must add at least one payment entry for cash sales in the Payment Breakdown tab.")
+                    
+                    for payment in sale.payment_ids:
+                        if payment.state == 'draft':
+                            payment.action_post()
                 else:
-                    payment = self.env['havanoposdesk.payment'].create({
-                        'payment_type': payment_type,
+                    if not sale.account_id:
+                        raise ValidationError("You must select a Deposit Account for Single Payment cash sales.")
+                    
+                    payment = self.env['havanoposdesk.payment'].create([{
+                        'payment_type': 'receipt',
                         'partner_type': 'customer',
+                        'customer_id': sale.customer.id,
                         'account_id': sale.account_id.id,
-                        'amount': abs(sale.amount_total),
                         'currency_id': sale.currency_id.id,
-                        'reference': 'POS Payments',
-                        'date': fields.Date.context_today(self),
+                        'exchange_rate': sale.exchange_rate,
+                        'amount': sale.single_payment_amount if sale.single_payment_amount > 0 else sale.amount_total,
+                        'date': sale.posting_date or fields.Date.context_today(sale),
                         'tenant_id': sale.tenant_id.id,
-                    })
+                        'sale_id': sale.id,
+                    }])
                     payment.action_post()
-                    sale.pos_payment_id = payment.id
 
             for line in sale.line_ids:
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
@@ -459,11 +467,10 @@ class Sale(models.Model):
 
 
             # Reverse POS Payment batch amounts and account balances
-            if sale.payment_status == 'cash' and sale.pos_payment_id:
-                payment = sale.pos_payment_id
-                if payment.state == 'posted':
-                    payment.account_id.sudo().balance -= sale.amount_total_base
-                payment.with_context(bypass_payment_check=True).write({'amount': payment.amount - abs(sale.amount_total)})
+            if sale.payment_status == 'cash':
+                for payment in sale.payment_ids:
+                    if payment.state == 'posted':
+                        payment.action_cancel()
                 
             sale.write({'state': 'cancelled'})
 

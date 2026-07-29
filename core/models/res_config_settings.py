@@ -65,6 +65,17 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.allow_multi_currency',
         readonly=False
     )
+    biz_global_multi_currency_customers = fields.Boolean(
+        string="Global Multi-Currency Customers",
+        related='tenant_id.global_multi_currency_customers',
+        readonly=False
+    )
+    biz_global_secondary_currency_id = fields.Many2one(
+        'res.currency',
+        string="Global Secondary Currency",
+        related='tenant_id.global_secondary_currency_id',
+        readonly=False
+    )
     biz_allow_advanced_pricing = fields.Boolean(
         string="Allow Advanced Pricing",
         related='tenant_id.allow_advanced_pricing',
@@ -300,4 +311,24 @@ class ResConfigSettings(models.TransientModel):
         default=5,
         help="The amount of time (in days) a user's subscription can be expired before access is blocked."
     )
+
+    def action_apply_global_multi_currency(self):
+        self.ensure_one()
+        if not self.biz_global_multi_currency_customers:
+            return
+        customers = self.env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', self.tenant_id.id)])
+        customers.write({
+            'allow_multi_currency': True,
+            'secondary_currency_id': self.biz_global_secondary_currency_id.id if self.biz_global_secondary_currency_id else False
+        })
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Success',
+                'message': 'All existing customers have been updated to use the global multi-currency setting.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
