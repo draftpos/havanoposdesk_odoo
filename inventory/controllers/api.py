@@ -6226,8 +6226,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 "name": "Admin",
                 "profile_name": "Admin",
                 "is_additional_tax_enabled": 1,
-                "food_tax": 0,
-                "tourism_tax": 0,
+                "food_tax": "0",
+                "tourism_tax": "0",
                 "permissions": [
                     {
                         "feature": f,
@@ -6298,8 +6298,8 @@ class HavanoPOSDeskAPI(http.Controller):
             "name": profile.name,
             "profile_name": profile.name,
             "is_additional_tax_enabled": 1 if profile.is_additional_tax_enabled else 0,
-            "food_tax": profile.food_tax or 0,
-            "tourism_tax": profile.tourism_tax or 0,
+            "food_tax": str(profile.food_tax) if profile.food_tax is not None else "0",
+            "tourism_tax": str(profile.tourism_tax) if profile.tourism_tax is not None else "0",
             "permissions": permissions
         }
 
