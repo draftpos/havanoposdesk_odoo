@@ -5580,7 +5580,15 @@ class HavanoPOSDeskAPI(http.Controller):
             pin = data.get('pin')
             first_name = data.get('first_name') or 'User'
             last_name = data.get('last_name') or 'Account'
-            role = data.get('role_profile_name') or 'User'
+            role_raw = (
+                data.get('role') or
+                data.get('role_profile_name') or
+                data.get('role_name') or
+                data.get('role_select') or
+                data.get('havano_role') or
+                data.get('user_role') or
+                'User'
+            )
 
             if not email:
                 return self._make_json_response({"error": "Email is required"}, status=400)
@@ -5589,10 +5597,10 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant_id = current_user.tenant_id.id if current_user.tenant_id else False
 
             # Determine role: admin or cashier ('user')
+            role_str = str(role_raw).lower()
             is_admin = False
-            if role:
-                if role.lower() in ('admin', 'tenant admin', 'tenant_admin'):
-                    is_admin = True
+            if any(k in role_str for k in ('admin', 'tenant_admin', 'super_admin')):
+                is_admin = True
             user_role = 'admin' if is_admin else 'user'
 
             existing_user = env['res.users'].search([('login', '=', email)], limit=1)
@@ -5608,12 +5616,15 @@ class HavanoPOSDeskAPI(http.Controller):
                     if password:
                         user_vals['password'] = password
                     
-                    if role:
+                    if role_raw:
                         user_vals['havano_role'] = user_role
-                        # Let's search for the profile in this tenant
+                        # Search for profile in this tenant
                         profile = env['havanoposdesk.user.rights.profile'].search([
-                            ('name', '=', role),
-                            ('tenant_id', '=', tenant_id)
+                            ('tenant_id', '=', tenant_id),
+                            '|', '|',
+                            ('name', '=ilike', str(role_raw)),
+                            ('havano_role', '=', user_role),
+                            ('havano_role', '=', 'cashier' if user_role == 'user' else user_role)
                         ], limit=1)
                         if profile:
                             user_vals['user_rights_profile_id'] = profile.id
@@ -5653,10 +5664,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 user_vals['api_cost_center'] = current_user.default_store_id.name
 
             # Map the profile if provided
-            if role:
+            if role_raw:
                 profile = env['havanoposdesk.user.rights.profile'].search([
-                    ('name', '=', role),
-                    ('tenant_id', '=', tenant_id)
+                    ('tenant_id', '=', tenant_id),
+                    '|', '|',
+                    ('name', '=ilike', str(role_raw)),
+                    ('havano_role', '=', user_role),
+                    ('havano_role', '=', 'cashier' if user_role == 'user' else user_role)
                 ], limit=1)
                 if profile:
                     user_vals['user_rights_profile_id'] = profile.id
