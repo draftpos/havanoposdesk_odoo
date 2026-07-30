@@ -76,10 +76,9 @@ class ResUsers(models.Model):
         for user in self:
             if user.havano_role == 'super_admin':
                 continue
-            if user.allow_backoffice:
-                user.havano_role = 'admin'
-            else:
-                user.havano_role = 'user'
+            target_role = 'admin' if user.allow_backoffice else 'user'
+            if user.havano_role != target_role:
+                user.havano_role = target_role
 
     @api.constrains('password', 'allow_backoffice')
     def _check_backoffice_password(self):
