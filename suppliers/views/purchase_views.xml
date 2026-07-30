@@ -81,6 +81,7 @@
                     <field name="supplier" optional="show"/>
                     <field name="store_id" optional="show"/>
                     <field name="payment_status" optional="show"/>
+                    <field name="account_id" optional="show"/>
                     <field name="amount_total" string="Total Incl" sum="Total Incl" widget="monetary"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'" optional="show"/>
                 </list>

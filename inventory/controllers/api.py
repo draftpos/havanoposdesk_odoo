@@ -224,6 +224,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "username": user.name or "",
                     "full_name": user.name or "",
                     "email": user.login or "",
+                    "id": user.id,
+                    "tenant_id": tenant.id if tenant else None,
                     "warehouse": warehouse,
                     "cost_center": cost_center,
                     "default_customer": default_customer_name,
@@ -1982,6 +1984,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     
                 users_list.append({
                     "id": u.id,
+                    "tenant_id": u.tenant_id.id if u.tenant_id else None,
                     "name": u.name,
                     "login": u.login,
                     "email": u.email or "",
@@ -5721,6 +5724,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 data_list.append({
                     "id": u.id,
+                    "tenant_id": u.tenant_id.id if u.tenant_id else None,
                     "pin": u.pin or "",
                     "name": u.login,
                     "username": u.login,
@@ -7158,12 +7162,13 @@ class HavanoPOSDeskAPI(http.Controller):
                         'store_id': user.default_store_id.id if user.default_store_id else False
                     }
                     new_expense = env['havanoposdesk.expense'].create(expense_vals)
+                    new_expense.action_post()
                     created_names.append(new_expense.name)
                 
                 return self._make_json_response({
                     "data": {
                         "name": ", ".join(created_names),
-                        "status": "Draft"
+                        "status": "Submitted"
                     }
                 })
         except Exception as e:

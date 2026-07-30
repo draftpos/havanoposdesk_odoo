@@ -49,7 +49,7 @@ class Sale(models.Model):
         return self.env['havanoposdesk.account'].search([('type', 'in', ['Cash', 'Bank'])], limit=1).id
 
     payment_status = fields.Selection([
-        ('cash', 'Cash (Paid)'),
+        ('cash', 'Paid'),
         ('account', 'On Account')
     ], string='Payment Status', default='cash', required=True)
     account_id = fields.Many2one('havanoposdesk.account', string='Deposit Account', domain="[('type', 'in', ['Cash', 'Bank'])]", default=_default_account_id)

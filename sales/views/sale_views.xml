@@ -13,6 +13,7 @@
                     <field name="local_invoice_id" optional="hide" />
                     <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-bf="is_return" />
                     <field name="payment_status" optional="show" />
+                    <field name="account_id" optional="show" />
                     <field name="customer" optional="show" />
                     <field name="date" string="Date" optional="show" />
                     <field name="store_id" optional="show" />
