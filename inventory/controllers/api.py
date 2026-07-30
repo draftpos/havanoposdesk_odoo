@@ -6251,8 +6251,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 "name": "Default Cashier",
                 "profile_name": "Default Cashier",
                 "is_additional_tax_enabled": 0,
-                "food_tax": 0,
-                "tourism_tax": 0,
+                "food_tax": "0",
+                "tourism_tax": "0",
                 "permissions": [
                     {
                         "feature": f,
