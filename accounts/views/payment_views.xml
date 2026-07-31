@@ -97,16 +97,20 @@
             <field name="model">havanoposdesk.payment</field>
             <field name="arch" type="xml">
                 <list string="Payments" decoration-muted="state == 'cancelled'">
-                    <field name="currency_id" column_invisible="True" />
-                    <field name="date" />
-                    <field name="name" string="Number" />
-                    <field name="reference" string="Memo/Reference" />
-                    <field name="payment_type" />
-                    <field name="customer_id" optional="show" />
-                    <field name="supplier_id" optional="show" />
-                    <field name="account_id" />
+                    <field name="date" optional="hide" />
+                    <field name="name" string="Number" optional="hide" />
+                    <field name="reference" string="Memo/Reference" optional="hide" />
+                    <field name="payment_type" optional="hide" />
+                    <field name="customer_id" optional="hide" />
+                    <field name="supplier_id" optional="hide" />
+                    
+                    <field name="account_id" string="Bank/Cash Accounts" />
+                    <field name="tenant_currency_id" column_invisible="True" />
+                    <field name="currency_id" string="Currency" optional="show" />
+                    <field name="exchange_rate" string="Exchange Rate" optional="show" />
                     <field name="amount" sum="Total Amount" widget="monetary" />
-                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'" />
+                    <field name="amount_base" string="Base Amount" sum="Base Amount" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" />
+                    <field name="state" string="Status" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'" />
                 </list>
             </field>
         </record>

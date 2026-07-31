@@ -316,19 +316,21 @@ class Sale(models.Model):
                     if not sale.account_id:
                         raise ValidationError("You must select a Deposit Account for Single Payment cash sales.")
                     
-                    payment = self.env['havanoposdesk.payment'].create([{
-                        'payment_type': 'receipt',
-                        'partner_type': 'customer',
-                        'customer_id': sale.customer.id,
-                        'account_id': sale.account_id.id,
-                        'currency_id': sale.currency_id.id,
-                        'exchange_rate': sale.exchange_rate,
-                        'amount': sale.single_payment_amount if sale.single_payment_amount > 0 else sale.amount_total,
-                        'date': sale.posting_date or fields.Date.context_today(sale),
-                        'tenant_id': sale.tenant_id.id,
-                        'sale_id': sale.id,
-                    }])
-                    payment.action_post()
+                    payment_amount = sale.single_payment_amount if sale.single_payment_amount > 0 else sale.amount_total
+                    if payment_amount > 0:
+                        payment = self.env['havanoposdesk.payment'].create([{
+                            'payment_type': 'receipt',
+                            'partner_type': 'customer',
+                            'customer_id': sale.customer.id,
+                            'account_id': sale.account_id.id,
+                            'currency_id': sale.currency_id.id,
+                            'exchange_rate': sale.exchange_rate,
+                            'amount': payment_amount,
+                            'date': sale.posting_date or fields.Date.context_today(sale),
+                            'tenant_id': sale.tenant_id.id,
+                            'sale_id': sale.id,
+                        }])
+                        payment.action_post()
 
             for line in sale.line_ids:
                 base_qty = line.accepted_qty * line.uom_qty_multiplier

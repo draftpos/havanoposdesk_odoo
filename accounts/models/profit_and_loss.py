@@ -86,7 +86,11 @@ class ProfitAndLossReport(models.AbstractModel):
             return ((current - previous) / abs(previous)) * 100.0
 
         def process_records(domain, model, is_comparison=False):
-            records = self.env[model].search(domain)
+            if self.env.user.tenant_id:
+                # Ensure we only fetch for the current tenant to maintain security, 
+                # then use sudo to bypass any cascading access right issues on related models
+                domain = domain + [('tenant_id', '=', self.env.user.tenant_id.id)]
+            records = self.env[model].sudo().search(domain)
             for rec in records:
                 if model == 'havanoposdesk.sale':
                     rev = rec.amount_total
@@ -193,5 +197,8 @@ class ProfitAndLossReport(models.AbstractModel):
 
     @api.model
     def get_available_stores(self):
-        stores = self.env['havanoposdesk.store'].search_read([], ['id', 'name'])
+        domain = []
+        if self.env.user.tenant_id:
+            domain = [('tenant_id', '=', self.env.user.tenant_id.id)]
+        stores = self.env['havanoposdesk.store'].sudo().search_read(domain, ['id', 'name'])
         return stores
