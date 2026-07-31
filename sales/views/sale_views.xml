@@ -128,13 +128,12 @@
                                         <field name="payment_type" column_invisible="True"/>
                                         <field name="customer_id" column_invisible="True"/>
                                         <field name="name" readonly="1" force_save="1" optional="hide"/>
-                                        <field name="date" />
                                         <field name="account_id" required="1"/>
                                         <field name="currency_id" />
                                         <field name="exchange_rate" />
                                         <field name="amount" sum="Total"/>
-                                        <field name="amount_base" sum="Base Total" readonly="1" force_save="1" optional="show"/>
-                                        <field name="state" readonly="1" force_save="1" optional="show" />
+                                        <field name="amount_base" sum="Base Total" readonly="1" force_save="1"/>
+                                        <field name="state" readonly="1" force_save="1"/>
                                     </list>
                                 </field>
                             </page>
