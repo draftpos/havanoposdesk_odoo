@@ -18,6 +18,12 @@ class HavanoposdeskStore(models.Model):
     )
     active = fields.Boolean(string='Active', default=True)
     is_default = fields.Boolean(string='Is Default', default=False)
+    auto_populate_data = fields.Boolean(
+        string='Auto-Populate Data', 
+        default=True, 
+        help="If checked, existing products, customers, and suppliers will automatically be linked to this new store, and a default POS terminal will be created."
+    )
+
 
     @api.depends('name', 'tenant_id')
     def _compute_display_name(self):
@@ -178,6 +184,31 @@ class HavanoposdeskStore(models.Model):
                     if tenant_admins:
                         tenant_admins.sudo().write({
                             'store_ids': [(4, store.id)]
+                        })
+                    
+                    # Auto-Populate Logic
+                    if store.auto_populate_data:
+                        # 1. Add store to all existing products for the tenant
+                        products = self.env['havanoposdesk.product'].sudo().search([('tenant_id', '=', store.tenant_id.id)])
+                        if products:
+                            products.write({'store_ids': [(4, store.id)]})
+                            
+                        # 2. Add store to all existing customers for the tenant
+                        customers = self.env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', store.tenant_id.id)])
+                        if customers:
+                            customers.write({'store_ids': [(4, store.id)]})
+                            
+                        # 3. Add store to all existing suppliers for the tenant
+                        suppliers = self.env['havanoposdesk.supplier'].sudo().search([('tenant_id', '=', store.tenant_id.id)])
+                        if suppliers:
+                            suppliers.write({'store_ids': [(4, store.id)]})
+                            
+                        # 4. Create a default POS Terminal for the new store
+                        self.env['havanoposdesk.pos.terminal'].sudo().create({
+                            'name': 'Terminal 1',
+                            'tenant_id': store.tenant_id.id,
+                            'store_id': store.id,
+                            'active': True
                         })
             
         return stores

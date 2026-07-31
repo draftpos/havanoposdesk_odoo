@@ -250,7 +250,8 @@ class Sale(models.Model):
         sales = super().create(vals_list)
         
         for sale in sales:
-            if sale.state in ['confirmed', 'done']:
+            # Mobile app syncs often include pos_payment_id. If present, or explicitly confirmed, auto-post.
+            if sale.state in ['confirmed', 'done'] or sale.pos_payment_id or self.env.context.get('auto_post_sale'):
                 # Set to draft temporarily to let action_post execute
                 sale.state = 'draft'
                 sale.action_post()
