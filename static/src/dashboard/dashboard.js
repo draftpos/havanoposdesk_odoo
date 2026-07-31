@@ -18,10 +18,14 @@ export class HavanoDashboard extends Component {
         
         this.state = useState({
             kpis: {
-                gross_sales: 0,
-                net_sales: 0,
+                total_sales: 0,
                 cost_of_sales: 0,
-                gross_profit: 0
+                gross_profit: 0,
+                net_profit: 0,
+                sales_trend: 0,
+                cost_trend: 0,
+                gross_profit_trend: 0,
+                net_profit_trend: 0
             },
             stock_stats: {
                 total_valuation: 0,
@@ -35,17 +39,17 @@ export class HavanoDashboard extends Component {
 
         this.salesChartRef = useRef("salesChart");
         this.stockChartRef = useRef("stockChart");
+        this.sparklineSalesRef = useRef("sparklineSales");
+        this.sparklineCostRef = useRef("sparklineCost");
         this.sparklineGrossRef = useRef("sparklineGross");
         this.sparklineNetRef = useRef("sparklineNet");
-        this.sparklineCostRef = useRef("sparklineCost");
-        this.sparklineProfitRef = useRef("sparklineProfit");
 
         this.salesChartInstance = null;
         this.stockChartInstance = null;
+        this.sparklineSalesInstance = null;
+        this.sparklineCostInstance = null;
         this.sparklineGrossInstance = null;
         this.sparklineNetInstance = null;
-        this.sparklineCostInstance = null;
-        this.sparklineProfitInstance = null;
 
         onWillStart(async () => {
             await loadJS("/web/static/lib/Chart/Chart.js");
@@ -61,10 +65,10 @@ export class HavanoDashboard extends Component {
             window.removeEventListener('resize', this.onResize);
             if (this.salesChartInstance) this.salesChartInstance.destroy();
             if (this.stockChartInstance) this.stockChartInstance.destroy();
+            if (this.sparklineSalesInstance) this.sparklineSalesInstance.destroy();
+            if (this.sparklineCostInstance) this.sparklineCostInstance.destroy();
             if (this.sparklineGrossInstance) this.sparklineGrossInstance.destroy();
             if (this.sparklineNetInstance) this.sparklineNetInstance.destroy();
-            if (this.sparklineCostInstance) this.sparklineCostInstance.destroy();
-            if (this.sparklineProfitInstance) this.sparklineProfitInstance.destroy();
         });
     }
     
@@ -85,10 +89,10 @@ export class HavanoDashboard extends Component {
             this.stockChartInstance.options.aspectRatio = ratio;
             this.stockChartInstance.resize();
         }
+        if (this.sparklineSalesInstance) this.sparklineSalesInstance.resize();
+        if (this.sparklineCostInstance) this.sparklineCostInstance.resize();
         if (this.sparklineGrossInstance) this.sparklineGrossInstance.resize();
         if (this.sparklineNetInstance) this.sparklineNetInstance.resize();
-        if (this.sparklineCostInstance) this.sparklineCostInstance.resize();
-        if (this.sparklineProfitInstance) this.sparklineProfitInstance.resize();
     }
 
 
@@ -338,10 +342,10 @@ export class HavanoDashboard extends Component {
         };
 
         if (this.sparklineData) {
-            this.sparklineGrossInstance = renderSparkline(this.sparklineGrossRef, this.sparklineGrossInstance, this.sparklineData.gross_sales, this.sparklineData.labels, '#2ecc71');
-            this.sparklineNetInstance = renderSparkline(this.sparklineNetRef, this.sparklineNetInstance, this.sparklineData.net_sales, this.sparklineData.labels, '#2ecc71');
-            this.sparklineCostInstance = renderSparkline(this.sparklineCostRef, this.sparklineCostInstance, this.sparklineData.cost_of_sales, this.sparklineData.labels, '#2ecc71');
-            this.sparklineProfitInstance = renderSparkline(this.sparklineProfitRef, this.sparklineProfitInstance, this.sparklineData.gross_profit, this.sparklineData.labels, '#2ecc71');
+            this.sparklineSalesInstance = renderSparkline(this.sparklineSalesRef, this.sparklineSalesInstance, this.sparklineData.total_sales || this.sparklineData.gross_sales, this.sparklineData.labels, '#2ecc71');
+            this.sparklineCostInstance = renderSparkline(this.sparklineCostRef, this.sparklineCostInstance, this.sparklineData.cost_of_sales, this.sparklineData.labels, '#e67e22');
+            this.sparklineGrossInstance = renderSparkline(this.sparklineGrossRef, this.sparklineGrossInstance, this.sparklineData.gross_profit, this.sparklineData.labels, '#1abc9c');
+            this.sparklineNetInstance = renderSparkline(this.sparklineNetRef, this.sparklineNetInstance, this.sparklineData.net_profit || this.sparklineData.gross_profit, this.sparklineData.labels, '#f1c40f');
         }
     }
 }

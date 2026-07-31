@@ -32,38 +32,50 @@ class HavanoposdeskDashboard(models.AbstractModel):
             p_end = f"{prev_end} 23:59:59"
             prev_domain_sale += [('date', '>=', p_start), ('date', '<=', p_end)]
 
+        # Domain for expenses
+        domain_exp = [('tenant_id', '=', tenant_id)] if tenant_id else []
+        prev_domain_exp = list(domain_exp)
+
+        if date_from and date_to:
+            domain_exp += [('date', '>=', date_from), ('date', '<=', date_to)]
+            prev_domain_exp += [('date', '>=', prev_start), ('date', '<=', prev_end)]
+
         # Fetch current period data
         sales = self.env['havanoposdesk.sale'].search(domain_sale)
+        expenses = self.env['havanoposdesk.expense'].search(domain_exp + [('state', '=', 'Posted')])
+        
         # Fetch previous period data
         prev_sales = self.env['havanoposdesk.sale'].search(prev_domain_sale)
+        prev_expenses = self.env['havanoposdesk.expense'].search(prev_domain_exp + [('state', '=', 'Posted')])
 
-        def compute_kpis(sales_records):
-            gs = sum(s.amount_total or 0.0 for s in sales_records)
-            ns = sum(s.amount_untaxed or 0.0 for s in sales_records)
+        def compute_kpis(sales_records, expense_records):
+            ts = sum(s.amount_total or 0.0 for s in sales_records)
             cs = sum(s.total_cost or 0.0 for s in sales_records)
-            gp = ns - cs
-            return gs, ns, cs, gp
-            
+            gp = ts - cs
+            ex = sum(e.amount or 0.0 for e in expense_records)
+            np = gp - ex
+            return ts, cs, gp, np, ex
+
         def compute_trend(curr, prev):
             if not prev:
                 return 100.0 if curr > 0 else 0.0
-            return round(((curr - prev) / prev) * 100, 1)
+            return round(((curr - prev) / abs(prev)) * 100, 1)
 
-        gross_sales, net_sales, cost_of_sales, gross_profit = compute_kpis(sales)
-        prev_gross, prev_net, prev_cost, prev_profit = compute_kpis(prev_sales)
+        total_sales, cost_of_sales, gross_profit, net_profit, total_expenses = compute_kpis(sales, expenses)
+        prev_sales_val, prev_cost, prev_gross, prev_net, prev_exp = compute_kpis(prev_sales, prev_expenses)
 
-        gross_trend = compute_trend(gross_sales, prev_gross)
-        net_trend = compute_trend(net_sales, prev_net)
+        sales_trend = compute_trend(total_sales, prev_sales_val)
         cost_trend = compute_trend(cost_of_sales, prev_cost)
-        profit_trend = compute_trend(gross_profit, prev_profit)
-        
+        gross_profit_trend = compute_trend(gross_profit, prev_gross)
+        net_profit_trend = compute_trend(net_profit, prev_net)
+
         daily_sales_data = {}
 
         for sale in sales:
             gross = sale.amount_total or 0.0
             net = sale.amount_untaxed or 0.0
             cost = sale.total_cost or 0.0
-            profit = net - cost
+            profit = gross - cost
             
             # Daily grouping
             day = sale.date.strftime('%Y-%m-%d') if sale.date else 'Unknown'
@@ -94,20 +106,14 @@ class HavanoposdeskDashboard(models.AbstractModel):
         sorted_sales = sorted(sales, key=lambda s: s.date) if sales else []
         sparkline_data = {
             'labels': [s.date.strftime('%H:%M') for s in sorted_sales],
-            'gross_sales': [s.amount_total or 0.0 for s in sorted_sales],
-            'net_sales': [s.amount_untaxed or 0.0 for s in sorted_sales],
+            'total_sales': [s.amount_total or 0.0 for s in sorted_sales],
             'cost_of_sales': [s.total_cost or 0.0 for s in sorted_sales],
-            'gross_profit': [(s.amount_untaxed or 0.0) - (s.total_cost or 0.0) for s in sorted_sales],
+            'gross_profit': [(s.amount_total or 0.0) - (s.total_cost or 0.0) for s in sorted_sales],
+            'net_profit': [(s.amount_total or 0.0) - (s.total_cost or 0.0) for s in sorted_sales],
         }
 
         # Stock Valuation
         valuations = self.env['havanoposdesk.stock.valuation'].sudo().search(domain_val)
-        
-        # Here we just want a summary of valuation. Since stock valuation isn't usually a time-series 
-        # unless logged daily, we will group by Product Category to show in a bar chart or line chart 
-        # as requested, OR just show a single point. If they want a time-series of valuation, we might 
-        # need to use stock ledgers or just show current valuation per category.
-        # Let's show current stock valuation grouped by Product Category.
         valuation_data = {}
         total_valuation = 0.0
         total_items = 0.0
@@ -130,14 +136,21 @@ class HavanoposdeskDashboard(models.AbstractModel):
 
         return {
             'kpis': {
-                'gross_sales': gross_sales,
-                'net_sales': net_sales,
+                'total_sales': total_sales,
                 'cost_of_sales': cost_of_sales,
                 'gross_profit': gross_profit,
-                'gross_trend': gross_trend,
-                'net_trend': net_trend,
+                'net_profit': net_profit,
+                'total_expenses': total_expenses,
+                'sales_trend': sales_trend,
                 'cost_trend': cost_trend,
-                'profit_trend': profit_trend,
+                'gross_profit_trend': gross_profit_trend,
+                'net_profit_trend': net_profit_trend,
+                # Keep gross_sales and net_sales for backwards compat if referenced anywhere
+                'gross_sales': total_sales,
+                'net_sales': total_sales,
+                'gross_trend': sales_trend,
+                'net_trend': sales_trend,
+                'profit_trend': gross_profit_trend
             },
             'stock_stats': {
                 'total_valuation': total_valuation,
