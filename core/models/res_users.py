@@ -76,10 +76,9 @@ class ResUsers(models.Model):
         for user in self:
             if user.havano_role == 'super_admin':
                 continue
-            if user.allow_backoffice:
-                user.havano_role = 'admin'
-            else:
-                user.havano_role = 'user'
+            target_role = 'admin' if user.allow_backoffice else 'user'
+            if user.havano_role != target_role:
+                user.havano_role = target_role
 
     @api.constrains('password', 'allow_backoffice')
     def _check_backoffice_password(self):
@@ -162,7 +161,12 @@ class ResUsers(models.Model):
     def create(self, vals_list):
         import uuid
         for vals in vals_list:
-            if 'allow_backoffice' in vals:
+            if 'havano_role' in vals:
+                if vals['havano_role'] in ('admin', 'super_admin'):
+                    vals['allow_backoffice'] = True
+                elif vals['havano_role'] == 'user':
+                    vals['allow_backoffice'] = False
+            elif 'allow_backoffice' in vals:
                 vals['havano_role'] = 'admin' if vals['allow_backoffice'] else 'user'
                 
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
@@ -172,7 +176,9 @@ class ResUsers(models.Model):
                 role = vals.get('havano_role') or 'user'
                 profile = self.env['havanoposdesk.user.rights.profile'].search([
                     ('tenant_id', '=', tenant_id),
-                    ('havano_role', '=', role)
+                    '|',
+                    ('havano_role', '=', role),
+                    ('havano_role', '=', 'cashier' if role == 'user' else role)
                 ], limit=1)
                 if profile:
                     vals['user_rights_profile_id'] = profile.id
@@ -361,7 +367,12 @@ class ResUsers(models.Model):
         return users
 
     def write(self, vals):
-        if 'allow_backoffice' in vals:
+        if 'havano_role' in vals:
+            if vals['havano_role'] in ('admin', 'super_admin'):
+                vals['allow_backoffice'] = True
+            elif vals['havano_role'] == 'user':
+                vals['allow_backoffice'] = False
+        elif 'allow_backoffice' in vals:
             vals['havano_role'] = 'admin' if vals['allow_backoffice'] else 'user'
             
         if 'login' in vals:
@@ -372,13 +383,14 @@ class ResUsers(models.Model):
                         raise ValidationError(_("Oops! Sorry, the email '%s' is already in use by another user.") % email)
 
         if self.env.user.havano_role == 'admin':
-            # Restrict Tenant Admins to modifying only cashiers in their own tenant
+            # Restrict Tenant Admins to modifying only users in their own tenant
             for user in self:
                 if user.tenant_id != self.env.user.tenant_id:
                     raise ValidationError('You can only modify users within your own tenant.')
-            # Prevent self-promotion or tenant modifications
+            # Prevent assigning super_admin or modifying tenant_id
+            if vals.get('havano_role') == 'super_admin':
+                raise ValidationError(_('You cannot assign the Super Admin role.'))
             vals.pop('tenant_id', None)
-            vals.pop('havano_role', None)
             res = super(ResUsers, self.sudo()).write(vals)
         else:
             res = super().write(vals)

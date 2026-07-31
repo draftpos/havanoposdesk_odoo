@@ -331,4 +331,10 @@ class ResConfigSettings(models.TransientModel):
                 'sticky': False,
             }
         }
+    havano_subscription_expiry_warning_days = fields.Integer(
+        string="Subscription Expiry Warning Days",
+        config_parameter="havanoposdesk.subscription_expiry_warning_days",
+        default=3,
+        help="Number of days before subscription expiry to start showing warning banners to users."
+    )
 

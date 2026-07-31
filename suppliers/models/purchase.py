@@ -102,7 +102,7 @@ class Purchase(models.Model):
     return_id = fields.Many2one('havanoposdesk.purchase', string='Original Purchase', copy=False)
     return_purchase_ids = fields.One2many('havanoposdesk.purchase', 'return_id', string='Returned Purchases')
     payment_status = fields.Selection([
-        ('cash', 'Cash (Paid)'),
+        ('cash', 'Paid'),
         ('account', 'On Account')
     ], string='Payment Status', default='account', required=True)
     account_id = fields.Many2one('havanoposdesk.account', string='Payment Account', domain="[('type', 'in', ['Cash', 'Bank'])]")

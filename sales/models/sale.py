@@ -54,7 +54,7 @@ class Sale(models.Model):
         return self.env['havanoposdesk.account'].search([('type', 'in', ['Cash', 'Bank'])], limit=1).id
 
     payment_status = fields.Selection([
-        ('cash', 'Cash (Paid)'),
+        ('cash', 'Paid'),
         ('account', 'On Account')
     ], string='Payment Status', default='cash', required=True)
     payment_policy = fields.Selection([
@@ -507,6 +507,46 @@ class SaleLine(models.Model):
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
     cost_price = fields.Float(string='Cost Price', compute='_compute_cost_price', store=True, readonly=False)
     gross_profit = fields.Float(string='Gross Profit', compute='_compute_gross_profit', store=True)
+
+    def _resolve_uom_multiplier(self, product_id, uom_id):
+        """Return the qty_to_be_sold multiplier for a given product + UOM pair.
+        Searches product.uom.price for the matching UOM, falling back to 1.0."""
+        if not product_id or not uom_id:
+            return 1.0
+        price_rec = self.env['havanoposdesk.product.uom.price'].search([
+            ('product_id', '=', product_id),
+            ('uom_id', '=', uom_id),
+        ], limit=1)
+        if price_rec and price_rec.qty_to_be_sold:
+            return price_rec.qty_to_be_sold
+        return 1.0
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            product_id = vals.get('product_id')
+            if product_id:
+                if not vals.get('uom_id'):
+                    product = self.env['havanoposdesk.product'].browse(product_id)
+                    if product.uom_id:
+                        vals['uom_id'] = product.uom_id.id
+
+                uom_id = vals.get('uom_id')
+                provided = vals.get('uom_qty_multiplier')
+                if not provided or provided == 1.0:
+                    vals['uom_qty_multiplier'] = self._resolve_uom_multiplier(product_id, uom_id)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        # When uom_id changes on an existing line (e.g. user edits the web form),
+        # re-resolve the multiplier unless the caller is explicitly setting it.
+        if 'uom_id' in vals and 'uom_qty_multiplier' not in vals:
+            uom_id = vals['uom_id']
+            for line in self:
+                product_id = vals.get('product_id', line.product_id.id)
+                vals['uom_qty_multiplier'] = self._resolve_uom_multiplier(product_id, uom_id)
+                break  # same UOM applied to all lines in the same write call
+        return super().write(vals)
 
     @api.depends('price_subtotal', 'cost_price', 'accepted_qty', 'sale_id.is_return')
     def _compute_gross_profit(self):

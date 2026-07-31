@@ -91,6 +91,8 @@
                     <field name="payment_status" optional="show"/>
                     <field name="amount_total" string="Total" widget="monetary" optional="show"/>
                     <field name="amount_total_base" string="Base Total" sum="Base Total" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="show" />
+                    <field name="account_id" optional="show"/>
+                    <field name="amount_total" string="Total Incl" sum="Total Incl" widget="monetary"/>
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-danger="state == 'cancelled'" optional="show"/>
                 </list>
             </field>

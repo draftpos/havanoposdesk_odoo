@@ -47,7 +47,7 @@
                                         <field name="category_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark" />
                                         <field name="uom_id" options="{'no_create': True, 'no_create_edit': True}" class="border-bottom border-dark" />
                                         <field name="tenant_id" invisible="1" />
-                                        <field name="track_qty" class="border-bottom border-dark" />
+                                        <field name="track_qty" invisible="is_bundle == True" class="border-bottom border-dark" />
                                         <field name="is_bundle" class="border-bottom border-dark" />
                                         <field name="has_multiple_stores" invisible="1" />
                                         <field name="all_stores" invisible="has_multiple_stores == False" class="border-bottom border-dark" />
@@ -59,20 +59,20 @@
                                     <group string="Price information">
                                         <label for="buying_price" />
                                         <div class="o_row">
-                                            <field name="buying_price" class="border-bottom border-dark" />
+                                            <field name="buying_price" readonly="is_bundle == True" force_save="1" class="border-bottom border-dark" />
                                         </div>
                                         
                                         <label for="selling_price" />
                                         <div class="o_row">
-                                            <field name="selling_price" class="border-bottom border-dark" />
+                                            <field name="selling_price" readonly="is_bundle == True" force_save="1" class="border-bottom border-dark" />
                                         </div>
                                         <field name="markup" class="border-bottom border-dark" />
                                         <field name="id" invisible="1" />
                                         <field name="has_active_taxes" invisible="1" />
                                         <field name="sale_tax_ids" widget="many2many_tags" invisible="1" class="border-bottom border-dark" />
                                         <field name="purchase_tax_ids" widget="many2many_tags" invisible="1" class="border-bottom border-dark" />
-                                        <field name="opening_stock" string="Opening Stock" invisible="id" class="border-bottom border-dark" />
-                                        <field name="on_hand_qty" string="On hand" invisible="not id" readonly="1" class="border-bottom border-dark" />
+                                        <field name="opening_stock" string="Opening Stock" invisible="id or is_bundle == True" class="border-bottom border-dark" />
+                                        <field name="on_hand_qty" string="On hand" invisible="not id or is_bundle == True" readonly="1" class="border-bottom border-dark" />
                                         <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}" />
                                     </group>
                                 </group>
@@ -123,6 +123,10 @@
                                         <list editable="bottom">
                                             <field name="product_id" string="Component Product" domain="[('id', '!=', parent.id), ('is_bundle', '=', False), ('tenant_id', '=', parent.tenant_id)]" options="{'no_create': True}" />
                                             <field name="qty" string="Quantity" />
+                                            <field name="buying_price" string="Cost Price" widget="monetary" />
+                                            <field name="selling_price" string="Sell Price" widget="monetary" />
+                                            <field name="subtotal_cost" string="Total Cost" widget="monetary" readonly="1" force_save="1" />
+                                            <field name="subtotal_selling" string="Total Sell" widget="monetary" readonly="1" force_save="1" />
                                         </list>
                                     </field>
                                 </group>

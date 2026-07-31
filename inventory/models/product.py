@@ -32,18 +32,22 @@ class HavanoposdeskProduct(models.Model):
         if name:
             args += ['|', ('name', operator, name), ('item_code', operator, name)]
         return self._search(args, limit=limit, order=order)
-    buying_price = fields.Float(string='Cost price', default=0.0)
-    selling_price = fields.Float(string='Sell price')
+    buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
+    selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', store=True, readonly=False)
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
 
+    @api.depends('is_bundle')
     def _compute_on_hand_qty(self):
         for record in self:
-            valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', '=', record.id)])
-            record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
+            if record.is_bundle:
+                record.on_hand_qty = 0.0
+            else:
+                valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', '=', record.id)])
+                record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
 
     sale_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_sale_tax_rel', 'product_id', 'tax_id', string='Sales Taxes', domain=[('tax_type', '=', 'Sales'), ('active', '=', True)])
     purchase_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_purchase_tax_rel', 'product_id', 'tax_id', string='Purchase Taxes', domain=[('tax_type', '=', 'Purchases'), ('active', '=', True)])
@@ -243,6 +247,27 @@ class HavanoposdeskProduct(models.Model):
     allow_advanced_pricing = fields.Boolean(related='tenant_id.allow_advanced_pricing', readonly=True)
     is_bundle = fields.Boolean(string='Is Bundle', default=False)
     bundle_item_ids = fields.One2many('havanoposdesk.product.bundle.item', 'parent_product_id', string='Bundle Items')
+
+    @api.depends('is_bundle', 'bundle_item_ids', 'bundle_item_ids.qty', 'bundle_item_ids.buying_price', 'bundle_item_ids.selling_price', 'bundle_item_ids.subtotal_cost', 'bundle_item_ids.subtotal_selling')
+    def _compute_bundle_prices(self):
+        for record in self:
+            if record.is_bundle:
+                record.buying_price = sum(item.subtotal_cost for item in record.bundle_item_ids)
+                record.selling_price = sum(item.subtotal_selling for item in record.bundle_item_ids)
+
+    @api.onchange('is_bundle', 'bundle_item_ids')
+    def _onchange_bundle_item_ids(self):
+        if self.is_bundle:
+            self.track_qty = False
+            self.opening_stock = 0.0
+            self.buying_price = sum(
+                item.subtotal_cost or ((item.qty or 0.0) * (item.buying_price or 0.0))
+                for item in self.bundle_item_ids
+            )
+            self.selling_price = sum(
+                item.subtotal_selling or ((item.qty or 0.0) * (item.selling_price or 0.0))
+                for item in self.bundle_item_ids
+            )
 
 
     def _get_default_stores(self):

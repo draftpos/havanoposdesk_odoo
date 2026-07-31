@@ -108,6 +108,9 @@
             'havanoposdesk_odoo/static/src/dashboard/dashboard.scss',
             'havanoposdesk_odoo/static/src/dashboard/dashboard.xml',
             'havanoposdesk_odoo/static/src/js/stock_transfer_form.js',
+            'havanoposdesk_odoo/static/src/js/subscription_banner.js',
+            'havanoposdesk_odoo/static/src/xml/subscription_banner.xml',
+            'havanoposdesk_odoo/static/src/scss/subscription_banner.scss',
         ],
     },
 }

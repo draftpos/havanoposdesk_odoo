@@ -224,6 +224,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "username": user.name or "",
                     "full_name": user.name or "",
                     "email": user.login or "",
+                    "id": user.id,
+                    "tenant_id": tenant.id if tenant else None,
                     "warehouse": warehouse,
                     "cost_center": cost_center,
                     "default_customer": default_customer_name,
@@ -307,6 +309,27 @@ class HavanoPOSDeskAPI(http.Controller):
                     "selected_terminal_id": hardware_terminal_id,
                     "user_rights": self._get_user_rights_dict(user)
                 })
+
+                # Subscription expiry info for mobile banner
+                if tenant:
+                    from odoo import fields as odoo_fields
+                    warning_days = int(request.env['ir.config_parameter'].sudo().get_param(
+                        'havanoposdesk.subscription_expiry_warning_days', '3'))
+                    days_left = None
+                    if tenant.subscription_end_date:
+                        today = odoo_fields.Date.context_today(tenant)
+                        days_left = (tenant.subscription_end_date - today).days
+                    is_expiring_soon = days_left is not None and days_left <= warning_days
+                    is_expired = tenant.subscription_state in ('expired', 'cancelled')
+                    res_data["subscription"] = {
+                        "state": tenant.subscription_state,
+                        "days_left": days_left,
+                        "end_date": str(tenant.subscription_end_date) if tenant.subscription_end_date else None,
+                        "plan_name": tenant.subscription_plan_id.name if tenant.subscription_plan_id else None,
+                        "is_expiring_soon": is_expiring_soon,
+                        "is_expired": is_expired,
+                        "warning_days": warning_days,
+                    }
 
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
         except Exception as e:
@@ -557,7 +580,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
                 domain.append(('tenant_id', '=', user.tenant_id.id))
             uoms = request.env['havanoposdesk.uom'].sudo().search(domain)
-            data = [{'id': u.id, 'name': u.name, 'abbreviation': u.abbreviation, 'tenant_id': u.tenant_id.id} for u in uoms]
+            data = [{'id': u.id, 'name': u.name, 'abbreviation': getattr(u, 'abbreviation', u.name), 'tenant_id': u.tenant_id.id} for u in uoms]
             return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
         
         elif request.httprequest.method == 'POST':
@@ -576,12 +599,15 @@ class HavanoPOSDeskAPI(http.Controller):
                     tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
                 tenant_id = tenant.id
                 
-            uom = request.env['havanoposdesk.uom'].sudo().create({
+            uom_vals = {
                 'name': data.get('name'),
-                'abbreviation': data.get('abbreviation'),
                 'tenant_id': tenant_id,
-            })
-            return request.make_response(json.dumps({'id': uom.id, 'name': uom.name, 'abbreviation': uom.abbreviation, 'tenant_id': uom.tenant_id.id}), headers=[('Content-Type', 'application/json')], status=201)
+            }
+            if hasattr(request.env['havanoposdesk.uom'], 'abbreviation') and data.get('abbreviation'):
+                uom_vals['abbreviation'] = data.get('abbreviation')
+
+            uom = request.env['havanoposdesk.uom'].sudo().create(uom_vals)
+            return request.make_response(json.dumps({'id': uom.id, 'name': uom.name, 'abbreviation': getattr(uom, 'abbreviation', uom.name), 'tenant_id': uom.tenant_id.id}), headers=[('Content-Type', 'application/json')], status=201)
 
     # SUBSCRIPTIONS & PAYMENTS
     @http.route('/api/subscription/plans', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
@@ -621,12 +647,27 @@ class HavanoPOSDeskAPI(http.Controller):
         cashiers_count = request.env['res.users'].sudo().search_count([('tenant_id', '=', tenant.id), ('havano_role', '=', 'user')])
         
         plan = tenant.subscription_plan_id
+
+        # Compute days left until expiry
+        from odoo import fields as odoo_fields
+        warning_days = int(request.env['ir.config_parameter'].sudo().get_param(
+            'havanoposdesk.subscription_expiry_warning_days', '3'))
+        days_left = None
+        if tenant.subscription_end_date:
+            today = odoo_fields.Date.context_today(tenant)
+            days_left = (tenant.subscription_end_date - today).days
+        is_expiring_soon = days_left is not None and days_left <= warning_days
+        is_expired = tenant.subscription_state in ('expired', 'cancelled')
+
         res_data = {
             'tenant_id': tenant.id,
             'tenant_name': tenant.name,
             'subscription_state': tenant.subscription_state,
             'subscription_start_date': str(tenant.subscription_start_date) if tenant.subscription_start_date else None,
             'subscription_end_date': str(tenant.subscription_end_date) if tenant.subscription_end_date else None,
+            'days_left': days_left,
+            'is_expiring_soon': is_expiring_soon,
+            'is_expired': is_expired,
             'payment_status': tenant.payment_status,
             'plan': {
                 'id': plan.id,
@@ -934,6 +975,65 @@ class HavanoPOSDeskAPI(http.Controller):
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
 
 
+    # 1.1 CREATE SUPPLIER
+    @http.route('/api/method/saas_api.www.api.create_supplier', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
+    def api_create_supplier(self, **kw):
+        try:
+            data = json.loads(request.httprequest.data)
+        except Exception:
+            return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        name = data.get('supplier_name') or data.get('name')
+        if not name:
+            return request.make_response(json.dumps({'error': 'supplier_name or name is required'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        user = self._get_user()
+        tenant = user.tenant_id
+        
+        # Check if supplier already exists for this tenant
+        domain = [('name', '=', name)]
+        if tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+        
+        supplier = request.env['havanoposdesk.supplier'].sudo().search(domain, limit=1)
+        if not supplier:
+            store = self._get_current_store(user, tenant, data)
+            if not store:
+                # Find any store under tenant
+                store = request.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+                if not store:
+                    store_name = f"{tenant.name or 'Default'} Store"
+                    store = request.env['havanoposdesk.store'].sudo().create({
+                        'name': store_name,
+                        'tenant_id': tenant.id if tenant else False,
+                    })
+            
+            vals = {
+                'name': name,
+                'tenant_id': tenant.id if tenant else False,
+                'store_id': store.id if store else False,
+            }
+            
+            # Map other optional fields
+            if data.get('supplier_primary_contact'):
+                vals['phone'] = data.get('supplier_primary_contact')
+            if data.get('supplier_primary_address'):
+                vals['address'] = data.get('supplier_primary_address')
+            if data.get('email'):
+                vals['email'] = data.get('email')
+
+            supplier = request.env['havanoposdesk.supplier'].sudo().create(vals)
+            
+        res_data = {
+            'message': {
+                'status': 'success',
+                'supplier_id': supplier.id,
+                'name': supplier.name
+            }
+        }
+        return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+
+
     # 2. GET CUSTOMERS
     @http.route('/api/method/saas_api.www.api.get_customers', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
     def api_get_customers(self, **kw):
@@ -1171,7 +1271,8 @@ class HavanoPOSDeskAPI(http.Controller):
             item_name = item.get('item_name') or item_code
             qty = float(item.get('qty', 1))
             rate = float(item.get('rate') or item.get('standard_rate') or 0.0) or 10.0
-            
+            uom_name = item.get('uom') or item.get('stock_uom') or item.get('uom_name')
+
             product = request.env['havanoposdesk.product'].sudo().search([
                 ('tenant_id', '=', tenant.id),
                 '|', ('item_code', '=', item_code), ('name', '=', item_name)
@@ -1184,12 +1285,32 @@ class HavanoPOSDeskAPI(http.Controller):
                     'tenant_id': tenant.id,
                     'all_stores': True,
                 })
-                
-            lines.append((0, 0, {
+
+            line_vals = {
                 'product_id': product.id,
                 'accepted_qty': qty,
                 'rate': rate or product.selling_price or 1.0,
-            }))
+            }
+            if uom_name:
+                uom_rec = request.env['havanoposdesk.uom'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('name', '=ilike', str(uom_name).strip())
+                ], limit=1)
+                if uom_rec:
+                    line_vals['uom_id'] = uom_rec.id
+
+            if not line_vals.get('uom_id') and product.uom_id:
+                line_vals['uom_id'] = product.uom_id.id
+
+            if line_vals.get('uom_id'):
+                price_rec = request.env['havanoposdesk.product.uom.price'].sudo().search([
+                    ('product_id', '=', product.id),
+                    ('uom_id', '=', line_vals['uom_id']),
+                ], limit=1)
+                if price_rec and price_rec.qty_to_be_sold:
+                    line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+            lines.append((0, 0, line_vals))
             
         sale = request.env['havanoposdesk.sale'].with_user(user.id).sudo().create({
             'customer': customer.id,
@@ -1404,6 +1525,54 @@ class HavanoPOSDeskAPI(http.Controller):
             }
         }
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+
+
+    @http.route('/api/method/saas_api.www.api.edit_item_group', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_edit_item_group(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return request.make_response(json.dumps({}), headers=[('Content-Type', 'application/json')])
+
+        try:
+            data = json.loads(request.httprequest.data)
+        except Exception:
+            return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        user = self._get_user()
+        if not user:
+            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+            
+        tenant = user.tenant_id
+        if not tenant:
+            tenant = request.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+            if not tenant:
+                tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
+                
+        old_name = data.get('old_item_group_name') or data.get('old_name')
+        new_name = data.get('new_item_group_name') or data.get('new_name') or data.get('item_group_name')
+        
+        if not old_name or not new_name:
+            return request.make_response(json.dumps({'error': 'old_item_group_name and new_item_group_name are required'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        category = request.env['havanoposdesk.category'].sudo().search([('name', '=', old_name), ('tenant_id', '=', tenant.id)], limit=1)
+        if not category:
+            return request.make_response(json.dumps({'error': f"Item Group '{old_name}' not found"}), headers=[('Content-Type', 'application/json')], status=404)
+            
+        if old_name != new_name:
+            existing_category = request.env['havanoposdesk.category'].sudo().search([('name', '=', new_name), ('tenant_id', '=', tenant.id)], limit=1)
+            if existing_category:
+                return request.make_response(json.dumps({'error': f"Item Group '{new_name}' already exists"}), headers=[('Content-Type', 'application/json')], status=400)
+            category.sudo().write({'name': new_name})
+            
+        res_data = {
+            'message': {
+                'status': 'success',
+                'message': f"Item Group updated successfully to '{new_name}'.",
+                'name': category.name,
+                'item_group_name': category.name
+            }
+        }
+        return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+
 
 
     # 10. GET PRODUCTS
@@ -1815,6 +1984,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     
                 users_list.append({
                     "id": u.id,
+                    "tenant_id": u.tenant_id.id if u.tenant_id else None,
                     "name": u.name,
                     "login": u.login,
                     "email": u.email or "",
@@ -1905,6 +2075,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 price_val = line.get('price') or line.get('rate')
                 price = float(price_val) if price_val is not None else 0.0
 
+                uom_name = line.get('uom') or line.get('stock_uom') or line.get('uom_name')
+
                 product = env['havanoposdesk.product'].search([
                     ('tenant_id', '=', tenant.id),
                     '|', ('item_code', '=', item_code), ('name', '=', item_code)
@@ -1912,7 +2084,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 if not product:
                     product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
-                    
+
                 if not product:
                     product = env['havanoposdesk.product'].create({
                         'name': item_code,
@@ -1922,11 +2094,31 @@ class HavanoPOSDeskAPI(http.Controller):
                         'all_stores': True,
                     })
 
-                sale_lines.append((0, 0, {
+                line_vals = {
                     'product_id': product.id,
                     'accepted_qty': qty,
                     'rate': price or product.selling_price or 1.0,
-                }))
+                }
+                if uom_name:
+                    uom_rec = env['havanoposdesk.uom'].search([
+                        ('tenant_id', '=', tenant.id),
+                        ('name', '=ilike', str(uom_name).strip())
+                    ], limit=1)
+                    if uom_rec:
+                        line_vals['uom_id'] = uom_rec.id
+
+                if not line_vals.get('uom_id') and product.uom_id:
+                    line_vals['uom_id'] = product.uom_id.id
+
+                if line_vals.get('uom_id'):
+                    price_rec = env['havanoposdesk.product.uom.price'].search([
+                        ('product_id', '=', product.id),
+                        ('uom_id', '=', line_vals['uom_id']),
+                    ], limit=1)
+                    if price_rec and price_rec.qty_to_be_sold:
+                        line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+                sale_lines.append((0, 0, line_vals))
 
             terminal = user.selected_terminal_id
             if not terminal:
@@ -2372,14 +2564,13 @@ class HavanoPOSDeskAPI(http.Controller):
                         if payment_status != 'cash' and not tenant.allow_credit_sales:
                             responses.append({"error": "Oops! Creating sales on credit is disabled.", "local_invoice_id": local_invoice_id})
                             continue
-                        
-                        store_name = store.name
 
                         lines = []
                         for item in sale_data.get('items', []):
                             item_code = item.get('item_code') or item.get('item_name')
                             qty = float(item.get('qty', 1.0))
                             rate = float(item.get('rate', 0.0))
+                            uom_name = item.get('uom') or item.get('stock_uom') or item.get('uom_name')
 
                             product = env['havanoposdesk.product'].search([
                                 ('tenant_id', '=', tenant.id),
@@ -2396,11 +2587,31 @@ class HavanoPOSDeskAPI(http.Controller):
                                     'all_stores': True,
                                 })
 
-                            lines.append((0, 0, {
+                            line_vals = {
                                 'product_id': product.id,
                                 'accepted_qty': qty,
                                 'rate': rate or product.selling_price or 1.0,
-                            }))
+                            }
+                            if uom_name:
+                                uom_rec = env['havanoposdesk.uom'].search([
+                                    ('tenant_id', '=', tenant.id),
+                                    ('name', '=ilike', str(uom_name).strip())
+                                ], limit=1)
+                                if uom_rec:
+                                    line_vals['uom_id'] = uom_rec.id
+
+                            if not line_vals.get('uom_id') and product.uom_id:
+                                line_vals['uom_id'] = product.uom_id.id
+
+                            if line_vals.get('uom_id'):
+                                price_rec = env['havanoposdesk.product.uom.price'].search([
+                                    ('product_id', '=', product.id),
+                                    ('uom_id', '=', line_vals['uom_id']),
+                                ], limit=1)
+                                if price_rec and price_rec.qty_to_be_sold:
+                                    line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+                            lines.append((0, 0, line_vals))
 
                         terminal = user.selected_terminal_id
                         if not terminal:
@@ -5369,7 +5580,15 @@ class HavanoPOSDeskAPI(http.Controller):
             pin = data.get('pin')
             first_name = data.get('first_name') or 'User'
             last_name = data.get('last_name') or 'Account'
-            role = data.get('role_profile_name') or 'User'
+            role_raw = (
+                data.get('role') or
+                data.get('role_profile_name') or
+                data.get('role_name') or
+                data.get('role_select') or
+                data.get('havano_role') or
+                data.get('user_role') or
+                'User'
+            )
 
             if not email:
                 return self._make_json_response({"error": "Email is required"}, status=400)
@@ -5378,10 +5597,10 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant_id = current_user.tenant_id.id if current_user.tenant_id else False
 
             # Determine role: admin or cashier ('user')
+            role_str = str(role_raw).lower()
             is_admin = False
-            if role:
-                if role.lower() in ('admin', 'tenant admin', 'tenant_admin'):
-                    is_admin = True
+            if any(k in role_str for k in ('admin', 'tenant_admin', 'super_admin')):
+                is_admin = True
             user_role = 'admin' if is_admin else 'user'
 
             existing_user = env['res.users'].search([('login', '=', email)], limit=1)
@@ -5397,12 +5616,15 @@ class HavanoPOSDeskAPI(http.Controller):
                     if password:
                         user_vals['password'] = password
                     
-                    if role:
+                    if role_raw:
                         user_vals['havano_role'] = user_role
-                        # Let's search for the profile in this tenant
+                        # Search for profile in this tenant
                         profile = env['havanoposdesk.user.rights.profile'].search([
-                            ('name', '=', role),
-                            ('tenant_id', '=', tenant_id)
+                            ('tenant_id', '=', tenant_id),
+                            '|', '|',
+                            ('name', '=ilike', str(role_raw)),
+                            ('havano_role', '=', user_role),
+                            ('havano_role', '=', 'cashier' if user_role == 'user' else user_role)
                         ], limit=1)
                         if profile:
                             user_vals['user_rights_profile_id'] = profile.id
@@ -5442,10 +5664,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 user_vals['api_cost_center'] = current_user.default_store_id.name
 
             # Map the profile if provided
-            if role:
+            if role_raw:
                 profile = env['havanoposdesk.user.rights.profile'].search([
-                    ('name', '=', role),
-                    ('tenant_id', '=', tenant_id)
+                    ('tenant_id', '=', tenant_id),
+                    '|', '|',
+                    ('name', '=ilike', str(role_raw)),
+                    ('havano_role', '=', user_role),
+                    ('havano_role', '=', 'cashier' if user_role == 'user' else user_role)
                 ], limit=1)
                 if profile:
                     user_vals['user_rights_profile_id'] = profile.id
@@ -5513,6 +5738,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 data_list.append({
                     "id": u.id,
+                    "tenant_id": u.tenant_id.id if u.tenant_id else None,
                     "pin": u.pin or "",
                     "name": u.login,
                     "username": u.login,
@@ -6014,8 +6240,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 "name": "Admin",
                 "profile_name": "Admin",
                 "is_additional_tax_enabled": 1,
-                "food_tax": None,
-                "tourism_tax": None,
+                "food_tax": "0",
+                "tourism_tax": "0",
                 "permissions": [
                     {
                         "feature": f,
@@ -6039,8 +6265,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 "name": "Default Cashier",
                 "profile_name": "Default Cashier",
                 "is_additional_tax_enabled": 0,
-                "food_tax": None,
-                "tourism_tax": None,
+                "food_tax": "0",
+                "tourism_tax": "0",
                 "permissions": [
                     {
                         "feature": f,
@@ -6086,8 +6312,8 @@ class HavanoPOSDeskAPI(http.Controller):
             "name": profile.name,
             "profile_name": profile.name,
             "is_additional_tax_enabled": 1 if profile.is_additional_tax_enabled else 0,
-            "food_tax": profile.food_tax or None,
-            "tourism_tax": profile.tourism_tax or None,
+            "food_tax": str(profile.food_tax) if profile.food_tax is not None else "0",
+            "tourism_tax": str(profile.tourism_tax) if profile.tourism_tax is not None else "0",
             "permissions": permissions
         }
 
@@ -6807,6 +7033,225 @@ class HavanoPOSDeskAPI(http.Controller):
             return self._make_json_response({'status': 'success', 'data': data})
         except Exception as e:
             return self._make_json_response({'error': str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/resource/Employee', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_employees(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            domain = []
+            if user.havano_role != 'super_admin' and user.tenant_id:
+                domain.append(('tenant_id', '=', user.tenant_id.id))
+            
+            users = env['res.users'].search(domain)
+            result = []
+            for u in users:
+                result.append({
+                    "name": u.name,
+                    "employee_name": u.name,
+                    "company": u.tenant_id.name if u.tenant_id else "Default Tenant"
+                })
+            return self._make_json_response({"data": result})
+        except Exception:
+            return self._make_json_response({"data": []})
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/resource/Account', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_accounts(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            domain = []
+            if user.havano_role != 'super_admin' and user.tenant_id:
+                domain.append(('tenant_id', '=', user.tenant_id.id))
+            
+            accounts = env['havanoposdesk.account'].search(domain)
+            result = []
+            for a in accounts:
+                result.append({
+                    "name": a.name,
+                    "account_type": a.type,
+                    "root_type": "Asset" if a.type in ["Cash", "Bank"] else "Expense"
+                })
+            return self._make_json_response({"data": result})
+        except Exception:
+            return self._make_json_response({"data": []})
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/resource/Expense Claim', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_expense_claims(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            from odoo import fields
+            user = env['res.users'].browse(uid)
+            tenant_id = user.tenant_id.id if user.tenant_id else False
+
+            if request.httprequest.method == 'GET':
+                domain = []
+                if user.havano_role != 'super_admin' and tenant_id:
+                    domain.append(('tenant_id', '=', tenant_id))
+                
+                expenses = env['havanoposdesk.expense'].search(domain)
+                result = []
+                for e in expenses:
+                    result.append({
+                        "name": e.name,
+                        "employee": e.create_uid.name if e.create_uid else "POS Cashier",
+                        "posting_date": str(e.date) if e.date else "",
+                        "status": "Paid" if e.state == "Posted" else ("Rejected" if e.state == "Cancelled" else "Draft"),
+                        "total_claimed_amount": e.amount,
+                        "company": e.tenant_id.name if e.tenant_id else ""
+                    })
+                return self._make_json_response({"data": result})
+
+            elif request.httprequest.method == 'POST':
+                data = json.loads(request.httprequest.data)
+                expenses_list = data.get('expenses') or []
+                if not expenses_list:
+                    return self._make_json_response({"error": "No expenses provided"}, status=400)
+                
+                created_names = []
+                for item in expenses_list:
+                    expense_type = item.get('expense_type')
+                    claim_amount = float(item.get('claim_amount') or 0.0)
+                    description = item.get('description') or ''
+                    
+                    account = env['havanoposdesk.account'].search([
+                        ('name', '=', expense_type),
+                        ('type', '=', 'Expense')
+                    ], limit=1)
+                    if not account:
+                        account = env['havanoposdesk.account'].search([
+                            ('name', '=', expense_type)
+                        ], limit=1)
+                        if not account:
+                            account = env['havanoposdesk.account'].create({
+                                'name': expense_type,
+                                'type': 'Expense',
+                                'tenant_id': tenant_id
+                            })
+                    
+                    expense_vals = {
+                        'date': data.get('posting_date') or fields.Date.context_today(env.user),
+                        'account_id': account.id,
+                        'amount': claim_amount,
+                        'description': description,
+                        'is_paid': False,
+                        'state': 'Draft',
+                        'tenant_id': tenant_id,
+                        'store_id': user.default_store_id.id if user.default_store_id else False
+                    }
+                    new_expense = env['havanoposdesk.expense'].create(expense_vals)
+                    new_expense.action_post()
+                    created_names.append(new_expense.name)
+                
+                return self._make_json_response({
+                    "data": {
+                        "name": ", ".join(created_names),
+                        "status": "Submitted"
+                    }
+                })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/resource/Expense Claim Type', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_expense_claim_types(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant_id = user.tenant_id.id if user.tenant_id else False
+
+            if request.httprequest.method == 'GET':
+                domain = [('type', '=', 'Expense')]
+                if user.havano_role != 'super_admin' and tenant_id:
+                    domain.append(('tenant_id', '=', tenant_id))
+                
+                accounts = env['havanoposdesk.account'].search(domain)
+                result = []
+                for a in accounts:
+                    result.append({
+                        "name": a.name,
+                        "expense_type": a.name,
+                        "default_account": a.name,
+                        "description": "Expense Account"
+                    })
+                return self._make_json_response({"data": result})
+
+            elif request.httprequest.method == 'POST':
+                data = json.loads(request.httprequest.data)
+                expense_type = data.get('expense_type')
+                if not expense_type:
+                    return self._make_json_response({"error": "expense_type is required"}, status=400)
+                
+                existing = env['havanoposdesk.account'].search([
+                    ('name', '=', expense_type),
+                    ('tenant_id', '=', tenant_id)
+                ], limit=1)
+                
+                if not existing:
+                    new_acc = env['havanoposdesk.account'].create({
+                        'name': expense_type,
+                        'type': 'Expense',
+                        'tenant_id': tenant_id
+                    })
+                    name_val = new_acc.name
+                else:
+                    name_val = existing.name
+                    
+                return self._make_json_response({
+                    "data": {
+                        "name": name_val,
+                        "expense_type": name_val
+                    }
+                })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
         finally:
             if custom_cr:
                 custom_cr.close()

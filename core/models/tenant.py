@@ -81,6 +81,38 @@ class HavanoposdeskTenant(models.Model):
                 
         return False
 
+    @api.model
+    def get_subscription_info(self):
+        """Return subscription status info for the current user's tenant.
+        Used by the OWL subscription banner and the mobile API.
+        """
+        user = self.env.user
+        tenant = user.tenant_id
+        if not tenant:
+            return {'show_banner': False}
+
+        warning_days = int(self.env['ir.config_parameter'].sudo().get_param(
+            'havanoposdesk.subscription_expiry_warning_days', '3'))
+
+        days_left = None
+        if tenant.subscription_end_date:
+            today = fields.Date.context_today(self)
+            days_left = (tenant.subscription_end_date - today).days
+
+        is_expiring_soon = days_left is not None and days_left <= warning_days
+        is_expired = tenant.subscription_state in ('expired', 'cancelled')
+
+        return {
+            'show_banner': is_expiring_soon or is_expired,
+            'state': tenant.subscription_state,
+            'days_left': days_left,
+            'end_date': str(tenant.subscription_end_date) if tenant.subscription_end_date else None,
+            'plan_name': tenant.subscription_plan_id.name if tenant.subscription_plan_id else None,
+            'is_expiring_soon': is_expiring_soon,
+            'is_expired': is_expired,
+            'warning_days': warning_days,
+        }
+
     api_company_name = fields.Char(string="API Company Name")
     api_currency = fields.Char(string="API Currency", default="USD")
     api_uom = fields.Char(string="API Default UOM", default="Each")

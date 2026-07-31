@@ -14,6 +14,7 @@
                     <field name="account_id" />
                     <field name="amount" sum="Total Expenses" widget="monetary" />
                     <field name="is_paid" widget="boolean_toggle" />
+                    <field name="payment_account_id" optional="show" />
                     <field name="state" widget="badge" decoration-info="state == 'Draft'" decoration-success="state == 'Posted'" decoration-danger="state == 'Cancelled'" optional="show" />
                 </list>
             </field>
