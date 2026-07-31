@@ -7130,26 +7130,53 @@ class HavanoPOSDeskAPI(http.Controller):
                 for e in expenses:
                     result.append({
                         "name": e.name,
+                        "store": e.store_id.name if e.store_id else "",
+                        "expense_type": e.account_id.name if e.account_id else "",
+                        "amount": e.amount,
+                        "total_claimed_amount": e.amount,
+                        "is_paid": e.is_paid,
+                        "paid_status": "Paid" if e.is_paid else "Unpaid",
+                        "account": e.payment_account_id.name if e.payment_account_id else "",
                         "employee": e.create_uid.name if e.create_uid else "POS Cashier",
                         "posting_date": str(e.date) if e.date else "",
                         "status": "Paid" if e.state == "Posted" else ("Rejected" if e.state == "Cancelled" else "Draft"),
-                        "total_claimed_amount": e.amount,
                         "company": e.tenant_id.name if e.tenant_id else ""
                     })
                 return self._make_json_response({"data": result})
 
             elif request.httprequest.method == 'POST':
                 data = json.loads(request.httprequest.data)
-                expenses_list = data.get('expenses') or []
+                
+                expenses_list = data.get('expenses')
+                if not expenses_list:
+                    # Single expense payload
+                    expenses_list = [data]
+                
                 if not expenses_list:
                     return self._make_json_response({"error": "No expenses provided"}, status=400)
                 
                 created_names = []
                 for item in expenses_list:
                     expense_type = item.get('expense_type')
-                    claim_amount = float(item.get('claim_amount') or 0.0)
-                    description = item.get('description') or ''
+                    if not expense_type:
+                        continue
+
+                    claim_amount = float(item.get('amount') or item.get('claim_amount') or 0.0)
                     
+                    # Resolve store
+                    store_ref = item.get('store') or item.get('store_id') or data.get('store') or data.get('store_id')
+                    store_obj = False
+                    if store_ref:
+                        if isinstance(store_ref, int) or (isinstance(store_ref, str) and store_ref.isdigit()):
+                            store_obj = env['havanoposdesk.store'].browse(int(store_ref))
+                        else:
+                            store_obj = env['havanoposdesk.store'].search([('name', '=', str(store_ref))], limit=1)
+                    if not store_obj:
+                        store_obj = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+                    if not store_obj and tenant_id:
+                        store_obj = env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1)
+
+                    # Resolve Expense Account (Expense Type)
                     account = env['havanoposdesk.account'].search([
                         ('name', '=', expense_type),
                         ('type', '=', 'Expense')
@@ -7164,16 +7191,49 @@ class HavanoPOSDeskAPI(http.Controller):
                                 'type': 'Expense',
                                 'tenant_id': tenant_id
                             })
+
+                    # Resolve Paid Status
+                    raw_paid = item.get('is_paid') if 'is_paid' in item else item.get('paid_status')
+                    if raw_paid is None and 'is_paid' in data:
+                        raw_paid = data.get('is_paid')
                     
+                    if isinstance(raw_paid, bool):
+                        is_paid = raw_paid
+                    elif isinstance(raw_paid, str):
+                        is_paid = (raw_paid.lower() in ['true', 'paid', 'yes', '1'])
+                    else:
+                        is_paid = bool(raw_paid)
+
+                    # Resolve Payment Account
+                    payment_account_obj = False
+                    payment_acc_ref = item.get('account') or item.get('payment_account') or item.get('payment_account_id') or data.get('account')
+                    if payment_acc_ref:
+                        if isinstance(payment_acc_ref, int) or (isinstance(payment_acc_ref, str) and payment_acc_ref.isdigit()):
+                            payment_account_obj = env['havanoposdesk.account'].browse(int(payment_acc_ref))
+                        else:
+                            payment_account_obj = env['havanoposdesk.account'].search([
+                                ('name', '=', str(payment_acc_ref))
+                            ], limit=1)
+
+                    if is_paid and not payment_account_obj:
+                        # Default to first Cash or Bank account for tenant if not provided
+                        payment_account_obj = env['havanoposdesk.account'].search([
+                            ('type', 'in', ['Cash', 'Bank'])
+                        ], limit=1)
+                    
+                    # Auto-set posting date in API
+                    today_date = fields.Date.context_today(env.user)
+
                     expense_vals = {
-                        'date': data.get('posting_date') or fields.Date.context_today(env.user),
+                        'date': today_date,
                         'account_id': account.id,
                         'amount': claim_amount,
-                        'description': description,
-                        'is_paid': False,
+                        'description': item.get('description') or '',
+                        'is_paid': is_paid,
+                        'payment_account_id': payment_account_obj.id if payment_account_obj else False,
                         'state': 'Draft',
                         'tenant_id': tenant_id,
-                        'store_id': user.default_store_id.id if user.default_store_id else False
+                        'store_id': store_obj.id if store_obj else False
                     }
                     new_expense = env['havanoposdesk.expense'].create(expense_vals)
                     new_expense.action_post()
