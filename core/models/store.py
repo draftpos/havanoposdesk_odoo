@@ -159,7 +159,15 @@ class HavanoposdeskStore(models.Model):
             # Ensure the tenant_id is correctly forced
             vals['tenant_id'] = tenant_id
 
-        return super().create(vals_list)
+        # Use sudo() to bypass record rules during creation, 
+        # since the new store isn't in the user's store_ids yet.
+        stores = super(HavanoposdeskStore, self.sudo()).create(vals_list)
+        
+        # Add the newly created stores to the current user's allowed stores
+        if self.env.user.havano_role != 'super_admin' and stores:
+            self.env.user.sudo().write({'store_ids': [(4, store.id) for store in stores]})
+            
+        return stores
 
     def write(self, vals):
         """
