@@ -152,6 +152,21 @@ class Purchase(models.Model):
                 else:
                     seq_name = 'havanoposdesk.purchase.return' if vals.get('is_return') else 'havanoposdesk.purchase'
                     vals['name'] = self.env['ir.sequence'].next_by_code(seq_name) or 'New'
+
+            # Ensure currency_id is set for API/mobile sync where onchange isn't triggered
+            if not vals.get('currency_id'):
+                if vals.get('supplier'):
+                    supplier = self.env['havanoposdesk.supplier'].browse(vals['supplier'])
+                    if supplier.currency_id:
+                        vals['currency_id'] = supplier.currency_id.id
+                if not vals.get('currency_id'):
+                    tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
+                    if tenant_id_val:
+                        tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val)
+                        if tenant.currency_id:
+                            vals['currency_id'] = tenant.currency_id.id
+                    if not vals.get('currency_id'):
+                        vals['currency_id'] = self.env.company.currency_id.id
         
         purchases = super().create(vals_list)
         

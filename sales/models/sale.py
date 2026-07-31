@@ -232,6 +232,21 @@ class Sale(models.Model):
                 minutes = int((p_time - hours) * 60)
                 vals['date'] = datetime.combine(p_date, time(hours, minutes))
 
+            # Ensure currency_id is set for API/mobile sync where onchange isn't triggered
+            if not vals.get('currency_id'):
+                if vals.get('customer'):
+                    customer = self.env['havanoposdesk.customer'].browse(vals['customer'])
+                    if customer.currency_id:
+                        vals['currency_id'] = customer.currency_id.id
+                if not vals.get('currency_id'):
+                    tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
+                    if tenant_id_val:
+                        tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val)
+                        if tenant.currency_id:
+                            vals['currency_id'] = tenant.currency_id.id
+                    if not vals.get('currency_id'):
+                        vals['currency_id'] = self.env.company.currency_id.id
+
         sales = super().create(vals_list)
         
         for sale in sales:
