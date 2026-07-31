@@ -108,11 +108,11 @@ class Customer(models.Model):
             else:
                 record.secondary_balance = 0.0
 
-    @api.depends('sale_ids.amount_total_base', 'sale_ids.is_return', 'sale_ids.payment_status', 'payment_ids.amount_base', 'payment_ids.payment_type', 'payment_ids.state')
+    @api.depends('sale_ids.amount_total_base', 'sale_ids.is_return', 'sale_ids.payment_status', 'sale_ids.state', 'payment_ids.amount_base', 'payment_ids.payment_type', 'payment_ids.state')
     def _compute_balance(self):
         for record in self:
-            account_sales = record.sale_ids.filtered(lambda s: s.payment_status == 'account')
-            total_sales = sum(account_sales.mapped('amount_total_base'))
+            valid_sales = record.sale_ids.filtered(lambda s: s.state in ['confirmed', 'done'])
+            total_sales = sum(valid_sales.mapped('amount_total_base'))
             
             posted_payments = record.payment_ids.filtered(lambda p: p.state == 'posted')
             receipts = sum(posted_payments.filtered(lambda p: p.payment_type == 'receipt').mapped('amount_base'))
