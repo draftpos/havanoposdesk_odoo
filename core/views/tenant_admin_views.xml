@@ -181,9 +181,19 @@ else:
             </field>
         </record>
 
-        
-        
-        <menuitem id="menu_my_business_currency" name="Currencies" parent="menu_accounts_master" action="base.action_currency_form" sequence="20" />
+        <!-- Custom currency action accessible to tenant admins -->
+        <record id="action_havanoposdesk_currencies" model="ir.actions.act_window">
+            <field name="name">Currencies</field>
+            <field name="res_model">res.currency</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Add a new Currency
+                </p>
+            </field>
+        </record>
+
+        <menuitem id="menu_my_business_currency" name="Currencies" parent="menu_accounts_master" action="action_havanoposdesk_currencies" sequence="20" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system" />
 
         
         <record id="view_havanoposdesk_currency_rate_tree" model="ir.ui.view">

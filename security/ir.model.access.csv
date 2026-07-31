@@ -57,3 +57,5 @@ access_havanoposdesk_product_bundle_item,havanoposdesk.product.bundle.item,model
 access_havanoposdesk_stock_valuation_date_wizard,havanoposdesk.stock.valuation.date.wizard,model_havanoposdesk_stock_valuation_date_wizard,base.group_user,1,1,1,1
 access_havanoposdesk_stock_valuation_date_report,havanoposdesk.stock.valuation.date.report,model_havanoposdesk_stock_valuation_date_report,base.group_user,1,1,1,1
 access_havanoposdesk_payment_line,havanoposdesk.payment.line,model_havanoposdesk_payment_line,base.group_user,1,1,1,1
+access_res_currency_tenant_admin,res.currency tenant admin,base.model_res_currency,havanoposdesk_odoo.group_tenant_admin,1,1,1,1
+access_res_currency_rate_tenant_admin,res.currency.rate tenant admin,base.model_res_currency_rate,havanoposdesk_odoo.group_tenant_admin,1,1,1,1
