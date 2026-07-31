@@ -164,27 +164,24 @@ class HavanoposdeskStore(models.Model):
         stores = super(HavanoposdeskStore, self.sudo()).create(vals_list)
         
         if stores:
-            if self.env.user.havano_role == 'super_admin':
-                # Super Admin creating stores on behalf of a tenant:
-                # Auto-assign each new store to all admin users of that tenant
-                # so the tenant can see it immediately when they log in.
-                for store in stores:
-                    if store.tenant_id:
-                        tenant_admins = self.env['res.users'].sudo().search([
-                            ('tenant_id', '=', store.tenant_id.id),
-                            ('havano_role', '=', 'admin'),
-                            ('active', '=', True),
-                        ])
-                        if tenant_admins:
-                            tenant_admins.sudo().write({
-                                'store_ids': [(4, store.id)]
-                            })
-            else:
-                # Regular Tenant Admin creating their own store:
-                # Add the store to the creator's allowed stores
-                self.env.user.sudo().write({'store_ids': [(4, store.id) for store in stores]})
+            # Always auto-assign new stores to ALL active admin users of the tenant.
+            # This ensures:
+            # - Super Admin creating a store: tenant admins see it immediately on login
+            # - Tenant Admin creating a store: all their fellow admins see it too
+            for store in stores:
+                if store.tenant_id:
+                    tenant_admins = self.env['res.users'].sudo().search([
+                        ('tenant_id', '=', store.tenant_id.id),
+                        ('havano_role', '=', 'admin'),
+                        ('active', '=', True),
+                    ])
+                    if tenant_admins:
+                        tenant_admins.sudo().write({
+                            'store_ids': [(4, store.id)]
+                        })
             
         return stores
+
 
     def write(self, vals):
         """

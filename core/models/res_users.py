@@ -364,6 +364,22 @@ class ResUsers(models.Model):
         # Auto-assign User Rights Profile based on role after creation
         users._auto_assign_rights_profile()
 
+        # Auto-populate store_ids for admin users:
+        # Admins should always see ALL stores of their tenant.
+        for user in users:
+            if user.havano_role == 'admin' and user.tenant_id:
+                all_stores = self.env['havanoposdesk.store'].sudo().search([
+                    ('tenant_id', '=', user.tenant_id.id),
+                    ('active', '=', True),
+                ])
+                if all_stores:
+                    store_ids_to_set = [(6, 0, all_stores.ids)]
+                    default_store = all_stores.filtered('is_default')[:1] or all_stores[:1]
+                    write_vals = {'store_ids': store_ids_to_set}
+                    if not user.default_store_id and default_store:
+                        write_vals['default_store_id'] = default_store.id
+                    user.sudo().write(write_vals)
+
         return users
 
     def write(self, vals):
