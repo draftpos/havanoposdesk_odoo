@@ -11,8 +11,10 @@
                     <field name="store_id" />
                     <field name="sequence_prefix" />
                     <field name="device_hardware_id" readonly="1" />
+                    <field name="user_id" optional="show" />
                     <field name="last_logged_in_user_id" />
                     <field name="status" optional="show" />
+                    <field name="active" widget="boolean_toggle" optional="show" />
                 </list>
             </field>
         </record>
@@ -24,15 +26,18 @@
             <field name="arch" type="xml">
                 <form string="POS Terminal">
                     <sheet>
+                        <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active" />
                         <group>
                             <group>
                                 <field name="name" />
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" />
                                 <field name="device_hardware_id" readonly="1" />
+                                <field name="user_id" />
                             </group>
                             <group>
                                 <field name="sequence_prefix" />
                                 <field name="status" />
+                                <field name="active" widget="boolean_toggle" />
                                 <field name="last_logged_in_user_id" string="Last Logged In By" />
                                 <field name="tenant_id" invisible="1" />
                             </group>

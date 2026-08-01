@@ -7,6 +7,7 @@ class HavanoposdeskPosTerminal(models.Model):
     _description = 'POS Terminal'
 
     name = fields.Char(string='Terminal Name', required=True)
+    active = fields.Boolean(string='Active', default=True)
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
         string='Tenant', 
@@ -21,6 +22,7 @@ class HavanoposdeskPosTerminal(models.Model):
     )
     device_hardware_id = fields.Char(string='Device Hardware ID', readonly=True)
     sequence_prefix = fields.Char(string='Sequence Prefix')
+    user_id = fields.Many2one('res.users', string='Assigned User')
     last_logged_in_user_id = fields.Many2one('res.users', string='Last Logged In By', readonly=True)
     taken_by_user_id = fields.Many2one('res.users', string='Taken By User')
     status = fields.Selection([
