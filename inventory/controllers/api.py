@@ -418,6 +418,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'track_qty': p.track_qty,
                     'is_bundle': 1 if p.is_bundle else 0,
                     'is_stock_item': 1 if (p.track_qty and not p.is_bundle) else 0,
+                    'is_sales_item': 1,
                     'category': p.category_id.id if p.category_id else None,
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
@@ -3315,7 +3316,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "item_group": p.category_id.name or "Basics",
                     "valuation_rate": p.buying_price or 0.0,
                     "is_bundle": 1 if p.is_bundle else 0,
-                    "is_stock_item": 1 if (p.track_qty and not p.is_bundle) else 0
+                    "is_stock_item": 1 if (p.track_qty and not p.is_bundle) else 0,
+                    "is_sales_item": 1
                 })
             return self._make_json_response({"data": result})
         finally:
