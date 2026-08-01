@@ -35,7 +35,9 @@ class StockAdjustment(models.Model):
         res = super().default_get(fields_list)
         if res.get('fetch_all_data'):
             store_id = res.get('store_id')
-            domain = [('store_ids', 'in', [store_id])] if store_id else []
+            domain = [('track_qty', '=', True), ('is_bundle', '=', False)]
+            if store_id:
+                domain.append(('store_ids', 'in', [store_id]))
             products = self.env['havanoposdesk.product'].search(domain)
             lines = []
             for product in products:
@@ -68,7 +70,9 @@ class StockAdjustment(models.Model):
     @api.onchange('fetch_all_data')
     def _onchange_fetch_all_data(self):
         if self.fetch_all_data:
-            domain = [('store_ids', 'in', [self.store_id.id])] if self.store_id else []
+            domain = [('track_qty', '=', True), ('is_bundle', '=', False)]
+            if self.store_id:
+                domain.append(('store_ids', 'in', [self.store_id.id]))
             products = self.env['havanoposdesk.product'].search(domain)
             lines = [(5, 0, 0)]
             for product in products:
@@ -83,7 +87,7 @@ class StockAdjustment(models.Model):
     @api.onchange('fetch_category_id')
     def _onchange_fetch_category_id(self):
         if self.fetch_category_id:
-            domain = [('category_id', '=', self.fetch_category_id.id)]
+            domain = [('category_id', '=', self.fetch_category_id.id), ('track_qty', '=', True), ('is_bundle', '=', False)]
             if self.store_id:
                 domain.append(('store_ids', 'in', [self.store_id.id]))
             products = self.env['havanoposdesk.product'].search(domain)
@@ -100,7 +104,7 @@ class StockAdjustment(models.Model):
     @api.onchange('store_id')
     def _onchange_store_id(self):
         if self.store_id:
-            domain = [('store_ids', 'in', [self.store_id.id])]
+            domain = [('store_ids', 'in', [self.store_id.id]), ('track_qty', '=', True), ('is_bundle', '=', False)]
             if self.fetch_category_id:
                 domain.append(('category_id', '=', self.fetch_category_id.id))
             

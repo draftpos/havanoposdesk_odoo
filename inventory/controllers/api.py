@@ -416,6 +416,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     'color_hex': p.color_hex,
                     'image_url': f'/web/image/havanoposdesk.product/{p.id}/image_1920',
                     'track_qty': p.track_qty,
+                    'is_bundle': 1 if p.is_bundle else 0,
+                    'is_stock_item': 1 if (p.track_qty and not p.is_bundle) else 0,
                     'category': p.category_id.id if p.category_id else None,
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
@@ -1768,6 +1770,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 "itemname": p.name,
                 "groupname": p.category_id.name or "All Item Groups",
                 "maintainstock": 1 if p.track_qty else 0,
+                "is_bundle": 1 if p.is_bundle else 0,
+                "is_stock_item": 1 if (p.track_qty and not p.is_bundle) else 0,
                 "warehouses": warehouses_data,
                 "default warehouse": default_warehouse_name,
                 "prices": prices_data,
@@ -3309,7 +3313,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     "stock_uom": p.uom_id.name or "Nos",
                     "image": None,
                     "item_group": p.category_id.name or "Basics",
-                    "valuation_rate": p.buying_price or 0.0
+                    "valuation_rate": p.buying_price or 0.0,
+                    "is_bundle": 1 if p.is_bundle else 0,
+                    "is_stock_item": 1 if (p.track_qty and not p.is_bundle) else 0
                 })
             return self._make_json_response({"data": result})
         finally:
