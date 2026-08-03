@@ -6,7 +6,7 @@ class HavanoposdeskPosTerminal(models.Model):
     _name = 'havanoposdesk.pos.terminal'
     _description = 'POS Terminal'
 
-    name = fields.Char(string='Terminal Name', required=True)
+    name = fields.Char(string='Terminal Name', required=True, readonly=True, default=lambda self: self._get_default_name())
     active = fields.Boolean(string='Active', default=True)
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
@@ -33,6 +33,49 @@ class HavanoposdeskPosTerminal(models.Model):
         ('online', 'Online'),
         ('offline', 'Offline')
     ], string='Status', default='open')
+
+    @api.model
+    def _get_default_name(self):
+        tenant_id = self.env.user.tenant_id.id
+        if not tenant_id:
+            tenant = self.env['havanoposdesk.tenant'].search([], limit=1)
+            tenant_id = tenant.id if tenant else False
+        
+        if tenant_id:
+            count = self.search_count([('tenant_id', '=', tenant_id)])
+        else:
+            count = self.search_count([])
+        return f"Terminal {count + 1}"
+
+    def action_add_terminal(self):
+        tenant_id = self.env.user.tenant_id.id
+        if not tenant_id:
+            tenant_id = (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        
+        store_id = self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1).id
+        if not store_id:
+            store_id = self.env['havanoposdesk.store'].create({
+                'name': self.env.user.tenant_id.name or 'Default Store',
+                'tenant_id': tenant_id
+            }).id
+
+        count = self.search_count([('tenant_id', '=', tenant_id)])
+        name = f"Terminal {count + 1}"
+        
+        terminal = self.create({
+            'name': name,
+            'store_id': store_id,
+            'tenant_id': tenant_id,
+        })
+        
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.pos.terminal',
+            'res_id': terminal.id,
+            'view_mode': 'form',
+            'target': 'current',
+            'flags': {'initial_mode': 'readonly'},
+        }
 
     @api.model_create_multi
     def create(self, vals_list):

@@ -6,7 +6,10 @@
             <field name="name">pos.terminal.tree</field>
             <field name="model">havanoposdesk.pos.terminal</field>
             <field name="arch" type="xml">
-                <list string="POS Terminals">
+                <list string="POS Terminals" create="0">
+                    <header>
+                        <button name="action_add_terminal" string="Add Terminal" type="object" class="btn-primary"/>
+                    </header>
                     <field name="name" />
                     <field name="store_id" />
                     <field name="sequence_prefix" />
@@ -25,12 +28,12 @@
             <field name="name">pos.terminal.form</field>
             <field name="model">havanoposdesk.pos.terminal</field>
             <field name="arch" type="xml">
-                <form string="POS Terminal">
+                <form string="POS Terminal" create="0">
                     <sheet>
                         <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active" />
                         <group>
                             <group>
-                                <field name="name" />
+                                <field name="name" readonly="1" force_save="1" />
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" />
                                 <field name="device_hardware_id" readonly="1" />
                                 <field name="user_id" />
