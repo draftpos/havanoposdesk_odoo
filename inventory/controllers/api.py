@@ -6160,9 +6160,6 @@ class HavanoPOSDeskAPI(http.Controller):
             if not terminal.exists() or (user.tenant_id and terminal.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Terminal does not exist or does not belong to this tenant"}, status=400)
 
-            if terminal.status == 'offline':
-                return self._make_json_response({"error": "Terminal is offline"}, status=400)
-
             is_admin = user.havano_role in ('admin', 'super_admin')
 
             # Validate hardware device assignment
@@ -6182,9 +6179,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     elif not is_admin:
                         return self._make_json_response({"error": "Access denied. Only admins can take over a terminal in use by another user."}, status=403)
 
-            # Cashier checks: cashier can only select open or online terminals
+            # Cashier checks: cashier can only select open, online, or offline terminals
             if not is_admin:
-                if terminal.status not in ('open', 'online') and (not terminal.device_hardware_id or terminal.device_hardware_id != device_hardware_id):
+                if terminal.status not in ('open', 'online', 'offline') and (not terminal.device_hardware_id or terminal.device_hardware_id != device_hardware_id):
                     return self._make_json_response({"error": "Selected terminal is not available"}, status=400)
 
             # Reassign terminal from old user if taking over
