@@ -258,7 +258,6 @@ class HavanoPOSDeskAPI(http.Controller):
                         shop_ids = [s['id'] for s in shops]
                         terminals_domain = [
                             ('store_id', 'in', shop_ids),
-                            ('status', '!=', 'offline'),
                         ]
 
                         terminals = user_env['havanoposdesk.pos.terminal'].sudo().search(terminals_domain)
@@ -5988,9 +5987,7 @@ class HavanoPOSDeskAPI(http.Controller):
             shops_data = []
             for s in shops:
                 terminals_domain = [
-                    '&',
-                    ('store_id', '=', s.id),
-                    ('status', '!=', 'offline')
+                    ('store_id', '=', s.id)
                 ]
                 terminals = env['havanoposdesk.pos.terminal'].sudo().search(terminals_domain)
                 terminals_data = []
@@ -6267,7 +6264,6 @@ class HavanoPOSDeskAPI(http.Controller):
             for s in shops:
                 terminals_domain = [
                     ('store_id', '=', s.id),
-                    ('status', '!=', 'offline'),
                 ]
 
 
