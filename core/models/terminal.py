@@ -21,6 +21,7 @@ class HavanoposdeskPosTerminal(models.Model):
         default=lambda self: self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1).id
     )
     device_hardware_id = fields.Char(string='Device Hardware ID', readonly=True)
+    last_seen = fields.Datetime(string='Last Seen')
     sequence_prefix = fields.Char(string='Sequence Prefix')
     user_id = fields.Many2one('res.users', string='Assigned User')
     last_logged_in_user_id = fields.Many2one('res.users', string='Last Logged In By', readonly=True)
@@ -126,3 +127,16 @@ class HavanoposdeskPosTerminal(models.Model):
             vals['tenant_id'] = tenant_id
 
         return super().create(vals_list)
+
+    @api.model
+    def _cron_check_terminal_status(self):
+        from datetime import datetime, timedelta
+        limit = datetime.now() - timedelta(minutes=2)
+        inactive = self.search([
+            ('status', '=', 'online'),
+            '|',
+            ('last_seen', '<', limit),
+            ('last_seen', '=', False)
+        ])
+        if inactive:
+            inactive.write({'status': 'offline'})

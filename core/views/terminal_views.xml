@@ -14,6 +14,7 @@
                     <field name="user_id" optional="show" />
                     <field name="last_logged_in_user_id" />
                     <field name="status" optional="show" />
+                    <field name="last_seen" optional="show" />
                     <field name="active" widget="boolean_toggle" optional="show" />
                 </list>
             </field>
@@ -37,11 +38,39 @@
                             <group>
                                 <field name="sequence_prefix" />
                                 <field name="status" />
+                                <field name="last_seen" readonly="1" />
                                 <field name="active" widget="boolean_toggle" />
                                 <field name="last_logged_in_user_id" string="Last Logged In By" />
                                 <field name="tenant_id" invisible="1" />
                             </group>
                         </group>
+                        <notebook>
+                            <page string="Hardware Information">
+                                <group>
+                                    <div class="alert alert-info" role="alert" style="margin-bottom:0px;">
+                                        <strong>Settings.Secure.ANDROID_ID Information:</strong>
+                                        <table class="table table-sm table-borderless" style="margin-top: 10px; margin-bottom: 0px;">
+                                            <tr>
+                                                <td style="width: 150px; font-weight: bold;">Identifier:</td>
+                                                <td>Settings.Secure.ANDROID_ID</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-weight: bold;">How It Works:</td>
+                                                <td>A 64-bit hex string generated on first device boot.</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-weight: bold;">Persistence:</td>
+                                                <td>Resets on factory reset. Remains constant across app updates/reinstalls.</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-weight: bold;">Key Notes:</td>
+                                                <td>Unique hardware identification key for Android POS terminals. For iOS/other platforms, vendor or persistent identifiers are used.</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </group>
+                            </page>
+                        </notebook>
                     </sheet>
                 </form>
             </field>

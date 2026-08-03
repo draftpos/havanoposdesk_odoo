@@ -5623,6 +5623,20 @@ class HavanoPOSDeskAPI(http.Controller):
                     }
                     if password:
                         user_vals['password'] = password
+
+                    # Resolve store from payload
+                    store_ref = data.get('store_id') or data.get('store') or data.get('default_store_id') or data.get('default_store')
+                    store_obj = False
+                    if store_ref:
+                        if isinstance(store_ref, int) or (isinstance(store_ref, str) and store_ref.isdigit()):
+                            store_obj = env['havanoposdesk.store'].sudo().browse(int(store_ref))
+                        else:
+                            store_obj = env['havanoposdesk.store'].sudo().search([('name', '=', str(store_ref))], limit=1)
+                    if store_obj:
+                        user_vals['default_store_id'] = store_obj.id
+                        user_vals['store_ids'] = [(6, 0, [store_obj.id])]
+                        user_vals['api_warehouse'] = store_obj.name
+                        user_vals['api_cost_center'] = store_obj.name
                     
                     if role_raw:
                         user_vals['havano_role'] = user_role
@@ -5665,11 +5679,23 @@ class HavanoPOSDeskAPI(http.Controller):
                 'company_ids': [(6, 0, [company_id])],
                 'active': True,
             }
-            if current_user.default_store_id:
-                user_vals['default_store_id'] = current_user.default_store_id.id
-                user_vals['store_ids'] = [(4, current_user.default_store_id.id)]
-                user_vals['api_warehouse'] = current_user.default_store_id.name
-                user_vals['api_cost_center'] = current_user.default_store_id.name
+            # Resolve store from payload
+            store_ref = data.get('store_id') or data.get('store') or data.get('default_store_id') or data.get('default_store')
+            store_obj = False
+            if store_ref:
+                if isinstance(store_ref, int) or (isinstance(store_ref, str) and store_ref.isdigit()):
+                    store_obj = env['havanoposdesk.store'].sudo().browse(int(store_ref))
+                else:
+                    store_obj = env['havanoposdesk.store'].sudo().search([('name', '=', str(store_ref))], limit=1)
+            
+            if not store_obj and current_user.default_store_id:
+                store_obj = current_user.default_store_id
+                
+            if store_obj:
+                user_vals['default_store_id'] = store_obj.id
+                user_vals['store_ids'] = [(6, 0, [store_obj.id])]
+                user_vals['api_warehouse'] = store_obj.name
+                user_vals['api_cost_center'] = store_obj.name
 
             # Map the profile if provided
             if role_raw:
@@ -6034,6 +6060,57 @@ class HavanoPOSDeskAPI(http.Controller):
             # TODO: Add device_hardware_id if shop select also sends it?
             user_data = self._get_user_info_dict(user, env)
             return self._make_json_response({"message": "Shop Selected", "user": user_data}, status=200)
+        except Exception as e:
+            if custom_cr:
+                custom_cr.rollback()
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/pos/ping', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_pos_ping(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            uid = request.session.uid
+        if not uid:
+            return self._make_json_response({"error": "Unauthorized"}, status=401)
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            try:
+                data = json.loads(request.httprequest.data)
+            except Exception:
+                return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+
+            device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
+            terminal_id = data.get('terminal_id')
+
+            if not device_hardware_id and not terminal_id:
+                return self._make_json_response({"error": "terminal_id or device_hardware_id is required"}, status=400)
+
+            domain = []
+            if terminal_id:
+                domain.append(('id', '=', int(terminal_id)))
+            if device_hardware_id:
+                domain.append(('device_hardware_id', '=', device_hardware_id))
+
+            terminal = env['havanoposdesk.pos.terminal'].sudo().search(domain, limit=1)
+            if not terminal.exists():
+                return self._make_json_response({"error": "Terminal not found"}, status=404)
+
+            from odoo import fields as odoo_fields
+            terminal.write({
+                'last_seen': odoo_fields.Datetime.now(),
+                'status': 'online'
+            })
+            if custom_cr:
+                custom_cr.commit()
+            return self._make_json_response({"message": "Pong", "status": "online"}, status=200)
         except Exception as e:
             if custom_cr:
                 custom_cr.rollback()

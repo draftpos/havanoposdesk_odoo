@@ -23,5 +23,17 @@
             <field name="interval_type">hours</field>
             <field name="active" eval="True"/>
         </record>
+
+        <!-- Cron job for checking terminal online status -->
+        <record id="ir_cron_check_terminal_status" model="ir.cron">
+            <field name="name">Havano POS Desk: Check and Set Inactive Terminals Offline</field>
+            <field name="model_id" ref="model_havanoposdesk_pos_terminal"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_check_terminal_status()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>
