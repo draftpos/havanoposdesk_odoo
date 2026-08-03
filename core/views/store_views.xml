@@ -9,6 +9,7 @@
                 <list string="Stores">
                     <field name="name"/>
                     <field name="tenant_id" column_invisible="1"/>
+                    <field name="pricelist_id"/>
                     <field name="terminal_count"/>
                     <field name="last_open"/>
                     <field name="sales_count"/>
@@ -34,6 +35,7 @@
                                 <field name="name"/>
                                 <field name="tenant_id" invisible="1"/>
                                 <field name="currency_id" options="{'no_create': True, 'no_open': True}"/>
+                                <field name="pricelist_id" options="{'no_create': True}"/>
                             </group>
                             <group>
                                 <field name="active"/>

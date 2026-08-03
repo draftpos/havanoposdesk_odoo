@@ -21,6 +21,12 @@ class HavanoposdeskStore(models.Model):
         string='Store Currency', 
         default=lambda self: self.env.user.tenant_id.currency_id.id if self.env.user.tenant_id else self.env.ref('base.USD').id
     )
+    pricelist_id = fields.Many2one(
+        'havanoposdesk.pricelist', 
+        string='Default Pricelist',
+        domain="[('tenant_id', '=', tenant_id), ('type', '=', 'selling')]",
+        default=lambda self: self.env['havanoposdesk.pricelist'].search([('tenant_id', '=', self.env.user.tenant_id.id), ('type', '=', 'selling')], limit=1).id
+    )
     active = fields.Boolean(string='Active', default=True)
     is_default = fields.Boolean(string='Is Default', default=False)
     auto_populate_data = fields.Boolean(
@@ -202,11 +208,6 @@ class HavanoposdeskStore(models.Model):
                         customers = self.env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', store.tenant_id.id)])
                         if customers:
                             customers.write({'store_ids': [(4, store.id)]})
-                            
-                        # 3. Add store to all existing suppliers for the tenant
-                        suppliers = self.env['havanoposdesk.supplier'].sudo().search([('tenant_id', '=', store.tenant_id.id)])
-                        if suppliers:
-                            suppliers.write({'store_ids': [(4, store.id)]})
                             
                         # 4. Create a default POS Terminal for the new store
                         self.env['havanoposdesk.pos.terminal'].sudo().create({
