@@ -21,11 +21,18 @@ class HavanoposdeskStore(models.Model):
         string='Store Currency', 
         default=lambda self: self.env.user.tenant_id.currency_id.id if self.env.user.tenant_id else self.env.ref('base.USD').id
     )
+    pricelist_ids = fields.Many2many(
+        'havanoposdesk.pricelist',
+        'store_pricelist_rel',
+        'store_id',
+        'pricelist_id',
+        string='Allowed Pricelists',
+        domain="[('tenant_id', '=', tenant_id), ('type', '=', 'selling')]"
+    )
     pricelist_id = fields.Many2one(
         'havanoposdesk.pricelist', 
         string='Default Pricelist',
-        domain="[('tenant_id', '=', tenant_id), ('type', '=', 'selling')]",
-        default=lambda self: self.env['havanoposdesk.pricelist'].search([('tenant_id', '=', self.env.user.tenant_id.id), ('type', '=', 'selling')], limit=1).id
+        domain="[('id', 'in', pricelist_ids)]"
     )
     active = fields.Boolean(string='Active', default=True)
     is_default = fields.Boolean(string='Is Default', default=False)
@@ -56,6 +63,12 @@ class HavanoposdeskStore(models.Model):
                 ]
                 if self.search_count(domain) > 0:
                     raise ValidationError("Only one store can be set as the default store per tenant.")
+
+    @api.constrains('pricelist_id', 'pricelist_ids')
+    def _check_default_pricelist(self):
+        for store in self:
+            if store.pricelist_id and store.pricelist_id not in store.pricelist_ids:
+                raise ValidationError("The default pricelist must be one of the allowed pricelists.")
 
     # Computed statistics fields to avoid undefined errors in list view
     terminal_count = fields.Integer(string='Terminals', compute='_compute_store_statistics')

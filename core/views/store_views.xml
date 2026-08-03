@@ -35,6 +35,7 @@
                                 <field name="name"/>
                                 <field name="tenant_id" invisible="1"/>
                                 <field name="currency_id" options="{'no_create': True, 'no_open': True}"/>
+                                <field name="pricelist_ids" widget="many2many_tags" options="{'no_create': True}"/>
                                 <field name="pricelist_id" options="{'no_create': True}"/>
                             </group>
                             <group>
