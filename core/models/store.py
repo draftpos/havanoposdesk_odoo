@@ -32,7 +32,8 @@ class HavanoposdeskStore(models.Model):
     pricelist_id = fields.Many2one(
         'havanoposdesk.pricelist', 
         string='Default Pricelist',
-        domain="[('id', 'in', pricelist_ids)]"
+        domain="[('id', 'in', pricelist_ids)]",
+        required=True
     )
     active = fields.Boolean(string='Active', default=True)
     is_default = fields.Boolean(string='Is Default', default=False)

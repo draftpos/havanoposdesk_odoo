@@ -2637,6 +2637,17 @@ class HavanoPOSDeskAPI(http.Controller):
                             if acc:
                                 account_id = acc.id
 
+                        pricelist_name = sale_data.get('price_list') or sale_data.get('pricelist') or sale_data.get('pricelist_name')
+                        pricelist_id = False
+                        if pricelist_name:
+                            pl = env['havanoposdesk.pricelist'].search([
+                                ('tenant_id', '=', tenant.id),
+                                ('name', '=', pricelist_name),
+                                ('type', '=', 'selling')
+                            ], limit=1)
+                            if pl:
+                                pricelist_id = pl.id
+
                         sale_vals = {
                             'customer': customer.id,
                             'store': store.name,
@@ -2649,6 +2660,8 @@ class HavanoPOSDeskAPI(http.Controller):
                             'payment_status': payment_status,
                             'local_invoice_id': local_invoice_id,
                         }
+                        if pricelist_id:
+                            sale_vals['pricelist_id'] = pricelist_id
                         if account_id:
                             sale_vals['account_id'] = account_id
 
@@ -6005,12 +6018,17 @@ class HavanoPOSDeskAPI(http.Controller):
                         "is_taken": bool(t.taken_by_user_id),
                         "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
                         "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
-                        "taken_by_user_email": t.taken_by_user_id.login if t.taken_by_user_id else None
+                        "taken_by_user_email": t.taken_by_user_id.login if t.taken_by_user_id else None,
+                        "last_logged_in_user_id": t.last_logged_in_user_id.id if t.last_logged_in_user_id else None
                     })
                 shops_data.append({
                     "id": s.id,
                     "name": s.name,
-                    "terminals": terminals_data
+                    "terminals": terminals_data,
+                    "pricelist_ids": s.pricelist_ids.ids,
+                    "pricelist_names": s.pricelist_ids.mapped('name'),
+                    "default_pricelist_id": s.pricelist_id.id if s.pricelist_id else None,
+                    "default_pricelist_name": s.pricelist_id.name if s.pricelist_id else "",
                 })
             return self._make_json_response(shops_data, status=200)
         except Exception as e:
