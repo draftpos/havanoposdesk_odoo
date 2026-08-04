@@ -61,6 +61,8 @@
                                 <field name="customer_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'customer_secondary_currency_id'}" invisible="not customer_allow_multi_currency" class="text-muted"/>
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="date" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <field name="allowed_pricelist_ids" invisible="1" />
+                                <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" readonly="state != 'draft'" options="{'no_create': True}" class="border-bottom border-dark" />
                                 <field name="is_return" invisible="1" />
                                 <field name="available_currency_ids" invisible="1" />
                                 <field name="allow_multi_currency" invisible="1" />

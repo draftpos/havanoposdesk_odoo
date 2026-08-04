@@ -121,6 +121,40 @@ class Sale(models.Model):
         string='POS Terminal', 
         default=lambda self: self.env.user.selected_terminal_id.id if self.env.user.selected_terminal_id else False
     )
+    pricelist_id = fields.Many2one(
+        'havanoposdesk.pricelist',
+        string='Pricelist'
+    )
+    allowed_pricelist_ids = fields.Many2many(
+        'havanoposdesk.pricelist',
+        compute='_compute_allowed_pricelist_ids',
+        string='Allowed Pricelists'
+    )
+
+    @api.depends('store_id', 'store_id.pricelist_ids')
+    def _compute_allowed_pricelist_ids(self):
+        for sale in self:
+            if sale.store_id:
+                sale.allowed_pricelist_ids = sale.store_id.pricelist_ids
+            else:
+                sale.allowed_pricelist_ids = self.env['havanoposdesk.pricelist'].browse()
+
+    @api.onchange('store_id')
+    def _onchange_store_id_pricelist(self):
+        if self.store_id:
+            if self.store_id.pricelist_id:
+                self.pricelist_id = self.store_id.pricelist_id.id
+            else:
+                self.pricelist_id = False
+        else:
+            self.pricelist_id = False
+
+    @api.onchange('pricelist_id')
+    def _onchange_pricelist_id(self):
+        if self.line_ids:
+            for line in self.line_ids:
+                line._onchange_product_uom()
+
     date = fields.Datetime(string='Sale Date', default=fields.Datetime.now, required=True)
     amount_untaxed = fields.Float(string='Untaxed Amount', compute='_compute_amount_total', store=True)
     amount_tax = fields.Float(string='Taxes', compute='_compute_amount_total', store=True)
@@ -641,52 +675,79 @@ class SaleLine(models.Model):
                 
             line.tax_ids = [(6, 0, line.product_id.sale_tax_ids.ids)]
             
-            if line.uom_id == line.product_id.uom_id:
-                # Convert the base selling price to the transaction currency using the exchange rate
-                base_price = line.product_id.selling_price
-                line.rate = base_price * (line.exchange_rate or 1.0)
-                
-                base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                line.cost_price = base_cost * (line.exchange_rate or 1.0)
-                line.uom_qty_multiplier = 1.0
-            else:
+            price_record = False
+            if line.sale_id.pricelist_id:
                 price_record = self.env['havanoposdesk.product.uom.price'].search([
                     ('product_id', '=', line.product_id.id),
                     ('uom_id', '=', line.uom_id.id),
-                    ('pricelist_id.type', '=', 'selling')
+                    ('pricelist_id', '=', line.sale_id.pricelist_id.id)
                 ], limit=1)
-                if price_record:
-                    line.rate = price_record.price * (line.exchange_rate or 1.0)
-                    line.uom_qty_multiplier = price_record.qty_to_be_sold
+                
+            if price_record:
+                line.rate = price_record.price * (line.exchange_rate or 1.0)
+                line.uom_qty_multiplier = price_record.qty_to_be_sold
+                base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                line.cost_price = (base_cost * price_record.qty_to_be_sold) * (line.exchange_rate or 1.0)
+            else:
+                if line.uom_id == line.product_id.uom_id:
+                    # Convert the base selling price to the transaction currency using the exchange rate
+                    base_price = line.product_id.selling_price
+                    line.rate = base_price * (line.exchange_rate or 1.0)
+                    
                     base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                    line.cost_price = (base_cost * price_record.qty_to_be_sold) * (line.exchange_rate or 1.0)
-                else:
-                    line.rate = line.product_id.selling_price * (line.exchange_rate or 1.0)
+                    line.cost_price = base_cost * (line.exchange_rate or 1.0)
                     line.uom_qty_multiplier = 1.0
+                else:
+                    fallback_record = self.env['havanoposdesk.product.uom.price'].search([
+                        ('product_id', '=', line.product_id.id),
+                        ('uom_id', '=', line.uom_id.id),
+                        ('pricelist_id.type', '=', 'selling')
+                    ], limit=1)
+                    if fallback_record:
+                        line.rate = fallback_record.price * (line.exchange_rate or 1.0)
+                        line.uom_qty_multiplier = fallback_record.qty_to_be_sold
+                        base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                        line.cost_price = (base_cost * fallback_record.qty_to_be_sold) * (line.exchange_rate or 1.0)
+                    else:
+                        line.rate = line.product_id.selling_price * (line.exchange_rate or 1.0)
+                        line.uom_qty_multiplier = 1.0
 
     def _recompute_prices_for_currency(self):
         for line in self:
             if not line.product_id:
                 continue
             rate = line.sale_id.exchange_rate or 1.0
-            if line.uom_id == line.product_id.uom_id:
-                line.rate = line.product_id.selling_price * rate
-                base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                line.cost_price = base_cost * rate
-            else:
+            price_record = False
+            if line.sale_id.pricelist_id:
                 price_record = self.env['havanoposdesk.product.uom.price'].search([
                     ('product_id', '=', line.product_id.id),
                     ('uom_id', '=', line.uom_id.id),
-                    ('pricelist_id.type', '=', 'selling')
+                    ('pricelist_id', '=', line.sale_id.pricelist_id.id)
                 ], limit=1)
-                if price_record:
-                    line.rate = price_record.price * rate
-                    base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                    line.cost_price = (base_cost * price_record.qty_to_be_sold) * rate
-                else:
+                
+            if price_record:
+                line.rate = price_record.price * rate
+                base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                line.cost_price = (base_cost * price_record.qty_to_be_sold) * rate
+            else:
+                if line.uom_id == line.product_id.uom_id:
                     line.rate = line.product_id.selling_price * rate
                     base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                     line.cost_price = base_cost * rate
+                else:
+                    fallback_record = self.env['havanoposdesk.product.uom.price'].search([
+                        ('product_id', '=', line.product_id.id),
+                        ('uom_id', '=', line.uom_id.id),
+                        ('pricelist_id.type', '=', 'selling')
+                    ], limit=1)
+                    if fallback_record:
+                        line.rate = fallback_record.price * rate
+                        base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                        line.cost_price = (base_cost * fallback_record.qty_to_be_sold) * rate
+                    else:
+                        line.rate = line.product_id.selling_price * rate
+                        base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                        line.cost_price = base_cost * rate
 
     @api.onchange('rate')
     def _onchange_rate(self):
