@@ -1687,14 +1687,20 @@ class HavanoPOSDeskAPI(http.Controller):
                     "priceName": "Standard Buying",
                     "price": p.buying_price,
                     "uom": p.uom_id.name or "Nos",
-                    "type": "buying"
+                    "type": "buying",
+                    "store": None,
+                    "warehouse": None,
+                    "qty_to_be_sold": 1.0,
                 })
             if p.selling_price > 0.0:
                 prices_data.append({
                     "priceName": "Standard Selling",
                     "price": p.selling_price,
                     "uom": p.uom_id.name or "Nos",
-                    "type": "selling"
+                    "type": "selling",
+                    "store": None,
+                    "warehouse": None,
+                    "qty_to_be_sold": 1.0,
                 })
                 
             uom_name = p.uom_id.name or "Nos"
@@ -1708,16 +1714,20 @@ class HavanoPOSDeskAPI(http.Controller):
                 for ap in p.advanced_price_ids:
                     ap_uom_name = ap.uom_id.name or "Nos"
                     if ap.price > 0.0:
+                        ap_store_name = ap.store_id.name if ap.store_id else None
                         prices_data.append({
                             "priceName": ap.pricelist_id.name if ap.pricelist_id else "Retail",
                             "price": ap.price,
                             "uom": ap_uom_name,
-                            "type": "selling"
+                            "type": "selling",
+                            "store": ap_store_name,
+                            "warehouse": ap_store_name,
+                            "qty_to_be_sold": getattr(ap, 'qty_to_be_sold', 1.0) or 1.0,
                         })
                     if ap_uom_name not in added_uoms:
                         uom_conversions.append({
                             "uom": ap_uom_name,
-                            "conversion_factor": ap.qty_to_be_sold
+                            "conversion_factor": getattr(ap, 'qty_to_be_sold', 1.0) or 1.0
                         })
                         added_uoms.add(ap_uom_name)
 
