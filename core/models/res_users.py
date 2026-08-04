@@ -41,7 +41,8 @@ class ResUsers(models.Model):
     @api.constrains('default_store_id', 'store_ids', 'pricelist_id')
     def _check_employee_mandatory_fields(self):
         for user in self:
-            if user.tenant_id and user.havano_role != 'super_admin':
+            if user.tenant_id and user.havano_role not in ('admin', 'super_admin'):
+                # Only enforce store/pricelist requirements on cashiers (havano_role == 'user')
                 if not user.default_store_id:
                     raise ValidationError(_("Default Store is required for cashier/employee."))
                 if not user.store_ids:
