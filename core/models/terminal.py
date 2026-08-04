@@ -23,7 +23,6 @@ class HavanoposdeskPosTerminal(models.Model):
     device_hardware_id = fields.Char(string='Device Hardware ID', readonly=True)
     last_seen = fields.Datetime(string='Last Seen')
     sequence_prefix = fields.Char(string='Sequence Prefix')
-    user_id = fields.Many2one('res.users', string='Assigned User')
     last_logged_in_user_id = fields.Many2one('res.users', string='Last Logged In By', readonly=True)
     taken_by_user_id = fields.Many2one('res.users', string='Taken By User')
     status = fields.Selection([
@@ -170,6 +169,8 @@ class HavanoposdeskPosTerminal(models.Model):
             vals['tenant_id'] = tenant_id
 
         return super().create(vals_list)
+
+
 
     @api.model
     def _cron_check_terminal_status(self):

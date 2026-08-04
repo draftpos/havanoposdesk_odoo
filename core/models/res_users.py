@@ -25,12 +25,37 @@ class ResUsers(models.Model):
     ], string="SaaS State", default='unverified')
     default_store_id = fields.Many2one('havanoposdesk.store', string="Default Store")
     store_ids = fields.Many2many('havanoposdesk.store', 'res_users_store_rel', 'user_id', 'store_id', string="Allowed Stores")
+    pricelist_id = fields.Many2one('havanoposdesk.pricelist', string="Default Pricelist")
     selected_shop_id = fields.Many2one('havanoposdesk.store', string="Selected Shop")
     selected_terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string="Selected Terminal")
     pin = fields.Char(string="PIN Code")
     user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
     allow_backoffice = fields.Boolean(string="Access Backoffice", compute="_compute_allow_backoffice", inverse="_inverse_allow_backoffice", store=True)
     has_password = fields.Boolean(string="Has Password", compute="_compute_has_password")
+
+    @api.constrains('default_store_id', 'store_ids', 'pricelist_id')
+    def _check_employee_mandatory_fields(self):
+        for user in self:
+            if user.tenant_id and user.havano_role != 'super_admin':
+                if not user.default_store_id:
+                    raise ValidationError(_("Default Store is required for cashier/employee."))
+                if not user.store_ids:
+                    raise ValidationError(_("Allowed Stores is required for cashier/employee."))
+                if not user.pricelist_id:
+                    raise ValidationError(_("Default Pricelist is required for cashier/employee."))
+
+    @api.constrains('store_ids', 'havano_role')
+    def _check_store_access_limit(self):
+        for user in self:
+            if user.havano_role not in ('admin', 'super_admin') and len(user.store_ids) > 2:
+                raise ValidationError(_("Only users with the Admin role can have access to more than two stores."))
+
+    @api.constrains('default_store_id', 'pricelist_id')
+    def _check_pricelist_belongs_to_store(self):
+        for user in self:
+            if user.default_store_id and user.pricelist_id:
+                if user.pricelist_id not in user.default_store_id.pricelist_ids:
+                    raise ValidationError(_("The default pricelist must be one of the allowed pricelists of the selected default store."))
 
     def _compute_has_password(self):
         saved_users = self.filtered('id')
@@ -99,7 +124,7 @@ class ResUsers(models.Model):
                     ('id', '!=', user.id)
                 ], limit=1)
                 if duplicate:
-                    raise ValidationError(_("The PIN code must be unique per tenant! User '%s' already has this PIN.") % duplicate.name)
+                    raise ValidationError(_("This PIN is already being used by another user."))
 
 
 
@@ -122,6 +147,26 @@ class ResUsers(models.Model):
                     user.api_cost_center = store_name
                 if not user.api_warehouse:
                     user.api_warehouse = store_name
+
+    @api.onchange('default_store_id')
+    def _onchange_default_store_id_pricelist(self):
+        if self.default_store_id:
+            if self.default_store_id.pricelist_id:
+                self.pricelist_id = self.default_store_id.pricelist_id.id
+            else:
+                self.pricelist_id = False
+            return {
+                'domain': {
+                    'pricelist_id': [('id', 'in', self.default_store_id.pricelist_ids.ids)]
+                }
+            }
+        else:
+            self.pricelist_id = False
+            return {
+                'domain': {
+                    'pricelist_id': [('id', '=', False)]
+                }
+            }
 
     @api.model
     def default_get(self, fields_list):
@@ -732,7 +777,7 @@ class HavanoChangePinWizard(models.TransientModel):
             ('id', '!=', self.env.user.id)
         ], limit=1)
         if duplicate:
-            raise ValidationError(_("The PIN code must be unique per tenant! User '%s' already has this PIN.") % duplicate.name)
+            raise ValidationError(_("This PIN is already being used by another user."))
 
         self.env.user.sudo().write({'pin': pin})
         return {

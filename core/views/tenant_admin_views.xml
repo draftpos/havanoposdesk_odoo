@@ -123,8 +123,9 @@
                             </group>
                             <group>
                                 <!-- RIGHT COLUMN -->
-                                <field name="default_store_id" string="Default Store" options="{'no_create': True}" />
-                                <field name="store_ids" string="Allowed Stores" widget="many2many_tags" options="{'no_create': True}" />
+                                <field name="default_store_id" string="Default Store" required="1" options="{'no_create': True}" />
+                                <field name="store_ids" string="Allowed Stores" widget="many2many_tags" required="1" options="{'no_create': True}" />
+                                <field name="pricelist_id" string="Default Pricelist" domain="[('id', 'in', default_store_id.pricelist_ids)]" required="1" options="{'no_create': True}" readonly="not default_store_id" />
                                 <field name="allow_discount" string="Discount Enable" widget="boolean_toggle" />
                                 <field name="max_discount_percent" invisible="allow_discount == False" />
                                 <field name="require_shift" string="Require Shift" widget="boolean_toggle" />

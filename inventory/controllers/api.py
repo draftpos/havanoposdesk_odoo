@@ -1368,8 +1368,13 @@ class HavanoPOSDeskAPI(http.Controller):
         user = self._get_user()
         tenant = user.tenant_id
         
-        # Find terminal assigned to user or first terminal in tenant/store
-        terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([('user_id', '=', user.id)], limit=1)
+        # Find terminal taken by the user, or by device hardware ID, or first terminal in tenant/store
+        device_hardware_id = request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id') or request.params.get('device_hardware_id')
+        terminal = False
+        if device_hardware_id:
+            terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([('device_hardware_id', '=', device_hardware_id)], limit=1)
+        if not terminal:
+            terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([('taken_by_user_id', '=', user.id)], limit=1)
         if not terminal:
             terminal_domain = []
             if tenant:
@@ -6284,7 +6289,11 @@ class HavanoPOSDeskAPI(http.Controller):
                 shops_data.append({
                     "id": s.id,
                     "name": s.name,
-                    "terminals": terminals_data
+                    "terminals": terminals_data,
+                    "pricelist_ids": s.pricelist_ids.ids,
+                    "pricelist_names": s.pricelist_ids.mapped('name'),
+                    "default_pricelist_id": s.pricelist_id.id if s.pricelist_id else None,
+                    "default_pricelist_name": s.pricelist_id.name if s.pricelist_id else "",
                 })
 
         hardware_terminal_id = None
@@ -6302,6 +6311,9 @@ class HavanoPOSDeskAPI(http.Controller):
             "role": role_val,
             "tenant_id": user.tenant_id.id if user.tenant_id else None,
             "shops": shops_data,
+            "default_shop_id": user.default_store_id.id if user.default_store_id else None,
+            "default_pricelist_id": user.pricelist_id.id if user.pricelist_id else None,
+            "default_pricelist_name": user.pricelist_id.name if user.pricelist_id else "",
             "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
             "selected_terminal_id": hardware_terminal_id,
             "user_rights": self._get_user_rights_dict(user)
@@ -6498,7 +6510,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 ('id', '!=', current_user.id)
             ], limit=1)
             if duplicate:
-                return self._make_json_response({"error": f"The PIN code must be unique per tenant! User '{duplicate.name}' already has this PIN."}, status=400)
+                return self._make_json_response({"error": "This PIN is already being used by another user."}, status=400)
 
             current_user.sudo().write({'pin': pin})
 
