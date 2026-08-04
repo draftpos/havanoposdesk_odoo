@@ -297,10 +297,17 @@ class HavanoPOSDeskAPI(http.Controller):
                     "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
                 })
                 
-                # Hardware based terminal assignment
+                # Hardware based terminal assignment — scoped to the user's allowed stores
                 hardware_terminal_id = None
                 if device_hardware_id:
-                    assigned_terminal = user_env['havanoposdesk.pos.terminal'].sudo().search([('device_hardware_id', '=', device_hardware_id)], limit=1)
+                    terminal_hw_domain = [('device_hardware_id', '=', device_hardware_id)]
+                    if user.tenant_id:
+                        terminal_hw_domain.append(('tenant_id', '=', user.tenant_id.id))
+                    if user.havano_role == 'user' and user.store_ids:
+                        terminal_hw_domain.append(('store_id', 'in', user.store_ids.ids))
+                    elif user.selected_shop_id:
+                        terminal_hw_domain.append(('store_id', '=', user.selected_shop_id.id))
+                    assigned_terminal = user_env['havanoposdesk.pos.terminal'].sudo().search(terminal_hw_domain, limit=1)
                     if assigned_terminal:
                         hardware_terminal_id = assigned_terminal.id
                 
@@ -6256,7 +6263,14 @@ class HavanoPOSDeskAPI(http.Controller):
             device_hardware_id = request.httprequest.headers.get('device_hardware_id') or kwargs.get('device_hardware_id')
             hardware_terminal_id = None
             if device_hardware_id:
-                assigned_terminal = env['havanoposdesk.pos.terminal'].sudo().search([('device_hardware_id', '=', device_hardware_id)], limit=1)
+                terminal_hw_domain = [('device_hardware_id', '=', device_hardware_id)]
+                if user.tenant_id:
+                    terminal_hw_domain.append(('tenant_id', '=', user.tenant_id.id))
+                if user.havano_role == 'user' and user.store_ids:
+                    terminal_hw_domain.append(('store_id', 'in', user.store_ids.ids))
+                elif user.selected_shop_id:
+                    terminal_hw_domain.append(('store_id', '=', user.selected_shop_id.id))
+                assigned_terminal = env['havanoposdesk.pos.terminal'].sudo().search(terminal_hw_domain, limit=1)
                 if assigned_terminal:
                     hardware_terminal_id = assigned_terminal.id
             
