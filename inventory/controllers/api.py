@@ -94,8 +94,26 @@ class HavanoPOSDeskAPI(http.Controller):
             first_name = names[0] if names else ""
             last_name = names[1] if len(names) > 1 else ""
             
+            # Determine the effective selected shop, validated against the user's assigned stores.
+            # If selected_shop_id is set but NOT in the user's store_ids, ignore it and fall back
+            # to the first assigned store so that the wrong shop is never returned.
+            effective_shop = None
+            if user.selected_shop_id and user.store_ids:
+                if user.selected_shop_id.id in user.store_ids.ids:
+                    effective_shop = user.selected_shop_id
+                else:
+                    # selected_shop_id is stale / not assigned to this user — reset it
+                    effective_shop = user.store_ids[0]
+                    try:
+                        user.sudo().write({'selected_shop_id': effective_shop.id})
+                    except Exception:
+                        pass
+            elif user.selected_shop_id and not user.store_ids:
+                # admin-type user with no store_ids restriction — honour selected_shop_id
+                effective_shop = user.selected_shop_id
+
             # Determine store and company settings
-            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+            store = effective_shop or user.default_store_id or (user.store_ids[0] if user.store_ids else False)
             if not store:
                 store_domain = []
                 if user.havano_role != 'super_admin' and user.tenant_id:
@@ -294,23 +312,28 @@ class HavanoPOSDeskAPI(http.Controller):
                     "tenant_id": user.tenant_id.id if user.tenant_id else None,
                     "store_ids": user.store_ids.ids if hasattr(user, 'store_ids') and user.store_ids else [],
                     "shops": shops_data,
-                    "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
+                    # Return the validated effective shop id (corrected above if it was stale)
+                    "selected_shop_id": store.id if store else None,
                 })
-                
-                # Hardware based terminal assignment — scoped to the user's allowed stores
+
+                # Hardware based terminal assignment — strictly scoped to the user's assigned stores.
+                # We intentionally search ONLY within the user's store_ids so that a device
+                # shared across shops does not accidentally assign a terminal from the wrong shop.
                 hardware_terminal_id = None
                 if device_hardware_id:
                     terminal_hw_domain = [('device_hardware_id', '=', device_hardware_id)]
                     if user.tenant_id:
                         terminal_hw_domain.append(('tenant_id', '=', user.tenant_id.id))
-                    if user.havano_role == 'user' and user.store_ids:
+                    if user.store_ids:
+                        # Always restrict to the user's assigned stores regardless of role
                         terminal_hw_domain.append(('store_id', 'in', user.store_ids.ids))
-                    elif user.selected_shop_id:
-                        terminal_hw_domain.append(('store_id', '=', user.selected_shop_id.id))
+                    elif store:
+                        # Fallback: scope to the resolved effective store
+                        terminal_hw_domain.append(('store_id', '=', store.id))
                     assigned_terminal = user_env['havanoposdesk.pos.terminal'].sudo().search(terminal_hw_domain, limit=1)
                     if assigned_terminal:
                         hardware_terminal_id = assigned_terminal.id
-                
+
                 res_data["user"].update({
                     "selected_terminal_id": hardware_terminal_id,
                     "user_rights": self._get_user_rights_dict(user)
