@@ -26,6 +26,11 @@ class ResUsers(models.Model):
     default_store_id = fields.Many2one('havanoposdesk.store', string="Default Store")
     store_ids = fields.Many2many('havanoposdesk.store', 'res_users_store_rel', 'user_id', 'store_id', string="Allowed Stores")
     pricelist_id = fields.Many2one('havanoposdesk.pricelist', string="Default Pricelist")
+    allowed_pricelist_ids = fields.Many2many(
+        'havanoposdesk.pricelist',
+        compute='_compute_allowed_pricelist_ids',
+        string='Allowed Pricelists for View'
+    )
     selected_shop_id = fields.Many2one('havanoposdesk.store', string="Selected Shop")
     selected_terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string="Selected Terminal")
     pin = fields.Char(string="PIN Code")
@@ -56,6 +61,14 @@ class ResUsers(models.Model):
             if user.default_store_id and user.pricelist_id:
                 if user.pricelist_id not in user.default_store_id.pricelist_ids:
                     raise ValidationError(_("The default pricelist must be one of the allowed pricelists of the selected default store."))
+
+    @api.depends('default_store_id', 'default_store_id.pricelist_ids')
+    def _compute_allowed_pricelist_ids(self):
+        for user in self:
+            if user.default_store_id:
+                user.allowed_pricelist_ids = user.default_store_id.pricelist_ids
+            else:
+                user.allowed_pricelist_ids = self.env['havanoposdesk.pricelist'].browse()
 
     def _compute_has_password(self):
         saved_users = self.filtered('id')
@@ -214,6 +227,16 @@ class ResUsers(models.Model):
             elif 'allow_backoffice' in vals:
                 vals['havano_role'] = 'admin' if vals['allow_backoffice'] else 'user'
                 
+            # Auto-link pricelist if default_store_id is set
+            if vals.get('default_store_id') and not vals.get('pricelist_id'):
+                store = self.env['havanoposdesk.store'].sudo().browse(vals['default_store_id'])
+                if store and store.pricelist_id:
+                    vals['pricelist_id'] = store.pricelist_id.id
+
+            # Auto-link store_ids if default_store_id is set but store_ids is not provided
+            if vals.get('default_store_id') and 'store_ids' not in vals:
+                vals['store_ids'] = [(6, 0, [vals['default_store_id']])]
+
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             
             # Auto-link profile if not provided
@@ -428,6 +451,15 @@ class ResUsers(models.Model):
         return users
 
     def write(self, vals):
+        # Auto-link pricelist if default_store_id is updated and pricelist_id is not provided
+        if vals.get('default_store_id') and 'pricelist_id' not in vals:
+            store = self.env['havanoposdesk.store'].sudo().browse(vals['default_store_id'])
+            if store and store.pricelist_id:
+                vals['pricelist_id'] = store.pricelist_id.id
+
+        # Auto-link store_ids if default_store_id is updated but store_ids is not provided
+        if vals.get('default_store_id') and 'store_ids' not in vals:
+            vals['store_ids'] = [(4, vals['default_store_id'])]
         if 'havano_role' in vals:
             if vals['havano_role'] in ('admin', 'super_admin'):
                 vals['allow_backoffice'] = True
