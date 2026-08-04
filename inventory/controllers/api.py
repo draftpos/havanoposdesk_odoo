@@ -6311,6 +6311,7 @@ class HavanoPOSDeskAPI(http.Controller):
         except Exception as e:
             return self._make_json_response({"error": str(e)}, status=500)
         finally:
+
             if custom_cr:
                 custom_cr.close()
 
@@ -6377,6 +6378,7 @@ class HavanoPOSDeskAPI(http.Controller):
             "default_pricelist_name": user.pricelist_id.name if user.pricelist_id else "",
             "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
             "selected_terminal_id": hardware_terminal_id,
+            "store_ids": user.store_ids.ids if hasattr(user, 'store_ids') and user.store_ids else [],
             "user_rights": self._get_user_rights_dict(user)
         }
 
