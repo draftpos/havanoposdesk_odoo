@@ -6211,13 +6211,19 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"error": "Terminal does not exist or does not belong to this tenant"}, status=400)
 
             is_admin = user.havano_role in ('admin', 'super_admin')
+            is_assigned_store = not user.store_ids or (terminal.store_id and terminal.store_id.id in user.store_ids.ids)
+            can_takeover = is_admin or is_assigned_store
+
+            # Ensure cashier can only select terminals in their assigned stores
+            if not is_admin and user.store_ids and terminal.store_id and terminal.store_id.id not in user.store_ids.ids:
+                return self._make_json_response({"error": "Selected terminal does not belong to your assigned store(s)"}, status=403)
 
             # Validate hardware device assignment
             if terminal.device_hardware_id and terminal.device_hardware_id != device_hardware_id:
                 if not take_over:
                     return self._make_json_response({"error": "Terminal is already assigned to another hardware device. Specify take_over=True to forcefully reassign it."}, status=400)
-                elif not is_admin:
-                    return self._make_json_response({"error": "Access denied. Only admins can take over a terminal from another hardware device."}, status=403)
+                elif not can_takeover:
+                    return self._make_json_response({"error": "Access denied. Only admins or store cashiers can take over a terminal from another hardware device."}, status=403)
 
             # Validate user assignment (taken_by_user_id)
             if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
@@ -6226,8 +6232,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 else:
                     if not take_over:
                         return self._make_json_response({"error": "Terminal is currently in use by another user. Specify take_over=True to forcefully reassign it."}, status=400)
-                    elif not is_admin:
-                        return self._make_json_response({"error": "Access denied. Only admins can take over a terminal in use by another user."}, status=403)
+                    elif not can_takeover:
+                        return self._make_json_response({"error": "Access denied. Only admins or store cashiers can take over a terminal in use by another user."}, status=403)
 
             # Cashier checks: cashier can only select open, online, or offline terminals
             if not is_admin:
