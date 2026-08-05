@@ -105,13 +105,16 @@
                             <h1>
                                 <field name="name" required="1" placeholder="Name" />
                             </h1>
+                            <div class="mt-2">
+                                <label for="login" string="Email" class="fw-bold me-2" />
+                                <field name="login" string="Email" required="0" placeholder="Email" />
+                            </div>
                         </div>
                         <group>
                             <group>
                                 <!-- LEFT COLUMN -->
                                 <field name="havano_role" string="User Role" />
                                 <field name="pin" string="POS Login PIN" widget="pos_pin_boxes" />
-                                <field name="login" string="Email" required="0" placeholder="Email" />
                                 <field name="phone" string="Phone number" />
                                 <field name="has_password" invisible="1" />
                                 

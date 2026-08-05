@@ -2,6 +2,7 @@ from odoo import models, fields, api, tools, _
 from odoo.exceptions import ValidationError, RedirectWarning
 from odoo.tools import frozendict
 import datetime
+import random
 
 class ResUsers(models.Model):
     _inherit = "res.users"
@@ -33,7 +34,7 @@ class ResUsers(models.Model):
     )
     selected_shop_id = fields.Many2one('havanoposdesk.store', string="Selected Shop")
     selected_terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string="Selected Terminal")
-    pin = fields.Char(string="PIN Code")
+    pin = fields.Char(string="PIN Code", default=lambda self: str(random.randint(1000, 9999)))
     user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
     allow_backoffice = fields.Boolean(string="Access Backoffice", compute="_compute_allow_backoffice", inverse="_inverse_allow_backoffice", store=True)
     has_password = fields.Boolean(string="Has Password", compute="_compute_has_password")
@@ -393,6 +394,8 @@ class ResUsers(models.Model):
         group_system = self.env.ref('base.group_system', raise_if_not_found=False)
 
         for vals in vals_list:
+            if not vals.get('pin'):
+                vals['pin'] = str(random.randint(1000, 9999))
             role = vals.get('havano_role')
             if role:
                 # Remove portal group from incoming vals if it exists
