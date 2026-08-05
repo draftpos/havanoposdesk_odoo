@@ -660,6 +660,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 'max_stores': p.max_stores,
                 'max_users': p.max_users,
                 'max_terminals': p.max_terminals,
+                'is_custom': p.is_custom,
+                'extra_store_price': p.extra_store_price,
             })
         return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
 
@@ -702,6 +704,8 @@ class HavanoPOSDeskAPI(http.Controller):
             'is_expiring_soon': is_expiring_soon,
             'is_expired': is_expired,
             'payment_status': tenant.payment_status,
+            'additional_stores': tenant.additional_stores,
+            'subscription_total_amount': tenant.subscription_total_amount,
             'plan': {
                 'id': plan.id,
                 'name': plan.name,
@@ -710,15 +714,17 @@ class HavanoPOSDeskAPI(http.Controller):
                 'max_stores': plan.max_stores,
                 'max_users': plan.max_users,
                 'max_terminals': plan.max_terminals,
+                'is_custom': plan.is_custom,
+                'extra_store_price': plan.extra_store_price,
             } if plan else None,
             'usage': {
                 'stores': {
                     'current': stores_count,
-                    'limit': plan.max_stores if plan else 0
+                    'limit': tenant.effective_max_stores if tenant else (plan.max_stores if plan else 0)
                 },
                 'terminals': {
                     'current': terminals_count,
-                    'limit': plan.max_terminals if plan else 0
+                    'limit': tenant.effective_max_terminals if tenant else (plan.max_terminals if plan else 0)
                 },
                 'cashiers': {
                     'current': cashiers_count,
@@ -752,12 +758,13 @@ class HavanoPOSDeskAPI(http.Controller):
         if not plan.exists():
             return request.make_response(json.dumps({'error': 'Plan not found'}), headers=[('Content-Type', 'application/json')], status=404)
             
-        tenant.action_select_plan(plan.id)
+        additional_stores = data.get('additional_stores', 0)
+        tenant.action_select_plan(plan.id, additional_stores=additional_stores)
         
         return request.make_response(json.dumps({
             'success': True,
             'message': f'Subscription to plan {plan.name} is pending payment.',
-            'amount': plan.price,
+            'amount': tenant.subscription_total_amount or plan.price,
             'state': tenant.subscription_state,
         }), headers=[('Content-Type', 'application/json')])
 
@@ -781,7 +788,7 @@ class HavanoPOSDeskAPI(http.Controller):
         if not plan:
             return request.make_response(json.dumps({'error': 'No plan selected to pay for'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        amount = data.get('amount', plan.price)
+        amount = data.get('amount', tenant.subscription_total_amount or plan.price)
         payment_method = data.get('payment_method', 'in_app')
         
         if payment_method not in ['in_app', 'ecocash', 'paynow']:

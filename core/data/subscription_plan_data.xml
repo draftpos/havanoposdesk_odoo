@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Plan 1: 1 Store, 1 Terminal -->
+        <record id="subscription_plan_1" model="havanoposdesk.subscription.plan">
+            <field name="name">Plan 1 (1 Store, 1 Terminal)</field>
+            <field name="price">15.00</field>
+            <field name="duration_days">30</field>
+            <field name="max_stores">1</field>
+            <field name="max_terminals">1</field>
+            <field name="max_users">2</field>
+            <field name="is_custom">False</field>
+        </record>
+
+        <!-- Plan 2: 2 Stores, 2 Terminals -->
+        <record id="subscription_plan_2" model="havanoposdesk.subscription.plan">
+            <field name="name">Plan 2 (2 Stores, 2 Terminals)</field>
+            <field name="price">30.00</field>
+            <field name="duration_days">30</field>
+            <field name="max_stores">2</field>
+            <field name="max_terminals">2</field>
+            <field name="max_users">5</field>
+            <field name="is_custom">False</field>
+        </record>
+
+        <!-- Plan 3: 3 Stores, 3 Terminals -->
+        <record id="subscription_plan_3" model="havanoposdesk.subscription.plan">
+            <field name="name">Plan 3 (3 Stores, 3 Terminals)</field>
+            <field name="price">45.00</field>
+            <field name="duration_days">30</field>
+            <field name="max_stores">3</field>
+            <field name="max_terminals">3</field>
+            <field name="max_users">10</field>
+            <field name="is_custom">False</field>
+        </record>
+
+        <!-- Custom Plan: Base 1 Store, 1 Terminal + Extra Stores @ $12 -->
+        <record id="subscription_plan_custom" model="havanoposdesk.subscription.plan">
+            <field name="name">Custom Plan</field>
+            <field name="price">15.00</field>
+            <field name="duration_days">30</field>
+            <field name="max_stores">1</field>
+            <field name="max_terminals">1</field>
+            <field name="max_users">15</field>
+            <field name="is_custom">True</field>
+            <field name="extra_store_price">12.00</field>
+        </record>
+    </data>
+</odoo>

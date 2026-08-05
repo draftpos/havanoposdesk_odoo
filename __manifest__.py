@@ -18,6 +18,7 @@
         'core/views/dashboard_mobile_views.xml',
         'core/data/cron.xml',
         'core/data/whitelabel_data.xml',
+        'core/data/subscription_plan_data.xml',
         'inventory/data/sequence.xml',
         'core/views/store_views.xml',
         'core/views/res_users_views.xml',

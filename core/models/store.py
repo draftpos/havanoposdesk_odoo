@@ -212,11 +212,12 @@ class HavanoposdeskStore(models.Model):
                     _('Select Plan')
                 )
                 
-            if plan.max_stores and plan.max_stores > 0:
+            max_allowed = tenant.effective_max_stores or (plan.max_stores if plan else 0)
+            if max_allowed and max_allowed > 0:
                 current = self.search_count([('tenant_id', '=', tenant.id)])
-                if current >= plan.max_stores:
+                if current >= max_allowed:
                     raise RedirectWarning(
-                        _('Maximum number of stores (%s) reached for this subscription plan.') % plan.max_stores,
+                        _('Maximum number of stores (%s) reached for this subscription plan.') % max_allowed,
                         {
                             'name': _('Select Subscription Plan'),
                             'type': 'ir.actions.act_window',

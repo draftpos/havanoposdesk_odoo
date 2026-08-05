@@ -11,6 +11,8 @@ class HavanoposdeskSubscriptionPlan(models.Model):
     max_stores = fields.Integer(string='Maximum Stores', default=0)  # 0 = unlimited
     max_users = fields.Integer(string='Maximum Users (Cashiers)', default=0)
     max_terminals = fields.Integer(string='Maximum POS Terminals', default=0)
+    is_custom = fields.Boolean(string='Is Custom Plan', default=False, help='If checked, user can configure additional stores at extra cost.')
+    extra_store_price = fields.Float(string='Price per Additional Store ($)', default=12.0)
 
     @api.model_create_multi
     def create(self, vals_list):
