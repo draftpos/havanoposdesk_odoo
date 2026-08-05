@@ -107,6 +107,11 @@ class ResUsers(models.Model):
             else:
                 self.store_ids = self.store_ids[:1]
 
+        if len(self.store_ids) == 1:
+            self.default_store_id = self.store_ids[0]
+            if self.default_store_id and self.default_store_id.pricelist_id and not self.pricelist_id:
+                self.pricelist_id = self.default_store_id.pricelist_id
+
     @api.depends('havano_role')
     def _compute_allow_backoffice(self):
         for user in self:
@@ -273,6 +278,18 @@ class ResUsers(models.Model):
             if tenant_id and 'tenant_id' not in vals:
                 vals['tenant_id'] = tenant_id
 
+            # If store_ids contains 1 store, set that store as default_store_id if missing
+            if not vals.get('default_store_id') and vals.get('store_ids'):
+                extracted_ids = []
+                for cmd in vals['store_ids']:
+                    if isinstance(cmd, (list, tuple)):
+                        if cmd[0] == 6:
+                            extracted_ids.extend(cmd[2])
+                        elif cmd[0] in (4, 0, 1) and len(cmd) > 1 and cmd[1]:
+                            extracted_ids.append(cmd[1])
+                if len(extracted_ids) == 1:
+                    vals['default_store_id'] = extracted_ids[0]
+
             # Auto-assign default_store_id if missing
             if tenant_id and not vals.get('default_store_id'):
                 default_store = self.env['havanoposdesk.store'].sudo().search([
@@ -291,19 +308,6 @@ class ResUsers(models.Model):
             if role not in ('admin', 'super_admin'):
                 if vals.get('default_store_id'):
                     vals['store_ids'] = [(6, 0, [vals['default_store_id']])]
-                elif vals.get('store_ids'):
-                    store_id = False
-                    for cmd in vals['store_ids']:
-                        if isinstance(cmd, (list, tuple)):
-                            if cmd[0] == 6 and cmd[2]:
-                                store_id = cmd[2][0]
-                                break
-                            elif cmd[0] in (4, 0, 1) and len(cmd) > 1 and cmd[1]:
-                                store_id = cmd[1]
-                                break
-                    if store_id:
-                        vals['default_store_id'] = store_id
-                        vals['store_ids'] = [(6, 0, [store_id])]
             else:
                 if vals.get('default_store_id') and ('store_ids' not in vals or not vals.get('store_ids')):
                     vals['store_ids'] = [(6, 0, [vals['default_store_id']])]
