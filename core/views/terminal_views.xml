@@ -6,7 +6,7 @@
             <field name="name">pos.terminal.tree</field>
             <field name="model">havanoposdesk.pos.terminal</field>
             <field name="arch" type="xml">
-                <list string="POS Terminals" create="0">
+                <list string="POS Terminals">
                     <header>
                         <button name="action_add_terminal" string="Add New Terminal" type="object" class="btn-primary"/>
                     </header>
@@ -27,7 +27,7 @@
             <field name="name">pos.terminal.form</field>
             <field name="model">havanoposdesk.pos.terminal</field>
             <field name="arch" type="xml">
-                <form string="POS Terminal" create="0">
+                <form string="POS Terminal">
                     <sheet>
                         <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active" />
                         <group>
