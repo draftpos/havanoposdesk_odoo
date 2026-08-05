@@ -6,10 +6,7 @@
             <field name="name">pos.terminal.tree</field>
             <field name="model">havanoposdesk.pos.terminal</field>
             <field name="arch" type="xml">
-                <list string="POS Terminals">
-                    <header>
-                        <button name="action_add_terminal" string="Add New Terminal" type="object" class="btn-primary"/>
-                    </header>
+                <list string="POS Terminals" create_text="Create New POS Terminal" on_create="action_add_terminal">
                     <field name="name" />
                     <field name="store_id" />
                     <field name="sequence_prefix" />
