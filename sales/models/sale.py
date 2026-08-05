@@ -578,8 +578,8 @@ class SaleLine(models.Model):
         for vals in vals_list:
             product_id = vals.get('product_id')
             if product_id:
+                product = self.env['havanoposdesk.product'].browse(product_id)
                 if not vals.get('uom_id'):
-                    product = self.env['havanoposdesk.product'].browse(product_id)
                     if product.uom_id:
                         vals['uom_id'] = product.uom_id.id
 
@@ -587,6 +587,10 @@ class SaleLine(models.Model):
                 provided = vals.get('uom_qty_multiplier')
                 if not provided or provided == 1.0:
                     vals['uom_qty_multiplier'] = self._resolve_uom_multiplier(product_id, uom_id)
+
+                if 'tax_ids' not in vals or not vals.get('tax_ids'):
+                    if product.sale_tax_ids:
+                        vals['tax_ids'] = [(6, 0, product.sale_tax_ids.ids)]
         return super().create(vals_list)
 
     def write(self, vals):

@@ -114,12 +114,13 @@
                                         <field name="rate" width="15%" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary" options="{'currency_field': 'currency_id'}" />
+                                        <field name="tax_ids" widget="many2many_tags" domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]" width="15%" optional="show" />
                                         <field name="amount" width="20%" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
-                                    <field name="amount_untaxed" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Excl" invisible="not is_tax_enabled" />
-                                    <field name="amount_tax" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Tax" invisible="not is_tax_enabled" />
+                                    <field name="amount_untaxed" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Excl" invisible="not is_tax_enabled and amount_tax == 0" />
+                                    <field name="amount_tax" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Tax" invisible="not is_tax_enabled and amount_tax == 0" />
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Incl" />
                                 </group>
                             </page>

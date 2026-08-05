@@ -1342,6 +1342,17 @@ class HavanoPOSDeskAPI(http.Controller):
                 if price_rec and price_rec.qty_to_be_sold:
                     line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
 
+            item_tax = item.get('item_tax') or item.get('tax_category') or item.get('item_tax_template')
+            if item_tax:
+                matching_tax = request.env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
+                    ('tax_type', '=', 'Sales'),
+                    '|', ('name', 'ilike', str(item_tax).strip()), ('name', '=', str(item_tax).strip())
+                ], limit=1)
+                if matching_tax:
+                    line_vals['tax_ids'] = [(6, 0, [matching_tax.id])]
+            if ('tax_ids' not in line_vals or not line_vals.get('tax_ids')) and product.sale_tax_ids:
+                line_vals['tax_ids'] = [(6, 0, product.sale_tax_ids.ids)]
+
             lines.append((0, 0, line_vals))
             
         sale = request.env['havanoposdesk.sale'].with_user(user.id).sudo().create({
@@ -2167,6 +2178,17 @@ class HavanoPOSDeskAPI(http.Controller):
                     if price_rec and price_rec.qty_to_be_sold:
                         line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
 
+                item_tax = line.get('item_tax') or line.get('tax_category') or line.get('item_tax_template')
+                if item_tax:
+                    matching_tax = env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
+                        ('tax_type', '=', 'Sales'),
+                        '|', ('name', 'ilike', str(item_tax).strip()), ('name', '=', str(item_tax).strip())
+                    ], limit=1)
+                    if matching_tax:
+                        line_vals['tax_ids'] = [(6, 0, [matching_tax.id])]
+                if ('tax_ids' not in line_vals or not line_vals.get('tax_ids')) and product.sale_tax_ids:
+                    line_vals['tax_ids'] = [(6, 0, product.sale_tax_ids.ids)]
+
                 sale_lines.append((0, 0, line_vals))
 
             terminal = user.selected_terminal_id
@@ -2367,6 +2389,10 @@ class HavanoPOSDeskAPI(http.Controller):
                         "qty": qty,
                         "rate": rate,
                         "amount": amount,
+                        "price_subtotal": line.price_subtotal,
+                        "price_tax": line.price_tax,
+                        "tax_amount": line.price_tax,
+                        "item_tax_template": line.tax_ids[0].name if line.tax_ids else None,
                     })
 
                 created_by = sale.salesperson_id.name or "Administrator"
@@ -2381,8 +2407,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     "due_date": posting_date,
                     "items": items,
                     "total_qty": total_qty,
-                    "total": sale.amount_total,
-                    "total_taxes_and_charges": 0.0,
+                    "net_total": sale.amount_untaxed,
+                    "total": sale.amount_untaxed if sale.amount_tax > 0 else sale.amount_total,
+                    "total_taxes_and_charges": sale.amount_tax,
                     "grand_total": sale.amount_total,
                     "created_by": created_by,
                     "last_modified_by": created_by,
@@ -2518,6 +2545,10 @@ class HavanoPOSDeskAPI(http.Controller):
                             "qty": qty,
                             "rate": rate,
                             "amount": amount,
+                            "price_subtotal": line.price_subtotal,
+                            "price_tax": line.price_tax,
+                            "tax_amount": line.price_tax,
+                            "item_tax_template": line.tax_ids[0].name if line.tax_ids else None,
                         })
                         total_qty += qty
 
@@ -2532,8 +2563,9 @@ class HavanoPOSDeskAPI(http.Controller):
                         "due_date": posting_date,
                         "items": items,
                         "total_qty": total_qty,
-                        "total": sale.amount_total,
-                        "total_taxes_and_charges": 0.0,
+                        "net_total": sale.amount_untaxed,
+                        "total": sale.amount_untaxed if sale.amount_tax > 0 else sale.amount_total,
+                        "total_taxes_and_charges": sale.amount_tax,
                         "grand_total": sale.amount_total,
                         "created_by": created_by,
                         "last_modified_by": created_by,
@@ -2659,6 +2691,17 @@ class HavanoPOSDeskAPI(http.Controller):
                                 ], limit=1)
                                 if price_rec and price_rec.qty_to_be_sold:
                                     line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+                            item_tax = item.get('item_tax') or item.get('tax_category') or item.get('item_tax_template')
+                            if item_tax:
+                                matching_tax = env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
+                                    ('tax_type', '=', 'Sales'),
+                                    '|', ('name', 'ilike', str(item_tax).strip()), ('name', '=', str(item_tax).strip())
+                                ], limit=1)
+                                if matching_tax:
+                                    line_vals['tax_ids'] = [(6, 0, [matching_tax.id])]
+                            if ('tax_ids' not in line_vals or not line_vals.get('tax_ids')) and product.sale_tax_ids:
+                                line_vals['tax_ids'] = [(6, 0, product.sale_tax_ids.ids)]
 
                             lines.append((0, 0, line_vals))
 
@@ -7181,15 +7224,19 @@ class HavanoPOSDeskAPI(http.Controller):
                         'item_code': line.product_id.item_code if line.product_id else '',
                         'item_name': line.product_id.name if line.product_id else '',
                         'qty': line.accepted_qty,
-                        'rate': line.unit_price,
+                        'rate': line.rate,
                         'amount': line.amount,
+                        'tax_amount': line.price_tax,
+                        'item_tax_template': line.tax_ids[0].name if line.tax_ids else None,
                     })
                 data.append({
                     'name': s.name,
                     'date': str(s.posting_date) if s.posting_date else None,
-                    'customer': s.customer_id.name if s.customer_id else '',
+                    'customer': s.customer_id.name if s.customer_id else (s.customer.name if s.customer else ''),
                     'cashier': s.salesperson_id.name if s.salesperson_id else '',
                     'total_amount': s.amount_total,
+                    'total_tax': s.amount_tax,
+                    'total_untaxed': s.amount_untaxed,
                     'items': items,
                 })
 
