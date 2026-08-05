@@ -55,7 +55,7 @@
                                 <field name="line_ids" readonly="state != 'draft'" widget="section_and_note_one2many" mode="list,kanban">
                                     <list  editable="bottom">
                                           <field name="currency_id" column_invisible="True"/>
-                                          <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('track_qty', '=', True), ('is_bundle', '=', False)]" width="35%" string="Item"/>
+                                          <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('track_qty', '=', True), ('is_bundle', '=', False), ('is_active', '=', True)]" width="35%" string="Item"/>
                                           <field name="available_uom_ids" column_invisible="True" />
                                           <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{'no_create': True}" width="15%" />
                                           <field name="accepted_qty" width="10%"/>

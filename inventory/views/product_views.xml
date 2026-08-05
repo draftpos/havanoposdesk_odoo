@@ -121,7 +121,7 @@
                                 <group>
                                     <field name="bundle_item_ids" nolabel="1">
                                         <list editable="bottom">
-                                            <field name="product_id" string="Component Product" domain="[('id', '!=', parent.id), ('is_bundle', '=', False), ('tenant_id', '=', parent.tenant_id)]" options="{'no_create': True}" />
+                                            <field name="product_id" string="Component Product" domain="[('id', '!=', parent.id), ('is_bundle', '=', False), ('tenant_id', '=', parent.tenant_id), ('is_active', '=', True)]" options="{'no_create': True}" />
                                             <field name="qty" string="Quantity" />
                                             <field name="buying_price" string="Cost Price" widget="monetary" />
                                             <field name="selling_price" string="Sell Price" widget="monetary" />
@@ -137,7 +137,7 @@
             </field>
         </record>
 
-        
+        <!-- Search View for Products -->
         <record id="view_havanoposdesk_product_search" model="ir.ui.view">
             <field name="name">havanoposdesk.product.search</field>
             <field name="model">havanoposdesk.product</field>
@@ -150,6 +150,9 @@
                     <field name="create_uid" />
                     <field name="store_ids" />
                     <field name="track_qty" />
+                    <separator />
+                    <filter string="Active" name="filter_active" domain="[('is_active', '=', True)]" />
+                    <filter string="Inactive" name="filter_inactive" domain="[('is_active', '=', False)]" />
                     <separator />
                     <filter string="In Stock" name="in_stock" domain="[('opening_stock', '&gt;', 0)]" />
                     <filter string="Out of Stock" name="out_of_stock" domain="[('opening_stock', '&lt;=', 0)]" />
@@ -175,12 +178,13 @@
             </field>
         </record>
 
-        
+        <!-- Product Action -->
         <record id="action_havanoposdesk_product" model="ir.actions.act_window">
             <field name="name">Products</field>
             <field name="res_model">havanoposdesk.product</field>
             <field name="view_mode">list,form</field>
             <field name="search_view_id" ref="view_havanoposdesk_product_search" />
+            <field name="context">{'search_default_filter_active': 1}</field>
         </record>
 
         

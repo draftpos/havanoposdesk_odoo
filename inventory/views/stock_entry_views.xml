@@ -36,7 +36,7 @@
                             <page string="Items">
                                 <field name="line_ids" readonly="state != 'draft'">
                                     <list editable="bottom">
-                                        <field name="product_id"/>
+                                        <field name="product_id" domain="[('is_active', '=', True)]"/>
                                         <field name="item_code"/>
                                         <field name="qty"/>
                                         <field name="uom"/>

@@ -186,7 +186,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 })
                 
             # Fetch warehouse items/products
-            product_domain = []
+            product_domain = [('is_active', '=', True)]
             if user.havano_role != 'super_admin':
                 if user.tenant_id:
                     product_domain.append(('tenant_id', '=', user.tenant_id.id))
@@ -424,7 +424,7 @@ class HavanoPOSDeskAPI(http.Controller):
         user = request.env['res.users'].sudo().browse(uid)
         
         if request.httprequest.method == 'GET':
-            domain = []
+            domain = [('is_active', '=', True)]
             if user.havano_role != 'super_admin':
                 if not user.tenant_id:
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
@@ -1095,7 +1095,7 @@ class HavanoPOSDeskAPI(http.Controller):
         customers = request.env['havanoposdesk.customer'].sudo().search(domain)
         
         # Load products/items for client caching
-        prod_domain = []
+        prod_domain = [('is_active', '=', True)]
         if tenant:
             prod_domain.append(('tenant_id', '=', tenant.id))
         if store:
@@ -1640,7 +1640,7 @@ class HavanoPOSDeskAPI(http.Controller):
         user = self._get_user()
         tenant = user.tenant_id
         
-        product_domain = []
+        product_domain = [('is_active', '=', True)]
         if user.havano_role != 'super_admin':
             if tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
@@ -3198,7 +3198,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 store_domain.append(('tenant_id', '=', tenant.id))
             stores = env['havanoposdesk.store'].search(store_domain)
 
-            product_domain = []
+            product_domain = [('is_active', '=', True)]
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
             products = env['havanoposdesk.product'].search(product_domain)
@@ -3844,7 +3844,7 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
 
-            product_domain = []
+            product_domain = [('is_active', '=', True)]
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
                 
@@ -4434,7 +4434,7 @@ class HavanoPOSDeskAPI(http.Controller):
         user = self._get_user()
         tenant = user.tenant_id
 
-        domain = [('is_bundle', '=', True)]
+        domain = [('is_bundle', '=', True), ('is_active', '=', True)]
         if user.havano_role != 'super_admin' and tenant:
             domain.append(('tenant_id', '=', tenant.id))
         
