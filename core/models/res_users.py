@@ -53,8 +53,8 @@ class ResUsers(models.Model):
     @api.constrains('store_ids', 'havano_role')
     def _check_store_access_limit(self):
         for user in self:
-            if user.havano_role not in ('admin', 'super_admin') and len(user.store_ids) > 2:
-                raise ValidationError(_("Only users with the Admin role can have access to more than two stores."))
+            if user.havano_role not in ('admin', 'super_admin') and len(user.store_ids) > 1:
+                raise ValidationError(_("Only users with the Admin role can have access to more than one store."))
 
     @api.constrains('default_store_id', 'pricelist_id')
     def _check_pricelist_belongs_to_store(self):

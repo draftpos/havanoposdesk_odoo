@@ -84,6 +84,9 @@
                     <field name="phone" />
                     <field name="pin" />
                     <field name="havano_role" string="User Role" />
+                    <field name="default_store_id" string="Default Store" optional="show" />
+                    <field name="store_ids" string="Allowed Stores" widget="many2many_tags" optional="show" />
+                    <field name="pricelist_id" string="Default Pricelist" optional="show" />
                     <field name="allow_backoffice" string="Backoffice" widget="boolean_toggle" optional="show" />
                     <field name="active" widget="boolean_toggle" optional="show" />
                 </list>
@@ -100,7 +103,7 @@
                         <widget name="web_ribbon" title="Archived" bg_color="text-danger" invisible="active" />
                         <div class="oe_title mb-4">
                             <h1>
-                                <field name="name" required="1" />
+                                <field name="name" required="1" placeholder="Name" />
                             </h1>
                         </div>
                         <group>
@@ -108,7 +111,7 @@
                                 <!-- LEFT COLUMN -->
                                 <field name="havano_role" string="User Role" />
                                 <field name="pin" string="POS Login PIN" widget="pos_pin_boxes" />
-                                <field name="login" string="Backoffice email (optional)" required="0" />
+                                <field name="login" string="Email" required="0" placeholder="Email" />
                                 <field name="phone" string="Phone number" />
                                 <field name="has_password" invisible="1" />
                                 
@@ -123,8 +126,8 @@
                             </group>
                             <group>
                                 <!-- RIGHT COLUMN -->
-                                <field name="default_store_id" string="Default Store" required="1" options="{'no_create': True}" />
                                 <field name="store_ids" string="Allowed Stores" widget="many2many_tags" required="1" options="{'no_create': True}" />
+                                <field name="default_store_id" string="Default Store" required="1" options="{'no_create': True}" />
                                 <field name="allowed_pricelist_ids" invisible="1" />
                                 <field name="pricelist_id" string="Default Pricelist" domain="[('id', 'in', allowed_pricelist_ids)]" required="1" options="{'no_create': True}" readonly="not default_store_id" />
                                 <field name="allow_discount" string="Discount Enable" widget="boolean_toggle" />

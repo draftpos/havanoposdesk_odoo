@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <!-- Admin list/tree view inherit -->
+        <record id="view_users_tree_inherit_havano" model="ir.ui.view">
+            <field name="name">res.users.tree.inherit.havano</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="base.view_users_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//list" position="inside">
+                    <field name="default_store_id" string="Default Store" optional="show"/>
+                    <field name="store_ids" string="Allowed Stores" widget="many2many_tags" optional="show"/>
+                    <field name="pricelist_id" string="Default Pricelist" optional="show"/>
+                </xpath>
+            </field>
+        </record>
+
         <!-- Admin form view (full editable, for super_admin viewing a user's record) -->
         <record id="view_users_form_inherit_havano" model="ir.ui.view">
             <field name="name">res.users.form.inherit.havano</field>
@@ -19,8 +33,8 @@
                                 <field name="verification_sent_at" readonly="1"/>
                             </group>
                             <group string="Store Access" invisible="havano_role == 'super_admin'">
-                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
                                 <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
+                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
                                 <field name="allowed_pricelist_ids" invisible="1"/>
                                 <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" required="1" options="{'no_create': True}" readonly="not default_store_id"/>
                             </group>
@@ -58,8 +72,8 @@
                                 <field name="tenant_id" readonly="1" invisible="havano_role == 'super_admin'"/>
                             </group>
                             <group string="Store Access" invisible="havano_role == 'super_admin'">
-                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
                                 <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
+                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
                                 <field name="allowed_pricelist_ids" invisible="1"/>
                                 <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" required="1" options="{'no_create': True}" readonly="not default_store_id"/>
                             </group>
