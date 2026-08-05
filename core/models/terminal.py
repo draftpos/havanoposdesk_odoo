@@ -73,7 +73,7 @@ class HavanoposdeskPosTerminal(models.Model):
             'res_id': terminal.id,
             'view_mode': 'form',
             'target': 'current',
-            'flags': {'initial_mode': 'readonly'},
+            'flags': {'initial_mode': 'edit'},
         }
 
     @api.model_create_multi
