@@ -734,13 +734,13 @@ class ResUsers(models.Model):
         terminal = self.env['havanoposdesk.pos.terminal'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
         if terminal:
             terminal.sudo().write({
-                'name': 'Terminal 1',
+                'name': 'Pos 1',
                 'store_id': store.id,
                 'status': 'open'
             })
         else:
             terminal = self.env['havanoposdesk.pos.terminal'].sudo().create({
-                'name': 'Terminal 1',
+                'name': 'Pos 1',
                 'tenant_id': tenant.id,
                 'store_id': store.id,
                 'status': 'open'

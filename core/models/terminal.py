@@ -44,7 +44,7 @@ class HavanoposdeskPosTerminal(models.Model):
             count = self.search_count([('tenant_id', '=', tenant_id)])
         else:
             count = self.search_count([])
-        return f"Terminal {count + 1}"
+        return f"Pos {count + 1}"
 
     def action_add_terminal(self):
         tenant_id = self.env.user.tenant_id.id
@@ -59,7 +59,7 @@ class HavanoposdeskPosTerminal(models.Model):
             }).id
 
         count = self.search_count([('tenant_id', '=', tenant_id)])
-        name = f"Terminal {count + 1}"
+        name = f"Pos {count + 1}"
         
         terminal = self.create({
             'name': name,

@@ -219,7 +219,7 @@ class HavanoposdeskTenant(models.Model):
             
             # Auto-create a default terminal
             self.env['havanoposdesk.pos.terminal'].sudo().create({
-                'name': 'Main Terminal',
+                'name': 'Pos 1',
                 'store_id': store.id,
                 'tenant_id': tenant.id,
             })
