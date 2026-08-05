@@ -56,10 +56,10 @@ class HavanoPOSDeskAPI(http.Controller):
                     uid = user_rec.id
                     pin_auth = True
                 else:
-                    raise Exception("Authentication failed")
+                    raise Exception("Invalid username or password")
             
             if not uid:
-                raise Exception("Authentication failed")
+                raise Exception("Invalid username or password")
                 
             request.session.uid = uid
             request.session.login = login
@@ -362,7 +362,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
         except Exception as e:
-            return request.make_response(json.dumps({'error': 'Authentication failed', 'message': str(e)}), headers=[('Content-Type', 'application/json')], status=401)
+            err_msg = str(e) if str(e) and str(e) != "Authentication failed" else "Invalid username or password"
+            return request.make_response(json.dumps({'error': err_msg, 'message': err_msg}), headers=[('Content-Type', 'application/json')], status=401)
         finally:
             if cr_to_close:
                 cr_to_close.close()
