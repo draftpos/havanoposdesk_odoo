@@ -40,7 +40,7 @@ class HavanoposdeskStore(models.Model):
     auto_populate_data = fields.Boolean(
         string='Auto-Populate Data', 
         default=True, 
-        help="If checked, existing products, customers, and suppliers will automatically be linked to this new store, and a default POS terminal will be created."
+        help="If checked, existing products, customers, and suppliers will automatically be linked to this new store."
     )
 
 
@@ -270,14 +270,6 @@ class HavanoposdeskStore(models.Model):
                         customers = self.env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', store.tenant_id.id)])
                         if customers:
                             customers.write({'store_ids': [(4, store.id)]})
-                            
-                        # 4. Create a default POS Terminal for the new store
-                        self.env['havanoposdesk.pos.terminal'].sudo().create({
-                            'name': 'Terminal 1',
-                            'tenant_id': store.tenant_id.id,
-                            'store_id': store.id,
-                            'active': True
-                        })
             
         return stores
 
