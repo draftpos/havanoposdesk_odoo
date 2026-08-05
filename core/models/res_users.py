@@ -767,6 +767,7 @@ class ResUsers(models.Model):
             'saas_state': 'unverified',
             'default_store_id': store.id if store else False,
             'store_ids': [(4, store.id)] if store else False,
+            'pricelist_id': store.pricelist_id.id if store and store.pricelist_id else False,
             'api_company_name': tenant_name,
             'api_warehouse': store.name if store else '',
             'api_cost_center': store.name if store else '',

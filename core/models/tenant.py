@@ -310,11 +310,22 @@ class HavanoposdeskTenant(models.Model):
         ])
         
         # 7. Default Pricelist
-        self.env['havanoposdesk.pricelist'].sudo().create({
-            'name': 'Retail',
-            'type': 'selling',
-            'tenant_id': tenant_id,
-        })
+        retail_pl = self.env['havanoposdesk.pricelist'].sudo().search([
+            ('tenant_id', '=', tenant_id),
+            ('name', '=ilike', 'Retail')
+        ], limit=1)
+        if not retail_pl:
+            retail_pl = self.env['havanoposdesk.pricelist'].sudo().create({
+                'name': 'Retail',
+                'type': 'selling',
+                'tenant_id': tenant_id,
+            })
+
+        if store:
+            if not store.pricelist_ids:
+                store.sudo().write({'pricelist_ids': [(6, 0, [retail_pl.id])]})
+            if not store.pricelist_id:
+                store.sudo().write({'pricelist_id': retail_pl.id})
         
         # 8. Default UOMs — 'Each' is first and is the default for products and API
         uoms = ['Each', 'Kg', 'Litre', 'Meter', 'Pieces', 'Box', 'Set']
