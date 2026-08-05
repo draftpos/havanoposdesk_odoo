@@ -546,7 +546,18 @@ class ResUsers(models.Model):
             if store and store.pricelist_id:
                 vals['pricelist_id'] = store.pricelist_id.id
 
-        # Auto-link store_ids if default_store_id is updated
+        # Auto-link store_ids and default_store_id
+        if 'store_ids' in vals and not vals.get('default_store_id'):
+            extracted_ids = []
+            for cmd in vals['store_ids']:
+                if isinstance(cmd, (list, tuple)):
+                    if cmd[0] == 6:
+                        extracted_ids.extend(cmd[2])
+                    elif cmd[0] in (4, 0, 1) and len(cmd) > 1 and cmd[1]:
+                        extracted_ids.append(cmd[1])
+            if len(extracted_ids) == 1:
+                vals['default_store_id'] = extracted_ids[0]
+
         if vals.get('default_store_id'):
             for user in self:
                 role = vals.get('havano_role') or user.havano_role
