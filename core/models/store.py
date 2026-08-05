@@ -103,6 +103,30 @@ class HavanoposdeskStore(models.Model):
             else:
                 store.last_open = False
 
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        tenant_id = res.get('tenant_id') or (self.env.user.tenant_id.id if self.env.user.tenant_id else False)
+        if tenant_id:
+            selling_pricelists = self.env['havanoposdesk.pricelist'].sudo().search([
+                ('tenant_id', '=', tenant_id),
+                ('type', '=', 'selling')
+            ])
+            if not selling_pricelists:
+                retail_pl = self.env['havanoposdesk.pricelist'].sudo().create({
+                    'name': 'Retail',
+                    'type': 'selling',
+                    'tenant_id': tenant_id
+                })
+                selling_pricelists = retail_pl
+
+            if 'pricelist_ids' in fields_list and not res.get('pricelist_ids'):
+                res['pricelist_ids'] = [(6, 0, selling_pricelists.ids)]
+            if 'pricelist_id' in fields_list and not res.get('pricelist_id'):
+                retail_pl = selling_pricelists.filtered(lambda p: p.name and 'retail' in p.name.lower())
+                res['pricelist_id'] = (retail_pl[0] if retail_pl else selling_pricelists[0]).id
+        return res
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -112,6 +136,26 @@ class HavanoposdeskStore(models.Model):
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             if not tenant_id:
                 raise ValidationError('Cannot create a store without an associated tenant.')
+
+            # Ensure default and allowed pricelists are assigned by default
+            selling_pricelists = self.env['havanoposdesk.pricelist'].sudo().search([
+                ('tenant_id', '=', tenant_id),
+                ('type', '=', 'selling')
+            ])
+            if not selling_pricelists:
+                retail_pl = self.env['havanoposdesk.pricelist'].sudo().create({
+                    'name': 'Retail',
+                    'type': 'selling',
+                    'tenant_id': tenant_id
+                })
+                selling_pricelists = retail_pl
+
+            if not vals.get('pricelist_ids'):
+                vals['pricelist_ids'] = [(6, 0, selling_pricelists.ids)]
+
+            if not vals.get('pricelist_id'):
+                retail_pl = selling_pricelists.filtered(lambda p: p.name and 'retail' in p.name.lower())
+                vals['pricelist_id'] = (retail_pl[0] if retail_pl else selling_pricelists[0]).id
                 
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
             if tenant.subscription_state != 'active':
@@ -207,9 +251,13 @@ class HavanoposdeskStore(models.Model):
                         ('active', '=', True),
                     ])
                     if tenant_admins:
-                        tenant_admins.sudo().write({
-                            'store_ids': [(4, store.id)]
-                        })
+                        for admin in tenant_admins:
+                            write_vals = {'store_ids': [(4, store.id)]}
+                            if not admin.default_store_id:
+                                write_vals['default_store_id'] = store.id
+                            if not admin.pricelist_id and store.pricelist_id:
+                                write_vals['pricelist_id'] = store.pricelist_id.id
+                            admin.sudo().write(write_vals)
                     
                     # Auto-Populate Logic
                     if store.auto_populate_data:

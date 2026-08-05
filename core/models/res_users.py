@@ -84,7 +84,10 @@ class ResUsers(models.Model):
     @api.onchange('default_store_id')
     def _onchange_default_store_id(self):
         if self.default_store_id:
-            self.store_ids = self.store_ids | self.default_store_id
+            if self.havano_role not in ('admin', 'super_admin'):
+                self.store_ids = [(6, 0, [self.default_store_id.id])]
+            else:
+                self.store_ids = self.store_ids | self.default_store_id
 
     @api.depends('havano_role')
     def _compute_allow_backoffice(self):
@@ -93,8 +96,14 @@ class ResUsers(models.Model):
 
     @api.onchange('havano_role')
     def _onchange_havano_role_profile(self):
-        """Auto-select the default User Rights Profile based on the selected role."""
+        """Auto-select default profile and trim store_ids to single default store for non-admin roles."""
         for user in self:
+            if user.havano_role not in ('admin', 'super_admin'):
+                if user.default_store_id:
+                    user.store_ids = [(6, 0, [user.default_store_id.id])]
+                elif user.store_ids:
+                    user.store_ids = [(6, 0, [user.store_ids[0].id])]
+
             if user.havano_role and user.tenant_id:
                 profile_name = ''
                 if user.havano_role == 'super_admin':
@@ -185,25 +194,38 @@ class ResUsers(models.Model):
 
     @api.model
     def default_get(self, fields_list):
-        """Pre-fill default_store_id, store_ids, and API fields when a new user form opens."""
+        """Pre-fill default_store_id, store_ids, pricelist_id, and API fields when a new user form opens."""
         res = super().default_get(fields_list)
         current_user = self.env.user
-        store = current_user.default_store_id
-        if not store and current_user.tenant_id:
-            store = self.env['havanoposdesk.store'].search([('tenant_id', '=', current_user.tenant_id.id)], limit=1)
-            
-        if store:
-            if 'default_store_id' in fields_list and not res.get('default_store_id'):
-                res['default_store_id'] = store.id
-            if 'store_ids' in fields_list and not res.get('store_ids'):
-                res['store_ids'] = [(4, store.id)]
-            if 'api_cost_center' in fields_list and not res.get('api_cost_center'):
-                res['api_cost_center'] = store.name
-            if 'api_warehouse' in fields_list and not res.get('api_warehouse'):
-                res['api_warehouse'] = store.name
-                
-        if current_user.tenant_id and 'tenant_id' in fields_list and not res.get('tenant_id'):
-            res['tenant_id'] = current_user.tenant_id.id
+        tenant_id = res.get('tenant_id') or (current_user.tenant_id.id if current_user.tenant_id else False)
+        if tenant_id:
+            if 'tenant_id' in fields_list and not res.get('tenant_id'):
+                res['tenant_id'] = tenant_id
+
+            store = current_user.default_store_id if current_user.tenant_id and current_user.tenant_id.id == tenant_id else False
+            if not store:
+                store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+
+            if store:
+                if 'default_store_id' in fields_list and not res.get('default_store_id'):
+                    res['default_store_id'] = store.id
+                if 'store_ids' in fields_list and not res.get('store_ids'):
+                    res['store_ids'] = [(4, store.id)]
+                if 'pricelist_id' in fields_list and not res.get('pricelist_id') and store.pricelist_id:
+                    res['pricelist_id'] = store.pricelist_id.id
+                if 'api_cost_center' in fields_list and not res.get('api_cost_center'):
+                    res['api_cost_center'] = store.name
+                if 'api_warehouse' in fields_list and not res.get('api_warehouse'):
+                    res['api_warehouse'] = store.name
+
+            if 'pricelist_id' in fields_list and not res.get('pricelist_id'):
+                selling_pl = self.env['havanoposdesk.pricelist'].sudo().search([
+                    ('tenant_id', '=', tenant_id),
+                    ('type', '=', 'selling')
+                ], limit=1)
+                if selling_pl:
+                    res['pricelist_id'] = selling_pl.id
+
         return res
 
 
@@ -228,19 +250,42 @@ class ResUsers(models.Model):
                     vals['allow_backoffice'] = False
             elif 'allow_backoffice' in vals:
                 vals['havano_role'] = 'admin' if vals['allow_backoffice'] else 'user'
-                
-            # Auto-link pricelist if default_store_id is set
-            if vals.get('default_store_id') and not vals.get('pricelist_id'):
-                store = self.env['havanoposdesk.store'].sudo().browse(vals['default_store_id'])
-                if store and store.pricelist_id:
-                    vals['pricelist_id'] = store.pricelist_id.id
+
+            tenant_id = vals.get('tenant_id') or (self.env.user.tenant_id.id if self.env.user.tenant_id else False)
+            if tenant_id and 'tenant_id' not in vals:
+                vals['tenant_id'] = tenant_id
+
+            # Auto-assign default_store_id if missing
+            if tenant_id and not vals.get('default_store_id'):
+                default_store = self.env['havanoposdesk.store'].sudo().search([
+                    ('tenant_id', '=', tenant_id),
+                    ('is_default', '=', True)
+                ], limit=1)
+                if not default_store:
+                    default_store = self.env['havanoposdesk.store'].sudo().search([
+                        ('tenant_id', '=', tenant_id)
+                    ], limit=1)
+                if default_store:
+                    vals['default_store_id'] = default_store.id
 
             # Auto-link store_ids if default_store_id is set but store_ids is not provided
-            if vals.get('default_store_id') and 'store_ids' not in vals:
+            if vals.get('default_store_id') and ('store_ids' not in vals or not vals.get('store_ids')):
                 vals['store_ids'] = [(6, 0, [vals['default_store_id']])]
 
-            tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
-            
+            # Auto-link pricelist if default_store_id is set or fallback to tenant selling pricelist
+            if not vals.get('pricelist_id'):
+                if vals.get('default_store_id'):
+                    store = self.env['havanoposdesk.store'].sudo().browse(vals['default_store_id'])
+                    if store and store.pricelist_id:
+                        vals['pricelist_id'] = store.pricelist_id.id
+                if not vals.get('pricelist_id') and tenant_id:
+                    selling_pl = self.env['havanoposdesk.pricelist'].sudo().search([
+                        ('tenant_id', '=', tenant_id),
+                        ('type', '=', 'selling')
+                    ], limit=1)
+                    if selling_pl:
+                        vals['pricelist_id'] = selling_pl.id
+
             # Auto-link profile if not provided
             if 'user_rights_profile_id' not in vals and tenant_id:
                 role = vals.get('havano_role') or 'user'
@@ -461,9 +506,14 @@ class ResUsers(models.Model):
             if store and store.pricelist_id:
                 vals['pricelist_id'] = store.pricelist_id.id
 
-        # Auto-link store_ids if default_store_id is updated but store_ids is not provided
-        if vals.get('default_store_id') and 'store_ids' not in vals:
-            vals['store_ids'] = [(4, vals['default_store_id'])]
+        # Auto-link store_ids if default_store_id is updated
+        if vals.get('default_store_id'):
+            for user in self:
+                role = vals.get('havano_role') or user.havano_role
+                if role not in ('admin', 'super_admin'):
+                    vals['store_ids'] = [(6, 0, [vals['default_store_id']])]
+                elif 'store_ids' not in vals:
+                    vals['store_ids'] = [(4, vals['default_store_id'])]
         if 'havano_role' in vals:
             if vals['havano_role'] in ('admin', 'super_admin'):
                 vals['allow_backoffice'] = True
