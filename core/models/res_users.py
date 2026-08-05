@@ -55,13 +55,20 @@ class ResUsers(models.Model):
     def _check_store_access_limit(self):
         for user in self:
             if user.havano_role not in ('admin', 'super_admin') and len(user.store_ids) > 1:
-                raise ValidationError(_("Only users with the Admin role can have access to more than one store."))
+                if user.default_store_id:
+                    user.sudo().write({'store_ids': [(6, 0, [user.default_store_id.id])]})
+                elif user.store_ids:
+                    first_store = user.store_ids[0].id
+                    user.sudo().write({
+                        'default_store_id': first_store,
+                        'store_ids': [(6, 0, [first_store])]
+                    })
 
     @api.constrains('default_store_id', 'pricelist_id')
     def _check_pricelist_belongs_to_store(self):
         for user in self:
             if user.default_store_id and user.pricelist_id:
-                if user.pricelist_id not in user.default_store_id.pricelist_ids:
+                if user.default_store_id.pricelist_ids and user.pricelist_id not in user.default_store_id.pricelist_ids:
                     raise ValidationError(_("The default pricelist must be one of the allowed pricelists of the selected default store."))
 
     @api.depends('default_store_id', 'default_store_id.pricelist_ids')
@@ -85,9 +92,20 @@ class ResUsers(models.Model):
     def _onchange_default_store_id(self):
         if self.default_store_id:
             if self.havano_role not in ('admin', 'super_admin'):
-                self.store_ids = [(6, 0, [self.default_store_id.id])]
+                self.store_ids = self.default_store_id
             else:
-                self.store_ids = self.store_ids | self.default_store_id
+                if self.store_ids:
+                    self.store_ids = self.store_ids | self.default_store_id
+                else:
+                    self.store_ids = self.default_store_id
+
+    @api.onchange('store_ids')
+    def _onchange_store_ids(self):
+        if self.havano_role not in ('admin', 'super_admin') and len(self.store_ids) > 1:
+            if self.default_store_id and self.default_store_id in self.store_ids:
+                self.store_ids = self.default_store_id
+            else:
+                self.store_ids = self.store_ids[:1]
 
     @api.depends('havano_role')
     def _compute_allow_backoffice(self):
@@ -100,9 +118,9 @@ class ResUsers(models.Model):
         for user in self:
             if user.havano_role not in ('admin', 'super_admin'):
                 if user.default_store_id:
-                    user.store_ids = [(6, 0, [user.default_store_id.id])]
+                    user.store_ids = user.default_store_id
                 elif user.store_ids:
-                    user.store_ids = [(6, 0, [user.store_ids[0].id])]
+                    user.store_ids = user.store_ids[:1]
 
             if user.havano_role and user.tenant_id:
                 profile_name = ''
@@ -268,9 +286,27 @@ class ResUsers(models.Model):
                 if default_store:
                     vals['default_store_id'] = default_store.id
 
-            # Auto-link store_ids if default_store_id is set but store_ids is not provided
-            if vals.get('default_store_id') and ('store_ids' not in vals or not vals.get('store_ids')):
-                vals['store_ids'] = [(6, 0, [vals['default_store_id']])]
+            # Auto-link store_ids and sanitize for non-admin users
+            role = vals.get('havano_role') or 'user'
+            if role not in ('admin', 'super_admin'):
+                if vals.get('default_store_id'):
+                    vals['store_ids'] = [(6, 0, [vals['default_store_id']])]
+                elif vals.get('store_ids'):
+                    store_id = False
+                    for cmd in vals['store_ids']:
+                        if isinstance(cmd, (list, tuple)):
+                            if cmd[0] == 6 and cmd[2]:
+                                store_id = cmd[2][0]
+                                break
+                            elif cmd[0] in (4, 0, 1) and len(cmd) > 1 and cmd[1]:
+                                store_id = cmd[1]
+                                break
+                    if store_id:
+                        vals['default_store_id'] = store_id
+                        vals['store_ids'] = [(6, 0, [store_id])]
+            else:
+                if vals.get('default_store_id') and ('store_ids' not in vals or not vals.get('store_ids')):
+                    vals['store_ids'] = [(6, 0, [vals['default_store_id']])]
 
             # Auto-link pricelist if default_store_id is set or fallback to tenant selling pricelist
             if not vals.get('pricelist_id'):
