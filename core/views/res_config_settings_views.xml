@@ -348,26 +348,6 @@
                 <app logo="/havanoposdesk_odoo/static/description/configs.png" data-string="Settings" string="Settings" name="havanoposdesk_my_business" groups="base.group_user">
                     <field name="tenant_id" invisible="1"/>
                     
-                    <block title="My Business" name="my_business_config">
-                        <setting string="Global Multi-Currencies" help="Enforce multi-currencies on all customers automatically">
-                            <field name="biz_global_multi_currency_customers"/>
-                            <div class="mt16" invisible="not biz_global_multi_currency_customers">
-                                <label for="biz_global_secondary_currency_id" string="Default Secondary Currency"/>
-                                <field name="biz_global_secondary_currency_id" options="{'no_create': True}" class="oe_inline"/>
-                                <button name="action_apply_global_multi_currency" type="object" string="Apply to Existing Customers" class="btn-link mt4"/>
-                            </div>
-                        </setting>
-                        <setting string="Multi-Currencies" help="Allow multiple currencies for your business">
-                            <field name="biz_allow_multi_currency"/>
-                        </setting>
-                        <setting string="Business Currency" help="Main currency of your business">
-                            <div class="content-group mt8">
-                                <field name="has_transactions" invisible="1"/>
-                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions"/>
-                            </div>
-                        </setting>
-                    </block>
-
                     <block title="Stores &amp; Terminals" name="stores_terminals_config">
                         <setting string="Stores" help="Manage your business locations and stores">
                             <div class="mt16">
@@ -390,6 +370,26 @@
                         <setting string="User Rights Profiles" help="Manage role permissions and profiles">
                             <div class="mt16">
                                 <button name="%(action_user_rights_profiles)d" type="action" string="Manage User Rights Profiles" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
+                    </block>
+
+                    <block title="My Business" name="my_business_config">
+                        <setting string="Global Multi-Currencies" help="Enforce multi-currencies on all customers automatically">
+                            <field name="biz_global_multi_currency_customers"/>
+                            <div class="mt16" invisible="not biz_global_multi_currency_customers">
+                                <label for="biz_global_secondary_currency_id" string="Default Secondary Currency"/>
+                                <field name="biz_global_secondary_currency_id" options="{'no_create': True}" class="oe_inline"/>
+                                <button name="action_apply_global_multi_currency" type="object" string="Apply to Existing Customers" class="btn-link mt4"/>
+                            </div>
+                        </setting>
+                        <setting string="Multi-Currencies" help="Allow multiple currencies for your business">
+                            <field name="biz_allow_multi_currency"/>
+                        </setting>
+                        <setting string="Business Currency" help="Main currency of your business">
+                            <div class="content-group mt8">
+                                <field name="has_transactions" invisible="1"/>
+                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions"/>
                             </div>
                         </setting>
                     </block>
