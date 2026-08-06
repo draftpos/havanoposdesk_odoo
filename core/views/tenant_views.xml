@@ -24,11 +24,12 @@
             <field name="arch" type="xml">
                 <form string="Tenant">
                     <header>
+                        <field name="pending_subscription_plan_id" invisible="1"/>
                         <button name="action_approve"
                                 type="object"
-                                string="Approve / Activate"
+                                string="Approve / Activate Plan"
                                 class="oe_highlight"
-                                invisible="subscription_state == 'active'"
+                                invisible="subscription_state == 'active' and not pending_subscription_plan_id"
                                 groups="base.group_system"/>
 
                         <button name="action_expire"
@@ -46,21 +47,21 @@
 
                         <button name="action_cancel"
                                 type="object"
-                                string="Cancel Subscription"
+                                string="Cancel Pending Request"
                                 class="btn-secondary"
-                                invisible="subscription_state != 'pending'"/>
+                                invisible="subscription_state != 'pending' and not pending_subscription_plan_id"/>
 
                         <button name="action_pay_subscription_wizard"
                                 type="object"
                                 string="Pay &amp; Activate Plan"
                                 class="btn-success"
-                                invisible="subscription_state == 'active' or not subscription_plan_id"/>
+                                invisible="(subscription_state == 'active' and not pending_subscription_plan_id) or (not subscription_plan_id and not pending_subscription_plan_id)"/>
 
                         <button name="action_upgrade_plan"
                                 type="object"
                                 string="Change/Upgrade Plan"
                                 class="oe_highlight"
-                                invisible="subscription_state == 'pending'"/>
+                                invisible="subscription_state == 'pending' or pending_subscription_plan_id"/>
 
                         <field name="subscription_state"
                                widget="statusbar"
@@ -68,8 +69,13 @@
                     </header>
 
                     <sheet>
+                        <group string="Pending Plan Upgrade Request" invisible="not pending_subscription_plan_id">
+                            <field name="pending_subscription_plan_id" readonly="1" options="{'no_create': True}"/>
+                            <field name="pending_additional_stores" readonly="1"/>
+                            <field name="pending_subscription_total_amount" readonly="1"/>
+                        </group>
                         <group>
-                            <group string="Subscription Details">
+                            <group string="Active Subscription Details">
                                 <field name="name"
                                        readonly="not context.get('is_super_admin', False)"/>
                                 <field name="subscription_plan_id"

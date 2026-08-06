@@ -14,6 +14,84 @@
 
             <xpath expr="//form" position="inside">
                 <field name="is_super_user" invisible="1"/>
+
+                <!-- Settings / Business Configuration (First Top Tab) -->
+                <app logo="/havanoposdesk_odoo/static/description/configs.png" data-string="Settings" string="Settings" name="havanoposdesk_my_business" groups="base.group_user">
+                    <field name="tenant_id" invisible="1"/>
+                    
+                    <block title="Users &amp; Roles" name="users_roles_config">
+                        <setting string="Users" help="Manage your cashiers and backoffice users">
+                            <div class="mt16">
+                                <button name="%(action_my_cashiers)d" type="action" string="Manage Users" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
+                        <setting string="User Rights Profiles" help="Manage role permissions and profiles">
+                            <div class="mt16">
+                                <button name="%(action_user_rights_profiles)d" type="action" string="Manage User Rights Profiles" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
+                    </block>
+
+                    <block title="Stores &amp; Terminals" name="stores_terminals_config">
+                        <setting string="Stores" help="Manage your business locations and stores">
+                            <div class="mt16">
+                                <button name="%(action_my_stores)d" type="action" string="Manage Stores" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
+                        <setting string="POS Terminals" help="Manage your Point of Sale terminals">
+                            <div class="mt16">
+                                <button name="%(action_my_terminals)d" type="action" string="Manage POS Terminals" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
+                    </block>
+
+                    <block title="My Business" name="my_business_config">
+                        <setting string="Global Multi-Currencies" help="Enforce multi-currencies on all customers automatically">
+                            <field name="biz_global_multi_currency_customers"/>
+                            <div class="mt16" invisible="not biz_global_multi_currency_customers">
+                                <label for="biz_global_secondary_currency_id" string="Default Secondary Currency"/>
+                                <field name="biz_global_secondary_currency_id" options="{'no_create': True}" class="oe_inline"/>
+                                <button name="action_apply_global_multi_currency" type="object" string="Apply to Existing Customers" class="btn-link mt4"/>
+                            </div>
+                        </setting>
+                        <setting string="Multi-Currencies" help="Allow multiple currencies for your business">
+                            <field name="biz_allow_multi_currency"/>
+                        </setting>
+                        <setting string="Business Currency" help="Main currency of your business">
+                            <div class="content-group mt8">
+                                <field name="has_transactions" invisible="1"/>
+                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions"/>
+                            </div>
+                        </setting>
+                    </block>
+
+                    <block title="Subscription" name="subscription_config">
+                        <setting string="My Subscription" help="View and manage your subscription plan">
+                            <div class="mt16">
+                                <button name="%(action_my_subscription)d" type="action" string="Manage Subscription" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
+                    </block>
+
+                    <block title="Mobile POS Configuration" name="mobile_pos_config">
+                        <setting string="Enable Quotations" help="Allow quotations management in POS app">
+                            <field name="biz_enable_quotations"/>
+                        </setting>
+                        <setting string="Enable UOM Conversion" help="Allow multi-UOM packaging conversions in POS">
+                            <field name="biz_enable_uom_conversion"/>
+                        </setting>
+                        <setting string="Enable Payment Entries" help="Display Payment Entries management in POS app">
+                            <field name="biz_enable_payment_entries"/>
+                        </setting>
+                        <setting string="Show Stock Quantity on Hand" help="Show stock quantity indicator on POS product cards">
+                            <field name="biz_show_qty_on_hand"/>
+                        </setting>
+                        <setting string="Enable Shift Management" help="Track sales shifts and cash drawer opening/closing">
+                            <field name="biz_enable_shift"/>
+                        </setting>
+                    </block>
+                </app>
+
                 <!-- SaaS Config Settings -->
                 <app logo="/havanoposdesk_odoo/static/description/saas_config.png" data-string="SaaS Config" string="SaaS Config" name="havanoposdesk_saas" groups="base.group_system">
                     <block title="SaaS Administration" name="saas_config">
@@ -344,82 +422,6 @@
                     </block>
                 </app>
 
-                <!-- Settings -->
-                <app logo="/havanoposdesk_odoo/static/description/configs.png" data-string="Settings" string="Settings" name="havanoposdesk_my_business" groups="base.group_user">
-                    <field name="tenant_id" invisible="1"/>
-                    
-                    <block title="Stores &amp; Terminals" name="stores_terminals_config">
-                        <setting string="Stores" help="Manage your business locations and stores">
-                            <div class="mt16">
-                                <button name="%(action_my_stores)d" type="action" string="Manage Stores" icon="fa-arrow-right" class="btn-link"/>
-                            </div>
-                        </setting>
-                        <setting string="POS Terminals" help="Manage your Point of Sale terminals">
-                            <div class="mt16">
-                                <button name="%(action_my_terminals)d" type="action" string="Manage POS Terminals" icon="fa-arrow-right" class="btn-link"/>
-                            </div>
-                        </setting>
-                    </block>
-
-                    <block title="Users &amp; Roles" name="users_roles_config">
-                        <setting string="Users" help="Manage your cashiers and backoffice users">
-                            <div class="mt16">
-                                <button name="%(action_my_cashiers)d" type="action" string="Manage Users" icon="fa-arrow-right" class="btn-link"/>
-                            </div>
-                        </setting>
-                        <setting string="User Rights Profiles" help="Manage role permissions and profiles">
-                            <div class="mt16">
-                                <button name="%(action_user_rights_profiles)d" type="action" string="Manage User Rights Profiles" icon="fa-arrow-right" class="btn-link"/>
-                            </div>
-                        </setting>
-                    </block>
-
-                    <block title="My Business" name="my_business_config">
-                        <setting string="Global Multi-Currencies" help="Enforce multi-currencies on all customers automatically">
-                            <field name="biz_global_multi_currency_customers"/>
-                            <div class="mt16" invisible="not biz_global_multi_currency_customers">
-                                <label for="biz_global_secondary_currency_id" string="Default Secondary Currency"/>
-                                <field name="biz_global_secondary_currency_id" options="{'no_create': True}" class="oe_inline"/>
-                                <button name="action_apply_global_multi_currency" type="object" string="Apply to Existing Customers" class="btn-link mt4"/>
-                            </div>
-                        </setting>
-                        <setting string="Multi-Currencies" help="Allow multiple currencies for your business">
-                            <field name="biz_allow_multi_currency"/>
-                        </setting>
-                        <setting string="Business Currency" help="Main currency of your business">
-                            <div class="content-group mt8">
-                                <field name="has_transactions" invisible="1"/>
-                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions"/>
-                            </div>
-                        </setting>
-                    </block>
-
-                    <block title="Subscription" name="subscription_config">
-                        <setting string="My Subscription" help="View and manage your subscription plan">
-                            <div class="mt16">
-                                <button name="%(action_my_subscription)d" type="action" string="Manage Subscription" icon="fa-arrow-right" class="btn-link"/>
-                            </div>
-                        </setting>
-                    </block>
-
-                    <block title="Mobile POS Configuration" name="mobile_pos_config">
-                        <setting string="Enable Quotations" help="Allow quotations management in POS app">
-                            <field name="biz_enable_quotations"/>
-                        </setting>
-                        <setting string="Enable UOM Conversion" help="Allow multi-UOM packaging conversions in POS">
-                            <field name="biz_enable_uom_conversion"/>
-                        </setting>
-                        <setting string="Enable Payment Entries" help="Display Payment Entries management in POS app">
-                            <field name="biz_enable_payment_entries"/>
-                        </setting>
-                        <setting string="Show Stock Quantity on Hand" help="Show stock quantity indicator on POS product cards">
-                            <field name="biz_show_qty_on_hand"/>
-                        </setting>
-                        <setting string="Enable Shift Management" help="Track sales shifts and cash drawer opening/closing">
-                            <field name="biz_enable_shift"/>
-                        </setting>
-                    </block>
-                </app>
             </xpath>
         </field>
     </record>

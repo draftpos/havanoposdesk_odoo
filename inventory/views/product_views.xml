@@ -96,6 +96,8 @@
                                             <field name="pricelist_id" options="{'no_create': True}" />
                                             <field name="uom_id" string="Unit of Measure" options="{'no_create': True}" />
                                             <field name="qty_to_be_sold" string="Qty to be Sold" />
+                                            <field name="initial_stock" string="Initial Qty / Stock" />
+                                            <field name="on_hand_qty" string="Current Store Stock" readonly="1" />
                                             <field name="price" />
                                         </list>
                                     </field>

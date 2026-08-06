@@ -40,10 +40,12 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
         active_id = self.env.context.get('active_id')
         if active_id:
             tenant = self.env['havanoposdesk.tenant'].browse(active_id)
+            plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
+            amount = tenant.pending_subscription_total_amount if tenant.pending_subscription_plan_id else (tenant.subscription_total_amount or (plan.price if plan else 0.0))
             res.update({
                 'tenant_id': tenant.id,
-                'subscription_plan_id': tenant.subscription_plan_id.id,
-                'amount': tenant.subscription_plan_id.price,
+                'subscription_plan_id': plan.id if plan else False,
+                'amount': amount,
             })
         return res
 

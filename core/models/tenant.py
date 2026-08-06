@@ -47,6 +47,11 @@ class HavanoposdeskTenant(models.Model):
     subscription_start_date = fields.Date(string='Subscription Start Date')
     subscription_end_date = fields.Date(string='Subscription End Date')
 
+    pending_subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Pending Subscription Plan', help='New plan requested that is pending approval or payment.')
+    pending_additional_stores = fields.Integer(string='Pending Additional Stores', default=0)
+    pending_subscription_total_amount = fields.Float(string='Pending Total Amount ($)', compute='_compute_pending_subscription_total_amount', store=True)
+    has_pending_upgrade = fields.Boolean(string='Has Pending Upgrade', compute='_compute_has_pending_upgrade')
+
     @api.depends('subscription_plan_id', 'subscription_plan_id.max_stores', 'subscription_plan_id.max_terminals', 'subscription_plan_id.is_custom', 'additional_stores')
     def _compute_subscription_limits(self):
         for tenant in self:
@@ -74,6 +79,24 @@ class HavanoposdeskTenant(models.Model):
                 tenant.subscription_total_amount = (plan.price or 0.0) + (extra * extra_price)
             else:
                 tenant.subscription_total_amount = plan.price or 0.0
+
+    @api.depends('pending_subscription_plan_id', 'pending_subscription_plan_id.price', 'pending_subscription_plan_id.is_custom', 'pending_subscription_plan_id.extra_store_price', 'pending_additional_stores')
+    def _compute_pending_subscription_total_amount(self):
+        for tenant in self:
+            plan = tenant.pending_subscription_plan_id
+            if not plan:
+                tenant.pending_subscription_total_amount = 0.0
+            elif plan.is_custom:
+                extra = max(0, tenant.pending_additional_stores or 0)
+                extra_price = plan.extra_store_price or 12.0
+                tenant.pending_subscription_total_amount = (plan.price or 0.0) + (extra * extra_price)
+            else:
+                tenant.pending_subscription_total_amount = plan.price or 0.0
+
+    @api.depends('pending_subscription_plan_id')
+    def _compute_has_pending_upgrade(self):
+        for tenant in self:
+            tenant.has_pending_upgrade = bool(tenant.pending_subscription_plan_id)
     theme_color = fields.Selection([
         ('dark', 'Dark'),
         ('light', 'Light')
@@ -135,11 +158,13 @@ class HavanoposdeskTenant(models.Model):
         is_expired = tenant.subscription_state in ('expired', 'cancelled')
 
         return {
-            'show_banner': is_expiring_soon or is_expired,
+            'show_banner': is_expiring_soon or is_expired or bool(tenant.pending_subscription_plan_id),
             'state': tenant.subscription_state,
             'days_left': days_left,
             'end_date': str(tenant.subscription_end_date) if tenant.subscription_end_date else None,
             'plan_name': tenant.subscription_plan_id.name if tenant.subscription_plan_id else None,
+            'pending_plan_name': tenant.pending_subscription_plan_id.name if tenant.pending_subscription_plan_id else None,
+            'has_pending_upgrade': bool(tenant.pending_subscription_plan_id),
             'is_expiring_soon': is_expiring_soon,
             'is_expired': is_expired,
             'warning_days': warning_days,
@@ -389,11 +414,25 @@ class HavanoposdeskTenant(models.Model):
 
     def action_approve(self):
         for tenant in self:
-            tenant.with_context(bypass_subscription_check=True).write({
+            vals = {
                 'subscription_state': 'active',
                 'payment_status': 'paid',
                 'active': True
-            })
+            }
+            target_plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
+            if tenant.pending_subscription_plan_id:
+                vals['subscription_plan_id'] = tenant.pending_subscription_plan_id.id
+                vals['additional_stores'] = tenant.pending_additional_stores
+                vals['pending_subscription_plan_id'] = False
+                vals['pending_additional_stores'] = 0
+
+            if target_plan:
+                duration = target_plan.duration_days or 30
+                start_date = fields.Date.context_today(self)
+                vals['subscription_start_date'] = start_date
+                vals['subscription_end_date'] = start_date + relativedelta(days=duration)
+
+            tenant.with_context(bypass_subscription_check=True).write(vals)
 
     def action_expire(self):
         for tenant in self:
@@ -403,35 +442,56 @@ class HavanoposdeskTenant(models.Model):
 
     def action_cancel(self):
         for tenant in self:
-            tenant.with_context(bypass_subscription_check=True).write({
-                'subscription_state': 'cancelled'
-            })
+            if tenant.pending_subscription_plan_id:
+                vals = {
+                    'pending_subscription_plan_id': False,
+                    'pending_additional_stores': 0
+                }
+                if not tenant.subscription_plan_id or tenant.subscription_state != 'active':
+                    vals['subscription_state'] = 'cancelled'
+                tenant.with_context(bypass_subscription_check=True).write(vals)
+            else:
+                tenant.with_context(bypass_subscription_check=True).write({
+                    'subscription_state': 'cancelled'
+                })
 
     def action_select_plan(self, plan_id, additional_stores=0):
         plan = self.env['havanoposdesk.subscription.plan'].sudo().browse(plan_id)
         extra_stores = max(0, int(additional_stores or 0)) if (plan.exists() and plan.is_custom) else 0
-        self.with_context(bypass_subscription_check=True).write({
-            'subscription_plan_id': plan_id,
-            'additional_stores': extra_stores,
-            'subscription_state': 'pending',
-            'payment_status': 'unpaid'
-        })
+        if self.check_subscription_active():
+            self.with_context(bypass_subscription_check=True).write({
+                'pending_subscription_plan_id': plan_id,
+                'pending_additional_stores': extra_stores,
+            })
+        else:
+            self.with_context(bypass_subscription_check=True).write({
+                'subscription_plan_id': plan_id,
+                'additional_stores': extra_stores,
+                'subscription_state': 'pending',
+                'payment_status': 'unpaid'
+            })
 
     def action_pay_and_activate(self):
         for tenant in self:
-            plan = tenant.subscription_plan_id
+            plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
             if not plan:
                 raise ValidationError('No subscription plan selected.')
             duration = plan.duration_days or 30
             start_date = fields.Date.context_today(self)
             end_date = start_date + relativedelta(days=duration)
-            tenant.with_context(bypass_subscription_check=True).write({
+            vals = {
                 'payment_status': 'paid',
                 'subscription_state': 'active',
                 'subscription_start_date': start_date,
                 'subscription_end_date': end_date,
                 'active': True
-            })
+            }
+            if tenant.pending_subscription_plan_id:
+                vals['subscription_plan_id'] = tenant.pending_subscription_plan_id.id
+                vals['additional_stores'] = tenant.pending_additional_stores
+                vals['pending_subscription_plan_id'] = False
+                vals['pending_additional_stores'] = 0
+            tenant.with_context(bypass_subscription_check=True).write(vals)
 
     def action_upgrade_plan(self):
         self.ensure_one()
@@ -448,6 +508,8 @@ class HavanoposdeskTenant(models.Model):
 
     def action_pay_subscription_wizard(self):
         self.ensure_one()
+        plan = self.pending_subscription_plan_id or self.subscription_plan_id
+        amount = self.pending_subscription_total_amount if self.pending_subscription_plan_id else (self.subscription_total_amount or (plan.price if plan else 0.0))
         return {
             'name': 'Pay & Activate Subscription',
             'type': 'ir.actions.act_window',
@@ -456,8 +518,8 @@ class HavanoposdeskTenant(models.Model):
             'target': 'new',
             'context': {
                 'default_tenant_id': self.id,
-                'default_subscription_plan_id': self.subscription_plan_id.id,
-                'default_amount': self.subscription_total_amount or self.subscription_plan_id.price,
+                'default_subscription_plan_id': plan.id if plan else False,
+                'default_amount': amount,
             }
         }
 
@@ -489,7 +551,11 @@ class HavanoposdeskTenant(models.Model):
         return formatted_seq
 
     def write(self, vals):
-        restricted_fields = {'payment_status', 'subscription_state', 'subscription_start_date', 'subscription_end_date', 'subscription_plan_id', 'additional_stores'}
+        restricted_fields = {
+            'payment_status', 'subscription_state', 'subscription_start_date',
+            'subscription_end_date', 'subscription_plan_id', 'additional_stores',
+            'pending_subscription_plan_id', 'pending_additional_stores'
+        }
         if self.env.user.havano_role != 'super_admin' and not self.env.su:
             if restricted_fields.intersection(vals.keys()):
                 if not self.env.context.get('bypass_subscription_check'):
@@ -540,16 +606,24 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
         self.ensure_one()
         if not self.tenant_id:
             raise ValidationError('No tenant associated with the user.')
-        if self.subscription_plan_id == self.tenant_id.subscription_plan_id and not self.subscription_plan_id.is_custom:
+        target_plan = self.subscription_plan_id
+        current_plan = self.tenant_id.pending_subscription_plan_id or self.tenant_id.subscription_plan_id
+        if target_plan == current_plan and not target_plan.is_custom:
             raise ValidationError('You cannot select your current subscription plan without changing store options.')
         
         extra_stores = max(0, self.additional_stores or 0) if self.subscription_plan_id.is_custom else 0
-        self.tenant_id.with_context(bypass_subscription_check=True).write({
-            'subscription_plan_id': self.subscription_plan_id.id,
-            'additional_stores': extra_stores,
-            'subscription_state': 'pending',
-            'payment_status': 'unpaid'
-        })
+        if self.tenant_id.check_subscription_active():
+            self.tenant_id.with_context(bypass_subscription_check=True).write({
+                'pending_subscription_plan_id': self.subscription_plan_id.id,
+                'pending_additional_stores': extra_stores,
+            })
+        else:
+            self.tenant_id.with_context(bypass_subscription_check=True).write({
+                'subscription_plan_id': self.subscription_plan_id.id,
+                'additional_stores': extra_stores,
+                'subscription_state': 'pending',
+                'payment_status': 'unpaid'
+            })
         return {
             'type': 'ir.actions.act_window_close'
         }

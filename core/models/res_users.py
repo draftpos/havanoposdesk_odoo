@@ -373,8 +373,10 @@ class ResUsers(models.Model):
                 if not tenant_id:
                     continue
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
-                if tenant.subscription_state != 'active':
-                    if tenant.subscription_plan_id:
+                if not tenant.check_subscription_active():
+                    plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
+                    if plan:
+                        price = tenant.pending_subscription_total_amount if tenant.pending_subscription_plan_id else (tenant.subscription_total_amount or plan.price)
                         raise RedirectWarning(
                             _('Cannot create a cashier. The tenant subscription is not active.'),
                             {
@@ -386,8 +388,8 @@ class ResUsers(models.Model):
                                 'target': 'new',
                                 'context': {
                                     'default_tenant_id': tenant.id,
-                                    'default_subscription_plan_id': tenant.subscription_plan_id.id,
-                                    'default_amount': tenant.subscription_plan_id.price,
+                                    'default_subscription_plan_id': plan.id,
+                                    'default_amount': price,
                                 }
                             },
                             _('Subscribe Now')

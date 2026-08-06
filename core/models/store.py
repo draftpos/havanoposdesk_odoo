@@ -65,6 +65,18 @@ class HavanoposdeskStore(models.Model):
                 if self.search_count(domain) > 0:
                     raise ValidationError("Only one store can be set as the default store per tenant.")
 
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_store_name_per_tenant(self):
+        for store in self:
+            if store.name and store.tenant_id:
+                clean_name = store.name.strip().lower()
+                existing = self.search([
+                    ('tenant_id', '=', store.tenant_id.id),
+                    ('id', '!=', store.id)
+                ])
+                if any(s.name and s.name.strip().lower() == clean_name for s in existing):
+                    raise ValidationError(_("A store with the name '%s' already exists for this tenant.") % store.name.strip())
+
     @api.constrains('pricelist_id', 'pricelist_ids')
     def _check_default_pricelist(self):
         for store in self:
@@ -130,6 +142,8 @@ class HavanoposdeskStore(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            if vals.get('name'):
+                vals['name'] = vals['name'].strip()
             if self.env.user.havano_role == 'super_admin':
                 continue
                 
@@ -158,8 +172,10 @@ class HavanoposdeskStore(models.Model):
                 vals['pricelist_id'] = (retail_pl[0] if retail_pl else selling_pricelists[0]).id
                 
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
-            if tenant.subscription_state != 'active':
-                if tenant.subscription_plan_id:
+            if not tenant.check_subscription_active():
+                plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
+                if plan:
+                    price = tenant.pending_subscription_total_amount if tenant.pending_subscription_plan_id else (tenant.subscription_total_amount or plan.price)
                     raise RedirectWarning(
                         _('Cannot create a store. The tenant subscription is not active.'),
                         {
@@ -171,8 +187,8 @@ class HavanoposdeskStore(models.Model):
                             'target': 'new',
                             'context': {
                                 'default_tenant_id': tenant.id,
-                                'default_subscription_plan_id': tenant.subscription_plan_id.id,
-                                'default_amount': tenant.subscription_plan_id.price,
+                                'default_subscription_plan_id': plan.id,
+                                'default_amount': price,
                             }
                         },
                         _('Subscribe Now')

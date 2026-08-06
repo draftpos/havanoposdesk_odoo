@@ -1525,6 +1525,67 @@ class HavanoPOSDeskAPI(http.Controller):
                 'all_stores': True,
                 'track_qty': track_qty,
             })
+
+        store_prices = data.get('store_prices') or data.get('advanced_prices') or data.get('prices')
+        if store_prices and isinstance(store_prices, list):
+            for sp in store_prices:
+                if not isinstance(sp, dict):
+                    continue
+                sp_store_name = sp.get('store') or sp.get('store_name')
+                sp_store_id = sp.get('store_id')
+                sp_store = None
+                if sp_store_id:
+                    sp_store = request.env['havanoposdesk.store'].sudo().browse(sp_store_id)
+                elif sp_store_name:
+                    sp_store = request.env['havanoposdesk.store'].sudo().search([('name', '=ilike', sp_store_name.strip()), ('tenant_id', '=', tenant.id)], limit=1)
+                    if not sp_store:
+                        sp_store = request.env['havanoposdesk.store'].sudo().create({'name': sp_store_name.strip(), 'tenant_id': tenant.id})
+                else:
+                    sp_store = store
+
+                sp_pl_name = sp.get('pricelist') or sp.get('pricelist_name') or sp.get('price_list') or 'Retail'
+                sp_pl_id = sp.get('pricelist_id')
+                sp_pl = None
+                if sp_pl_id:
+                    sp_pl = request.env['havanoposdesk.pricelist'].sudo().browse(sp_pl_id)
+                else:
+                    sp_pl = request.env['havanoposdesk.pricelist'].sudo().search([('name', '=ilike', sp_pl_name.strip()), ('tenant_id', '=', tenant.id)], limit=1)
+                    if not sp_pl:
+                        sp_pl = request.env['havanoposdesk.pricelist'].sudo().create({'name': sp_pl_name.strip(), 'type': 'selling', 'tenant_id': tenant.id})
+
+                sp_uom_name = sp.get('uom') or sp.get('uom_name') or sp.get('stock_uom') or uom_name
+                sp_uom_id = sp.get('uom_id')
+                sp_uom = None
+                if sp_uom_id:
+                    sp_uom = request.env['havanoposdesk.uom'].sudo().browse(sp_uom_id)
+                else:
+                    sp_uom = request.env['havanoposdesk.uom'].sudo().search([('name', '=ilike', sp_uom_name.strip()), ('tenant_id', '=', tenant.id)], limit=1)
+                    if not sp_uom:
+                        sp_uom = request.env['havanoposdesk.uom'].sudo().create({'name': sp_uom_name.strip(), 'tenant_id': tenant.id})
+
+                sp_price = float(sp.get('price') or sp.get('price_list_rate') or 0.0)
+                sp_qty = float(sp.get('qty_to_be_sold') or sp.get('qty') or 1.0)
+                sp_init_stock = float(sp.get('initial_stock') or sp.get('opening_stock') or sp.get('initial_qty') or 0.0)
+
+                existing_price = request.env['havanoposdesk.product.uom.price'].sudo().search([
+                    ('product_id', '=', product.id),
+                    ('store_id', '=', sp_store.id),
+                    ('pricelist_id', '=', sp_pl.id),
+                    ('uom_id', '=', sp_uom.id)
+                ], limit=1)
+                if existing_price:
+                    existing_price.write({'price': sp_price, 'qty_to_be_sold': sp_qty, 'initial_stock': sp_init_stock})
+                else:
+                    request.env['havanoposdesk.product.uom.price'].sudo().create({
+                        'product_id': product.id,
+                        'store_id': sp_store.id,
+                        'pricelist_id': sp_pl.id,
+                        'uom_id': sp_uom.id,
+                        'qty_to_be_sold': sp_qty,
+                        'initial_stock': sp_init_stock,
+                        'price': sp_price,
+                        'tenant_id': tenant.id
+                    })
             
         res_data = {
             'message': {
@@ -3434,6 +3495,25 @@ class HavanoPOSDeskAPI(http.Controller):
                             "price_list_rate": p.buying_price or 0.0,
                             "currency": "USD"
                         })
+                    for ap in p.advanced_price_ids:
+                        if target_price_list and ap.pricelist_id.name and target_price_list.lower() not in ap.pricelist_id.name.lower():
+                            continue
+                        result.append({
+                            "id": ap.id,
+                            "name": f"{p.item_code}_{ap.store_id.name}_{ap.pricelist_id.name}_{ap.uom_id.name}",
+                            "item_code": p.item_code,
+                            "store": ap.store_id.name,
+                            "store_id": ap.store_id.id,
+                            "price_list": ap.pricelist_id.name,
+                            "pricelist_id": ap.pricelist_id.id,
+                            "uom": ap.uom_id.name,
+                            "uom_id": ap.uom_id.id,
+                            "price_list_rate": ap.price,
+                            "qty_to_be_sold": ap.qty_to_be_sold,
+                            "initial_stock": ap.initial_stock,
+                            "on_hand_qty": ap.on_hand_qty,
+                            "currency": "USD"
+                        })
 
                 return self._make_json_response({"data": result})
 
@@ -3444,8 +3524,10 @@ class HavanoPOSDeskAPI(http.Controller):
                     return self._make_json_response({"error": "Invalid JSON body"}, status=400)
 
                 item_code = data.get('item_code')
-                price_list = data.get('price_list')
-                rate = data.get('price_list_rate')
+                price_list = data.get('price_list') or data.get('pricelist')
+                rate = data.get('price_list_rate') if data.get('price_list_rate') is not None else data.get('price')
+                store_param = data.get('store') or data.get('store_name') or data.get('store_id')
+                init_stock = float(data.get('initial_stock') or data.get('opening_stock') or data.get('initial_qty') or 0.0)
 
                 if price_id:
                     if not item_code:
@@ -3456,18 +3538,72 @@ class HavanoPOSDeskAPI(http.Controller):
                             item_code = price_id.replace('_selling', '')
                             price_list = 'Standard Selling'
 
-                if not item_code or not price_list or rate is None:
-                    return self._make_json_response({"error": "item_code, price_list, and price_list_rate are required"}, status=400)
+                if not item_code or rate is None:
+                    return self._make_json_response({"error": "item_code and price_list_rate/price are required"}, status=400)
 
                 product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
                 if not product:
                     return self._make_json_response({"error": f"Product with item_code '{item_code}' not found"}, status=404)
+
+                if store_param:
+                    sp_store = None
+                    if isinstance(store_param, int) or (isinstance(store_param, str) and store_param.isdigit()):
+                        sp_store = env['havanoposdesk.store'].browse(int(store_param))
+                    else:
+                        sp_store = env['havanoposdesk.store'].search([('name', '=ilike', str(store_param).strip()), ('tenant_id', '=', tenant.id)], limit=1)
+                        if not sp_store:
+                            sp_store = env['havanoposdesk.store'].create({'name': str(store_param).strip(), 'tenant_id': tenant.id})
+
+                    sp_pl_name = price_list or 'Retail'
+                    sp_pl = env['havanoposdesk.pricelist'].search([('name', '=ilike', sp_pl_name.strip()), ('tenant_id', '=', tenant.id)], limit=1)
+                    if not sp_pl:
+                        sp_pl = env['havanoposdesk.pricelist'].create({'name': sp_pl_name.strip(), 'type': 'selling', 'tenant_id': tenant.id})
+
+                    uom_param = data.get('uom') or data.get('uom_name') or data.get('stock_uom') or (product.uom_id.name if product.uom_id else 'Each')
+                    sp_uom = env['havanoposdesk.uom'].search([('name', '=ilike', str(uom_param).strip()), ('tenant_id', '=', tenant.id)], limit=1)
+                    if not sp_uom:
+                        sp_uom = env['havanoposdesk.uom'].create({'name': str(uom_param).strip(), 'tenant_id': tenant.id})
+
+                    qty_sold = float(data.get('qty_to_be_sold') or data.get('qty') or 1.0)
+                    existing_price = env['havanoposdesk.product.uom.price'].search([
+                        ('product_id', '=', product.id),
+                        ('store_id', '=', sp_store.id),
+                        ('pricelist_id', '=', sp_pl.id),
+                        ('uom_id', '=', sp_uom.id)
+                    ], limit=1)
+                    if existing_price:
+                        existing_price.write({'price': float(rate), 'qty_to_be_sold': qty_sold, 'initial_stock': init_stock})
+                    else:
+                        env['havanoposdesk.product.uom.price'].create({
+                            'product_id': product.id,
+                            'store_id': sp_store.id,
+                            'pricelist_id': sp_pl.id,
+                            'uom_id': sp_uom.id,
+                            'qty_to_be_sold': qty_sold,
+                            'initial_stock': init_stock,
+                            'price': float(rate),
+                            'tenant_id': tenant.id
+                        })
+                    return self._make_json_response({
+                        "data": {
+                            "name": f"{item_code}_{sp_store.name}_{sp_pl.name}_{sp_uom.name}",
+                            "item_code": item_code,
+                            "store": sp_store.name,
+                            "price_list": sp_pl.name,
+                            "uom": sp_uom.name,
+                            "price_list_rate": float(rate),
+                            "initial_stock": init_stock,
+                            "currency": data.get('currency', 'USD')
+                        }
+                    })
 
                 vals = {}
                 if price_list == 'Standard Selling':
                     vals['selling_price'] = float(rate)
                 elif price_list == 'Standard Buying':
                     vals['buying_price'] = float(rate)
+                else:
+                    vals['selling_price'] = float(rate)
 
                 if vals:
                     product.write(vals)
@@ -3477,7 +3613,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "data": {
                         "name": price_name,
                         "item_code": item_code,
-                        "price_list": price_list,
+                        "price_list": price_list or 'Standard Selling',
                         "price_list_rate": rate,
                         "currency": data.get('currency', 'USD')
                     }
@@ -5107,8 +5243,28 @@ class HavanoPOSDeskAPI(http.Controller):
             }
         }
 
+    def _get_user_assigned_store_ids(self, user):
+        """Helper to get all store IDs assigned to the user (store_ids + default_store_id + selected_shop_id)."""
+        stores = set(user.store_ids.ids) if user.store_ids else set()
+        if user.default_store_id:
+            stores.add(user.default_store_id.id)
+        if hasattr(user, 'selected_shop_id') and user.selected_shop_id:
+            stores.add(user.selected_shop_id.id)
+        return stores
+
     def _make_json_response(self, data, status=200):
-        """Helper to ensure JSON response with proper headers"""
+        """Helper to ensure JSON response with proper headers and clean, structured error messages."""
+        if isinstance(data, dict) and status >= 400:
+            msg = data.get('error') or data.get('message') or data.get('msg') or "An error occurred"
+            if isinstance(msg, str):
+                import re
+                # Clean up nested or duplicate error prefixes
+                msg = re.sub(r'^(?:an\s+error\s+occurred:?\s*|an\s+error\s+occured:?\s*|error:?\s*)+', '', msg, flags=re.IGNORECASE).strip()
+                if not msg:
+                    msg = "Something went wrong. Please contact admin."
+            data['error'] = msg
+            data['message'] = msg
+
         response = http.Response(
             json.dumps(data, default=str),
             status=status,
@@ -6365,13 +6521,14 @@ class HavanoPOSDeskAPI(http.Controller):
             if not terminal.exists() or (user.tenant_id and terminal.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Terminal does not exist or does not belong to this tenant"}, status=400)
 
+            user_stores = self._get_user_assigned_store_ids(user)
             is_admin = user.havano_role in ('admin', 'super_admin')
-            is_assigned_store = not user.store_ids or (terminal.store_id and terminal.store_id.id in user.store_ids.ids)
+            is_assigned_store = is_admin or not user_stores or not terminal.store_id or terminal.store_id.id in user_stores
             can_takeover = is_admin or is_assigned_store
 
             # Ensure cashier can only select terminals in their assigned stores
-            if not is_admin and user.store_ids and terminal.store_id and terminal.store_id.id not in user.store_ids.ids:
-                return self._make_json_response({"error": "Selected terminal does not belong to your assigned store(s)"}, status=403)
+            if not is_assigned_store:
+                return self._make_json_response({"error": "Selected terminal does not belong to your assigned store(s). Please contact admin for assistance."}, status=403)
 
             # Validate hardware device assignment
             if terminal.device_hardware_id and terminal.device_hardware_id != device_hardware_id:

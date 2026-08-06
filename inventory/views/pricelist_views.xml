@@ -38,5 +38,58 @@
 
         
         <menuitem id="menu_havanoposdesk_pricelist" name="Pricelists" parent="menu_inventory_master" action="action_havanoposdesk_pricelist" sequence="15" />
+
+        <!-- Store Prices (Product UoM Price) -->
+        <record id="view_havanoposdesk_product_uom_price_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.product.uom.price.tree</field>
+            <field name="model">havanoposdesk.product.uom.price</field>
+            <field name="arch" type="xml">
+                <list string="Store Prices">
+                    <field name="product_id" />
+                    <field name="store_id" />
+                    <field name="pricelist_id" />
+                    <field name="uom_id" string="Unit of Measure" />
+                    <field name="qty_to_be_sold" />
+                    <field name="initial_stock" string="Initial Qty / Stock" />
+                    <field name="on_hand_qty" string="Store On Hand" readonly="1" />
+                    <field name="price" />
+                    <field name="tenant_id" invisible="1" />
+                </list>
+            </field>
+        </record>
+
+        <record id="view_havanoposdesk_product_uom_price_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.product.uom.price.form</field>
+            <field name="model">havanoposdesk.product.uom.price</field>
+            <field name="arch" type="xml">
+                <form string="Store Price">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="product_id" options="{'no_create': True}" />
+                                <field name="store_id" options="{'no_create': True}" />
+                                <field name="pricelist_id" options="{'no_create': True}" />
+                            </group>
+                            <group>
+                                <field name="uom_id" string="Unit of Measure" options="{'no_create': True}" />
+                                <field name="qty_to_be_sold" />
+                                <field name="initial_stock" string="Initial Qty / Stock" />
+                                <field name="on_hand_qty" string="Store On Hand" readonly="1" />
+                                <field name="price" />
+                                <field name="tenant_id" invisible="1" />
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_havanoposdesk_product_uom_price" model="ir.actions.act_window">
+            <field name="name">Store Prices</field>
+            <field name="res_model">havanoposdesk.product.uom.price</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <menuitem id="menu_havanoposdesk_product_uom_price" name="Store Prices" parent="menu_inventory_master" action="action_havanoposdesk_product_uom_price" sequence="16" />
     </data>
 </odoo>

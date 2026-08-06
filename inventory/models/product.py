@@ -1,4 +1,5 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError
 
 class HavanoposdeskProduct(models.Model):
     _name = 'havanoposdesk.product'
@@ -177,15 +178,22 @@ class HavanoposdeskProduct(models.Model):
                     default_pricelist = self.env['havanoposdesk.pricelist'].create({'name': 'Retail', 'tenant_id': product.tenant_id.id})
                 
                 for store in product.store_ids:
-                    self.env['havanoposdesk.product.uom.price'].create({
-                        'product_id': product.id,
-                        'store_id': store.id,
-                        'pricelist_id': default_pricelist.id,
-                        'uom_id': product.uom_id.id,
-                        'qty_to_be_sold': 1.0,
-                        'price': product.selling_price,
-                        'tenant_id': product.tenant_id.id
-                    })
+                    existing = self.env['havanoposdesk.product.uom.price'].search([
+                        ('product_id', '=', product.id),
+                        ('store_id', '=', store.id),
+                        ('pricelist_id', '=', default_pricelist.id),
+                        ('uom_id', '=', product.uom_id.id)
+                    ], limit=1)
+                    if not existing:
+                        self.env['havanoposdesk.product.uom.price'].create({
+                            'product_id': product.id,
+                            'store_id': store.id,
+                            'pricelist_id': default_pricelist.id,
+                            'uom_id': product.uom_id.id,
+                            'qty_to_be_sold': 1.0,
+                            'price': product.selling_price,
+                            'tenant_id': product.tenant_id.id
+                        })
         return products
 
     def write(self, vals):
@@ -247,6 +255,21 @@ class HavanoposdeskProduct(models.Model):
     allow_advanced_pricing = fields.Boolean(related='tenant_id.allow_advanced_pricing', readonly=True)
     is_bundle = fields.Boolean(string='Is Bundle', default=False)
     bundle_item_ids = fields.One2many('havanoposdesk.product.bundle.item', 'parent_product_id', string='Bundle Items')
+
+    @api.constrains('advanced_price_ids')
+    def _check_advanced_price_ids_unique(self):
+        for product in self:
+            seen = set()
+            for line in product.advanced_price_ids:
+                key = (line.store_id.id, line.pricelist_id.id, line.uom_id.id)
+                if key in seen:
+                    store_name = line.store_id.name or ''
+                    pricelist_name = line.pricelist_id.name or ''
+                    uom_name = line.uom_id.name or ''
+                    raise ValidationError(_(
+                        "Cannot save product '%s': Duplicate price line found for Store '%s', Pricelist '%s', and Unit of Measure '%s'. At least one of Store, Pricelist, or UoM must be different."
+                    ) % (product.name, store_name, pricelist_name, uom_name))
+                seen.add(key)
 
     @api.depends('is_bundle', 'bundle_item_ids', 'bundle_item_ids.qty', 'bundle_item_ids.buying_price', 'bundle_item_ids.selling_price', 'bundle_item_ids.subtotal_cost', 'bundle_item_ids.subtotal_selling')
     def _compute_bundle_prices(self):
