@@ -10,6 +10,25 @@ class HavanoposdeskTenant(models.Model):
     _name = 'havanoposdesk.tenant'
     _description = 'Havano POS Desk Tenant'
 
+    def _auto_init(self):
+        res = super()._auto_init()
+        cr = self.env.cr
+        columns = [
+            ("pending_subscription_plan_id", "INTEGER"),
+            ("pending_additional_stores", "INTEGER DEFAULT 0"),
+            ("pending_subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+            ("additional_stores", "INTEGER DEFAULT 0"),
+            ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+            ("effective_max_stores", "INTEGER DEFAULT 0"),
+            ("effective_max_terminals", "INTEGER DEFAULT 0"),
+        ]
+        for col_name, col_type in columns:
+            try:
+                cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+            except Exception:
+                pass
+        return res
+
     name = fields.Char(string='Tenant Name', required=True)
     active = fields.Boolean(default=True)
     currency_id = fields.Many2one('res.currency', string='Default Currency', default=lambda self: self.env.ref('base.USD').id)

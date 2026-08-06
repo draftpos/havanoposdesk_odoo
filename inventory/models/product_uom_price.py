@@ -5,6 +5,15 @@ class HavanoposdeskProductUomPrice(models.Model):
     _name = 'havanoposdesk.product.uom.price'
     _description = 'Product UOM Price'
 
+    def _auto_init(self):
+        res = super()._auto_init()
+        cr = self.env.cr
+        try:
+            cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN IF NOT EXISTS initial_stock DOUBLE PRECISION DEFAULT 0.0;")
+        except Exception:
+            pass
+        return res
+
     _sql_constraints = [
         ('product_store_pricelist_uom_uniq', 
          'unique (product_id, store_id, pricelist_id, uom_id)', 
