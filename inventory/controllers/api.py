@@ -1365,7 +1365,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
             lines.append((0, 0, line_vals))
             
-        sale = request.env['havanoposdesk.sale'].with_user(user.id).sudo().create({
+        payment_policy, account_id, payment_commands = self._prepare_payment_vals(request.env, tenant, customer, data)
+        sale_vals = {
             'customer': customer.id,
             'store': store.name,
             'store_id': store.id,
@@ -1375,9 +1376,15 @@ class HavanoPOSDeskAPI(http.Controller):
             'state': 'done',
             'salesperson_id': user.id,
             'payment_status': 'cash',
+            'payment_policy': payment_policy,
             'local_invoice_id': local_invoice_id,
-        })
-        self._process_split_payments(request.env, sale, tenant, customer, data)
+        }
+        if account_id:
+            sale_vals['account_id'] = account_id
+        if payment_commands:
+            sale_vals['payment_ids'] = payment_commands
+
+        sale = request.env['havanoposdesk.sale'].with_user(user.id).sudo().create(sale_vals)
         
         res_data = {
             'data': {
@@ -2210,7 +2217,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if terminal.tenant_id.id != tenant.id:
                 return self._make_json_response({"error": "Terminal does not belong to your account."}, status=400)
                 
-            sale = env['havanoposdesk.sale'].create({
+            payment_policy, account_id, payment_commands = self._prepare_payment_vals(env, tenant, customer, params)
+            sale_vals = {
                 'customer': customer.id,
                 'store': store.name,
                 'store_id': store.id,
@@ -2219,9 +2227,15 @@ class HavanoPOSDeskAPI(http.Controller):
                 'line_ids': sale_lines,
                 'state': 'done',
                 'payment_status': 'cash',
+                'payment_policy': payment_policy,
                 'local_invoice_id': local_invoice_id,
-            })
-            self._process_split_payments(env, sale, tenant, customer, params)
+            }
+            if account_id:
+                sale_vals['account_id'] = account_id
+            if payment_commands:
+                sale_vals['payment_ids'] = payment_commands
+
+            sale = env['havanoposdesk.sale'].create(sale_vals)
 
             if custom_cr:
                 custom_cr.commit()
@@ -2747,6 +2761,8 @@ class HavanoPOSDeskAPI(http.Controller):
                             if pl:
                                 pricelist_id = pl.id
 
+                        payment_policy, account_id, payment_commands = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
+
                         sale_vals = {
                             'customer': customer.id,
                             'store': store.name,
@@ -2757,15 +2773,17 @@ class HavanoPOSDeskAPI(http.Controller):
                             'state': 'done',
                             'salesperson_id': user.id,
                             'payment_status': payment_status,
+                            'payment_policy': payment_policy,
                             'local_invoice_id': local_invoice_id,
                         }
                         if pricelist_id:
                             sale_vals['pricelist_id'] = pricelist_id
                         if account_id:
                             sale_vals['account_id'] = account_id
+                        if payment_commands:
+                            sale_vals['payment_ids'] = payment_commands
 
                         sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create(sale_vals)
-                        self._process_split_payments(env, sale, tenant, customer, sale_data, account_id)
                         
                         responses.append({"name": sale.name, "local_invoice_id": local_invoice_id, "status": "created"})
                     except Exception as e:
@@ -2791,7 +2809,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.close()
 
-    def _process_split_payments(self, env, sale, tenant, customer, sale_data, default_account_id=False):
+    def _prepare_payment_vals(self, env, tenant, customer, sale_data, default_account_id=False):
         try:
             payments_input = sale_data.get('payments')
             if not payments_input or not isinstance(payments_input, list):
@@ -2799,14 +2817,15 @@ class HavanoPOSDeskAPI(http.Controller):
                 if pm_name:
                     payments_input = [{
                         'payment_method': pm_name,
-                        'amount': sale.amount_total or sale_data.get('paid_amount') or sale_data.get('grand_total') or 0.0
+                        'amount': sale_data.get('paid_amount') or sale_data.get('grand_total') or sale_data.get('total') or 0.0
                     }]
 
             if not payments_input:
-                return
+                return 'single', default_account_id, []
 
-            if len(payments_input) > 1:
-                sale.sudo().write({'payment_policy': 'multi'})
+            payment_policy = 'multi' if len(payments_input) > 1 else 'single'
+            payment_commands = []
+            primary_account_id = default_account_id
 
             for p in payments_input:
                 if not isinstance(p, dict):
@@ -2827,7 +2846,10 @@ class HavanoPOSDeskAPI(http.Controller):
                         p_account = acc.id
 
                 if not p_account:
-                    p_account = default_account_id or (sale.account_id.id if sale.account_id else False)
+                    p_account = default_account_id
+
+                if p_account and not primary_account_id:
+                    primary_account_id = p_account
 
                 curr_rec = False
                 if p_curr:
@@ -2836,26 +2858,23 @@ class HavanoPOSDeskAPI(http.Controller):
                     curr_rec = tenant.currency_id
 
                 if p_amount > 0 and p_account:
-                    try:
-                        pay_rec = env['havanoposdesk.payment'].sudo().create({
-                            'tenant_id': tenant.id,
-                            'customer_id': customer.id,
-                            'partner_type': 'customer',
-                            'payment_type': 'receipt',
-                            'sale_id': sale.id,
-                            'account_id': p_account,
-                            'currency_id': curr_rec.id if curr_rec else tenant.currency_id.id,
-                            'exchange_rate': p_rate if p_rate > 0 else 1.0,
-                            'amount': p_amount,
-                            'date': sale.posting_date or fields.Date.context_today(sale),
-                            'reference': p_ref,
-                            'state': 'draft',
-                        })
-                        pay_rec.action_post()
-                    except Exception as pe:
-                        _logger.warning(f"Could not auto-post payment entry for sale {sale.name}: {pe}")
+                    payment_commands.append((0, 0, {
+                        'tenant_id': tenant.id,
+                        'customer_id': customer.id,
+                        'partner_type': 'customer',
+                        'payment_type': 'receipt',
+                        'account_id': p_account,
+                        'currency_id': curr_rec.id if curr_rec else tenant.currency_id.id,
+                        'exchange_rate': p_rate if p_rate > 0 else 1.0,
+                        'amount': p_amount,
+                        'reference': p_ref,
+                        'state': 'draft',
+                    }))
+
+            return payment_policy, primary_account_id, payment_commands
         except Exception as e:
-            _logger.warning(f"Error processing split payments for sale {sale.name}: {e}")
+            _logger.warning(f"Error preparing payment vals: {e}")
+            return 'single', default_account_id, []
 
     @http.route([
         '/api/resource/Purchase Invoice',
