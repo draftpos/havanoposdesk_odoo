@@ -47,7 +47,7 @@ class IrHttp(models.AbstractModel):
                 lower_path = path.lower()
                 # Match /<base> or /<base>/<subpath>
                 if lower_path == f'/{configured_base}' or lower_path.startswith(f'/{configured_base}/'):
-                    from odoo.addons.web.controllers.home import Home
+                    from odoo.addons.web.controllers.home import Home  # type: ignore
                     response = Home().web_client()
                     if hasattr(response, 'flatten'):
                         response.flatten()
