@@ -2,7 +2,7 @@ from datetime import datetime
 from dataclasses import fields
 from odoo.orm import environments
 import odoo.orm.environments
-from odoo import http
+from odoo import http, fields
 from odoo.http import request
 import json
 import logging
@@ -1377,6 +1377,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'payment_status': 'cash',
             'local_invoice_id': local_invoice_id,
         })
+        self._process_split_payments(request.env, sale, tenant, customer, data)
         
         res_data = {
             'data': {
@@ -2220,6 +2221,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'payment_status': 'cash',
                 'local_invoice_id': local_invoice_id,
             })
+            self._process_split_payments(env, sale, tenant, customer, params)
 
             if custom_cr:
                 custom_cr.commit()
@@ -2763,6 +2765,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             sale_vals['account_id'] = account_id
 
                         sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create(sale_vals)
+                        self._process_split_payments(env, sale, tenant, customer, sale_data, account_id)
                         
                         responses.append({"name": sale.name, "local_invoice_id": local_invoice_id, "status": "created"})
                     except Exception as e:
@@ -2787,6 +2790,72 @@ class HavanoPOSDeskAPI(http.Controller):
             finally:
                 if custom_cr:
                     custom_cr.close()
+
+    def _process_split_payments(self, env, sale, tenant, customer, sale_data, default_account_id=False):
+        try:
+            payments_input = sale_data.get('payments')
+            if not payments_input or not isinstance(payments_input, list):
+                pm_name = sale_data.get('payment_method')
+                if pm_name:
+                    payments_input = [{
+                        'payment_method': pm_name,
+                        'amount': sale.amount_total or sale_data.get('paid_amount') or sale_data.get('grand_total') or 0.0
+                    }]
+
+            if not payments_input:
+                return
+
+            if len(payments_input) > 1:
+                sale.sudo().write({'payment_policy': 'multi'})
+
+            for p in payments_input:
+                if not isinstance(p, dict):
+                    continue
+                pm_name = p.get('payment_method') or p.get('method') or p.get('mode_of_payment')
+                p_amount = float(p.get('amount') or p.get('base_amount') or p.get('paid_amount') or 0.0)
+                p_curr = p.get('currency')
+                p_rate = float(p.get('exchange_rate') or 1.0)
+                p_ref = p.get('reference') or p.get('memo')
+
+                p_account = False
+                if pm_name:
+                    acc = env['havanoposdesk.account'].sudo().search([
+                        ('tenant_id', '=', tenant.id),
+                        ('name', 'ilike', str(pm_name).strip())
+                    ], limit=1)
+                    if acc:
+                        p_account = acc.id
+
+                if not p_account:
+                    p_account = default_account_id or (sale.account_id.id if sale.account_id else False)
+
+                curr_rec = False
+                if p_curr:
+                    curr_rec = env['res.currency'].sudo().search([('name', '=ilike', str(p_curr).strip())], limit=1)
+                if not curr_rec:
+                    curr_rec = tenant.currency_id
+
+                if p_amount > 0 and p_account:
+                    try:
+                        pay_rec = env['havanoposdesk.payment'].sudo().create({
+                            'tenant_id': tenant.id,
+                            'customer_id': customer.id,
+                            'partner_type': 'customer',
+                            'payment_type': 'receipt',
+                            'sale_id': sale.id,
+                            'account_id': p_account,
+                            'currency_id': curr_rec.id if curr_rec else tenant.currency_id.id,
+                            'exchange_rate': p_rate if p_rate > 0 else 1.0,
+                            'amount': p_amount,
+                            'date': sale.posting_date or fields.Date.context_today(sale),
+                            'reference': p_ref,
+                            'state': 'draft',
+                        })
+                        pay_rec.action_post()
+                    except Exception as pe:
+                        _logger.warning(f"Could not auto-post payment entry for sale {sale.name}: {pe}")
+        except Exception as e:
+            _logger.warning(f"Error processing split payments for sale {sale.name}: {e}")
 
     @http.route([
         '/api/resource/Purchase Invoice',
