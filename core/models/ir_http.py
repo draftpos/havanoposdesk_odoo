@@ -1,8 +1,34 @@
 from odoo import models
 from odoo.http import request
 
+_DB_COLUMNS_CHECKED = False
+
 class IrHttp(models.AbstractModel):
     _inherit = 'ir.http'
+
+    @classmethod
+    def _dispatch(cls, endpoint):
+        global _DB_COLUMNS_CHECKED
+        if not _DB_COLUMNS_CHECKED and request and getattr(request, 'db', None):
+            try:
+                cr = request.env.cr
+                cols = [
+                    ("pending_subscription_plan_id", "INTEGER"),
+                    ("pending_additional_stores", "INTEGER DEFAULT 0"),
+                    ("pending_subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+                    ("additional_stores", "INTEGER DEFAULT 0"),
+                    ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+                    ("effective_max_stores", "INTEGER DEFAULT 0"),
+                    ("effective_max_terminals", "INTEGER DEFAULT 0"),
+                ]
+                for col_name, col_type in cols:
+                    cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+                cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN IF NOT EXISTS initial_stock DOUBLE PRECISION DEFAULT 0.0;")
+                cr.commit()
+                _DB_COLUMNS_CHECKED = True
+            except Exception:
+                pass
+        return super()._dispatch(endpoint)
 
     @classmethod
     def _serve_fallback(cls):
