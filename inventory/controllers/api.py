@@ -1279,20 +1279,22 @@ class HavanoPOSDeskAPI(http.Controller):
             return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
                 
         local_invoice_id = data.get('reference_number') or data.get('local_invoice_id')
-        if local_invoice_id:
-            existing_sale = request.env['havanoposdesk.sale'].sudo().search([
-                ('tenant_id', '=', tenant.id),
-                ('local_invoice_id', '=', local_invoice_id)
-            ], limit=1)
-            if existing_sale:
-                res_data = {
-                    'data': {
-                        'name': existing_sale.name,
-                        'customer': existing_sale.customer.name,
-                        'amount_total': existing_sale.amount_total
-                    }
+        if not local_invoice_id:
+            return request.make_response(json.dumps({'error': 'reference_number is required when making a sale'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        existing_sale = request.env['havanoposdesk.sale'].sudo().search([
+            ('tenant_id', '=', tenant.id),
+            ('local_invoice_id', '=', local_invoice_id)
+        ], limit=1)
+        if existing_sale:
+            res_data = {
+                'data': {
+                    'name': existing_sale.name,
+                    'customer': existing_sale.customer.name,
+                    'amount_total': existing_sale.amount_total
                 }
-                return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+            }
+            return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
 
         customer_name = data.get('customer')
         if not customer_name:
@@ -2106,22 +2108,24 @@ class HavanoPOSDeskAPI(http.Controller):
             
             # Deduplication check
             local_invoice_id = params.get('reference_number') or params.get('local_invoice_id')
-            if local_invoice_id:
-                existing_sale = env['havanoposdesk.sale'].search([
-                    ('tenant_id', '=', tenant.id),
-                    ('local_invoice_id', '=', local_invoice_id)
-                ], limit=1)
-                if existing_sale:
-                    if custom_cr:
-                        custom_cr.commit()
-                    return self._make_json_response({
-                        "message": "Sale created successfully",
-                        "sale_order_id": existing_sale.id,
-                        "sale_order_name": existing_sale.name,
-                        "data": {
-                            "name": existing_sale.name
-                        }
-                    })
+            if not local_invoice_id:
+                return self._make_json_response({"error": "reference_number is required when making a sale"}, status=400)
+
+            existing_sale = env['havanoposdesk.sale'].search([
+                ('tenant_id', '=', tenant.id),
+                ('local_invoice_id', '=', local_invoice_id)
+            ], limit=1)
+            if existing_sale:
+                if custom_cr:
+                    custom_cr.commit()
+                return self._make_json_response({
+                    "message": "Sale created successfully",
+                    "sale_order_id": existing_sale.id,
+                    "sale_order_name": existing_sale.name,
+                    "data": {
+                        "name": existing_sale.name
+                    }
+                })
 
             store = self._get_current_store(user, tenant, params)
             if not store:
@@ -2617,19 +2621,21 @@ class HavanoPOSDeskAPI(http.Controller):
                 
                 for sale_data in sales_data:
                     try:
-                        # Deduplication check
                         local_invoice_id = sale_data.get('reference_number') or sale_data.get('local_invoice_id')
-                        if local_invoice_id:
-                            existing_sale = env['havanoposdesk.sale'].search([
-                                ('tenant_id', '=', tenant.id),
-                                ('local_invoice_id', '=', local_invoice_id)
-                            ], limit=1)
-                            if existing_sale:
-                                return self._make_json_response({
-                                    "error": f"Sale with local_invoice_id '{local_invoice_id}' already exists in cloud",
-                                    "existing_sale": existing_sale.name,
-                                    "local_invoice_id": local_invoice_id
-                                }, status=409)
+                        if not local_invoice_id:
+                            responses.append({"error": "reference_number is required when making a sale", "local_invoice_id": None})
+                            continue
+
+                        existing_sale = env['havanoposdesk.sale'].search([
+                            ('tenant_id', '=', tenant.id),
+                            ('local_invoice_id', '=', local_invoice_id)
+                        ], limit=1)
+                        if existing_sale:
+                            return self._make_json_response({
+                                "error": f"Sale with local_invoice_id '{local_invoice_id}' already exists in cloud",
+                                "existing_sale": existing_sale.name,
+                                "local_invoice_id": local_invoice_id
+                            }, status=409)
 
                         store = self._get_current_store(user, tenant, sale_data)
                         if not store:
