@@ -8,7 +8,7 @@ class StockValuationDateWizard(models.TransientModel):
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
         string='Tenant', 
-        required=True, 
+        required=False, 
         default=lambda self: self.env.user.tenant_id.id
     )
     date_to = fields.Date(string='Date To', required=True, default=fields.Date.context_today)
@@ -21,9 +21,10 @@ class StockValuationDateWizard(models.TransientModel):
         date_to_dt = datetime.combine(self.date_to, datetime.max.time())
         
         domain = [
-            ('tenant_id', '=', self.tenant_id.id),
             ('create_date', '<=', date_to_dt)
         ]
+        if self.tenant_id:
+            domain.append(('tenant_id', '=', self.tenant_id.id))
         
         ledgers = self.env['havanoposdesk.stock.ledger'].search(domain)
         

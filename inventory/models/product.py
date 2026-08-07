@@ -39,6 +39,7 @@ class HavanoposdeskProduct(models.Model):
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
+    opening_stock_ids = fields.One2many('havanoposdesk.product.opening.stock', 'product_id', string='Initial Stock per Store')
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
 
     @api.depends('is_bundle')
@@ -169,6 +170,21 @@ class HavanoposdeskProduct(models.Model):
                     })]
                 })
                 adj.action_post()
+                
+            if product.opening_stock_ids:
+                for ost in product.opening_stock_ids:
+                    if ost.qty > 0:
+                        adj2 = self.env['havanoposdesk.stock.adjustment'].with_context(from_product_creation=True).create({
+                            'store_id': ost.store_id.id,
+                            'fetch_all_data': False,
+                            'tenant_id': product.tenant_id.id,
+                            'line_ids': [(0, 0, {
+                                'product_id': product.id,
+                                'on_hand': ost.qty,
+                                'counted': ost.qty,
+                            })]
+                        })
+                        adj2.action_post()
                 
             if product.allow_advanced_pricing and product.store_ids and product.uom_id:
                 default_pricelist = self.env['havanoposdesk.pricelist'].search([('tenant_id', '=', product.tenant_id.id), ('name', 'ilike', 'Retail')], limit=1)
@@ -342,3 +358,11 @@ class HavanoposdeskProductCosting(models.Model):
     qty = fields.Float(string='Quantity')
     price = fields.Float(string='Price/Rate')
     cost_type = fields.Selection([('last', 'Last Purchase'), ('average', 'Average')], string='Cost Type', default='last')
+
+class HavanoposdeskProductOpeningStock(models.Model):
+    _name = 'havanoposdesk.product.opening.stock'
+    _description = 'Initial Stock per Store'
+
+    product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, ondelete='cascade')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True)
+    qty = fields.Float(string='Opening Qty', default=0.0)

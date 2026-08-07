@@ -7,6 +7,22 @@
                 <div class="havano-dashboard-container p-4">
                     <div class="d-flex justify-content-end align-items-center mb-4 dashboard-header">
                         
+                <!-- Store Filter Dropdown -->
+                <div class="dropdown me-2">
+                    <Dropdown>
+                        <button class="btn bg-white border shadow-sm text-dark d-flex align-items-center rounded-2 px-3 py-2">
+                            <i class="fa fa-building me-2 text-muted"></i>
+                            <span t-esc="state.storeLabel"></span>
+                        </button>
+                        <t t-set-slot="content">
+                            <DropdownItem onSelected="() => this.setStore('all', 'All Stores')">All Stores</DropdownItem>
+                            <t t-foreach="state.stores" t-as="store" t-key="store.id">
+                                <DropdownItem onSelected="() => this.setStore(store.id, store.name)"><t t-esc="store.name"/></DropdownItem>
+                            </t>
+                        </t>
+                    </Dropdown>
+                </div>
+                
                 <!-- Period Filter Dropdown -->
                 <div class="dropdown">
                     <Dropdown>

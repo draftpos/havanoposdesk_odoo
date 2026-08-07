@@ -34,7 +34,10 @@ export class HavanoDashboard extends Component {
             period: 'today',
             periodLabel: 'Today',
             customDateFrom: '',
-            customDateTo: ''
+            customDateTo: '',
+            store_id: 'all',
+            storeLabel: 'All Stores',
+            stores: []
         });
 
         this.salesChartRef = useRef("salesChart");
@@ -53,6 +56,11 @@ export class HavanoDashboard extends Component {
 
         onWillStart(async () => {
             await loadJS("/web/static/lib/Chart/Chart.js");
+            
+            // Fetch stores for dropdown
+            const stores = await this.orm.searchRead("havanoposdesk.store", [], ["id", "name"]);
+            this.state.stores = stores;
+            
             await this.fetchData();
         });
 
@@ -152,7 +160,7 @@ export class HavanoDashboard extends Component {
         const data = await this.orm.call(
             "havanoposdesk.dashboard",
             "get_dashboard_data",
-            [date_from, date_to]
+            [date_from, date_to, this.state.store_id]
         );
 
         if (data && data.kpis) {
@@ -178,6 +186,13 @@ export class HavanoDashboard extends Component {
             await this.fetchData();
             this.renderCharts();
         }
+    }
+
+    async setStore(store_id, label) {
+        this.state.store_id = store_id;
+        this.state.storeLabel = label;
+        await this.fetchData();
+        this.renderCharts();
     }
 
     async applyCustomDate() {

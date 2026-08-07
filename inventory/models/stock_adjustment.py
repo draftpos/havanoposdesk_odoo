@@ -275,7 +275,12 @@ class StockAdjustmentLine(models.Model):
     adjustment_id = fields.Many2one('havanoposdesk.stock.adjustment', string='Stock Adjustment', required=True, ondelete='cascade')
     store_id = fields.Many2one(related='adjustment_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
-    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    product_id = fields.Many2one(
+        'havanoposdesk.product', 
+        string='Item', 
+        required=True,
+        domain="[('track_qty', '=', True), ('is_bundle', '=', False), ('is_active', '=', True), ('store_ids', 'in', store_id)]"
+    )
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     on_hand = fields.Float(string='On Hand', readonly=True)
     counted = fields.Float(string='Counted')

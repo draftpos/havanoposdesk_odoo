@@ -449,7 +449,12 @@ class PurchaseLine(models.Model):
     store_id = fields.Many2one(related='purchase_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='purchase_id.currency_id', readonly=True)
     exchange_rate = fields.Float(related='purchase_id.exchange_rate', readonly=True)
-    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    product_id = fields.Many2one(
+        'havanoposdesk.product', 
+        string='Item', 
+        required=True,
+        domain="[('track_qty', '=', True), ('is_bundle', '=', False), ('is_active', '=', True), ('store_ids', 'in', store_id)]"
+    )
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
     rate = fields.Float(string='Rate')
