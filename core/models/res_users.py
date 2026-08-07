@@ -34,7 +34,7 @@ class ResUsers(models.Model):
     )
     selected_shop_id = fields.Many2one('havanoposdesk.store', string="Selected Shop")
     selected_terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string="Selected Terminal")
-    pin = fields.Char(string="PIN Code", default=lambda self: str(random.randint(1000, 9999)))
+    pin = fields.Char(string="PIN Code")
     user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
     allow_backoffice = fields.Boolean(string="Access Backoffice", compute="_compute_allow_backoffice", inverse="_inverse_allow_backoffice", store=True)
     has_password = fields.Boolean(string="Has Password", compute="_compute_has_password")
@@ -481,9 +481,21 @@ class ResUsers(models.Model):
         group_system = self.env.ref('base.group_system', raise_if_not_found=False)
 
         for vals in vals_list:
-            if not vals.get('pin'):
-                vals['pin'] = str(random.randint(1000, 9999))
             role = vals.get('havano_role')
+            if not role:
+                if vals.get('allow_backoffice'):
+                    role = 'admin'
+                else:
+                    role = 'user'
+            if role not in ('admin', 'super_admin') and not vals.get('pin'):
+                tenant_id = vals.get('tenant_id') or (self.env.user.tenant_id.id if self.env.user.tenant_id else False)
+                pin = str(random.randint(1000, 9999))
+                if tenant_id:
+                    while self.sudo().search_count([('tenant_id', '=', tenant_id), ('pin', '=', pin)]) > 0:
+                        pin = str(random.randint(1000, 9999))
+                vals['pin'] = pin
+            elif role in ('admin', 'super_admin') and 'pin' not in vals:
+                vals['pin'] = False
             if role:
                 # Remove portal group from incoming vals if it exists
                 existing_groups = []

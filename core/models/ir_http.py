@@ -12,19 +12,29 @@ class IrHttp(models.AbstractModel):
         if not _DB_COLUMNS_CHECKED and request and getattr(request, 'db', None):
             try:
                 cr = request.env.cr
-                cols = [
-                    ("pending_subscription_plan_id", "INTEGER"),
-                    ("pending_additional_stores", "INTEGER DEFAULT 0"),
-                    ("pending_subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
-                    ("additional_stores", "INTEGER DEFAULT 0"),
-                    ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
-                    ("effective_max_stores", "INTEGER DEFAULT 0"),
-                    ("effective_max_terminals", "INTEGER DEFAULT 0"),
-                ]
-                for col_name, col_type in cols:
-                    cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
-                cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN IF NOT EXISTS initial_stock DOUBLE PRECISION DEFAULT 0.0;")
-                cr.commit()
+                # Check if tables exist before attempting database alterations to avoid InFailedSqlTransaction
+                cr.execute("SELECT 1 FROM information_schema.tables WHERE table_name = 'havanoposdesk_tenant'")
+                has_tenant = bool(cr.fetchone())
+                cr.execute("SELECT 1 FROM information_schema.tables WHERE table_name = 'havanoposdesk_product_uom_price'")
+                has_price = bool(cr.fetchone())
+                
+                if has_tenant or has_price:
+                    with cr.savepoint():
+                        if has_tenant:
+                            cols = [
+                                ("pending_subscription_plan_id", "INTEGER"),
+                                ("pending_additional_stores", "INTEGER DEFAULT 0"),
+                                ("pending_subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+                                ("additional_stores", "INTEGER DEFAULT 0"),
+                                ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+                                ("effective_max_stores", "INTEGER DEFAULT 0"),
+                                ("effective_max_terminals", "INTEGER DEFAULT 0"),
+                            ]
+                            for col_name, col_type in cols:
+                                cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+                        if has_price:
+                            cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN IF NOT EXISTS initial_stock DOUBLE PRECISION DEFAULT 0.0;")
+                    cr.commit()
                 _DB_COLUMNS_CHECKED = True
             except Exception:
                 pass

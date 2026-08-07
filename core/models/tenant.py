@@ -24,7 +24,8 @@ class HavanoposdeskTenant(models.Model):
         ]
         for col_name, col_type in columns:
             try:
-                cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+                with cr.savepoint():
+                    cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
             except Exception:
                 pass
         return res

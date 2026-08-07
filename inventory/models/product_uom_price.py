@@ -9,7 +9,8 @@ class HavanoposdeskProductUomPrice(models.Model):
         res = super()._auto_init()
         cr = self.env.cr
         try:
-            cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN IF NOT EXISTS initial_stock DOUBLE PRECISION DEFAULT 0.0;")
+            with cr.savepoint():
+                cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN IF NOT EXISTS initial_stock DOUBLE PRECISION DEFAULT 0.0;")
         except Exception:
             pass
         return res
