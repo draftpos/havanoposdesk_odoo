@@ -320,6 +320,9 @@ def enforce_backoffice_permissions(self, operation, raise_exception=True):
         if getattr(self.env.user, 'havano_role', None) == 'super_admin':
             return res
 
+        if operation == 'read' and self.env.context.get('bypass_backoffice_read'):
+            return res
+
         user = self.env.user
         profile = user.user_rights_profile_id
         feature_name = MODEL_FEATURE_MAP[self._name]
@@ -353,6 +356,13 @@ def enforce_backoffice_permissions(self, operation, raise_exception=True):
     return res
 
 BaseModel.check_access_rights = enforce_backoffice_permissions
+
+original_export_data = BaseModel.export_data
+
+def custom_export_data(self, fields_to_export):
+    return original_export_data(self.with_context(bypass_backoffice_read=True), fields_to_export)
+
+BaseModel.export_data = custom_export_data
 
 import xml.etree.ElementTree as ET
 
