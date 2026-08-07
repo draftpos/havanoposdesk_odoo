@@ -13,6 +13,7 @@ class IrHttp(models.AbstractModel):
             _DB_COLUMNS_CHECKED = True  # Ensure we only try this once per worker lifetime
             cr = request.env.cr
             try:
+                # Check table existence first
                 cr.execute("SELECT 1 FROM information_schema.tables WHERE table_name = 'havanoposdesk_tenant'")
                 has_tenant = bool(cr.fetchone())
                 cr.execute("SELECT 1 FROM information_schema.tables WHERE table_name = 'havanoposdesk_product_uom_price'")
@@ -28,10 +29,19 @@ class IrHttp(models.AbstractModel):
                         ("effective_max_stores", "INTEGER DEFAULT 0"),
                         ("effective_max_terminals", "INTEGER DEFAULT 0"),
                     ]
+                    # Fetch existing columns to avoid redundant ALTER TABLE calls (which require AccessExclusiveLocks)
+                    cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'havanoposdesk_tenant'")
+                    existing_cols = {row[0] for row in cr.fetchall()}
+                    
                     for col_name, col_type in cols:
-                        cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+                        if col_name not in existing_cols:
+                            cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN {col_name} {col_type};")
+                            
                 if has_price:
-                    cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN IF NOT EXISTS initial_stock DOUBLE PRECISION DEFAULT 0.0;")
+                    cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'havanoposdesk_product_uom_price'")
+                    existing_cols = {row[0] for row in cr.fetchall()}
+                    if "initial_stock" not in existing_cols:
+                        cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN initial_stock DOUBLE PRECISION DEFAULT 0.0;")
             except Exception as e:
                 import traceback
                 import os
