@@ -128,6 +128,8 @@ class HavanoAuthSignup(AuthSignupHome):
                 return self.web_login(*args, **kw)
             except Exception as e:
                 _logger.exception("Error during signup")
+                request.env.cr.rollback()
+                qcontext = self.get_auth_signup_qcontext()
                 # Handle both native string exceptions and Odoo UserError/SignupError generically
                 error_msg = getattr(e, 'args', [str(e)])[0]
                 qcontext['error'] = _("Could not create a new account. ") + str(error_msg)
