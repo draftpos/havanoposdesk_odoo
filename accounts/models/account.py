@@ -30,3 +30,8 @@ class Account(models.Model):
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     store_id = fields.Many2one('havanoposdesk.store', string='Store')
+    store_ids = fields.Many2many(
+        'havanoposdesk.store',
+        string='Stores',
+        default=lambda self: [self.env.user.default_store_id.id] if self.env.user.default_store_id else ([self.env.user.store_ids[0].id] if self.env.user.store_ids else [])
+    )
