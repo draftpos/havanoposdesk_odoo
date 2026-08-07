@@ -32,7 +32,16 @@ class IrHttp(models.AbstractModel):
                         cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
                 if has_price:
                     cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN IF NOT EXISTS initial_stock DOUBLE PRECISION DEFAULT 0.0;")
-            except Exception:
+            except Exception as e:
+                import traceback
+                import os
+                try:
+                    addon_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                    log_path = os.path.join(addon_dir, 'db_error.txt')
+                    with open(log_path, 'w') as f:
+                        f.write(traceback.format_exc())
+                except Exception:
+                    pass
                 cr.rollback()
         return super()._dispatch(endpoint)
 
