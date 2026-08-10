@@ -28,6 +28,7 @@ class IrHttp(models.AbstractModel):
                         ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
                         ("effective_max_stores", "INTEGER DEFAULT 0"),
                         ("effective_max_terminals", "INTEGER DEFAULT 0"),
+                        ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
                     ]
                     # Fetch existing columns to avoid redundant ALTER TABLE calls (which require AccessExclusiveLocks)
                     cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'havanoposdesk_tenant'")

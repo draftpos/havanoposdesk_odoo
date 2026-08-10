@@ -21,6 +21,7 @@ class HavanoposdeskTenant(models.Model):
             ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
             ("effective_max_stores", "INTEGER DEFAULT 0"),
             ("effective_max_terminals", "INTEGER DEFAULT 0"),
+            ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
         ]
         for col_name, col_type in columns:
             try:
