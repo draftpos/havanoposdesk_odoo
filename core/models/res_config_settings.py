@@ -44,6 +44,13 @@ class ResConfigSettings(models.TransientModel):
         help="If enabled, you can sell items even if their stock quantity goes below zero. Purchasing items will compensate for the negative balance."
     )
 
+    biz_allow_edit_item_code = fields.Boolean(
+        string="Allow Editing Product Code",
+        related='tenant_id.allow_edit_item_code',
+        readonly=False,
+        help="If enabled, users will be allowed to edit the product codes (item codes) on products."
+    )
+
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant',
         string="Tenant",

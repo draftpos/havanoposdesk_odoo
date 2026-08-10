@@ -255,6 +255,7 @@ class HavanoposdeskTenant(models.Model):
     enable_tax = fields.Boolean(string='Enable Tax', default=False)
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
+    allow_edit_item_code = fields.Boolean(string='Allow Editing Item Code', default=False)
 
     @api.model_create_multi
     def create(self, vals_list):
