@@ -84,10 +84,18 @@ class HavanoPOSDeskAPI(http.Controller):
                     
             user = user_env['res.users'].sudo().browse(uid)
             if timezone:
-                try:
-                    user.write({'tz': timezone})
-                except Exception:
-                    pass
+                timezone_str = str(timezone).strip()
+                if user.tz:
+                    user_tz_str = str(user.tz).strip()
+                    if user_tz_str != timezone_str:
+                        return request.make_response(json.dumps({
+                            'error': f"Incorrect date and time settings. Your account was registered under timezone '{user_tz_str}'. Please correct your device date and time settings to log in."
+                        }), headers=[('Content-Type', 'application/json')], status=400)
+                else:
+                    try:
+                        user.sudo().write({'tz': timezone_str})
+                    except Exception:
+                        pass
                     
             # Split full name into first and last name
             names = (user.name or "").split(' ', 1)
@@ -5751,6 +5759,21 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
+    @http.route(['/api/countries', '/api/method/saas_api.www.api.get_countries'], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_get_countries(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+        try:
+            env, custom_cr = self._get_env()
+            try:
+                countries = env['res.country'].sudo().search_read([], ['id', 'name', 'code', 'phone_code'])
+                return self._make_json_response({"countries": countries, "data": countries})
+            finally:
+                if custom_cr:
+                    custom_cr.close()
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+
     @http.route([
         '/api/method/sass_manager.sass_manager.api.register.register_user_with_site',
         '/api/method/saas_manager.saas_manager.api.register.register_user_with_site'
@@ -5807,7 +5830,23 @@ class HavanoPOSDeskAPI(http.Controller):
                         }
                     }, status=409)
 
-                country_val = data.get('country') or data.get('country_code') or data.get('country_id')
+                country_val = data.get('country') or data.get('country_code') or data.get('country_name') or data.get('country_id')
+                country_id = False
+                if country_val:
+                    if isinstance(country_val, int) or (isinstance(country_val, str) and country_val.isdigit()):
+                        country_id = int(country_val)
+                    else:
+                        country_rec = env['res.country'].sudo().search([
+                            '|', '|',
+                            ('code', '=ilike', str(country_val).strip()),
+                            ('name', '=ilike', str(country_val).strip()),
+                            ('phone_code', '=', int(country_val) if str(country_val).isdigit() else -1)
+                        ], limit=1)
+                        if country_rec:
+                            country_id = country_rec.id
+
+                timezone_val = data.get('timezone') or data.get('tz')
+
                 user_vals = {
                     'name': f"{first_name} {last_name}".strip(),
                     'login': email,
@@ -5815,8 +5854,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     'password': password,
                     'phone': phone_number,
                     'api_company_name': company_name or f"{first_name}'s Business",
-                    'country_id': country_val,
                 }
+                if country_id:
+                    user_vals['country_id'] = country_id
+                if timezone_val:
+                    user_vals['tz'] = str(timezone_val).strip()
+
                 user = env['res.users'].sudo()._create_user_from_template(user_vals)
 
                 ICPSudo = env['ir.config_parameter'].sudo()
@@ -6069,6 +6112,23 @@ class HavanoPOSDeskAPI(http.Controller):
             company = env['res.company'].search([], limit=1)
             company_id = company.id if company else 1
 
+            country_val = data.get('country') or data.get('country_code') or data.get('country_name') or data.get('country_id')
+            country_id = False
+            if country_val:
+                if isinstance(country_val, int) or (isinstance(country_val, str) and country_val.isdigit()):
+                    country_id = int(country_val)
+                else:
+                    country_rec = env['res.country'].sudo().search([
+                        '|', '|',
+                        ('code', '=ilike', str(country_val).strip()),
+                        ('name', '=ilike', str(country_val).strip()),
+                        ('phone_code', '=', int(country_val) if str(country_val).isdigit() else -1)
+                    ], limit=1)
+                    if country_rec:
+                        country_id = country_rec.id
+
+            timezone_val = data.get('timezone') or data.get('tz')
+
             user_vals = {
                 'name': f"{first_name} {last_name}".strip(),
                 'login': email,
@@ -6083,6 +6143,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 'company_ids': [(6, 0, [company_id])],
                 'active': True,
             }
+            if country_id:
+                user_vals['country_id'] = country_id
+            if timezone_val:
+                user_vals['tz'] = str(timezone_val).strip()
             # Resolve store from payload
             store_ref = data.get('store_id') or data.get('store') or data.get('default_store_id') or data.get('default_store')
             store_obj = False
