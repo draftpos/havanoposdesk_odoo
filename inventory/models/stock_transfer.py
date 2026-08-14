@@ -27,7 +27,7 @@ class StockTransfer(models.Model):
     @api.constrains('from_store_id', 'to_store_id')
     def _check_stores(self):
         for record in self:
-            if record.from_store_id == record.to_store_id:
+            if record.from_store_id and record.to_store_id and record.from_store_id == record.to_store_id:
                 raise ValidationError("The Source and Destination stores cannot be the same!")
 
     @api.model_create_multi
