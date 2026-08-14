@@ -305,6 +305,9 @@
                         <setting id="product_naming_format_setting" help="Force product names to automatically format as uppercase, lowercase, title case, or leave as-is when saved.">
                             <field name="biz_product_name_format" widget="radio"/>
                         </setting>
+                        <setting id="allow_edit_item_code_setting" string="Allow Editing Product Code" help="Allow users to edit product codes (item codes) on the product form.">
+                            <field name="biz_allow_edit_item_code"/>
+                        </setting>
                         <setting id="allow_negative_stock_setting" help="Allow selling products even when their quantity on hand is zero or less. Purchasing more will compensate the negative balance automatically.">
                             <field name="biz_allow_negative_stock"/>
                         </setting>

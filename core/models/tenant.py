@@ -21,6 +21,7 @@ class HavanoposdeskTenant(models.Model):
             ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
             ("effective_max_stores", "INTEGER DEFAULT 0"),
             ("effective_max_terminals", "INTEGER DEFAULT 0"),
+            ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
         ]
         for col_name, col_type in columns:
             try:
@@ -255,6 +256,7 @@ class HavanoposdeskTenant(models.Model):
     enable_tax = fields.Boolean(string='Enable Tax', default=False)
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
+    allow_edit_item_code = fields.Boolean(string='Allow Editing Item Code', default=False)
 
     @api.model_create_multi
     def create(self, vals_list):

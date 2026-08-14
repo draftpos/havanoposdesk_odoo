@@ -1,8 +1,12 @@
 from odoo import http, _
 from odoo.http import request
+# pyrefly: ignore [missing-import]
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
+# pyrefly: ignore [missing-import]
 from odoo.addons.web.controllers.session import Session
+# pyrefly: ignore [missing-import]
 from odoo.addons.web.controllers.webmanifest import WebManifest
+# pyrefly: ignore [missing-import]
 import werkzeug
 import logging
 
@@ -14,7 +18,8 @@ class HavanoAccessController(http.Controller):
         # Default allow if not matched
         res = {'canCreate': True, 'canViewDetail': True, 'canEdit': True, 'canDelete': True}
         
-        from odoo.addons.havanoposdesk_odoo.core.models.user_rights import MODEL_FEATURE_MAP
+        # pyrefly: ignore [missing-import]
+        from ..models.user_rights import MODEL_FEATURE_MAP
         
         if model in MODEL_FEATURE_MAP:
             user = request.env.user
@@ -195,7 +200,15 @@ class HavanoAuthSignup(AuthSignupHome):
         country = qcontext.get('country_code', '')
         if phone:
             values['phone'] = f"{country}{phone}"
-            
+
+        if qcontext.get('country_id'):
+            try:
+                values['country_id'] = int(qcontext.get('country_id'))
+            except (ValueError, TypeError):
+                pass
+        if qcontext.get('timezone') or qcontext.get('tz'):
+            values['tz'] = str(qcontext.get('timezone') or qcontext.get('tz')).strip()
+
         return values
 
 class HavanoSession(Session):

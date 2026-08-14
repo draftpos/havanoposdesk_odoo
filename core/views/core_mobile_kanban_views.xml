@@ -135,7 +135,11 @@
             <field name="name">havanoposdesk.pos.terminal.kanban.mobile</field>
             <field name="model">havanoposdesk.pos.terminal</field>
             <field name="arch" type="xml">
+<<<<<<< HEAD
                 <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1">
+=======
+                <kanban class="havano_mobile_kanban o_kanban_mobile" sample="1" on_create="quick_create" create_text="Create New POS Terminal">
+>>>>>>> origin/master
                     <field name="name"/>
                     <field name="store_id"/>
                     <field name="tenant_id"/>

@@ -13,7 +13,8 @@ class HavanoposdeskProduct(models.Model):
     ]
 
     name = fields.Char(string='Product Name', required=True)
-    item_code = fields.Char(string='Product Code', required=True, copy=False, readonly=True, default=lambda self: 'New')
+    item_code = fields.Char(string='Product Code', required=True, copy=False, default=lambda self: 'New')
+    allow_edit_item_code = fields.Boolean(related='tenant_id.allow_edit_item_code', string="Allow Edit Item Code")
     barcode = fields.Char(string='Barcode', copy=False)
     is_barcode_enabled = fields.Boolean(related='tenant_id.enable_barcode', string="Barcode Enabled")
 
@@ -33,6 +34,17 @@ class HavanoposdeskProduct(models.Model):
         if name:
             args += ['|', ('name', operator, name), ('item_code', operator, name)]
         return self._search(args, limit=limit, order=order)
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super(HavanoposdeskProduct, self).default_get(fields_list)
+        if 'item_code' in fields_list and res.get('item_code') == 'New':
+            tenant = self.env.user.tenant_id
+            if tenant:
+                res['item_code'] = tenant._get_next_sequence('prod')
+            else:
+                res['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
+        return res
     buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
     selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', store=True, readonly=False)
     markup = fields.Float(string='Markup', compute='_compute_markup')

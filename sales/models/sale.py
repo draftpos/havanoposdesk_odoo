@@ -385,6 +385,8 @@ class Sale(models.Model):
                         products_to_process = [(line.product_id, base_qty)]
 
                     for product_id, item_base_qty in products_to_process:
+                        if not product_id.track_qty:
+                            continue
                         valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
                             ('product_id', '=', product_id.id),
                             ('store', '=', sale.store)
@@ -439,6 +441,8 @@ class Sale(models.Model):
                         products_to_process = [(line.product_id, base_qty)]
 
                     for product_id, item_base_qty in products_to_process:
+                        if not product_id.track_qty:
+                            continue
                         valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
                             ('product_id', '=', product_id.id),
                             ('store', '=', sale.store)
@@ -487,6 +491,8 @@ class Sale(models.Model):
                     products_to_process = [(line.product_id, base_qty)]
 
                 for product_id, item_base_qty in products_to_process:
+                    if not product_id.track_qty:
+                        continue
                     # Create reverse ledger entry using sudo()
                     orig_ledgers = self.env['havanoposdesk.stock.ledger'].sudo().search([
                         ('doc_no', '=', sale.name),
@@ -781,7 +787,7 @@ class SaleLine(models.Model):
     @api.onchange('accepted_qty', 'product_id')
     def _onchange_qty(self):
         allow_negative = self.env.user.tenant_id.allow_negative_stock
-        if not allow_negative and self.product_id and self.accepted_qty > self.product_id.opening_stock:
+        if not allow_negative and self.product_id and self.product_id.track_qty and self.accepted_qty > self.product_id.opening_stock:
             return {
                 'warning': {
                     'title': 'Insufficient Stock',
@@ -795,5 +801,5 @@ class SaleLine(models.Model):
         for line in self:
             if line.accepted_qty < 0:
                 continue
-            if not allow_negative and line.product_id and line.accepted_qty > line.product_id.opening_stock:
+            if not allow_negative and line.product_id and line.product_id.track_qty and line.accepted_qty > line.product_id.opening_stock:
                 raise ValidationError(f"You cannot sell {line.accepted_qty} of {line.product_id.name} because you only have {line.product_id.opening_stock} on hand.")

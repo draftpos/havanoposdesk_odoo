@@ -84,10 +84,18 @@ class HavanoPOSDeskAPI(http.Controller):
                     
             user = user_env['res.users'].sudo().browse(uid)
             if timezone:
-                try:
-                    user.write({'tz': timezone})
-                except Exception:
-                    pass
+                timezone_str = str(timezone).strip()
+                if user.tz:
+                    user_tz_str = str(user.tz).strip()
+                    if user_tz_str != timezone_str:
+                        return request.make_response(json.dumps({
+                            'error': f"Incorrect date and time settings. Your account was registered under timezone '{user_tz_str}'. Please correct your device date and time settings to log in."
+                        }), headers=[('Content-Type', 'application/json')], status=400)
+                else:
+                    try:
+                        user.sudo().write({'tz': timezone_str})
+                    except Exception:
+                        pass
                     
             # Split full name into first and last name
             names = (user.name or "").split(' ', 1)
@@ -1731,33 +1739,79 @@ class HavanoPOSDeskAPI(http.Controller):
         tenant = user.tenant_id
         
         product_domain = [('is_active', '=', True)]
-        if user.havano_role != 'super_admin':
-            if tenant:
-                product_domain.append(('tenant_id', '=', tenant.id))
-            if user.havano_role == 'user':
-                product_domain.append(('store_ids', 'in', user.store_ids.ids))
+        
+        # Resolve tenant filtering
+        req_tenant = params.get('tenant_id') or params.get('tenant')
+        resolved_tenant_id = None
+        if req_tenant:
+            try:
+                req_tenant_id = int(req_tenant)
+                if user.havano_role == 'super_admin' or (tenant and tenant.id == req_tenant_id):
+                    resolved_tenant_id = req_tenant_id
+            except ValueError:
+                t_rec = request.env['havanoposdesk.tenant'].sudo().search([('name', '=', str(req_tenant))], limit=1)
+                if t_rec and (user.havano_role == 'super_admin' or (tenant and tenant.id == t_rec.id)):
+                    resolved_tenant_id = t_rec.id
+                    
+        if not resolved_tenant_id and user.havano_role != 'super_admin' and tenant:
+            resolved_tenant_id = tenant.id
+            
+        if resolved_tenant_id:
+            product_domain.append(('tenant_id', '=', resolved_tenant_id))
+
+        # Resolve store/shop filtering
+        req_store = params.get('store_id') or params.get('store') or params.get('shop_id') or params.get('shop')
+        explicit_store_filter = False
+        resolved_store_ids = []
+        if req_store:
+            try:
+                req_store_id = int(req_store)
+                if user.havano_role != 'user' or req_store_id in user.store_ids.ids:
+                    resolved_store_ids = [req_store_id]
+                    explicit_store_filter = True
+            except ValueError:
+                s_rec = request.env['havanoposdesk.store'].sudo().search([('name', '=', str(req_store))], limit=1)
+                if s_rec and (user.havano_role != 'user' or s_rec.id in user.store_ids.ids):
+                    resolved_store_ids = [s_rec.id]
+                    explicit_store_filter = True
+                    
+        product_store_domain = list(resolved_store_ids)
+        if not product_store_domain and user.havano_role == 'user':
+            product_store_domain = user.store_ids.ids
+            
+        if product_store_domain:
+            product_domain.append(('store_ids', 'in', product_store_domain))
                 
         total_count = request.env['havanoposdesk.product'].sudo().search_count(product_domain)
         products = request.env['havanoposdesk.product'].sudo().search(product_domain, limit=limit, offset=offset)
         
-        # Get all stores to calculate quantity on hand per store/warehouse
+        # Get stores to calculate quantity on hand per store/warehouse
         store_domain = []
-        if user.havano_role != 'super_admin' and tenant:
+        if resolved_tenant_id:
+            store_domain.append(('tenant_id', '=', resolved_tenant_id))
+        elif user.havano_role != 'super_admin' and tenant:
             store_domain.append(('tenant_id', '=', tenant.id))
+            
+        if explicit_store_filter:
+            store_domain.append(('id', 'in', resolved_store_ids))
+            
         stores = request.env['havanoposdesk.store'].sudo().search(store_domain)
         
         default_warehouse_name = user.default_store_id.name or (user.store_ids[0].name if user.store_ids else (stores[0].name if stores else "Stores - AT"))
         
         products_list = []
+        current_tenant_id = resolved_tenant_id or (tenant.id if tenant else None)
         for p in products:
             # Map warehouses
             warehouses_data = []
             for s in stores:
-                valuation = request.env['havanoposdesk.stock.valuation'].sudo().search([
-                    ('tenant_id', '=', tenant.id),
+                valuation_domain = [
                     ('product_id', '=', p.id),
                     ('store', '=', s.name)
-                ], limit=1)
+                ]
+                if current_tenant_id:
+                    valuation_domain.append(('tenant_id', '=', current_tenant_id))
+                valuation = request.env['havanoposdesk.stock.valuation'].sudo().search(valuation_domain, limit=1)
                 qty = valuation.on_hand_qty if valuation else 0.0
                 warehouses_data.append({
                     "warehouse": s.name,
@@ -5705,6 +5759,21 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
+    @http.route(['/api/countries', '/api/method/saas_api.www.api.get_countries'], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_get_countries(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+        try:
+            env, custom_cr = self._get_env()
+            try:
+                countries = env['res.country'].sudo().search_read([], ['id', 'name', 'code', 'phone_code'])
+                return self._make_json_response({"countries": countries, "data": countries})
+            finally:
+                if custom_cr:
+                    custom_cr.close()
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+
     @http.route([
         '/api/method/sass_manager.sass_manager.api.register.register_user_with_site',
         '/api/method/saas_manager.saas_manager.api.register.register_user_with_site'
@@ -5761,7 +5830,23 @@ class HavanoPOSDeskAPI(http.Controller):
                         }
                     }, status=409)
 
-                country_val = data.get('country') or data.get('country_code') or data.get('country_id')
+                country_val = data.get('country') or data.get('country_code') or data.get('country_name') or data.get('country_id')
+                country_id = False
+                if country_val:
+                    if isinstance(country_val, int) or (isinstance(country_val, str) and country_val.isdigit()):
+                        country_id = int(country_val)
+                    else:
+                        country_rec = env['res.country'].sudo().search([
+                            '|', '|',
+                            ('code', '=ilike', str(country_val).strip()),
+                            ('name', '=ilike', str(country_val).strip()),
+                            ('phone_code', '=', int(country_val) if str(country_val).isdigit() else -1)
+                        ], limit=1)
+                        if country_rec:
+                            country_id = country_rec.id
+
+                timezone_val = data.get('timezone') or data.get('tz')
+
                 user_vals = {
                     'name': f"{first_name} {last_name}".strip(),
                     'login': email,
@@ -5769,8 +5854,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     'password': password,
                     'phone': phone_number,
                     'api_company_name': company_name or f"{first_name}'s Business",
-                    'country_id': country_val,
                 }
+                if country_id:
+                    user_vals['country_id'] = country_id
+                if timezone_val:
+                    user_vals['tz'] = str(timezone_val).strip()
+
                 user = env['res.users'].sudo()._create_user_from_template(user_vals)
 
                 ICPSudo = env['ir.config_parameter'].sudo()
@@ -6023,6 +6112,23 @@ class HavanoPOSDeskAPI(http.Controller):
             company = env['res.company'].search([], limit=1)
             company_id = company.id if company else 1
 
+            country_val = data.get('country') or data.get('country_code') or data.get('country_name') or data.get('country_id')
+            country_id = False
+            if country_val:
+                if isinstance(country_val, int) or (isinstance(country_val, str) and country_val.isdigit()):
+                    country_id = int(country_val)
+                else:
+                    country_rec = env['res.country'].sudo().search([
+                        '|', '|',
+                        ('code', '=ilike', str(country_val).strip()),
+                        ('name', '=ilike', str(country_val).strip()),
+                        ('phone_code', '=', int(country_val) if str(country_val).isdigit() else -1)
+                    ], limit=1)
+                    if country_rec:
+                        country_id = country_rec.id
+
+            timezone_val = data.get('timezone') or data.get('tz')
+
             user_vals = {
                 'name': f"{first_name} {last_name}".strip(),
                 'login': email,
@@ -6037,6 +6143,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 'company_ids': [(6, 0, [company_id])],
                 'active': True,
             }
+            if country_id:
+                user_vals['country_id'] = country_id
+            if timezone_val:
+                user_vals['tz'] = str(timezone_val).strip()
             # Resolve store from payload
             store_ref = data.get('store_id') or data.get('store') or data.get('default_store_id') or data.get('default_store')
             store_obj = False
