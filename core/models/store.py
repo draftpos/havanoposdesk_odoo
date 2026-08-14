@@ -172,30 +172,49 @@ class HavanoposdeskStore(models.Model):
                 vals['pricelist_id'] = (retail_pl[0] if retail_pl else selling_pricelists[0]).id
                 
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
-            if not tenant.check_subscription_active():
-                plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
-                if plan:
-                    price = tenant.pending_subscription_total_amount if tenant.pending_subscription_plan_id else (tenant.subscription_total_amount or plan.price)
+            if self.env.user.havano_role != 'super_admin':
+                if not tenant.check_subscription_active():
+                    plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
+                    if plan:
+                        price = tenant.pending_subscription_total_amount if tenant.pending_subscription_plan_id else (tenant.subscription_total_amount or plan.price)
+                        raise RedirectWarning(
+                            _('Cannot create a store. The tenant subscription is not active.'),
+                            {
+                                'name': _('Pay & Activate Subscription'),
+                                'type': 'ir.actions.act_window',
+                                'res_model': 'havanoposdesk.subscription.pay.wizard',
+                                'view_mode': 'form',
+                                'views': [(False, 'form')],
+                                'target': 'new',
+                                'context': {
+                                    'default_tenant_id': tenant.id,
+                                    'default_subscription_plan_id': plan.id,
+                                    'default_amount': price,
+                                }
+                            },
+                            _('Subscribe Now')
+                        )
+                    else:
+                        raise RedirectWarning(
+                            _('Cannot create a store. Please pick a subscription plan.'),
+                            {
+                                'name': _('Select Subscription Plan'),
+                                'type': 'ir.actions.act_window',
+                                'res_model': 'havanoposdesk.tenant.upgrade.wizard',
+                                'view_mode': 'form',
+                                'views': [(False, 'form')],
+                                'target': 'new',
+                                'context': {
+                                    'default_tenant_id': tenant.id,
+                                }
+                            },
+                            _('Select Plan')
+                        )
+                    
+                plan = tenant.subscription_plan_id
+                if not plan:
                     raise RedirectWarning(
-                        _('Cannot create a store. The tenant subscription is not active.'),
-                        {
-                            'name': _('Pay & Activate Subscription'),
-                            'type': 'ir.actions.act_window',
-                            'res_model': 'havanoposdesk.subscription.pay.wizard',
-                            'view_mode': 'form',
-                            'views': [(False, 'form')],
-                            'target': 'new',
-                            'context': {
-                                'default_tenant_id': tenant.id,
-                                'default_subscription_plan_id': plan.id,
-                                'default_amount': price,
-                            }
-                        },
-                        _('Subscribe Now')
-                    )
-                else:
-                    raise RedirectWarning(
-                        _('Cannot create a store. Please pick a subscription plan.'),
+                        _('Please pick a subscription plan to start creating stores.'),
                         {
                             'name': _('Select Subscription Plan'),
                             'type': 'ir.actions.act_window',
@@ -209,44 +228,26 @@ class HavanoposdeskStore(models.Model):
                         },
                         _('Select Plan')
                     )
-                
-            plan = tenant.subscription_plan_id
-            if not plan:
-                raise RedirectWarning(
-                    _('Please pick a subscription plan to start creating stores.'),
-                    {
-                        'name': _('Select Subscription Plan'),
-                        'type': 'ir.actions.act_window',
-                        'res_model': 'havanoposdesk.tenant.upgrade.wizard',
-                        'view_mode': 'form',
-                        'views': [(False, 'form')],
-                        'target': 'new',
-                        'context': {
-                            'default_tenant_id': tenant.id,
-                        }
-                    },
-                    _('Select Plan')
-                )
-                
-            max_allowed = tenant.effective_max_stores or (plan.max_stores if plan else 0)
-            if max_allowed and max_allowed > 0:
-                current = self.search_count([('tenant_id', '=', tenant.id)])
-                if current >= max_allowed:
-                    raise RedirectWarning(
-                        _('Maximum number of stores (%s) reached for this subscription plan.') % max_allowed,
-                        {
-                            'name': _('Select Subscription Plan'),
-                            'type': 'ir.actions.act_window',
-                            'res_model': 'havanoposdesk.tenant.upgrade.wizard',
-                            'view_mode': 'form',
-                            'views': [(False, 'form')],
-                            'target': 'new',
-                            'context': {
-                                'default_tenant_id': tenant.id,
-                            }
-                        },
-                        _('Upgrade Subscription')
-                    )
+                    
+                max_allowed = tenant.effective_max_stores or (plan.max_stores if plan else 0)
+                if max_allowed and max_allowed > 0:
+                    current = self.search_count([('tenant_id', '=', tenant.id)])
+                    if current >= max_allowed:
+                        raise RedirectWarning(
+                            _('Maximum number of stores (%s) reached for this subscription plan.') % max_allowed,
+                            {
+                                'name': _('Select Subscription Plan'),
+                                'type': 'ir.actions.act_window',
+                                'res_model': 'havanoposdesk.tenant.upgrade.wizard',
+                                'view_mode': 'form',
+                                'views': [(False, 'form')],
+                                'target': 'new',
+                                'context': {
+                                    'default_tenant_id': tenant.id,
+                                }
+                            },
+                            _('Upgrade Subscription')
+                        )
                     
             # Ensure the tenant_id is correctly forced
             vals['tenant_id'] = tenant_id
