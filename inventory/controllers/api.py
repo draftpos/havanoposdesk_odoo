@@ -2332,6 +2332,15 @@ class HavanoPOSDeskAPI(http.Controller):
             if terminal.tenant_id.id != tenant.id:
                 return self._make_json_response({"error": "Terminal does not belong to your account."}, status=400)
                 
+            sale_user_email = params.get('cashier') or params.get('owner') or params.get('user') or params.get('sales_person')
+            sale_user = None
+            if sale_user_email:
+                cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
+                if cashier_user:
+                    sale_user = cashier_user
+            if not sale_user:
+                sale_user = user
+
             payment_policy, account_id, payment_commands = self._prepare_payment_vals(env, tenant, customer, params)
             sale_vals = {
                 'customer': customer.id,
@@ -2341,6 +2350,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'terminal_id': terminal.id,
                 'line_ids': sale_lines,
                 'state': 'done',
+                'salesperson_id': sale_user.id,
                 'payment_status': 'cash',
                 'payment_policy': payment_policy,
                 'local_invoice_id': local_invoice_id,
@@ -2350,7 +2360,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if payment_commands:
                 sale_vals['payment_ids'] = payment_commands
 
-            sale = env['havanoposdesk.sale'].create(sale_vals)
+            sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
 
             if custom_cr:
                 custom_cr.commit()
@@ -2876,6 +2886,15 @@ class HavanoPOSDeskAPI(http.Controller):
                             if pl:
                                 pricelist_id = pl.id
 
+                        sale_user_email = sale_data.get('cashier') or sale_data.get('owner') or sale_data.get('user') or sale_data.get('sales_person')
+                        sale_user = None
+                        if sale_user_email:
+                            cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
+                            if cashier_user:
+                                sale_user = cashier_user
+                        if not sale_user:
+                            sale_user = user
+
                         payment_policy, account_id, payment_commands = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
 
                         sale_vals = {
@@ -2886,7 +2905,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             'terminal_id': terminal.id if terminal else False,
                             'line_ids': lines,
                             'state': 'done',
-                            'salesperson_id': user.id,
+                            'salesperson_id': sale_user.id,
                             'payment_status': payment_status,
                             'payment_policy': payment_policy,
                             'local_invoice_id': local_invoice_id,
@@ -2898,7 +2917,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         if payment_commands:
                             sale_vals['payment_ids'] = payment_commands
 
-                        sale = env['havanoposdesk.sale'].with_user(user.id).sudo().create(sale_vals)
+                        sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
                         
                         responses.append({"name": sale.name, "local_invoice_id": local_invoice_id, "status": "created"})
                     except Exception as e:
