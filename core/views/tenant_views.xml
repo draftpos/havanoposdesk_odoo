@@ -180,6 +180,7 @@
                     <footer>
                         <button string="Initiate Payment" name="action_pay" type="object" class="btn-primary"/>
                         <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
                 </form>
             </field>
         </record>
