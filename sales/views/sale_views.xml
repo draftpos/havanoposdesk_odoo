@@ -196,6 +196,7 @@
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'date:day'}" />
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}" />
                         <filter string="Customer" name="group_by_customer" context="{'group_by': 'customer'}" />
+                        <filter string="Store" name="group_by_store" context="{'group_by': 'store_id'}" />
                         <filter string="Currency" name="group_by_currency" context="{'group_by': 'currency_id'}" />
                         <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}" />
                         <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}" />

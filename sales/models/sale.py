@@ -23,7 +23,7 @@ class Sale(models.Model):
     customer_allow_multi_currency = fields.Boolean(related='customer.allow_multi_currency', string='Customer Multi Currency')
     customer_secondary_currency_id = fields.Many2one('res.currency', related='customer.secondary_currency_id')
     
-    store = fields.Char(string='Store')
+    store = fields.Char(string='Store Name')
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
     local_invoice_id = fields.Char(string='Local Invoice ID', copy=False)
@@ -537,6 +537,14 @@ class Sale(models.Model):
             if sale.state != 'cancelled':
                 continue
             sale.write({'state': 'draft'})
+
+    @api.model
+    def fields_get(self, allfields=None, attributes=None):
+        res = super().fields_get(allfields=allfields, attributes=attributes)
+        if 'store' in res:
+            res['store']['searchable'] = False
+            res['store']['sortable'] = False
+        return res
 
 class SaleLine(models.Model):
     _name = 'havanoposdesk.sale.line'
