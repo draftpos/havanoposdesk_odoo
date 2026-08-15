@@ -2332,7 +2332,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if terminal.tenant_id.id != tenant.id:
                 return self._make_json_response({"error": "Terminal does not belong to your account."}, status=400)
                 
-            sale_user_email = params.get('cashier') or params.get('owner') or params.get('user') or params.get('sales_person')
+            sale_user_email = params.get('owner') or params.get('cashier') or params.get('user') or params.get('sales_person')
             sale_user = None
             if sale_user_email:
                 cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
@@ -2886,7 +2886,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             if pl:
                                 pricelist_id = pl.id
 
-                        sale_user_email = sale_data.get('cashier') or sale_data.get('owner') or sale_data.get('user') or sale_data.get('sales_person')
+                        sale_user_email = sale_data.get('owner') or sale_data.get('cashier') or sale_data.get('user') or sale_data.get('sales_person')
                         sale_user = None
                         if sale_user_email:
                             cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
