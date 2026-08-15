@@ -9,8 +9,19 @@ class HavanoposdeskCategory(models.Model):
     ]
 
     name = fields.Char(string='Category Name', required=True)
-    store_ids = fields.Many2many('havanoposdesk.store', string='Stores', required=True, default=lambda self: [(6, 0, [self.env.user.default_store_id.id])] if self.env.user.default_store_id else False)
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
+    store_ids = fields.Many2many('havanoposdesk.store', string='Stores', required=False, default=lambda self: self._default_store_ids())
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self._default_tenant_id())
+
+    def _default_store_ids(self):
+        # Prevent accessing env.user during registry load
+        if self.env.registry.ready and self.env.user.default_store_id:
+            return [(6, 0, [self.env.user.default_store_id.id])]
+        return False
+
+    def _default_tenant_id(self):
+        if self.env.registry.ready:
+            return self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        return False
 
     @api.constrains('name', 'tenant_id')
     def _check_unique_name(self):
