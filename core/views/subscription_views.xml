@@ -13,7 +13,8 @@
                     <field name="max_users" />
                     <field name="max_terminals" optional="show" />
                     <field name="is_custom" />
-                    <field name="extra_store_price" optional="show" />
+                    <field name="extra_terminal_price" optional="show" />
+                    <field name="stores_per_terminal" optional="show" />
                 </list>
             </field>
         </record>
@@ -31,7 +32,8 @@
                                 <field name="price" />
                                 <field name="duration_days" />
                                 <field name="is_custom" />
-                                <field name="extra_store_price" invisible="not is_custom" required="is_custom" />
+                                <field name="extra_terminal_price" invisible="not is_custom" required="is_custom" />
+                                <field name="stores_per_terminal" invisible="not is_custom" />
                             </group>
                             <group string="Limits">
                                 <field name="max_stores" />

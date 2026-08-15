@@ -670,6 +670,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 'max_terminals': p.max_terminals,
                 'is_custom': p.is_custom,
                 'extra_store_price': p.extra_store_price,
+                'extra_terminal_price': getattr(p, 'extra_terminal_price', 12.0),
+                'stores_per_terminal': getattr(p, 'stores_per_terminal', 3),
             })
         return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
 
@@ -712,6 +714,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'is_expiring_soon': is_expiring_soon,
             'is_expired': is_expired,
             'payment_status': tenant.payment_status,
+            'additional_terminals': getattr(tenant, 'additional_terminals', 0),
             'additional_stores': tenant.additional_stores,
             'subscription_total_amount': tenant.subscription_total_amount,
             'plan': {
@@ -724,6 +727,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 'max_terminals': plan.max_terminals,
                 'is_custom': plan.is_custom,
                 'extra_store_price': plan.extra_store_price,
+                'extra_terminal_price': getattr(plan, 'extra_terminal_price', 12.0),
+                'stores_per_terminal': getattr(plan, 'stores_per_terminal', 3),
             } if plan else None,
             'usage': {
                 'stores': {
@@ -766,8 +771,9 @@ class HavanoPOSDeskAPI(http.Controller):
         if not plan.exists():
             return request.make_response(json.dumps({'error': 'Plan not found'}), headers=[('Content-Type', 'application/json')], status=404)
             
+        additional_terminals = data.get('additional_terminals', data.get('additional_stores', 0))
         additional_stores = data.get('additional_stores', 0)
-        tenant.action_select_plan(plan.id, additional_stores=additional_stores)
+        tenant.action_select_plan(plan.id, additional_stores=additional_stores, additional_terminals=additional_terminals)
         
         return request.make_response(json.dumps({
             'success': True,

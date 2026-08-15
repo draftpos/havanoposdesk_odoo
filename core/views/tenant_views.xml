@@ -71,6 +71,7 @@
                     <sheet>
                         <group string="Pending Plan Upgrade Request" invisible="not pending_subscription_plan_id">
                             <field name="pending_subscription_plan_id" readonly="1" options="{'no_create': True}"/>
+                            <field name="pending_additional_terminals" readonly="1"/>
                             <field name="pending_additional_stores" readonly="1"/>
                             <field name="pending_subscription_total_amount" readonly="1"/>
                         </group>
@@ -81,6 +82,7 @@
                                 <field name="subscription_plan_id"
                                        options="{'no_create': True}"
                                        readonly="1"/>
+                                <field name="additional_terminals" readonly="1"/>
                                 <field name="additional_stores" readonly="1"/>
                                 <field name="effective_max_stores" readonly="1"/>
                                 <field name="effective_max_terminals" readonly="1"/>
@@ -127,10 +129,14 @@
                         <field name="subscription_plan_id"
                                options="{'no_create': True}"/>
                         <field name="is_custom" invisible="1"/>
-                        <field name="extra_store_price" invisible="1"/>
-                        <field name="additional_stores"
+                        <field name="extra_terminal_price" invisible="1"/>
+                        <field name="additional_terminals"
                                invisible="not is_custom"
                                required="is_custom"/>
+                        <field name="additional_stores"
+                               readonly="1"
+                               invisible="not is_custom"
+                               string="Included Stores Allowance"/>
                         <field name="computed_total_price" readonly="1"/>
                     </group>
                     <footer>
