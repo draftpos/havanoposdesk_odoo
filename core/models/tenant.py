@@ -57,6 +57,7 @@ class HavanoposdeskTenant(models.Model):
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan')
     additional_terminals = fields.Integer(string='Additional Terminals', default=0, help='Extra terminals requested under Custom Plan ($12/terminal)')
     additional_stores = fields.Integer(string='Additional Stores', default=0, help='Auto-calculated store allowance (3 stores per terminal)')
+    account_balance = fields.Float(string='Account Balance ($)', default=0.0, help='Prepaid balance/wallet for subscription plans and top-ups.')
     effective_max_stores = fields.Integer(string='Effective Max Stores', compute='_compute_subscription_limits', store=True)
     effective_max_terminals = fields.Integer(string='Effective Max Terminals', compute='_compute_subscription_limits', store=True)
     subscription_total_amount = fields.Float(string='Subscription Total Amount ($)', compute='_compute_subscription_total_amount', store=True)
@@ -554,6 +555,48 @@ class HavanoposdeskTenant(models.Model):
             }
         }
 
+    def action_topup_wizard(self):
+        self.ensure_one()
+        return {
+            'name': 'Top Up Account Balance',
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.tenant.topup.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_tenant_id': self.id,
+            }
+        }
+
+    def action_pay_from_balance(self):
+        for tenant in self:
+            plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
+            if not plan:
+                raise ValidationError('No subscription plan selected.')
+            amount = tenant.pending_subscription_total_amount if tenant.pending_subscription_plan_id else (tenant.subscription_total_amount or plan.price)
+            if tenant.account_balance < amount:
+                raise ValidationError(f'Insufficient account balance (${tenant.account_balance:.2f}). Required amount is ${amount:.2f}. Please top up your balance first.')
+            
+            # Deduct from account_balance
+            new_balance = tenant.account_balance - amount
+            tenant.with_context(bypass_subscription_check=True).write({'account_balance': new_balance})
+
+            # Create completed payment record
+            import time
+            ref = f"BAL-{tenant.id}-{plan.id}-{fields.Datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
+            self.env['havanoposdesk.subscription.payment'].create({
+                'tenant_id': tenant.id,
+                'subscription_plan_id': plan.id,
+                'amount': amount,
+                'payment_method': 'account_balance',
+                'payment_type': 'subscription',
+                'transaction_reference': ref,
+                'state': 'done',
+            })
+
+            # Activate plan
+            tenant.action_pay_and_activate()
+
 
     def _get_next_sequence(self, seq_type):
         self.ensure_one()
@@ -586,7 +629,8 @@ class HavanoposdeskTenant(models.Model):
             'payment_status', 'subscription_state', 'subscription_start_date',
             'subscription_end_date', 'subscription_plan_id', 'additional_stores',
             'additional_terminals', 'pending_subscription_plan_id',
-            'pending_additional_stores', 'pending_additional_terminals'
+            'pending_additional_stores', 'pending_additional_terminals',
+            'account_balance'
         }
         if self.env.user.havano_role != 'super_admin' and not self.env.su:
             if restricted_fields.intersection(vals.keys()):

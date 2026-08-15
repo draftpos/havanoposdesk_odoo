@@ -707,6 +707,7 @@ class HavanoPOSDeskAPI(http.Controller):
         res_data = {
             'tenant_id': tenant.id,
             'tenant_name': tenant.name,
+            'account_balance': getattr(tenant, 'account_balance', 0.0),
             'subscription_state': tenant.subscription_state,
             'subscription_start_date': str(tenant.subscription_start_date) if tenant.subscription_start_date else None,
             'subscription_end_date': str(tenant.subscription_end_date) if tenant.subscription_end_date else None,
@@ -920,6 +921,154 @@ class HavanoPOSDeskAPI(http.Controller):
                 'success': True,
                 'payment_id': payment.id,
                 'state': 'pending',
+                'redirect_url': init_res['browserurl'],
+                'poll_url': init_res['pollurl'],
+                'reference': reference
+            }), headers=[('Content-Type', 'application/json')])
+
+    @http.route('/api/subscription/pay_from_balance', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
+    def pay_subscription_from_balance(self, **kw):
+        uid = request.session.uid
+        if not uid:
+            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+            
+        user = request.env['res.users'].sudo().browse(uid)
+        tenant = user.tenant_id
+        if not tenant:
+            return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        try:
+            tenant.action_pay_from_balance()
+            return request.make_response(json.dumps({
+                'success': True,
+                'message': 'Subscription successfully activated using account balance.',
+                'account_balance': tenant.account_balance,
+                'subscription_state': tenant.subscription_state,
+                'subscription_end_date': str(tenant.subscription_end_date),
+            }), headers=[('Content-Type', 'application/json')])
+        except Exception as e:
+            return request.make_response(json.dumps({'error': str(e)}), headers=[('Content-Type', 'application/json')], status=400)
+
+    @http.route('/api/subscription/topup', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
+    def topup_account_balance(self, **kw):
+        uid = request.session.uid
+        if not uid:
+            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+            
+        try:
+            data = json.loads(request.httprequest.data)
+        except Exception:
+            return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        user = request.env['res.users'].sudo().browse(uid)
+        tenant = user.tenant_id
+        if not tenant:
+            return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        amount = float(data.get('amount', 0.0))
+        if amount <= 0:
+            return request.make_response(json.dumps({'error': 'Amount must be greater than zero'}), headers=[('Content-Type', 'application/json')], status=400)
+            
+        payment_method = data.get('payment_method', 'paynow')
+
+        if payment_method == 'manual':
+            if user.havano_role != 'super_admin':
+                return request.make_response(json.dumps({'error': 'Only Super Admins can process manual balance top-ups'}), headers=[('Content-Type', 'application/json')], status=403)
+            new_balance = tenant.account_balance + amount
+            tenant.with_context(bypass_subscription_check=True).write({'account_balance': new_balance})
+            return request.make_response(json.dumps({
+                'success': True,
+                'message': f'Successfully credited ${amount:.2f} to account balance.',
+                'account_balance': tenant.account_balance,
+            }), headers=[('Content-Type', 'application/json')])
+
+        provider = request.env['payment.provider'].sudo().search([('code', '=', 'havano_payments')], limit=1)
+        if not provider:
+            return request.make_response(json.dumps({'error': 'Havano Payments provider is not configured. Please configure it in SaaS Config.'}), headers=[('Content-Type', 'application/json')], status=400)
+
+        import datetime
+        import time
+        reference = f"TOP-{tenant.id}-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
+
+        payment = request.env['havanoposdesk.subscription.payment'].sudo().create({
+            'tenant_id': tenant.id,
+            'amount': amount,
+            'payment_method': payment_method,
+            'payment_type': 'topup',
+            'transaction_reference': reference,
+            'state': 'pending',
+        })
+
+        payment_method_rec = request.env['payment.method'].sudo().search([('code', '=', payment_method)], limit=1)
+
+        tx = request.env['payment.transaction'].sudo().create({
+            'provider_id': provider.id,
+            'payment_method_id': payment_method_rec.id if payment_method_rec else False,
+            'amount': amount,
+            'currency_id': request.env.company.currency_id.id or request.env['res.currency'].sudo().search([('name', '=', 'USD')], limit=1).id,
+            'reference': reference,
+            'partner_id': user.partner_id.id,
+            'operation': 'online_redirect',
+            'subscription_payment_id': payment.id,
+        })
+
+        from odoo.addons.havano_payments.models.paynow_client import PaynowClient
+        base_url = provider.get_base_url()
+        result_url = f"{base_url}/payment/havano_payments/webhook?reference={reference}"
+
+        if payment_method == 'ecocash':
+            phone = data.get('phone')
+            if not phone:
+                tx._set_error('Phone number is missing for EcoCash')
+                return request.make_response(json.dumps({'error': 'Phone number is required for EcoCash.'}), headers=[('Content-Type', 'application/json')], status=400)
+                
+            client = PaynowClient(provider.paynow_integration_id, provider.paynow_integration_key)
+            mobile_res = client.initiate_mobile_transaction(
+                reference=reference,
+                amount=amount,
+                authemail=user.email or "customer@example.com",
+                phone=phone,
+                method="ecocash",
+                result_url=result_url,
+                additional_info=f"Account Top-Up for {tenant.name}"
+            )
+            if not mobile_res.get('success'):
+                tx._set_error(mobile_res.get('error'))
+                return request.make_response(json.dumps({'error': f"EcoCash initiation failed: {mobile_res.get('error')}"}), headers=[('Content-Type', 'application/json')], status=400)
+            
+            tx.paynow_poll_url = mobile_res['pollurl']
+            tx._set_pending()
+            
+            return request.make_response(json.dumps({
+                'success': True,
+                'payment_id': payment.id,
+                'state': 'pending',
+                'instructions': mobile_res.get('instructions') or 'A prompt was sent to your phone. Please enter your PIN to complete top-up.',
+                'poll_url': mobile_res['pollurl'],
+                'reference': reference
+            }), headers=[('Content-Type', 'application/json')])
+
+        else: # paynow card redirection
+            return_url = f"{base_url}/payment/havano_payments/return?reference={reference}"
+            client = PaynowClient(provider.paynow_integration_id, provider.paynow_integration_key)
+            init_res = client.initiate_transaction(
+                reference=reference,
+                amount=amount,
+                authemail=user.email or "customer@example.com",
+                return_url=return_url,
+                result_url=result_url,
+                additional_info=f"Account Top-Up for {tenant.name}"
+            )
+            if not init_res.get('success'):
+                tx._set_error(init_res.get('error'))
+                return request.make_response(json.dumps({'error': f"Paynow initiation failed: {init_res.get('error')}"}), headers=[('Content-Type', 'application/json')], status=400)
+            
+            tx.paynow_poll_url = init_res['pollurl']
+            tx._set_pending()
+            
+            return request.make_response(json.dumps({
+                'success': True,
+                'payment_id': payment.id,
                 'redirect_url': init_res['browserurl'],
                 'poll_url': init_res['pollurl'],
                 'reference': reference

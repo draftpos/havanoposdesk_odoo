@@ -51,10 +51,21 @@
                                 class="btn-secondary"
                                 invisible="subscription_state != 'pending' and not pending_subscription_plan_id"/>
 
+                        <button name="action_topup_wizard"
+                                type="object"
+                                string="Top Up Balance"
+                                class="btn-info"/>
+
+                        <button name="action_pay_from_balance"
+                                type="object"
+                                string="Pay Plan from Balance"
+                                class="btn-success"
+                                invisible="(subscription_state == 'active' and not pending_subscription_plan_id) or (not subscription_plan_id and not pending_subscription_plan_id)"/>
+
                         <button name="action_pay_subscription_wizard"
                                 type="object"
-                                string="Pay &amp; Activate Plan"
-                                class="btn-success"
+                                string="Pay Online (Paynow/EcoCash)"
+                                class="btn-primary"
                                 invisible="(subscription_state == 'active' and not pending_subscription_plan_id) or (not subscription_plan_id and not pending_subscription_plan_id)"/>
 
                         <button name="action_upgrade_plan"
@@ -76,9 +87,10 @@
                             <field name="pending_subscription_total_amount" readonly="1"/>
                         </group>
                         <group>
-                            <group string="Active Subscription Details">
+                            <group string="Active Subscription &amp; Wallet">
                                 <field name="name"
                                        readonly="not context.get('is_super_admin', False)"/>
+                                <field name="account_balance" readonly="1"/>
                                 <field name="subscription_plan_id"
                                        options="{'no_create': True}"
                                        readonly="1"/>
@@ -167,6 +179,24 @@
                     </group>
                     <footer>
                         <button string="Initiate Payment" name="action_pay" type="object" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </form>
+            </field>
+        </record>
+        <!-- Top Up Account Balance Wizard View -->
+        <record id="view_havanoposdesk_tenant_topup_wizard_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.tenant.topup.wizard.form</field>
+            <field name="model">havanoposdesk.tenant.topup.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Top Up Account Balance">
+                    <group>
+                        <field name="tenant_id" invisible="1"/>
+                        <field name="amount"/>
+                        <field name="payment_method" widget="radio"/>
+                        <field name="phone" placeholder="e.g. 0771234567" invisible="payment_method != 'ecocash'" required="payment_method == 'ecocash'"/>
+                    </group>
+                    <footer>
+                        <button string="Top Up Balance" name="action_topup" type="object" class="btn-primary"/>
                         <button string="Cancel" class="btn-secondary" special="cancel"/>
                     </footer>
                 </form>

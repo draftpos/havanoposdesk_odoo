@@ -50,4 +50,8 @@
         <field name="name">havanoposdesk.pos.terminal</field>
         <field name="model">x_havanoposdesk.pos.terminal</field>
     </record>
+    <record id="model_havanoposdesk_tenant_topup_wizard" model="ir.model">
+        <field name="name">havanoposdesk.tenant.topup.wizard</field>
+        <field name="model">x_havanoposdesk.tenant.topup.wizard</field>
+    </record>
 </odoo>
