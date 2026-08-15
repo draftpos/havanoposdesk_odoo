@@ -65,10 +65,18 @@
                         </setting>
                     </block>
 
-                    <block title="Subscription" name="subscription_config">
-                        <setting string="My Subscription" help="View and manage your subscription plan">
+                    <block title="Subscription &amp; Wallet" name="subscription_config">
+                        <setting string="Prepaid Wallet Balance" help="Your prepaid balance for subscription renewals and upgrades.">
+                            <div class="content-group mt8">
+                                <field name="biz_account_balance" widget="monetary" options="{'currency_field': 'biz_currency_id'}" class="oe_inline fw-bold fs-5 text-primary"/>
+                            </div>
                             <div class="mt16">
-                                <button name="%(action_my_subscription)d" type="action" string="Manage Subscription" icon="fa-arrow-right" class="btn-link"/>
+                                <button name="action_open_topup_wizard" type="object" string="Top Up Balance" icon="fa-plus-circle" class="btn btn-primary me-2"/>
+                            </div>
+                        </setting>
+                        <setting string="My Subscription Plan" help="View and manage your current subscription plan and billing.">
+                            <div class="mt16">
+                                <button name="%(action_my_subscription)d" type="action" string="Manage Subscription" icon="fa-arrow-right" class="btn btn-secondary"/>
                             </div>
                         </setting>
                     </block>

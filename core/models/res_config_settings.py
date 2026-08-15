@@ -125,6 +125,20 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.global_secondary_currency_id',
         readonly=False
     )
+    biz_account_balance = fields.Float(
+        string="Account Balance ($)",
+        related='tenant_id.account_balance',
+        readonly=True
+    )
+
+    def action_open_topup_wizard(self):
+        self.ensure_one()
+        tenant = self.tenant_id or self.env.user.tenant_id
+        if not tenant:
+            tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+        if tenant:
+            return tenant.action_topup_wizard()
+
     biz_allow_advanced_pricing = fields.Boolean(
         string="Allow Advanced Pricing",
         related='tenant_id.allow_advanced_pricing',
