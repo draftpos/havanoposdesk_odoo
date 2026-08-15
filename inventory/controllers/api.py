@@ -972,15 +972,44 @@ class HavanoPOSDeskAPI(http.Controller):
         payment_method = data.get('payment_method', 'paynow')
 
         if payment_method == 'manual':
-            if user.havano_role != 'super_admin':
-                return request.make_response(json.dumps({'error': 'Only Super Admins can process manual balance top-ups'}), headers=[('Content-Type', 'application/json')], status=403)
-            new_balance = tenant.account_balance + amount
-            tenant.with_context(bypass_subscription_check=True).write({'account_balance': new_balance})
-            return request.make_response(json.dumps({
-                'success': True,
-                'message': f'Successfully credited ${amount:.2f} to account balance.',
-                'account_balance': tenant.account_balance,
-            }), headers=[('Content-Type', 'application/json')])
+            is_super = user.havano_role == 'super_admin' or user.has_group('base.group_system')
+            if is_super:
+                new_balance = tenant.account_balance + amount
+                tenant.with_context(bypass_subscription_check=True).write({'account_balance': new_balance})
+                import datetime
+                import time
+                reference = f"TOP-{tenant.id}-MANUAL-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
+                request.env['havanoposdesk.subscription.payment'].sudo().create({
+                    'tenant_id': tenant.id,
+                    'amount': amount,
+                    'payment_method': 'manual',
+                    'payment_type': 'topup',
+                    'transaction_reference': reference,
+                    'state': 'done',
+                })
+                return request.make_response(json.dumps({
+                    'success': True,
+                    'message': f'Successfully credited ${amount:.2f} to account balance.',
+                    'account_balance': tenant.account_balance,
+                }), headers=[('Content-Type', 'application/json')])
+            else:
+                import datetime
+                import time
+                reference = f"TOP-{tenant.id}-REQ-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
+                request.env['havanoposdesk.subscription.payment'].sudo().create({
+                    'tenant_id': tenant.id,
+                    'amount': amount,
+                    'payment_method': 'manual',
+                    'payment_type': 'topup',
+                    'transaction_reference': reference,
+                    'state': 'pending',
+                })
+                return request.make_response(json.dumps({
+                    'success': True,
+                    'message': f'Top-up request for ${amount:.2f} submitted for Super Admin approval.',
+                    'state': 'pending',
+                    'account_balance': tenant.account_balance,
+                }), headers=[('Content-Type', 'application/json')])
 
         provider = request.env['payment.provider'].sudo().search([('code', '=', 'havano_payments')], limit=1)
         if not provider:

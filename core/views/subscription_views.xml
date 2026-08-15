@@ -53,5 +53,60 @@
             <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_subscription_plan_tree" />
         </record>
+
+        <!-- Subscription Payments & Top-Up Requests Views -->
+        <record id="view_subscription_payment_tree" model="ir.ui.view">
+            <field name="name">subscription.payment.tree</field>
+            <field name="model">havanoposdesk.subscription.payment</field>
+            <field name="arch" type="xml">
+                <list string="Subscription &amp; Top-Up Payments" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'">
+                    <field name="date"/>
+                    <field name="tenant_id"/>
+                    <field name="payment_type"/>
+                    <field name="amount" sum="Total Amount"/>
+                    <field name="payment_method"/>
+                    <field name="transaction_reference"/>
+                    <field name="state" widget="badge" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'"/>
+                    <button name="action_approve" string="Approve" type="object" class="btn-success" invisible="state != 'pending'" groups="base.group_system"/>
+                    <button name="action_reject" string="Reject" type="object" class="btn-danger" invisible="state != 'pending'" groups="base.group_system"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_subscription_payment_form" model="ir.ui.view">
+            <field name="name">subscription.payment.form</field>
+            <field name="model">havanoposdesk.subscription.payment</field>
+            <field name="arch" type="xml">
+                <form string="Subscription Payment / Top-Up Request">
+                    <header>
+                        <button name="action_approve" string="Approve Top-Up" type="object" class="btn-success" invisible="state != 'pending'" groups="base.group_system"/>
+                        <button name="action_reject" string="Reject Top-Up" type="object" class="btn-danger" invisible="state != 'pending'" groups="base.group_system"/>
+                        <field name="state" widget="statusbar" statusbar_visible="pending,done,failed"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="tenant_id" options="{'no_create': True}"/>
+                                <field name="subscription_plan_id" invisible="payment_type == 'topup'"/>
+                                <field name="payment_type"/>
+                                <field name="amount"/>
+                            </group>
+                            <group>
+                                <field name="payment_method"/>
+                                <field name="transaction_reference"/>
+                                <field name="date"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_subscription_payments" model="ir.actions.act_window">
+            <field name="name">Subscription &amp; Topup Payments</field>
+            <field name="res_model">havanoposdesk.subscription.payment</field>
+            <field name="view_mode">list,form</field>
+            <field name="view_id" ref="view_subscription_payment_tree"/>
+        </record>
     </data>
 </odoo>

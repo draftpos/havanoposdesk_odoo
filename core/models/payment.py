@@ -24,6 +24,24 @@ class HavanoposdeskSubscriptionPayment(models.Model):
     ], string='Status', default='draft', required=True)
     date = fields.Datetime(string='Payment Date', default=fields.Datetime.now, required=True)
 
+    def action_approve(self):
+        for pay in self:
+            if pay.state != 'done':
+                is_super = self.env.user.havano_role == 'super_admin' or self.env.user.has_group('base.group_system') or self.env.su
+                if not is_super:
+                    raise ValidationError('Only Super Admins can approve balance top-ups.')
+                if pay.payment_type == 'topup':
+                    new_balance = pay.tenant_id.account_balance + pay.amount
+                    pay.tenant_id.with_context(bypass_subscription_check=True).write({'account_balance': new_balance})
+                pay.write({'state': 'done'})
+
+    def action_reject(self):
+        for pay in self:
+            is_super = self.env.user.havano_role == 'super_admin' or self.env.user.has_group('base.group_system') or self.env.su
+            if not is_super:
+                raise ValidationError('Only Super Admins can reject balance top-ups.')
+            pay.write({'state': 'failed'})
+
 
 class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
     _name = 'havanoposdesk.subscription.pay.wizard'
@@ -169,34 +187,57 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
         if self.amount <= 0:
             raise ValidationError('Top-up amount must be greater than zero.')
 
-        # Manual / Admin Credit direct processing
+        is_super = self.env.user.havano_role == 'super_admin' or self.env.user.has_group('base.group_system') or self.env.su
+
+        # Manual / Admin Credit processing
         if self.payment_method == 'manual':
-            if self.env.user.havano_role != 'super_admin' and not self.env.su:
-                raise ValidationError('Only Super Admins can process manual balance top-ups.')
-            new_balance = self.tenant_id.account_balance + self.amount
-            self.tenant_id.with_context(bypass_subscription_check=True).write({'account_balance': new_balance})
-            
-            import time
-            ref = f"TOP-{self.tenant_id.id}-MANUAL-{fields.Datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
-            self.env['havanoposdesk.subscription.payment'].create({
-                'tenant_id': self.tenant_id.id,
-                'amount': self.amount,
-                'payment_method': 'manual',
-                'payment_type': 'topup',
-                'transaction_reference': ref,
-                'state': 'done',
-            })
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Account Balance Credited',
-                    'message': f'Successfully added ${self.amount:.2f} to account balance.',
-                    'type': 'success',
-                    'sticky': False,
-                    'next': {'type': 'ir.actions.act_window_close'},
+            if is_super:
+                new_balance = self.tenant_id.account_balance + self.amount
+                self.tenant_id.with_context(bypass_subscription_check=True).write({'account_balance': new_balance})
+                
+                import time
+                ref = f"TOP-{self.tenant_id.id}-MANUAL-{fields.Datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
+                self.env['havanoposdesk.subscription.payment'].create({
+                    'tenant_id': self.tenant_id.id,
+                    'amount': self.amount,
+                    'payment_method': 'manual',
+                    'payment_type': 'topup',
+                    'transaction_reference': ref,
+                    'state': 'done',
+                })
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Account Balance Credited',
+                        'message': f'Successfully added ${self.amount:.2f} to account balance.',
+                        'type': 'success',
+                        'sticky': False,
+                        'next': {'type': 'ir.actions.act_window_close'},
+                    }
                 }
-            }
+            else:
+                import time
+                ref = f"TOP-{self.tenant_id.id}-REQ-{fields.Datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
+                self.env['havanoposdesk.subscription.payment'].create({
+                    'tenant_id': self.tenant_id.id,
+                    'amount': self.amount,
+                    'payment_method': 'manual',
+                    'payment_type': 'topup',
+                    'transaction_reference': ref,
+                    'state': 'pending',
+                })
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Top-Up Request Submitted',
+                        'message': f'Your top-up request for ${self.amount:.2f} has been submitted. A Super Admin will review and approve it.',
+                        'type': 'info',
+                        'sticky': True,
+                        'next': {'type': 'ir.actions.act_window_close'},
+                    }
+                }
 
         provider = self.env['payment.provider'].sudo().search([('code', '=', 'havano_payments')], limit=1)
         if not provider:
