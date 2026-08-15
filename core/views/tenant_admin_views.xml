@@ -2,6 +2,7 @@
 <odoo>
     <data>
         <menuitem id="menu_tenant_admin_settings_root" name="Configurations" web_icon="havanoposdesk_odoo,static/description/configs.png" sequence="550" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system" action="action_havanoposdesk_settings_my_business" />
+        <menuitem id="menu_my_business_topups" name="Top-Up &amp; Subscription Payments" parent="menu_tenant_admin_settings_root" action="action_subscription_payments" sequence="15" groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"/>
 
         
         <record id="action_my_stores" model="ir.actions.act_window">

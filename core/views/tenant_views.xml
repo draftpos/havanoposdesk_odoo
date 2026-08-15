@@ -8,6 +8,8 @@
                 <list string="Tenants">
                     <field name="name"/>
                     <field name="subscription_plan_id"/>
+                    <field name="account_balance"/>
+                    <field name="pending_topup_count" string="Pending Top-Ups" widget="badge" decoration-warning="pending_topup_count > 0" optional="show"/>
                     <field name="subscription_state"
                            widget="badge"
                            decoration-success="subscription_state == 'active'"
@@ -25,6 +27,14 @@
                 <form string="Tenant">
                     <header>
                         <field name="pending_subscription_plan_id" invisible="1"/>
+                        <field name="pending_topup_count" invisible="1"/>
+                        <button name="action_approve_pending_topup"
+                                type="object"
+                                string="Approve Pending Top-Up"
+                                class="btn-success oe_highlight"
+                                invisible="pending_topup_count == 0"
+                                groups="base.group_system"/>
+
                         <button name="action_approve"
                                 type="object"
                                 string="Approve / Activate Plan"
@@ -109,6 +119,24 @@
                                        readonly="not context.get('is_super_admin', False)"/>
                             </group>
                         </group>
+
+                        <notebook>
+                            <page string="Transaction History &amp; Top-Ups" name="transaction_history">
+                                <field name="subscription_payment_ids" readonly="1">
+                                    <list string="Payments &amp; Top-Up Log" default_order="date desc" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'">
+                                        <field name="date"/>
+                                        <field name="payment_type"/>
+                                        <field name="amount" sum="Total Amount"/>
+                                        <field name="payment_method"/>
+                                        <field name="transaction_reference"/>
+                                        <field name="state" widget="badge" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'"/>
+                                        <button name="action_approve" string="Approve" type="object" class="btn-success" invisible="state != 'pending'" groups="base.group_system"/>
+                                        <button name="action_reject" string="Reject" type="object" class="btn-danger" invisible="state != 'pending'" groups="base.group_system"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+
                         <group string="API &amp; Integration Settings" invisible="1">
                             <group>
                                 <field name="api_company_name"/>

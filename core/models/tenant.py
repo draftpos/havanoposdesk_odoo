@@ -90,6 +90,41 @@ class HavanoposdeskTenant(models.Model):
     pending_additional_stores = fields.Integer(string='Pending Additional Stores', default=0)
     pending_subscription_total_amount = fields.Float(string='Pending Total Amount ($)', compute='_compute_pending_subscription_total_amount', store=True)
     has_pending_upgrade = fields.Boolean(string='Has Pending Upgrade', compute='_compute_has_pending_upgrade')
+    subscription_payment_ids = fields.One2many('havanoposdesk.subscription.payment', 'tenant_id', string='Transaction History & Top-Ups')
+    pending_topup_count = fields.Integer(string='Pending Top-Up Count', compute='_compute_pending_topup_count')
+
+    def _compute_pending_topup_count(self):
+        for tenant in self:
+            tenant.pending_topup_count = self.env['havanoposdesk.subscription.payment'].search_count([
+                ('tenant_id', '=', tenant.id),
+                ('payment_type', '=', 'topup'),
+                ('state', '=', 'pending')
+            ])
+
+    def action_approve_pending_topup(self):
+        self.ensure_one()
+        is_super = self.env.user.havano_role == 'super_admin' or self.env.user.has_group('base.group_system') or self.env.su
+        if not is_super:
+            raise ValidationError('Only Super Admins can approve pending top-ups.')
+        pending_payments = self.env['havanoposdesk.subscription.payment'].search([
+            ('tenant_id', '=', self.id),
+            ('payment_type', '=', 'topup'),
+            ('state', '=', 'pending')
+        ])
+        if not pending_payments:
+            raise ValidationError('No pending top-up requests found for this tenant.')
+        for payment in pending_payments:
+            payment.action_approve()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Top-Up Approved',
+                'message': 'Approved pending top-up(s) and credited balance.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
     @api.depends('subscription_plan_id', 'subscription_plan_id.max_stores', 'subscription_plan_id.max_terminals', 'subscription_plan_id.is_custom', 'subscription_plan_id.stores_per_terminal', 'additional_stores', 'additional_terminals')
     def _compute_subscription_limits(self):
