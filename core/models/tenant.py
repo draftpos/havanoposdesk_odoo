@@ -14,14 +14,29 @@ class HavanoposdeskTenant(models.Model):
         res = super()._auto_init()
         cr = self.env.cr
         columns = [
+            ("account_balance", "DOUBLE PRECISION DEFAULT 0.0"),
             ("pending_subscription_plan_id", "INTEGER"),
+            ("pending_additional_terminals", "INTEGER DEFAULT 0"),
             ("pending_additional_stores", "INTEGER DEFAULT 0"),
             ("pending_subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+            ("additional_terminals", "INTEGER DEFAULT 0"),
             ("additional_stores", "INTEGER DEFAULT 0"),
             ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
             ("effective_max_stores", "INTEGER DEFAULT 0"),
             ("effective_max_terminals", "INTEGER DEFAULT 0"),
             ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
+            ("allow_negative_stock", "BOOLEAN DEFAULT TRUE"),
+            ("enable_tax", "BOOLEAN DEFAULT FALSE"),
+            ("enable_barcode", "BOOLEAN DEFAULT FALSE"),
+            ("enable_quotations", "BOOLEAN DEFAULT FALSE"),
+            ("enable_uom_conversion", "BOOLEAN DEFAULT FALSE"),
+            ("enable_payment_entries", "BOOLEAN DEFAULT FALSE"),
+            ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
+            ("enable_shift", "BOOLEAN DEFAULT FALSE"),
+            ("theme_color", "VARCHAR"),
+            ("product_name_format", "VARCHAR"),
+            ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
+            ("payment_status", "VARCHAR"),
         ]
         for col_name, col_type in columns:
             try:
