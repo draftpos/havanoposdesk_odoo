@@ -52,7 +52,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
     amount = fields.Float(string='Amount to Pay', required=True)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card (Redirection)'),
-        ('ecocash', 'EcoCash Mobile Prompt (Zimbabwe)')
+        ('ecocash', 'EcoCash Mobile')
     ], string='Payment Method', default='paynow', required=True)
     phone = fields.Char(string='EcoCash Phone Number', help="Enter number starting with 077... or 078...")
 
@@ -169,7 +169,7 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
     amount = fields.Float(string='Top Up Amount ($)', default=10.0, required=True)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card / Online'),
-        ('ecocash', 'EcoCash Mobile Prompt (Zimbabwe)'),
+        ('ecocash', 'EcoCash Mobile'),
         ('manual', 'Manual / Admin Credit')
     ], string='Payment Method', default='paynow', required=True)
     phone = fields.Char(string='EcoCash Phone Number', help="Enter number starting with 077... or 078...")
