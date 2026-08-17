@@ -135,7 +135,7 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id
             company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
             
-            currency = user.api_currency or (tenant.api_currency if tenant else False) or (tenant.currency_id.name if tenant and hasattr(tenant, 'currency_id') and tenant.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and hasattr(user.company_id, 'currency_id') and user.company_id.currency_id else False) or 'USD'
+            currency = (store.currency_id.name if store and store.currency_id else False) or (tenant.currency_id.name if tenant and tenant.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user.api_currency or (tenant.api_currency if tenant else False) or 'USD'
             
             # Fetch default customer from database, or fallback/create
             default_customer_name = ""
@@ -1644,7 +1644,7 @@ class HavanoPOSDeskAPI(http.Controller):
         company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
         cost_center = user.api_cost_center or (tenant.api_cost_center if tenant else False) or store_name
         warehouse = user.api_warehouse or (tenant.api_warehouse if tenant else False) or store_name
-        currency = user.api_currency or (tenant.api_currency if tenant else False) or 'USD'
+        currency = (store.currency_id.name if store and store.currency_id else False) or (tenant.currency_id.name if tenant and tenant.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user.api_currency or (tenant.api_currency if tenant else False) or 'USD'
         
         res_data = {
             'message': {
@@ -5289,7 +5289,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 default_customer = env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
             default_customer_name = default_customer.name if default_customer else "Walk-in Customer"
 
-            currency = user.api_currency or (tenant.api_currency if tenant else "USD")
+            currency = (store.currency_id.name if store and store.currency_id else False) or (tenant.currency_id.name if tenant and tenant.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user.api_currency or (tenant.api_currency if tenant else False) or "USD"
             return self._make_json_response({
                 "message": {
                     "status": "success",
@@ -5448,7 +5448,7 @@ class HavanoPOSDeskAPI(http.Controller):
             payment_methods_list.append({"name": "Cash", "type": "Cash"})
         
         # Currency and UOM
-        currency = user.api_currency or (tenant.api_currency if tenant else "USD")
+        currency = (store.currency_id.name if store and store.currency_id else False) or (tenant.currency_id.name if tenant and tenant.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user.api_currency or (tenant.api_currency if tenant else False) or "USD"
         uom = user.api_uom or (tenant.api_uom if tenant else "Nos")
         
         uom_records = env['havanoposdesk.uom'].sudo().search([('tenant_id', '=', tenant.id)]) if tenant else env['havanoposdesk.uom'].sudo().search([])
