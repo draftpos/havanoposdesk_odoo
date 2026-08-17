@@ -184,13 +184,16 @@ class HavanoPOSDeskAPI(http.Controller):
             payment_methods_records = user_env['havanoposdesk.account'].sudo().search_read([
                 ('tenant_id', '=', user.tenant_id.id),
                 ('type', 'in', ['Cash', 'Bank'])
-            ], ['id', 'name', 'type'])
+            ], ['id', 'name', 'type', 'currency_id'])
             payment_methods_data = []
             for pm in payment_methods_records:
+                pm_curr = pm.get('currency_id')
+                currency_code = pm_curr[1] if isinstance(pm_curr, (list, tuple)) and len(pm_curr) > 1 else (currency or 'USD')
                 payment_methods_data.append({
                     "id": pm['id'],
                     "name": pm['name'],
-                    "type": pm['type']
+                    "type": pm['type'],
+                    "currency": currency_code
                 })
                 
             # Fetch warehouse items/products
@@ -5432,6 +5435,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 default_customer = env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
             default_customer_name = default_customer.name if default_customer else "Walk-in Customer"
         
+        # Currency and UOM
+        currency = (tenant.currency_id.name if tenant and tenant.currency_id else False) or (store.currency_id.name if store and store.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user.api_currency or (tenant.api_currency if tenant else False) or "USD"
+        uom = user.api_uom or (tenant.api_uom if tenant else "Nos")
+
         # Payment Methods
         payment_methods_list = []
         if tenant:
@@ -5442,14 +5449,11 @@ class HavanoPOSDeskAPI(http.Controller):
             for acc in accounts:
                 payment_methods_list.append({
                     "name": acc.name,
-                    "type": acc.type
+                    "type": acc.type,
+                    "currency": acc.currency_id.name if acc.currency_id else currency
                 })
         else:
-            payment_methods_list.append({"name": "Cash", "type": "Cash"})
-        
-        # Currency and UOM
-        currency = (tenant.currency_id.name if tenant and tenant.currency_id else False) or (store.currency_id.name if store and store.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user.api_currency or (tenant.api_currency if tenant else False) or "USD"
-        uom = user.api_uom or (tenant.api_uom if tenant else "Nos")
+            payment_methods_list.append({"name": "Cash", "type": "Cash", "currency": currency})
         
         uom_records = env['havanoposdesk.uom'].sudo().search([('tenant_id', '=', tenant.id)]) if tenant else env['havanoposdesk.uom'].sudo().search([])
         uom_list = [u.name for u in uom_records]
