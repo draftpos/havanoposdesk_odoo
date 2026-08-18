@@ -43,6 +43,18 @@ class HavanoposdeskStore(models.Model):
         help="If checked, existing products, customers, and suppliers will automatically be linked to this new store."
     )
 
+    address = fields.Text(string='Address')
+    phone_1 = fields.Char(string='Phone 1')
+    phone_2 = fields.Char(string='Phone 2')
+    email = fields.Char(string='Email')
+    website = fields.Char(string='Website')
+    tin = fields.Char(string='TIN')
+    vat_no = fields.Char(string='VAT No')
+    default_terms = fields.Html(string='Terms & Conditions')
+    default_footer = fields.Text(string='Default Footer')
+    tagline = fields.Char(string='Tagline')
+    bank_account_ids = fields.One2many('havanoposdesk.store.bank', 'store_id', string='Bank Accounts')
+
 
     @api.depends('name', 'tenant_id')
     def _compute_display_name(self):
@@ -76,6 +88,12 @@ class HavanoposdeskStore(models.Model):
                 ])
                 if any(s.name and s.name.strip().lower() == clean_name for s in existing):
                     raise ValidationError(_("A store with the name '%s' already exists for this tenant.") % store.name.strip())
+
+    @api.model
+    def name_search(self, name='', args=None, operator='ilike', limit=100):
+        if self.env.context.get('import_file') and operator == '=':
+            operator = 'ilike'
+        return super().name_search(name=name, args=args, operator=operator, limit=limit)
 
     @api.constrains('pricelist_id', 'pricelist_ids')
     def _check_default_pricelist(self):
@@ -362,3 +380,15 @@ class HavanoposdeskStore(models.Model):
         self.env.registry.clear_cache()
 
         _logger.info("Havano: store rename cascade complete.")
+
+class HavanoposdeskStoreBank(models.Model):
+    _name = 'havanoposdesk.store.bank'
+    _description = 'Store Bank Account'
+
+    store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True, ondelete='cascade')
+    name = fields.Char(string='Bank Name', required=True)
+    account_name = fields.Char(string='Account Name', required=True)
+    account_number = fields.Char(string='Account Number', required=True)
+    branch = fields.Char(string='Branch')
+    currency_id = fields.Many2one('res.currency', string='Currency', default=lambda self: self.env.user.tenant_id.currency_id.id if self.env.user.tenant_id else False)
+    show_on_invoice = fields.Boolean(string='Show on Invoice', default=True)

@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_sale_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <div class="article" t-att-data-oe-model="doc and doc._name" t-att-data-oe-id="doc and doc.id">
+                    <t t-set="doc" t-value="doc.with_context(lang=env.user.lang)" />
+                    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+                    <style>
+                        body { margin: 0 !important; padding: 0 !important; background: #fff; }
+                        /* Layout Base */
+                        .print-container {
+                            width: 100%; margin: 0 !important; padding: 0 30px !important; box-sizing: border-box;
+                            font-family: 'Poppins', sans-serif;
+                            font-size: 13px; color: #1e293b; background: #fff;
+                        }
+                        .text-primary-dark { color: #0a2342; }
+                        .bg-primary-dark { background-color: #0a2342; color: #ffffff; }
+                        
+                        /* Icons */
+                        .icon-circle {
+                            display: inline-block; width: 24px; height: 24px;
+                            background: #0a2342; color: #fff; border-radius: 50%;
+                            text-align: center; line-height: 24px; margin-right: 8px; font-size: 12px;
+                        }
+                        
+                        /* Grid &amp; Alignments */
+                        .w-100 { width: 100%; } .w-50 { width: 50%; } .w-40 { width: 40%; } .w-60 { width: 60%; }
+                        .text-left { text-align: left; } .text-right { text-align: right; } .text-center { text-align: center; }
+                        .align-top { vertical-align: top; } .align-middle { vertical-align: middle; }
+                        .font-bold { font-weight: bold; }
+                        
+                        /* Table styles */
+                        .main-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                        .main-table th { background: #0a2342; color: #fff; padding: 8px 5px; font-size: 12px; border: 1px solid #fff; }
+                        .main-table td { padding: 8px 5px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; text-align: center; font-size: 13px;}
+                        .main-table td.desc-col { text-align: left; font-weight: 500; }
+                        .main-table td.idx-col { font-weight: bold; }
+                        
+                        /* Property-Value Grid */
+                        .prop-table { width: 100%; border-collapse: collapse; }
+                        .prop-table td { padding: 4px 0; vertical-align: top; }
+                        .prop-label { font-weight: bold; width: 120px; }
+                        .prop-colon { width: 15px; text-align: center; }
+                    </style>
+
+                    <script>
+                        if (navigator.userAgent.indexOf('wkhtmltopdf') === -1) {
+                            document.addEventListener("DOMContentLoaded", function() {
+                                var containers = document.querySelectorAll('.print-container');
+                                containers.forEach(function(el) {
+                                    el.style.margin = '20px auto';
+                                    el.style.padding = '40px';
+                                    el.style.width = 'calc(100% - 40px)';
+                                    el.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
+                                    el.style.border = '1px solid #e2e8f0';
+                                    el.style.borderRadius = '8px';
+                                });
+                                document.body.style.backgroundColor = '#f1f5f9';
+                                document.body.style.padding = '10px';
+                            });
+                        }
+                    </script>
+
+                    <div class="page print-container">
+                        
+                        <!-- Top Center Title -->
+                        <div class="text-center" style="margin-top: 0px; margin-bottom: 15px;">
+                            <span style="font-size: 24px; font-weight: 800; letter-spacing: 4px; color: #0a2342; position: relative; display: inline-block;">
+                                <span style="position: absolute; left: -40px; top: 50%; width: 30px; border-top: 2px solid #0a2342;"></span>
+                                <span style="position: absolute; left: -10px; top: 50%; margin-top: -3px; width: 6px; height: 6px; background: #0a2342; border-radius: 50%;"></span>
+                                <t t-if="doc.is_quotation">QUOTATION</t>
+                                <t t-elif="doc.is_return">CREDIT NOTE</t>
+                                <t t-else="">INVOICE</t>
+                                <span style="position: absolute; right: -10px; top: 50%; margin-top: -3px; width: 6px; height: 6px; background: #0a2342; border-radius: 50%;"></span>
+                                <span style="position: absolute; right: -40px; top: 50%; width: 30px; border-top: 2px solid #0a2342;"></span>
+                            </span>
+                        </div>
+
+                        <!-- Top Header Row -->
+                        <table class="w-100" style="margin-bottom: 15px; border-bottom: 2px solid #0a2342; padding-bottom: 15px;">
+                            <tr>
+                                <!-- Left: Logo & Company Name -->
+                                <td class="w-50 align-middle text-left">
+                                    <div style="display: flex; align-items: center;">
+                                        <div t-if="doc.env.company.logo" style="margin-right: 15px;">
+                                            <img t-att-src="image_data_uri(doc.env.company.logo)" style="max-height: 120px; max-width: 180px;" alt="Logo"/>
+                                        </div>
+                                        <div>
+                                            <h1 style="color: #0a2342; font-size: 24px; font-weight: 900; margin: 0; line-height: 1.1;">
+                                                <t t-if="doc.store_id" t-esc="doc.store_id.name.upper()"/>
+                                                <t t-else=""><span t-esc="doc.env.company.name.upper()"/></t>
+                                            </h1>
+                                            <div style="color: #475569; font-size: 13px; margin-top: 5px;" t-if="doc.store_id.tagline">
+                                                <span t-field="doc.store_id.tagline"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <!-- Right: Contact Details -->
+                                <td class="w-50 align-top text-right" style="font-size: 12px; line-height: 1.6;">
+                                    <table style="margin-left: auto; border-collapse: collapse;">
+                                        <tr t-if="doc.store_id.address or doc.env.company.street">
+                                            <td style="padding-bottom: 4px; width: 25px; text-align: center; vertical-align: top;">
+                                                <i class="fa fa-map-marker text-primary-dark" style="font-size: 14px;"/> 
+                                            </td>
+                                            <td style="padding-bottom: 4px; text-align: left; vertical-align: top;">
+                                                <span t-esc="doc.store_id.address or (doc.env.company.street + ', ' + (doc.env.company.city or ''))"/>
+                                            </td>
+                                        </tr>
+                                        <tr t-if="doc.store_id.phone_1 or doc.env.company.phone">
+                                            <td style="padding-bottom: 4px; width: 25px; text-align: center; vertical-align: top;">
+                                                <i class="fa fa-phone text-primary-dark" style="font-size: 14px;"/> 
+                                            </td>
+                                            <td style="padding-bottom: 4px; text-align: left; vertical-align: top;">
+                                                <span t-esc="doc.store_id.phone_1 or doc.env.company.phone"/> 
+                                                <t t-if="doc.store_id.phone_2"> | <span t-esc="doc.store_id.phone_2"/></t>
+                                            </td>
+                                        </tr>
+                                        <tr t-if="doc.store_id.email or doc.env.company.email">
+                                            <td style="padding-bottom: 4px; width: 25px; text-align: center; vertical-align: top;">
+                                                <i class="fa fa-envelope-o text-primary-dark" style="font-size: 14px;"/> 
+                                            </td>
+                                            <td style="padding-bottom: 4px; text-align: left; vertical-align: top;">
+                                                <span t-esc="doc.store_id.email or doc.env.company.email"/>
+                                            </td>
+                                        </tr>
+                                        <tr t-if="doc.store_id.website or doc.env.company.website">
+                                            <td style="padding-bottom: 4px; width: 25px; text-align: center; vertical-align: top;">
+                                                <i class="fa fa-globe text-primary-dark" style="font-size: 14px;"/> 
+                                            </td>
+                                            <td style="padding-bottom: 4px; text-align: left; vertical-align: top;">
+                                                <span t-esc="doc.store_id.website or doc.env.company.website"/>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding-bottom: 4px; width: 25px; text-align: center; vertical-align: top;">
+                                                <i class="fa fa-file-text-o text-primary-dark" style="font-size: 14px;"/> 
+                                            </td>
+                                            <td style="padding-bottom: 4px; text-align: left; vertical-align: top;">
+                                                <span class="font-bold">TIN:</span> <span t-esc="doc.store_id.tin or doc.env.company.vat or 'N/A'"/> 
+                                                <span class="font-bold" style="margin-left: 10px;">VAT No:</span> <span t-esc="doc.store_id.vat_no or 'N/A'"/>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Mid Section: Customer & Document Info -->
+                        <table class="w-100" style="margin-bottom: 20px;">
+                            <tr>
+                                <!-- Customer Info -->
+                                <td class="w-50 align-top" style="padding-right: 20px;">
+                                    <div style="margin-bottom: 10px; display: flex; align-items: center;">
+                                        <span class="icon-circle"><i class="fa fa-user"/></span>
+                                        <span class="text-primary-dark font-bold" style="font-size: 13px;">CUSTOMER DETAILS</span>
+                                    </div>
+                                    <table class="prop-table" t-if="doc.customer">
+                                        <tr>
+                                            <td class="prop-label">Customer Name</td><td class="prop-colon">:</td>
+                                            <td><span t-field="doc.customer.name"/></td>
+                                        </tr>
+                                        <tr t-if="doc.customer.address or doc.customer.city">
+                                            <td class="prop-label">Address</td><td class="prop-colon">:</td>
+                                            <td>
+                                                <span t-field="doc.customer.address"/>
+                                                <span t-if="doc.customer.address and doc.customer.city">, </span>
+                                                <span t-field="doc.customer.city"/>
+                                                <span t-if="doc.customer.country_id">, <span t-field="doc.customer.country_id.name"/></span>
+                                            </td>
+                                        </tr>
+                                        <tr t-if="doc.customer.phone">
+                                            <td class="prop-label">Phone</td><td class="prop-colon">:</td>
+                                            <td><span t-field="doc.customer.phone"/></td>
+                                        </tr>
+                                        <tr t-if="doc.customer.tin">
+                                            <td class="prop-label">TIN</td><td class="prop-colon">:</td>
+                                            <td><span t-field="doc.customer.tin"/></td>
+                                        </tr>
+                                        <tr t-if="doc.customer.vat">
+                                            <td class="prop-label">VAT No</td><td class="prop-colon">:</td>
+                                            <td><span t-field="doc.customer.vat"/></td>
+                                        </tr>
+                                    </table>
+                                    <div t-else="" style="color: #94a3b8; font-style: italic;">Walk-in Customer</div>
+                                </td>
+                                
+                                <!-- Document Info -->
+                                <td class="w-50 align-top" style="border-left: 2px solid #e2e8f0; padding-left: 20px;">
+                                    <div style="margin-top: 20px;"></div> <!-- Spacer to align with Customer Details -->
+                                    <table class="prop-table" style="margin-left: 20px;">
+                                        <tr>
+                                            <td class="prop-label"><span t-if="doc.is_quotation">Quote No.</span><span t-else="">Invoice No.</span></td>
+                                            <td class="prop-colon">:</td>
+                                            <td><span t-field="doc.name"/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="prop-label"><span t-if="doc.is_quotation">Quote Date</span><span t-else="">Date</span></td>
+                                            <td class="prop-colon">:</td>
+                                            <td><span t-field="doc.date" t-options='{"widget": "date"}'/></td>
+                                        </tr>
+                                        <tr t-if="doc.is_quotation">
+                                            <td class="prop-label">Valid Until</td><td class="prop-colon">:</td>
+                                            <!-- Just adding 14 days generically, or use a proper validity date field if it exists -->
+                                            <td><span t-esc="(datetime.datetime.strptime(str(doc.date)[:10], '%Y-%m-%d') + datetime.timedelta(days=14)).strftime('%d %B %Y')"/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="prop-label">Currency</td><td class="prop-colon">:</td>
+                                            <td><span t-field="doc.currency_id.name"/></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Order Lines Table -->
+                        <table class="main-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%;">#</th>
+                                    <th class="text-left" style="width: 45%;">Description</th>
+                                    <th style="width: 10%;">Qty</th>
+                                    <th style="width: 15%;">Unit Price (<span t-field="doc.currency_id.symbol"/>)</th>
+                                    <th style="width: 10%;">Tax Amount (<span t-field="doc.currency_id.symbol"/>)</th>
+                                    <th style="width: 10%;">Total Amount (<span t-field="doc.currency_id.symbol"/>)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-set="line_idx" t-value="1"/>
+                                <t t-foreach="doc.line_ids" t-as="line">
+                                    <tr t-att-style="'background-color: #f8fafc;' if line_idx % 2 == 0 else ''">
+                                        <td class="idx-col"><span t-esc="line_idx"/></td>
+                                        <td class="desc-col"><span t-field="line.product_id.name"/></td>
+                                        <td><span t-field="line.accepted_qty"/></td>
+                                        <td><span t-field="line.rate" t-options='{"widget": "float", "precision": 2}'/></td>
+                                        
+                                        <!-- Determine Tax % and Tax Amount -->
+                                        <t t-set="tax_pct" t-value="0.0"/>
+                                        <t t-set="tax_amt" t-value="0.0"/>
+                                        <t t-if="line.tax_ids">
+                                            <t t-set="tax_pct" t-value="sum(tax.amount for tax in line.tax_ids)"/>
+                                        </t>
+                                        <t t-set="tax_amt" t-value="line.price_subtotal * (tax_pct / 100.0)"/>
+                                        <t t-set="line_total" t-value="line.price_subtotal + tax_amt"/>
+
+                                        <td><span t-esc="tax_amt" t-options='{"widget": "float", "precision": 2}'/></td>
+                                        <td><span t-esc="line_total" t-options='{"widget": "float", "precision": 2}'/></td>
+                                    </tr>
+                                    <t t-set="line_idx" t-value="line_idx + 1"/>
+                                </t>
+                            </tbody>
+                        </table>
+
+                        <!-- Totals Section -->
+                        <table class="w-100" style="margin-top: 15px;">
+                            <tr>
+                                <td class="w-60"></td>
+                                <td class="w-40 text-right">
+                                    <table style="width: 100%; border-collapse: collapse; text-align: right; font-size: 12px;">
+                                        <tr>
+                                            <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: bold;">SUBTOTAL (Excl. Tax)</td>
+                                            <td style="padding: 6px 10px; border: 1px solid #e2e8f0; width: 40%;"><span t-field="doc.amount_untaxed" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: bold;">TOTAL TAX</td>
+                                            <td style="padding: 6px 10px; border: 1px solid #e2e8f0;"><span t-field="doc.amount_tax" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                        </tr>
+                                        <tr class="bg-primary-dark">
+                                            <td style="padding: 8px 10px; font-weight: bold; font-size: 13px;">TOTAL (Incl. Tax)</td>
+                                            <td style="padding: 8px 10px; font-weight: bold; font-size: 14px;"><span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Bottom Footer Section -->
+                        <table class="w-100" style="margin-top: 30px; margin-bottom: 20px;">
+                            <tr>
+                                <!-- Left: Terms & Conditions -->
+                                <td class="w-50 align-top" style="padding-right: 20px;">
+                                    <div style="margin-bottom: 10px; border-bottom: 1px solid #0a2342; padding-bottom: 5px; display: inline-block; width: 100%;">
+                                        <span class="icon-circle"><i class="fa fa-file-text-o"/></span>
+                                        <span class="text-primary-dark font-bold" style="font-size: 13px;">TERMS &amp; CONDITIONS</span>
+                                    </div>
+                                    <div style="font-size: 12px; line-height: 1.5; color: #334155; min-height: 80px;" t-if="doc.store_id.default_terms">
+                                        <span t-raw="doc.store_id.default_terms"/>
+                                    </div>
+                                    
+                                    <!-- Signature -->
+                                    <div style="margin-top: 30px;">
+                                        <div style="border-bottom: 1px dashed #0a2342; width: 200px; height: 30px; margin-bottom: 5px;"></div>
+                                        <div style="font-weight: bold; font-size: 12px;">Authorised Signatory</div>
+                                        <div style="font-size: 12px;">
+                                            <t t-if="doc.store_id" t-esc="doc.store_id.name.upper()"/>
+                                            <t t-else=""><span t-esc="doc.env.company.name.upper()"/></t>
+                                        </div>
+                                    </div>
+                                </td>
+                                
+                                <!-- Right: Banking Details -->
+                                <td class="w-50 align-top" style="padding-left: 20px;">
+                                    <div style="margin-bottom: 10px; border-bottom: 1px solid #0a2342; padding-bottom: 5px; display: inline-block; width: 100%;">
+                                        <span class="icon-circle"><i class="fa fa-university"/></span>
+                                        <span class="text-primary-dark font-bold" style="font-size: 13px;">BANKING DETAILS</span>
+                                    </div>
+                                    
+                                    <t t-if="doc.store_id.bank_account_ids">
+                                        <t t-foreach="doc.store_id.bank_account_ids.filtered(lambda b: b.show_on_invoice)" t-as="bank">
+                                            <table class="prop-table" style="font-size: 12px; margin-bottom: 10px;">
+                                                <tr><td class="font-bold" style="width: 100px;">Bank Name</td><td class="prop-colon">:</td><td><span t-field="bank.name"/></td></tr>
+                                                <tr><td class="font-bold">Account Name</td><td class="prop-colon">:</td><td><span t-field="bank.account_name"/></td></tr>
+                                                <tr><td class="font-bold">Account Number</td><td class="prop-colon">:</td><td><span t-field="bank.account_number"/></td></tr>
+                                                <tr t-if="bank.branch"><td class="font-bold">Branch</td><td class="prop-colon">:</td><td><span t-field="bank.branch"/></td></tr>
+                                                <tr t-if="bank.currency_id"><td class="font-bold">Currency</td><td class="prop-colon">:</td><td><span t-field="bank.currency_id.name"/></td></tr>
+                                            </table>
+                                        </t>
+                                    </t>
+                                    <t t-else="">
+                                        <div style="color: #94a3b8; font-style: italic; font-size: 12px;">No banking details provided.</div>
+                                    </t>
+
+                                    <!-- Thank you message -->
+                                    <div style="margin-top: 20px; display: flex; align-items: center;">
+                                        <span class="icon-circle" style="font-size: 14px; width: 30px; height: 30px; line-height: 30px;"><i class="fa fa-handshake-o"/></span>
+                                        <div style="margin-left: 10px;">
+                                            <div class="text-primary-dark font-bold" style="font-size: 14px;">Thank you for your business!</div>
+                                            <div style="font-size: 12px; color: #475569;" t-if="doc.store_id.default_footer">
+                                                <span t-field="doc.store_id.default_footer"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Very Bottom Banner -->
+                        <div class="bg-primary-dark text-center" style="padding: 10px; font-size: 13px; margin-top: 20px;" t-if="doc.store_id.tagline">
+                            <span t-field="doc.store_id.tagline"/>
+                        </div>
+
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

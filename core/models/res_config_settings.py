@@ -105,6 +105,21 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.currency_id',
         readonly=False
     )
+    biz_logo = fields.Image(
+        string="Business Logo",
+        compute='_compute_biz_logo',
+        inverse='_inverse_biz_logo',
+        readonly=False
+    )
+
+    @api.depends('tenant_id')
+    def _compute_biz_logo(self):
+        for record in self:
+            record.biz_logo = self.env.company.logo
+
+    def _inverse_biz_logo(self):
+        for record in self:
+            self.env.company.sudo().write({'logo': record.biz_logo})
     has_transactions = fields.Boolean(
         string="Has Transactions",
         related='tenant_id.has_transactions'

@@ -29,6 +29,7 @@ class Sale(models.Model):
     local_invoice_id = fields.Char(string='Local Invoice ID', copy=False)
     
     is_return = fields.Boolean(string='Is Credit Note', default=False)
+    is_quotation = fields.Boolean(string='Is Quotation', default=False)
     return_id = fields.Many2one('havanoposdesk.sale', string='Original Sale')
     return_sale_ids = fields.One2many('havanoposdesk.sale', 'return_id', string='Credit Notes')
     invoice_type = fields.Char(string='Type', compute='_compute_invoice_type', store=True)
@@ -45,10 +46,15 @@ class Sale(models.Model):
                 if duplicate:
                     raise ValidationError(_("The Local Invoice ID must be unique per tenant!"))
 
-    @api.depends('is_return')
+    @api.depends('is_return', 'is_quotation')
     def _compute_invoice_type(self):
         for record in self:
-            record.invoice_type = 'Credit Note' if record.is_return else 'Sales Invoice'
+            if record.is_return:
+                record.invoice_type = 'Credit Note'
+            elif record.is_quotation:
+                record.invoice_type = 'Quotation'
+            else:
+                record.invoice_type = 'Sales Invoice'
     
     def _default_account_id(self):
         return self.env['havanoposdesk.account'].search([('type', 'in', ['Cash', 'Bank'])], limit=1).id
@@ -221,12 +227,16 @@ class Sale(models.Model):
                 tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
                 if tenant:
-                    if vals.get('is_return'):
+                    if vals.get('is_quotation'):
+                        vals['name'] = tenant._get_next_sequence('quotation')
+                    elif vals.get('is_return'):
                         vals['name'] = tenant._get_next_sequence('sale_ret')
                     else:
                         vals['name'] = tenant._get_next_sequence('sale')
                 else:
-                    if vals.get('is_return'):
+                    if vals.get('is_quotation'):
+                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.quotation') or 'New'
+                    elif vals.get('is_return'):
                         vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale.return') or 'New'
                     else:
                         vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale') or 'New'
@@ -332,9 +342,23 @@ class Sale(models.Model):
                 raise ValidationError("You cannot delete a confirmed sale. Please cancel it first.")
         return super().unlink()
 
+    def action_print(self):
+        """ Open HTML preview in browser — user can print from there. """
+        self.ensure_one()
+        return self.env.ref('havanoposdesk_odoo.action_report_sale_document_html').report_action(self)
+
+    def action_post_and_print(self):
+        self.ensure_one()
+        self.action_post()
+        return self.action_print()
+
     def action_post(self):
         for sale in self:
             if sale.state != 'draft':
+                continue
+                
+            if sale.is_quotation:
+                sale.write({'state': 'done'})
                 continue
             
             # Handle payments if cash
@@ -481,6 +505,10 @@ class Sale(models.Model):
     def action_cancel(self):
         for sale in self:
             if sale.state not in ['confirmed', 'done']:
+                continue
+                
+            if sale.is_quotation:
+                sale.write({'state': 'cancelled'})
                 continue
             
             for line in sale.line_ids:

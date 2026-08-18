@@ -13,10 +13,22 @@ class HavanoposdeskProduct(models.Model):
     ]
 
     name = fields.Char(string='Product Name', required=True)
-    item_code = fields.Char(string='Product Code', required=True, copy=False, default=lambda self: 'New')
+    item_code = fields.Char(string='Product Code', required=False, copy=False, default=lambda self: 'New')
     allow_edit_item_code = fields.Boolean(related='tenant_id.allow_edit_item_code', string="Allow Edit Item Code")
     barcode = fields.Char(string='Barcode', copy=False)
     is_barcode_enabled = fields.Boolean(related='tenant_id.enable_barcode', string="Barcode Enabled")
+
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_name(self):
+        for record in self:
+            if record.name and record.tenant_id:
+                domain = [
+                    ('id', '!=', record.id),
+                    ('tenant_id', '=', record.tenant_id.id),
+                    ('name', '=ilike', record.name.strip())
+                ]
+                if self.search_count(domain) > 0:
+                    raise ValidationError(f"A Product with the name '{record.name}' already exists in your workspace. Please choose a different name.")
 
     @api.depends('name', 'item_code', 'tenant_id')
     def _compute_display_name(self):
@@ -343,6 +355,13 @@ class HavanoposdeskProduct(models.Model):
 
     def action_save(self):
         return True
+
+    @api.model
+    def get_import_templates(self):
+        return [{
+            'label': _('Import Template for Products'),
+            'template': '/havanoposdesk_odoo/product_template.csv'
+        }]
 
 class HavanoposdeskProductCosting(models.Model):
     _name = 'havanoposdesk.product.costing'

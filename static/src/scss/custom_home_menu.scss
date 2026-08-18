@@ -37,7 +37,25 @@
    Hide Odoo navbar when custom home menu is active
 ------------------------------------------------------- */
 body.o_home_menu_active .o_main_navbar {
+    /* Make the navbar visible, but hide app-specific menus */
+    display: flex !important;
+    z-index: 10001 !important; /* Ensure it stays above the home menu overlay */
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    pointer-events: auto !important;
+}
+
+body.o_home_menu_active .o_main_navbar .o_menu_toggle,
+body.o_home_menu_active .o_main_navbar .o_app_drawer_toggle,
+body.o_home_menu_active .o_main_navbar .o_menu_brand,
+body.o_home_menu_active .o_main_navbar .o_menu_sections {
     display: none !important;
+}
+
+body.o_home_menu_active .o_main_navbar .o_menu_systray {
+    margin-left: auto !important; /* Push right side items to the right */
 }
 
 body.o_home_menu_active .o_action_manager,
@@ -54,12 +72,12 @@ body.o_home_menu_active .o_web_client {
 
 .custom_home_menu_overlay {
     position: fixed;
-    top: 0;
+    top: 46px; /* Start below the 46px navbar */
     left: 0;
     right: 0;
     bottom: 0;
     background: #f4f7f6;
-    z-index: 9999;
+    z-index: 100;
     display: flex;
     flex-direction: column;
     align-items: center;

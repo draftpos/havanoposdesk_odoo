@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="paperformat_havanoposdesk_sale" model="report.paperformat">
+        <field name="name">A4 No Top Margin</field>
+        <field name="default" eval="True" />
+        <field name="format">A4</field>
+        <field name="page_height">0</field>
+        <field name="page_width">0</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">5</field>
+        <field name="margin_bottom">5</field>
+        <field name="margin_left">7</field>
+        <field name="margin_right">7</field>
+        <field name="header_line" eval="False" />
+        <field name="header_spacing">0</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <record id="action_report_sale_document_pdf" model="ir.actions.report">
+        <field name="name">Sales Document (PDF)</field>
+        <field name="model">havanoposdesk.sale</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">havanoposdesk_odoo.report_sale_document</field>
+        <field name="report_file">havanoposdesk_odoo.report_sale_document</field>
+        <field name="print_report_name">(object.state in ('draft', 'sent') and 'Quotation - %s' % (object.name)) or 'Invoice - %s' % (object.name)</field>
+        <field name="binding_model_id" ref="model_havanoposdesk_sale"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="havanoposdesk_odoo.paperformat_havanoposdesk_sale"/>
+    </record>
+
+    <record id="action_report_sale_document_html" model="ir.actions.report">
+        <field name="name">Sales Document (HTML / Quick Print)</field>
+        <field name="model">havanoposdesk.sale</field>
+        <field name="report_type">qweb-html</field>
+        <field name="report_name">havanoposdesk_odoo.report_sale_document</field>
+        <field name="report_file">havanoposdesk_odoo.report_sale_document</field>
+        <field name="print_report_name">(object.state in ('draft', 'sent') and 'Quotation - %s' % (object.name)) or 'Invoice - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="havanoposdesk_odoo.paperformat_havanoposdesk_sale"/>
+    </record>
+</odoo>

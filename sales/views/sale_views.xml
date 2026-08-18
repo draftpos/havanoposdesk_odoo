@@ -8,13 +8,14 @@
             <field name="arch" type="xml">
                 <list string="Sales Invoices" default_order="date desc">
                     <field name="is_return" column_invisible="True" />
+                    <field name="is_quotation" column_invisible="True" />
                     <field name="currency_id" column_invisible="True" />
                     <field name="tenant_currency_id" column_invisible="True" />
                     <field name="name" string="Reference" optional="show" />
                     <field name="local_invoice_id" optional="hide" />
-                    <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-bf="is_return" />
-                    <field name="payment_status" optional="show" />
-                    <field name="account_id" optional="show" />
+                    <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-info="is_quotation" decoration-bf="is_return or is_quotation" />
+                    <field name="payment_status" optional="show" column_invisible="context.get('default_is_quotation')" />
+                    <field name="account_id" optional="show" column_invisible="context.get('default_is_quotation')" />
                     <field name="customer" optional="show" />
                     <field name="date" string="Date" optional="show" />
                     <field name="store_id" optional="show" />
@@ -36,10 +37,13 @@
             <field name="arch" type="xml">
                 <form string="Sales Invoice">
                     <header>
-                        <button name="action_post" string="Confirm" type="object" class="oe_highlight" invisible="state != 'draft'" />
+                        <button name="action_post_and_print" string="Confirm &amp; Print" type="object" class="oe_highlight" invisible="state != 'draft' or not is_quotation" />
+                        <button name="action_post" string="Confirm" type="object" class="oe_highlight" invisible="state != 'draft' or is_quotation" />
+                        <button name="action_post" string="Confirm" type="object" invisible="state != 'draft' or not is_quotation" />
+                        <button name="action_print" string="Preview / Print" type="object" class="oe_highlight" invisible="state == 'draft' and not is_quotation" />
                         <button name="action_cancel" string="Cancel" type="object" invisible="state not in ['confirmed', 'done']" />
                         <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'cancelled'" />
-                        <button name="%(action_havanoposdesk_sale_return_wizard)d" string="Credit Note" type="action" class="btn-primary" invisible="state != 'done' or is_return" />
+                        <button name="%(action_havanoposdesk_sale_return_wizard)d" string="Credit Note" type="action" class="btn-primary" invisible="state != 'done' or is_return or is_quotation" />
                         <field name="state" widget="statusbar" statusbar_visible="draft,done" />
                     </header>
                     <sheet>
@@ -49,36 +53,40 @@
                             </h1>
                             <h2>
                                 <span invisible="not is_return" class="text-danger">Credit Note</span>
+                                <span invisible="not is_quotation" class="text-info">Quotation</span>
                             </h2>
                         </div>
                         <group>
                             <group>
+                                <!-- LEFT: Customer, Customer Balance (invoices only), Store, Sale Date, Pricelist -->
                                 <field name="customer" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="tenant_currency_id" invisible="1"/>
-                                <field name="customer_balance" string="Customer Balance" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" invisible="not customer" class="text-muted"/>
+                                <field name="customer_balance" string="Customer Balance" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" invisible="not customer or is_quotation" class="text-muted"/>
                                 <field name="customer_allow_multi_currency" invisible="1"/>
                                 <field name="customer_secondary_currency_id" invisible="1"/>
-                                <field name="customer_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'customer_secondary_currency_id'}" invisible="not customer_allow_multi_currency" class="text-muted"/>
+                                <field name="customer_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'customer_secondary_currency_id'}" invisible="not customer_allow_multi_currency or is_quotation" class="text-muted"/>
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="date" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="allowed_pricelist_ids" invisible="1" />
                                 <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" readonly="state != 'draft'" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark" />
                                 <field name="is_return" invisible="1" />
+                                <field name="is_quotation" invisible="1" />
+                                <field name="is_tax_enabled" invisible="1" />
+                                <field name="tenant_id" invisible="1" />
+                            </group>
+                            <group>
+                                <!-- RIGHT: Local Invoice ID, Currency, Exchange Rate, Payment fields -->
+                                <field name="local_invoice_id" readonly="1" class="border-bottom border-dark" />
                                 <field name="available_currency_ids" invisible="1" />
                                 <field name="allow_multi_currency" invisible="1" />
                                 <field name="currency_id" invisible="allow_multi_currency == False" domain="[('id', 'in', available_currency_ids)]" options="{'no_create': True}" class="border-bottom border-dark" />
                                 <field name="exchange_rate" invisible="allow_multi_currency == False" readonly="state != 'draft'" class="border-bottom border-dark" />
-                                <field name="is_tax_enabled" invisible="1" />
-                                <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark" />
-                            </group>
-                            <group>
-                                <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" />
-                                <field name="payment_policy" invisible="payment_status != 'cash'" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" />
-                                <field name="account_id" invisible="payment_status != 'cash' or payment_policy != 'single'" required="payment_status == 'cash' and payment_policy == 'single'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark" />
-                                <field name="single_payment_amount" invisible="payment_status != 'cash' or payment_policy != 'single'" readonly="state != 'draft'" class="border-bottom border-dark" />
-                                <field name="tenant_id" invisible="1" />
-                                <field name="local_invoice_id" readonly="1" class="border-bottom border-dark" />
-                                <div colspan="2" class="mt-3" invisible="payment_status != 'cash' or payment_policy != 'multi'">
+                                <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" invisible="is_quotation" />
+                                <field name="payment_policy" invisible="payment_status != 'cash' or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" />
+                                <field name="account_id" invisible="payment_status != 'cash' or payment_policy != 'single' or is_quotation" required="not is_quotation and payment_status == 'cash' and payment_policy == 'single'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark" />
+                                <field name="single_payment_amount" invisible="payment_status != 'cash' or payment_policy != 'single' or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <div colspan="2" class="mt-3" invisible="payment_status != 'cash' or payment_policy != 'multi' or is_quotation">
                                     <div class="card border-info" style="border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                                         <div class="card-header bg-info text-white fw-bold py-2" style="font-size: 1.1em;">
                                             <i class="fa fa-money me-2"></i> Payment Summary
@@ -124,7 +132,7 @@
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Incl" />
                                 </group>
                             </page>
-                            <page string="Payment Breakdown" name="payment_entries" invisible="payment_status != 'cash' or payment_policy != 'multi'">
+                            <page string="Payment Breakdown" name="payment_entries" invisible="payment_status != 'cash' or payment_policy != 'multi' or is_quotation">
                                 <field name="payment_ids" readonly="state != 'draft'" context="{'default_customer_id': customer, 'default_date': date, 'default_payment_type': 'receipt', 'default_tenant_id': tenant_id, 'default_currency_id': currency_id, 'default_exchange_rate': exchange_rate}">
                                     <list editable="bottom">
                                         <field name="tenant_id" column_invisible="True"/>
@@ -183,6 +191,8 @@
                     <field name="payment_status" />
                     <field name="create_uid" />
                     <field name="date" />
+                    <filter string="Quotations" name="filter_quotations" domain="[('is_quotation', '=', True)]" />
+                    <filter string="Sales Invoices" name="filter_invoices" domain="[('is_quotation', '=', False), ('is_return', '=', False)]" />
                     <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
                     <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]" />
                     <filter string="Reference" name="filter_reference" domain="[('name', '!=', False)]" />
@@ -211,11 +221,25 @@
             <field name="res_model">havanoposdesk.sale</field>
             <field name="view_mode">list,form</field>
             <field name="search_view_id" ref="view_havanoposdesk_sale_search" />
-            <field name="domain">[]</field>
+            <field name="domain">[('is_quotation', '=', False), ('is_return', '=', False)]</field>
             <field name="context">{'default_payment_status': 'cash', 'search_default_today': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Record your first sale!
+                </p>
+            </field>
+        </record>
+
+        <record id="action_quotations" model="ir.actions.act_window">
+            <field name="name">Quotations</field>
+            <field name="res_model">havanoposdesk.sale</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_sale_search" />
+            <field name="domain">[('is_quotation', '=', True)]</field>
+            <field name="context">{'default_is_quotation': True, 'search_default_today': 1}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create your first Quotation!
                 </p>
             </field>
         </record>
@@ -234,7 +258,8 @@
         </record>
 
         
-        <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="10" />
+        <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="5" />
+        <menuitem id="menu_quotations" name="Quotations" parent="menu_sales_operations" action="action_quotations" sequence="10" />
         <menuitem id="menu_sales_returns" name="Sales Returns" parent="menu_sales_reports" action="action_sales_returns" sequence="60" />
 
         
