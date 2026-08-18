@@ -124,7 +124,7 @@
                                         <field name="rate" width="15%" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary" options="{'currency_field': 'currency_id'}" />
-                                        <field name="tax_ids" widget="many2many_tags" domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]" width="15%" optional="show" />
+                                        <field name="tax_ids" widget="many2many_tags" domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]" width="15%" optional="show" options="{'no_create': True, 'no_create_edit': True, 'no_quick_create': True, 'no_search_more': True}" />
                                         <field name="amount" width="20%" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                     </list>
                                 </field>

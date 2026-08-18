@@ -52,7 +52,9 @@ class HavanoposdeskStore(models.Model):
     vat_no = fields.Char(string='VAT No')
     default_terms = fields.Html(string='Terms & Conditions')
     default_footer = fields.Text(string='Default Footer')
+    powered_by_footer = fields.Char(string='Powered By Footer Text', default='Powered by HavanoERP')
     tagline = fields.Char(string='Tagline')
+
     bank_account_ids = fields.One2many('havanoposdesk.store.bank', 'store_id', string='Bank Accounts')
 
     # Per-Store ZIMRA Fiscalization Settings
@@ -68,6 +70,9 @@ class HavanoposdeskStore(models.Model):
     fiscal_api_secret = fields.Char(string='API Secret')
     fiscal_device_sn = fields.Char(string='Device Serial No (EFD SN)')
     fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
+    fiscalized_invoice_heading = fields.Char(string='Fiscalized Invoice Heading', default='Fiscal Tax Invoice')
+
+
 
     def action_ping_zimra_device(self):
         self.ensure_one()

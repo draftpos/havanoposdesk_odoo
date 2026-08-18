@@ -9,6 +9,20 @@ class HavanoposdeskTax(models.Model):
     ]
 
     name = fields.Char(string='Tax Code', required=True)
+
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_tax_code(self):
+        from odoo.exceptions import ValidationError
+        for record in self:
+            if record.name and record.tenant_id:
+                domain = [
+                    ('id', '!=', record.id),
+                    ('tenant_id', '=', record.tenant_id.id),
+                    ('name', '=ilike', record.name.strip())
+                ]
+                if self.search_count(domain) > 0:
+                    raise ValidationError(f"Tax Code '{record.name}' already exists in your workspace. Tax codes must be unique.")
+
     tax_type = fields.Selection([
         ('Sales', 'Sales'),
         ('Purchases', 'Purchases')

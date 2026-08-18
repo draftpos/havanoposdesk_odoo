@@ -377,6 +377,11 @@ class HavanoposdeskTenant(models.Model):
     fiscal_api_secret = fields.Char(string='API Secret')
     fiscal_device_sn = fields.Char(string='Default Device Serial No (EFD SN)')
     fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
+    fiscalized_invoice_heading = fields.Char(string='Fiscalized Invoice Heading', default='Fiscal Tax Invoice')
+
+    powered_by_footer = fields.Char(string='Powered By Footer Text', default='Powered by HavanoERP')
+
+
 
     @api.model_create_multi
     def create(self, vals_list):

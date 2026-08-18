@@ -64,8 +64,10 @@
                                 <group string="Default Texts">
                                     <field name="default_terms"/>
                                     <field name="default_footer"/>
+                                    <field name="powered_by_footer"/>
                                     <field name="tagline"/>
                                 </group>
+
                                 <separator string="Banking Details"/>
                                 <field name="bank_account_ids">
                                     <list editable="bottom">
@@ -89,6 +91,7 @@
                                         <field name="fiscal_provider" invisible="not enable_fiscalization"/>
                                         <field name="fiscal_base_url" invisible="not enable_fiscalization"/>
                                         <field name="fiscal_device_sn" invisible="not enable_fiscalization"/>
+                                        <field name="fiscalized_invoice_heading" invisible="not enable_fiscalization"/>
                                     </group>
                                     <group string="API Credentials" invisible="not enable_fiscalization">
                                         <field name="fiscal_api_key" password="True"/>

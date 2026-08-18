@@ -113,11 +113,11 @@ class HavanoposdeskProduct(models.Model):
             else:
                 record.sell_price_with_tax = sell_price * (1.0 + s_rate_excl)
 
-    @api.depends()
+    @api.depends('tenant_id')
     def _compute_has_active_taxes(self):
-        has_taxes = bool(self.env['havanoposdesk.tax'].search([('active', '=', True)], limit=1))
         for record in self:
-            record.has_active_taxes = has_taxes
+            tenant_id = record.tenant_id.id if record.tenant_id else self.env.user.tenant_id.id
+            record.has_active_taxes = bool(self.env['havanoposdesk.tax'].search([('active', '=', True), ('tenant_id', '=', tenant_id)], limit=1))
 
     @api.onchange('sale_tax_ids')
     def _onchange_sale_tax_ids(self):

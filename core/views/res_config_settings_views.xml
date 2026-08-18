@@ -89,6 +89,15 @@
                         <setting string="Default EFD Serial Number" help="ZIMRA Electronic Fiscal Device Serial Number (can be overridden per-shop)" invisible="not biz_enable_fiscalization">
                             <field name="biz_fiscal_device_sn"/>
                         </setting>
+                        <setting string="Fiscalized Invoice Heading" help="Custom invoice title heading printed on fiscalized sales documents (Default: Fiscal Tax Invoice)" invisible="not biz_enable_fiscalization">
+                            <field name="biz_fiscalized_invoice_heading"/>
+                        </setting>
+
+                        <setting string="Powered By Footer Text" help="Custom Powered-By text printed at the bottom of receipts (Default: Powered by HavanoERP)">
+                            <field name="biz_powered_by_footer"/>
+                        </setting>
+
+
                         <setting string="Device Test &amp; Ping" help="Test connectivity to ZIMRA Cloud API server" invisible="not biz_enable_fiscalization">
                             <div class="mt16">
                                 <button name="action_ping_zimra_device" type="object" string="Ping ZIMRA Device" icon="fa-plug" class="btn btn-primary"/>

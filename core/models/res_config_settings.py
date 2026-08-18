@@ -257,6 +257,18 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.fiscal_ping_interval',
         readonly=False
     )
+    biz_fiscalized_invoice_heading = fields.Char(
+        string="Fiscalized Invoice Heading",
+        related='tenant_id.fiscalized_invoice_heading',
+        readonly=False
+    )
+    biz_powered_by_footer = fields.Char(
+        string="Powered By Footer Text",
+        related='tenant_id.powered_by_footer',
+        readonly=False
+    )
+
+
 
     def action_ping_zimra_device(self):
         self.ensure_one()

@@ -70,8 +70,8 @@
                                         <field name="markup" class="border-bottom border-dark" />
                                         <field name="id" invisible="1" />
                                         <field name="has_active_taxes" invisible="1" />
-                                        <field name="sale_tax_ids" widget="many2many_tags" invisible="1" class="border-bottom border-dark" />
-                                        <field name="purchase_tax_ids" widget="many2many_tags" invisible="1" class="border-bottom border-dark" />
+                                        <field name="sale_tax_ids" widget="many2many_tags" invisible="not has_active_taxes" class="border-bottom border-dark" options="{'no_create': True, 'no_create_edit': True, 'no_quick_create': True, 'no_search_more': True}" />
+                                        <field name="purchase_tax_ids" widget="many2many_tags" invisible="not has_active_taxes" class="border-bottom border-dark" options="{'no_create': True, 'no_create_edit': True, 'no_quick_create': True, 'no_search_more': True}" />
                                         <field name="opening_stock" string="Opening Stock" invisible="id or is_bundle == True" class="border-bottom border-dark" />
                                         <field name="on_hand_qty" string="On hand" invisible="not id or is_bundle == True" readonly="1" class="border-bottom border-dark" />
                                         <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}" />

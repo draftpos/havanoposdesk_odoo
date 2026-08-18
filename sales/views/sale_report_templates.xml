@@ -71,6 +71,8 @@
                                 <span style="position: absolute; left: -10px; top: 50%; margin-top: -3px; width: 6px; height: 6px; background: #0a2342; border-radius: 50%;"></span>
                                 <t t-if="doc.is_quotation">QUOTATION</t>
                                 <t t-elif="doc.is_return">CREDIT NOTE</t>
+                                <t t-elif="doc.fiscal_status == 'fiscalized'"><t t-out="(doc.store_id.fiscalized_invoice_heading or doc.tenant_id.fiscalized_invoice_heading or 'Fiscal Tax Invoice').upper()"/></t>
+
                                 <t t-else="">INVOICE</t>
                                 <span style="position: absolute; right: -10px; top: 50%; margin-top: -3px; width: 6px; height: 6px; background: #0a2342; border-radius: 50%;"></span>
                                 <span style="position: absolute; right: -40px; top: 50%; width: 30px; border-top: 2px solid #0a2342;"></span>
@@ -380,9 +382,11 @@
                         </t>
 
                         <!-- Very Bottom Banner -->
-                        <div class="bg-primary-dark text-center" style="padding: 10px; font-size: 13px; margin-top: 20px;" t-if="doc.store_id.tagline">
-                            <span t-field="doc.store_id.tagline"/>
+                        <div class="bg-primary-dark text-center" style="padding: 10px; font-size: 13px; margin-top: 20px;">
+                            <span t-if="doc.store_id.tagline"><span t-field="doc.store_id.tagline"/> &amp;nbsp;|&amp;nbsp; </span>
+                            <span><t t-out="doc.store_id.powered_by_footer or doc.tenant_id.powered_by_footer or 'Powered by HavanoERP'"/></span>
                         </div>
+
 
                     </div>
                 </div>
