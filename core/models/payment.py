@@ -181,9 +181,15 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
     @api.model
     def default_get(self, fields_list):
         res = super().default_get(fields_list)
-        active_id = self.env.context.get('active_id')
-        if active_id:
-            res['tenant_id'] = active_id
+        if not res.get('tenant_id'):
+            active_model = self.env.context.get('active_model')
+            active_id = self.env.context.get('active_id')
+            if active_id and active_model == 'havanoposdesk.tenant':
+                res['tenant_id'] = active_id
+            else:
+                tenant = self.env.user.tenant_id or self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+                if tenant:
+                    res['tenant_id'] = tenant.id
         return res
 
     def action_topup(self):

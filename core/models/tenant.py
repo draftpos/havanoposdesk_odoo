@@ -44,6 +44,30 @@ class HavanoposdeskTenant(models.Model):
                     cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
             except Exception:
                 pass
+
+        # Ensure wizard foreign keys have ON DELETE CASCADE so they never block tenant operations
+        wizard_tables = [
+            'havanoposdesk_tenant_topup_wizard',
+            'havanoposdesk_subscription_pay_wizard',
+            'havanoposdesk_tenant_upgrade_wizard'
+        ]
+        for tbl in wizard_tables:
+            try:
+                with cr.savepoint():
+                    cr.execute(f"SELECT to_regclass('{tbl}');")
+                    if cr.fetchone()[0]:
+                        cr.execute(f"""
+                            SELECT conname 
+                            FROM pg_constraint 
+                            WHERE conrelid = '{tbl}'::regclass 
+                              AND confrelid = 'havanoposdesk_tenant'::regclass;
+                        """)
+                        for row in cr.fetchall():
+                            con_name = row[0]
+                            cr.execute(f"ALTER TABLE {tbl} DROP CONSTRAINT IF EXISTS \"{con_name}\";")
+                            cr.execute(f"ALTER TABLE {tbl} ADD CONSTRAINT \"{con_name}\" FOREIGN KEY (tenant_id) REFERENCES havanoposdesk_tenant(id) ON DELETE CASCADE;")
+            except Exception:
+                pass
         return res
 
     name = fields.Char(string='Tenant Name', required=True)
