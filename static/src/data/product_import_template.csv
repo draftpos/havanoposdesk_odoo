@@ -1,3 +1,3 @@
-name,item_code,barcode,buying_price,category_id/name,uom_id/name,is_active,advanced_price_ids/store_id/name,advanced_price_ids/pricelist_id/name,advanced_price_ids/uom_id/name,advanced_price_ids/qty_to_be_sold,advanced_price_ids/initial_stock,advanced_price_ids/price
+Product Name,Product Code,Barcode,Cost price,Category,UOM,Active,Advanced Prices / Store,Advanced Prices / Pricelist,Advanced Prices / UoM Name,Advanced Prices / Qty to be Sold,Advanced Prices / Initial Qty,Advanced Prices / Price
 "Coca-Cola 2L","CC-2L","89012345",1.00,"Beverages","Each",1,"Jarvis","Retail","Each",1,50,1.50
 ,,,,,,,"Jarvis","Wholesale","Box",12,10,15.00

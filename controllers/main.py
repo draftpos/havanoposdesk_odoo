@@ -27,7 +27,7 @@ class ProductImportTemplateController(http.Controller):
         headers = [
             "Product Name", "Product Code", "Barcode", "Cost price", "Category", 
             "UOM", "Active", "Advanced Prices / Store", 
-            "Advanced Prices / Pricelist", "Advanced Prices / UOM", 
+            "Advanced Prices / Pricelist", "Advanced Prices / UoM Name", 
             "Advanced Prices / Qty to be Sold", "Advanced Prices / Initial Qty", "Advanced Prices / Price"
         ]
         writer.writerow(headers)
