@@ -78,6 +78,25 @@
                                     </list>
                                 </field>
                             </page>
+                            <page string="ZIMRA Fiscalization">
+                                <div class="mb-3" invisible="not enable_fiscalization">
+                                    <button name="action_ping_zimra_device" string="Ping ZIMRA Device" type="object" class="btn-primary"/>
+                                </div>
+                                <group>
+                                    <group string="ZIMRA Configuration">
+                                        <field name="enable_fiscalization"/>
+                                        <field name="is_vat_registered" invisible="not enable_fiscalization"/>
+                                        <field name="fiscal_provider" invisible="not enable_fiscalization"/>
+                                        <field name="fiscal_base_url" invisible="not enable_fiscalization"/>
+                                        <field name="fiscal_device_sn" invisible="not enable_fiscalization"/>
+                                    </group>
+                                    <group string="API Credentials" invisible="not enable_fiscalization">
+                                        <field name="fiscal_api_key" password="True"/>
+                                        <field name="fiscal_api_secret" password="True"/>
+                                        <field name="fiscal_ping_interval"/>
+                                    </group>
+                                </group>
+                            </page>
                         </notebook>
                     </sheet>
                 </form>

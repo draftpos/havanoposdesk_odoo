@@ -221,6 +221,98 @@ class ResConfigSettings(models.TransientModel):
         readonly=False
     )
 
+    # ZIMRA Fiscalization Settings
+    biz_enable_fiscalization = fields.Boolean(
+        string="Enable Fiscalization",
+        related='tenant_id.enable_fiscalization',
+        readonly=False
+    )
+    biz_fiscal_provider = fields.Selection(
+        string="Fiscal Provider",
+        related='tenant_id.fiscal_provider',
+        readonly=False
+    )
+    biz_fiscal_base_url = fields.Char(
+        string="Base URL",
+        related='tenant_id.fiscal_base_url',
+        readonly=False
+    )
+    biz_fiscal_api_key = fields.Char(
+        string="API Key",
+        related='tenant_id.fiscal_api_key',
+        readonly=False
+    )
+    biz_fiscal_api_secret = fields.Char(
+        string="API Secret",
+        related='tenant_id.fiscal_api_secret',
+        readonly=False
+    )
+    biz_fiscal_device_sn = fields.Char(
+        string="Default Device Serial No (EFD SN)",
+        related='tenant_id.fiscal_device_sn',
+        readonly=False
+    )
+    biz_fiscal_ping_interval = fields.Integer(
+        string="Ping Interval (Minutes)",
+        related='tenant_id.fiscal_ping_interval',
+        readonly=False
+    )
+
+    def action_ping_zimra_device(self):
+        self.ensure_one()
+        class ConfigWrapper:
+            def __init__(self, base_url, api_key, api_secret, device_sn):
+                self.fiscal_base_url = base_url
+                self.fiscal_api_key = api_key
+                self.fiscal_api_secret = api_secret
+                self.fiscal_device_sn = device_sn
+
+        base_url = self.biz_fiscal_base_url or (self.tenant_id and self.tenant_id.fiscal_base_url)
+        api_key = self.biz_fiscal_api_key or (self.tenant_id and self.tenant_id.fiscal_api_key)
+        api_secret = self.biz_fiscal_api_secret or (self.tenant_id and self.tenant_id.fiscal_api_secret)
+        device_sn = self.biz_fiscal_device_sn or (self.tenant_id and self.tenant_id.fiscal_device_sn)
+
+        if not base_url:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Failed',
+                    'message': 'Base URL is required to ping ZIMRA device.',
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
+        cfg = ConfigWrapper(base_url, api_key, api_secret, device_sn)
+        from .fiscal_service import get_zimra_service
+        service = get_zimra_service(self.env)
+        res = service.ping_device(cfg)
+        if res.get('success'):
+            data = res.get('data', {})
+            msg = f"Connected! Device SN: {data.get('device_sn', 'OK')} | Status: Online"
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Successful',
+                    'message': msg,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        else:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Failed',
+                    'message': res.get('error', 'Connection failed'),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
     # Product Sequence
     biz_prod_seq_prefix = fields.Char(string="Product Sequence Prefix", related='tenant_id.prod_seq_prefix', readonly=False)
     biz_prod_seq_next = fields.Integer(string="Product Sequence Next Number", related='tenant_id.prod_seq_next', readonly=False)

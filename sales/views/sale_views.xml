@@ -26,6 +26,7 @@
                     <field name="amount_total" string="Total" widget="monetary" optional="show" />
                     <field name="amount_total_base" string="Base Total" sum="Base Total" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="show" />
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return" optional="show" />
+                    <field name="fiscal_status" string="ZIMRA Status" widget="badge" decoration-success="fiscal_status == 'fiscalized'" decoration-warning="fiscal_status == 'PENDING_SYNC'" decoration-danger="fiscal_status == 'failed'" optional="show"/>
                 </list>
             </field>
         </record>
@@ -44,6 +45,7 @@
                         <button name="action_cancel" string="Cancel" type="object" invisible="state not in ['confirmed', 'done']" />
                         <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'cancelled'" />
                         <button name="%(action_havanoposdesk_sale_return_wizard)d" string="Credit Note" type="action" class="btn-primary" invisible="state != 'done' or is_return or is_quotation" />
+                        <button name="action_retry_fiscalization" string="Retry ZIMRA Sync" type="object" class="btn-warning" invisible="fiscal_status not in ['PENDING_SYNC', 'failed']"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,done" />
                     </header>
                     <sheet>
@@ -147,6 +149,27 @@
                                         <field name="state" readonly="1" force_save="1"/>
                                     </list>
                                 </field>
+                            </page>
+                            <page string="ZIMRA Fiscalization" name="fiscalization_details" invisible="state != 'done' or fiscal_status == 'not_required'">
+                                <group>
+                                    <group string="Fiscal Status">
+                                        <field name="fiscal_status" widget="badge" decoration-success="fiscal_status == 'fiscalized'" decoration-warning="fiscal_status == 'PENDING_SYNC'" decoration-danger="fiscal_status == 'failed'"/>
+                                        <field name="fiscal_global_no"/>
+                                        <field name="fiscal_verification_code"/>
+                                        <field name="fiscal_receipt_counter"/>
+                                    </group>
+                                    <group string="Device &amp; Day Info">
+                                        <field name="fiscal_device_serial"/>
+                                        <field name="fiscal_device_id"/>
+                                        <field name="fiscal_day"/>
+                                    </group>
+                                </group>
+                                <group string="ZIMRA Verification URL / QR Link" invisible="not fiscal_qr_code">
+                                    <field name="fiscal_qr_code" widget="url"/>
+                                </group>
+                                <group string="Fiscalization Error" invisible="not fiscal_error">
+                                    <field name="fiscal_error" readonly="1" class="text-danger"/>
+                                </group>
                             </page>
                         </notebook>
                     </sheet>

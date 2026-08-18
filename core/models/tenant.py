@@ -37,6 +37,14 @@ class HavanoposdeskTenant(models.Model):
             ("product_name_format", "VARCHAR"),
             ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
             ("payment_status", "VARCHAR"),
+            ("enable_fiscalization", "BOOLEAN DEFAULT FALSE"),
+            ("is_vat_registered", "BOOLEAN DEFAULT FALSE"),
+            ("fiscal_provider", "VARCHAR DEFAULT 'havano_zimra'"),
+            ("fiscal_base_url", "VARCHAR"),
+            ("fiscal_api_key", "VARCHAR"),
+            ("fiscal_api_secret", "VARCHAR"),
+            ("fiscal_device_sn", "VARCHAR"),
+            ("fiscal_ping_interval", "INTEGER DEFAULT 5"),
         ]
         for col_name, col_type in columns:
             try:
@@ -77,6 +85,21 @@ class HavanoposdeskTenant(models.Model):
     global_multi_currency_customers = fields.Boolean(string='Global Multi-Currency Customers', default=False)
     global_secondary_currency_id = fields.Many2one('res.currency', string='Default Secondary Currency')
     allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=True)
+
+    # ZIMRA Fiscalization Settings
+    enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
+    is_vat_registered = fields.Boolean(string='VAT Registered Taxpayer', default=True)
+    fiscal_provider = fields.Selection([
+        ('havano_zimra', 'Havano ZIMRA Cloud'),
+        ('axis', 'Axis Virtual API'),
+        ('revmax', 'Revmax Hardware')
+    ], string='Fiscal Provider', default='havano_zimra')
+    fiscal_base_url = fields.Char(string='Base URL', default='https://erpfiscal.havano.online')
+    fiscal_api_key = fields.Char(string='API Key')
+    fiscal_api_secret = fields.Char(string='API Secret')
+    fiscal_device_sn = fields.Char(string='Device Serial No (EFD SN)')
+    fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
+
     has_transactions = fields.Boolean(string="Has Transactions", compute="_compute_has_transactions")
     
     def _compute_has_transactions(self):
@@ -341,6 +364,19 @@ class HavanoposdeskTenant(models.Model):
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
     allow_edit_item_code = fields.Boolean(string='Allow Editing Item Code', default=False)
+
+    # Global Fiscalization Settings (Defaults for stores)
+    enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
+    fiscal_provider = fields.Selection([
+        ('havano_zimra', 'Havano ZIMRA Cloud'),
+        ('axis', 'Axis Virtual API'),
+        ('revmax', 'Revmax Hardware')
+    ], string='Fiscal Provider', default='havano_zimra')
+    fiscal_base_url = fields.Char(string='Base URL', default='https://erpfiscal.havano.online')
+    fiscal_api_key = fields.Char(string='API Key')
+    fiscal_api_secret = fields.Char(string='API Secret')
+    fiscal_device_sn = fields.Char(string='Default Device Serial No (EFD SN)')
+    fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
 
     @api.model_create_multi
     def create(self, vals_list):

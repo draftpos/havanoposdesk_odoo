@@ -55,6 +55,50 @@ class HavanoposdeskStore(models.Model):
     tagline = fields.Char(string='Tagline')
     bank_account_ids = fields.One2many('havanoposdesk.store.bank', 'store_id', string='Bank Accounts')
 
+    # Per-Store ZIMRA Fiscalization Settings
+    enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
+    is_vat_registered = fields.Boolean(string='VAT Registered Taxpayer', default=True, help="Uncheck if company is non-VAT registered / exempt.")
+    fiscal_provider = fields.Selection([
+        ('havano_zimra', 'Havano ZIMRA Cloud'),
+        ('axis', 'Axis Virtual API'),
+        ('revmax', 'Revmax Hardware')
+    ], string='Fiscal Provider', default='havano_zimra')
+    fiscal_base_url = fields.Char(string='Base URL', default='https://erpfiscal.havano.online')
+    fiscal_api_key = fields.Char(string='API Key')
+    fiscal_api_secret = fields.Char(string='API Secret')
+    fiscal_device_sn = fields.Char(string='Device Serial No (EFD SN)')
+    fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
+
+    def action_ping_zimra_device(self):
+        self.ensure_one()
+        from .fiscal_service import get_zimra_service
+        service = get_zimra_service(self.env)
+        res = service.ping_device(self)
+        if res.get('success'):
+            data = res.get('data', {})
+            msg = f"Connected! Device SN: {data.get('device_sn', 'OK')} | Status: Online"
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Successful',
+                    'message': msg,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        else:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Failed',
+                    'message': res.get('error', 'Connection failed'),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
 
     @api.depends('name', 'tenant_id')
     def _compute_display_name(self):

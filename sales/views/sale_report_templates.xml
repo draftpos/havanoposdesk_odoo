@@ -239,7 +239,7 @@
                                         <t t-set="tax_pct" t-value="0.0"/>
                                         <t t-set="tax_amt" t-value="0.0"/>
                                         <t t-if="line.tax_ids">
-                                            <t t-set="tax_pct" t-value="sum(tax.amount for tax in line.tax_ids)"/>
+                                            <t t-set="tax_pct" t-value="sum(tax.rate for tax in line.tax_ids)"/>
                                         </t>
                                         <t t-set="tax_amt" t-value="line.price_subtotal * (tax_pct / 100.0)"/>
                                         <t t-set="line_total" t-value="line.price_subtotal + tax_amt"/>
@@ -334,6 +334,50 @@
                                 </td>
                             </tr>
                         </table>
+
+                        <!-- ZIMRA Fiscal Verification Block -->
+                        <t t-if="doc.fiscal_status == 'fiscalized'">
+                            <div style="margin-top: 25px; padding: 15px; border: 2px solid #0a2342; border-radius: 8px; background-color: #f8fafc;">
+                                <table class="w-100">
+                                    <tr>
+                                        <!-- Left: ZIMRA QR Code -->
+                                        <td style="width: 130px; text-align: center; vertical-align: middle;">
+                                            <t t-if="doc.fiscal_qr_code">
+                                                <img t-att-src="'/report/barcode/?barcode_type=QR&amp;value=' + (doc.fiscal_qr_code or '') + '&amp;width=140&amp;height=140'" style="width:120px; height:120px; display:inline-block;" alt="ZIMRA QR Code"/>
+                                            </t>
+                                        </td>
+                                        <!-- Right: Fiscal Verification Attributes -->
+                                        <td style="vertical-align: middle; padding-left: 15px; font-size: 12px; line-height: 1.6;">
+                                            <div style="font-weight: 800; font-size: 14px; color: #0a2342; margin-bottom: 5px;">
+                                                ZIMRA ELECTRONIC FISCAL VERIFICATION
+                                            </div>
+                                            <table class="prop-table" style="font-size: 12px;">
+                                                <tr t-if="doc.fiscal_global_no">
+                                                    <td class="font-bold" style="width: 140px;">Global Invoice No</td><td class="prop-colon">:</td>
+                                                    <td><span t-field="doc.fiscal_global_no"/></td>
+                                                </tr>
+                                                <tr t-if="doc.fiscal_verification_code">
+                                                    <td class="font-bold">Verification Code</td><td class="prop-colon">:</td>
+                                                    <td><span t-field="doc.fiscal_verification_code"/></td>
+                                                </tr>
+                                                <tr t-if="doc.fiscal_device_serial">
+                                                    <td class="font-bold">EFD Serial Number</td><td class="prop-colon">:</td>
+                                                    <td><span t-field="doc.fiscal_device_serial"/></td>
+                                                </tr>
+                                                <tr t-if="doc.fiscal_day">
+                                                    <td class="font-bold">Fiscal Day</td><td class="prop-colon">:</td>
+                                                    <td><span t-field="doc.fiscal_day"/></td>
+                                                </tr>
+                                                <tr t-if="doc.fiscal_qr_code">
+                                                    <td class="font-bold">Verification URL</td><td class="prop-colon">:</td>
+                                                    <td style="word-break: break-all;"><span t-field="doc.fiscal_qr_code"/></td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </t>
 
                         <!-- Very Bottom Banner -->
                         <div class="bg-primary-dark text-center" style="padding: 10px; font-size: 13px; margin-top: 20px;" t-if="doc.store_id.tagline">

@@ -35,5 +35,17 @@
             <field name="interval_type">minutes</field>
             <field name="active" eval="True"/>
         </record>
+
+        <!-- Cron job for automatic ZIMRA pending invoice retry -->
+        <record id="ir_cron_sync_pending_fiscal_invoices" model="ir.cron">
+            <field name="name">ZIMRA Fiscalization: Auto Sync Offline &amp; Pending Invoices</field>
+            <field name="model_id" ref="model_havanoposdesk_sale"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_retry_pending_fiscalization()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

@@ -78,9 +78,79 @@
             <field name="model_id" search="[('model', '=', 'base.document.layout')]"/>
             <field name="group_id" ref="base.group_user"/>
             <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_base_document_layout_tenant_admin" model="ir.model.access">
+            <field name="name">base.document.layout tenant admin</field>
+            <field name="model_id" search="[('model', '=', 'base.document.layout')]"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_ir_ui_view_user" model="ir.model.access">
+            <field name="name">ir.ui.view user read</field>
+            <field name="model_id" search="[('model', '=', 'ir.ui.view')]"/>
+            <field name="group_id" ref="base.group_user"/>
+            <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="False"/>
             <field name="perm_create" eval="False"/>
             <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_report_layout_user" model="ir.model.access">
+            <field name="name">report.layout user read</field>
+            <field name="model_id" search="[('model', '=', 'report.layout')]"/>
+            <field name="group_id" ref="base.group_user"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_res_partner_user_write" model="ir.model.access">
+            <field name="name">res.partner user write</field>
+            <field name="model_id" search="[('model', '=', 'res.partner')]"/>
+            <field name="group_id" ref="base.group_user"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_res_partner_tenant_admin" model="ir.model.access">
+            <field name="name">res.partner tenant admin</field>
+            <field name="model_id" search="[('model', '=', 'res.partner')]"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_res_company_user_write" model="ir.model.access">
+            <field name="name">res.company user write</field>
+            <field name="model_id" search="[('model', '=', 'res.company')]"/>
+            <field name="group_id" ref="base.group_user"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_res_company_tenant_admin" model="ir.model.access">
+            <field name="name">res.company tenant admin</field>
+            <field name="model_id" search="[('model', '=', 'res.company')]"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
         </record>
     </data>
 </odoo>

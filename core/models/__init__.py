@@ -14,3 +14,4 @@ from . import error_log
 from . import dashboard
 from . import support_ticket
 from . import ir_actions_act_window 
+from . import fiscal_service

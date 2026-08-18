@@ -68,6 +68,34 @@
                         </setting>
                     </block>
 
+                    <block title="ZIMRA Fiscalization Configuration" name="fiscalization_config">
+                        <setting string="Enable Fiscalization" help="Toggle ZIMRA Electronic Fiscal Device integration ON/OFF">
+                            <field name="biz_enable_fiscalization"/>
+                        </setting>
+                        <setting string="Fiscal Provider" help="Select the fiscal device service provider" invisible="not biz_enable_fiscalization">
+                            <field name="biz_fiscal_provider"/>
+                        </setting>
+                        <setting string="ZIMRA Cloud Base URL" help="URL endpoint for Havano ZIMRA Cloud API" invisible="not biz_enable_fiscalization">
+                            <field name="biz_fiscal_base_url"/>
+                        </setting>
+                        <setting string="API Credentials" help="API Key and API Secret for 2-tier authentication" invisible="not biz_enable_fiscalization">
+                            <div class="content-group mt8">
+                                <label for="biz_fiscal_api_key" string="API Key"/>
+                                <field name="biz_fiscal_api_key" password="True" class="oe_inline ms-2 me-4"/>
+                                <label for="biz_fiscal_api_secret" string="API Secret"/>
+                                <field name="biz_fiscal_api_secret" password="True" class="oe_inline ms-2"/>
+                            </div>
+                        </setting>
+                        <setting string="Default EFD Serial Number" help="ZIMRA Electronic Fiscal Device Serial Number (can be overridden per-shop)" invisible="not biz_enable_fiscalization">
+                            <field name="biz_fiscal_device_sn"/>
+                        </setting>
+                        <setting string="Device Test &amp; Ping" help="Test connectivity to ZIMRA Cloud API server" invisible="not biz_enable_fiscalization">
+                            <div class="mt16">
+                                <button name="action_ping_zimra_device" type="object" string="Ping ZIMRA Device" icon="fa-plug" class="btn btn-primary"/>
+                            </div>
+                        </setting>
+                    </block>
+
                     <block title="Subscription &amp; Wallet" name="subscription_config">
                         <setting string="Prepaid Wallet Balance" help="Your prepaid balance for subscription renewals and upgrades.">
                             <div class="content-group mt8">

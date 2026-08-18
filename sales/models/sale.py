@@ -1,6 +1,9 @@
+import logging
 from odoo import models, fields, api, _
 from datetime import datetime, time
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 class Sale(models.Model):
     _name = 'havanoposdesk.sale'
@@ -182,6 +185,23 @@ class Sale(models.Model):
         ('cancelled', 'Cancelled')
     ], string='Status', default='draft', required=True)
 
+    # ZIMRA Fiscalization Response Fields
+    fiscal_status = fields.Selection([
+        ('not_required', 'Not Required'),
+        ('pending', 'Pending'),
+        ('fiscalized', 'Fiscalized'),
+        ('PENDING_SYNC', 'Pending Sync (Offline)'),
+        ('failed', 'Failed')
+    ], string='Fiscal Status', default='not_required')
+    fiscal_qr_code = fields.Text(string='ZIMRA QR Code Link')
+    fiscal_verification_code = fields.Char(string='Verification Code')
+    fiscal_receipt_counter = fields.Integer(string='Receipt Counter')
+    fiscal_global_no = fields.Char(string='ZIMRA Global Invoice No')
+    fiscal_device_id = fields.Char(string='Device ID')
+    fiscal_device_serial = fields.Char(string='EFD Device Serial')
+    fiscal_day = fields.Char(string='Fiscal Day')
+    fiscal_error = fields.Text(string='Fiscalization Error')
+
     @api.depends('line_ids.price_subtotal', 'line_ids.price_tax', 'line_ids.amount')
     def _compute_amount_total(self):
         for record in self:
@@ -303,8 +323,13 @@ class Sale(models.Model):
 
     def write(self, vals):
         from odoo.exceptions import ValidationError
+        allowed_post_fields = [
+            'state', 'fiscal_status', 'fiscal_qr_code', 'fiscal_verification_code',
+            'fiscal_receipt_counter', 'fiscal_global_no', 'fiscal_device_id',
+            'fiscal_device_serial', 'fiscal_day', 'fiscal_error'
+        ]
         for record in self:
-            if record.state != 'draft' and any(f not in ['state'] for f in vals.keys()):
+            if record.state != 'draft' and any(f not in allowed_post_fields for f in vals.keys()):
                 raise ValidationError("You cannot modify a confirmed sale. Please cancel it first.")
 
         # Sync values on write
@@ -500,6 +525,68 @@ class Sale(models.Model):
                             'tenant_id': product_id.tenant_id.id,
                         })
             sale.write({'state': 'done'})
+            sale._trigger_fiscalization()
+
+    def _trigger_fiscalization(self):
+        for sale in self:
+            if sale.is_quotation:
+                continue
+            store = sale.store_id
+            tenant = sale.tenant_id
+            is_enabled = (store and store.enable_fiscalization) or (tenant and tenant.enable_fiscalization)
+            if not is_enabled:
+                sale.write({'fiscal_status': 'not_required'})
+                continue
+            try:
+                from ...core.models.fiscal_service import get_zimra_service
+                service = get_zimra_service(self.env)
+                res = service.process_sale_fiscalization(sale)
+                if res.get('status') in ('fiscalized', 'PENDING_SYNC'):
+                    sale.write({
+                        'fiscal_status': res.get('status'),
+                        'fiscal_qr_code': res.get('qr_code', ''),
+                        'fiscal_verification_code': res.get('verification_code', ''),
+                        'fiscal_receipt_counter': res.get('receipt_counter', 0),
+                        'fiscal_global_no': res.get('global_no', ''),
+                        'fiscal_device_id': res.get('device_id', ''),
+                        'fiscal_device_serial': res.get('device_serial', ''),
+                        'fiscal_day': res.get('fiscal_day', ''),
+                        'fiscal_error': False,
+                    })
+                else:
+                    sale.write({
+                        'fiscal_status': 'failed',
+                        'fiscal_error': str(res.get('error', 'Fiscalization failed')),
+                    })
+            except Exception as e:
+                sale.write({
+                    'fiscal_status': 'failed',
+                    'fiscal_error': f"Fiscalization trigger exception: {e}",
+                })
+
+    def action_retry_fiscalization(self):
+        for sale in self:
+            sale._trigger_fiscalization()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Fiscalization Retried',
+                'message': 'Fiscalization process has been re-triggered.',
+                'type': 'info',
+                'sticky': False,
+            }
+        }
+
+    @api.model
+    def cron_retry_pending_fiscalization(self):
+        pending_sales = self.sudo().search([
+            ('state', '=', 'done'),
+            ('fiscal_status', 'in', ['PENDING_SYNC', 'failed'])
+        ], limit=50)
+        _logger.info("[ZIMRA CRON] Retrying fiscalization for %s pending sales", len(pending_sales))
+        for sale in pending_sales:
+            sale._trigger_fiscalization()
 
 
     def action_cancel(self):
@@ -835,6 +922,8 @@ class SaleLine(models.Model):
     def _check_stock(self):
         allow_negative = self.env.user.tenant_id.allow_negative_stock
         for line in self:
+            if line.sale_id and line.sale_id.is_return:
+                continue
             if line.accepted_qty < 0:
                 continue
             if not allow_negative and line.product_id and line.product_id.track_qty and line.accepted_qty > line.product_id.opening_stock:
