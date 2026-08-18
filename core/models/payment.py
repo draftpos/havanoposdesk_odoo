@@ -47,8 +47,8 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
     _name = 'havanoposdesk.subscription.pay.wizard'
     _description = 'Pay Subscription Wizard'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
-    subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan', required=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
+    subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan', required=True, ondelete='cascade')
     amount = fields.Float(string='Amount to Pay', required=True)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card (Redirection)'),
@@ -73,6 +73,9 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
 
     def action_pay(self):
         self.ensure_one()
+        if self.amount <= 0:
+            raise ValidationError('Payment amount must be greater than zero.')
+
         provider = self.env['payment.provider'].sudo().search([('code', '=', 'havano_payments')], limit=1)
         if not provider:
             raise ValidationError('Havano Payments provider is not configured. Please configure it in SaaS Config.')
@@ -85,6 +88,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
             'subscription_plan_id': self.subscription_plan_id.id,
             'amount': self.amount,
             'payment_method': self.payment_method,
+            'payment_type': 'subscription',
             'transaction_reference': reference,
             'state': 'pending',
         })
@@ -130,7 +134,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
                 'tag': 'display_notification',
                 'params': {
                     'title': 'EcoCash Payment Initiated',
-                    'message': mobile_res.get('instructions') or 'A prompt was sent to your phone. Please enter your PIN to complete the payment.',
+                    'message': mobile_res.get('instructions') or 'A prompt was sent to your phone. Please enter your PIN to authorize payment.',
                     'type': 'success',
                     'sticky': True,
                     'next': {'type': 'ir.actions.act_window_close'},
@@ -165,7 +169,7 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
     _name = 'havanoposdesk.tenant.topup.wizard'
     _description = 'Top Up Account Balance Wizard'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
     amount = fields.Float(string='Top Up Amount ($)', default=10.0, required=True)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card / Online'),

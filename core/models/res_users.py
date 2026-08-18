@@ -868,7 +868,7 @@ class HavanoChangePasswordWizard(models.TransientModel):
     _name = 'havano.change.password.wizard'
     _description = 'Change Cashier Password'
 
-    user_id = fields.Many2one('res.users', string='Cashier', required=True)
+    user_id = fields.Many2one('res.users', string='Cashier', required=True, ondelete='cascade')
     new_password = fields.Char(string='New Password', required=True)
 
     def action_change_password(self):

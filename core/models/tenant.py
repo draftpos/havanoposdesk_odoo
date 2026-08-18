@@ -698,8 +698,8 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
     _name = 'havanoposdesk.tenant.upgrade.wizard'
     _description = 'Upgrade Tenant Subscription Plan'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
-    subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='New Subscription Plan', required=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
+    subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='New Subscription Plan', required=True, ondelete='cascade')
     is_custom = fields.Boolean(string='Is Custom Plan', compute='_compute_plan_details')
     additional_terminals = fields.Integer(string='Additional Terminals Needed', default=0, help='Extra terminals requested ($12 per additional terminal)')
     additional_stores = fields.Integer(string='Included Stores (3 per terminal)', compute='_compute_included_stores')
