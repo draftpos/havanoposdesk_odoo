@@ -166,7 +166,7 @@ class HavanoposdeskProduct(models.Model):
                 elif tenant.product_name_format == 'title':
                     vals['name'] = vals['name'].title()
                     
-            if vals.get('item_code', 'New') == 'New':
+            if not vals.get('item_code') or vals.get('item_code') == 'New':
                 if tenant:
                     vals['item_code'] = tenant._get_next_sequence('prod')
                 else:
