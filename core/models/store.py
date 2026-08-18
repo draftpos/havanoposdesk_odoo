@@ -90,10 +90,10 @@ class HavanoposdeskStore(models.Model):
                     raise ValidationError(_("A store with the name '%s' already exists for this tenant.") % store.name.strip())
 
     @api.model
-    def name_search(self, name='', args=None, operator='ilike', limit=100):
+    def name_search(self, name='', domain=None, operator='ilike', limit=100):
         if self.env.context.get('import_file') and operator == '=':
             operator = 'ilike'
-        return super().name_search(name=name, args=args, operator=operator, limit=limit)
+        return super().name_search(name=name, domain=domain, operator=operator, limit=limit)
 
     @api.constrains('pricelist_id', 'pricelist_ids')
     def _check_default_pricelist(self):
