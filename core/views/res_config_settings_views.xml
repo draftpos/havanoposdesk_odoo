@@ -63,6 +63,9 @@
                                 <field name="biz_currency_id" class="o_light_label" readonly="has_transactions"/>
                             </div>
                         </setting>
+                        <setting string="Business Logo" help="Upload the business logo to be used on all invoices and reports.">
+                            <field name="biz_logo" widget="image" class="w-100 bg-view"/>
+                        </setting>
                     </block>
 
                     <block title="Subscription &amp; Wallet" name="subscription_config">

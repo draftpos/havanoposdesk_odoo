@@ -48,7 +48,7 @@
 
         
         <record id="action_sales_operations" model="ir.actions.act_window">
-            <field name="name">Sales Operations</field>
+            <field name="name">Sales Invoices</field>
             <field name="res_model">havanoposdesk.sale</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>

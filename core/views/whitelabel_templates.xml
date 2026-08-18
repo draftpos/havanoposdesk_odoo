@@ -19,7 +19,12 @@
         </xpath>
     </template>
 
-
+    <!-- 3. Override web.layout to inject lottie-player without bundling -->
+    <template id="havano_layout_lottie" inherit_id="web.layout" name="Havano Layout Lottie">
+        <xpath expr="//head" position="inside">
+            <script type="text/javascript" src="/havanoposdesk_odoo/static/src/js/lottie-player.js"></script>
+        </xpath>
+    </template>
 
     <!-- 4. Override web.login to bypass OWL user switch component and render the form instantly -->
     <template id="havano_custom_login" inherit_id="web.login" name="Havano Custom Login">

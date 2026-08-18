@@ -3,6 +3,7 @@ from . import accounts
 from . import inventory
 from . import sales
 from . import suppliers
+from . import controllers
 
 
 def post_migrate(cr, registry):

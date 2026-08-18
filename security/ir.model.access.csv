@@ -60,3 +60,4 @@ access_havanoposdesk_stock_valuation_date_report,havanoposdesk.stock.valuation.d
 access_havanoposdesk_payment_line,havanoposdesk.payment.line,model_havanoposdesk_payment_line,base.group_user,1,1,1,1
 access_res_currency_tenant_admin,res.currency tenant admin,base.model_res_currency,havanoposdesk_odoo.group_tenant_admin,1,1,1,1
 access_res_currency_rate_tenant_admin,res.currency.rate tenant admin,base.model_res_currency_rate,havanoposdesk_odoo.group_tenant_admin,1,1,1,1
+access_havanoposdesk_store_bank,havanoposdesk.store.bank,model_havanoposdesk_store_bank,base.group_user,1,1,1,1

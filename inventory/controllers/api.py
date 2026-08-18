@@ -2817,8 +2817,9 @@ class HavanoPOSDeskAPI(http.Controller):
     # =========================================================================
     # ERPNext Resource API compatibility layer (used by Drift / Dart sync service)
     # =========================================================================
-    @http.route('/api/resource/Sales Invoice', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route(['/api/resource/Sales Invoice', '/api/resource/Quotation'], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_sales_invoice(self, **kwargs):
+        is_quotation = 'Quotation' in request.httprequest.path
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
 
@@ -2844,6 +2845,11 @@ class HavanoPOSDeskAPI(http.Controller):
                         domain.append(('store_id', 'in', user.store_ids.ids))
                     elif user.default_store_id:
                         domain.append(('store_id', '=', user.default_store_id.id))
+
+                if is_quotation:
+                    domain.append(('is_quotation', '=', True))
+                else:
+                    domain.append(('is_quotation', '=', False))
 
                 date_from = params.get('date_from') or params.get('from_date')
                 date_to = params.get('date_to') or params.get('to_date')
@@ -3093,6 +3099,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             'payment_status': payment_status,
                             'payment_policy': payment_policy,
                             'local_invoice_id': local_invoice_id,
+                            'is_quotation': is_quotation,
                         }
                         if pricelist_id:
                             sale_vals['pricelist_id'] = pricelist_id

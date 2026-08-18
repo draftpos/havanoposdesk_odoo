@@ -263,7 +263,12 @@ class HavanoposdeskTenant(models.Model):
     allow_credit_sales = fields.Boolean(string='Allow Sales on Credit', default=False)
     sale_seq_prefix = fields.Char(string='Sale Sequence Prefix', default='S')
     sale_seq_next = fields.Integer(string='Sale Sequence Next Number', default=1)
-    sale_seq_padding = fields.Integer(string='Sale Sequence Padding', default=3)
+    sale_seq_padding = fields.Integer(string='Sale Sequence Padding', default=4)
+
+    # Quotation Sequence Config
+    quotation_seq_prefix = fields.Char(string='Quotation Sequence Prefix', default='Q')
+    quotation_seq_next = fields.Integer(string='Quotation Sequence Next Number', default=1)
+    quotation_seq_padding = fields.Integer(string='Quotation Sequence Padding', default=4)
 
     # Sales Return (Credit Note) Sequence Config
     sale_ret_seq_prefix = fields.Char(string='Credit Note Sequence Prefix', default='C')
