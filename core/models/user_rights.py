@@ -66,7 +66,7 @@ class HavanoposdeskUserRightsProfile(models.Model):
                     'Expenses', 'User Profiles'
                 ]
                 permission_lines = []
-                is_cashier = vals.get('havano_role') == 'cashier'
+                is_cashier = vals.get('havano_role') in ('user', 'cashier')
                 for feature in features:
                     permission_lines.append((0, 0, {
                         'feature': feature,
@@ -93,7 +93,7 @@ class HavanoposdeskUserRightsProfile(models.Model):
                     'Payment Providers', 'Support Tickets', 'My Preferences'
                 ]
                 bo_permission_lines = []
-                is_cashier = vals.get('havano_role') == 'cashier'
+                is_cashier = vals.get('havano_role') in ('user', 'cashier')
                 for feature in bo_features:
                     bo_permission_lines.append((0, 0, {
                         'feature': feature,
@@ -318,6 +318,10 @@ def enforce_backoffice_permissions(self, operation, raise_exception=True):
             return res
         
         if getattr(self.env.user, 'havano_role', None) == 'super_admin':
+            return res
+
+        # Currency and exchange rates must always be readable so monetary fields and reports render properly
+        if operation == 'read' and self._name in ('res.currency', 'res.currency.rate'):
             return res
 
         if operation == 'read' and self.env.context.get('bypass_backoffice_read'):

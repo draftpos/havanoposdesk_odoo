@@ -21,38 +21,54 @@ def post_migrate(cr, registry):
     erp_manager_group = env.ref('base.group_erp_manager', raise_if_not_found=False)
     tenant_admin_group = env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
     group_system = env.ref('base.group_system', raise_if_not_found=False)
+    internal_group = env.ref('base.group_user', raise_if_not_found=False)
+    portal_group = env.ref('base.group_portal', raise_if_not_found=False)
+    public_group = env.ref('base.group_public', raise_if_not_found=False)
+
+    # Ensure all tenant users (super_admin, admin, user) have base.group_user and no portal/public groups
+    all_erp_users = env['res.users'].with_context(active_test=False).search([
+        '|', ('tenant_id', '!=', False), ('havano_role', 'in', ('super_admin', 'admin', 'user'))
+    ])
+    for user in all_erp_users:
+        group_cmds = []
+        if portal_group and portal_group in user.group_ids:
+            group_cmds.append((3, portal_group.id, 0))
+        if public_group and public_group in user.group_ids:
+            group_cmds.append((3, public_group.id, 0))
+        if internal_group and internal_group not in user.group_ids:
+            group_cmds.append((4, internal_group.id, 0))
+        if group_cmds:
+            user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
 
     # Grant Administration Settings group to all super admins
     if group_system:
         super_admins = env['res.users'].with_context(active_test=False).search([('havano_role', '=', 'super_admin')])
         for user in super_admins:
             if group_system not in user.group_ids:
-                user.sudo().write({'group_ids': [(4, group_system.id, 0)]})
+                user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, group_system.id, 0)]})
 
-    if not erp_manager_group:
-        return
+    if erp_manager_group:
+        # Grant Settings group to all tenant admins
+        admins = env['res.users'].with_context(active_test=False).search([('havano_role', '=', 'admin')])
+        for user in admins:
+            group_cmds = []
+            if erp_manager_group not in user.group_ids:
+                group_cmds.append((4, erp_manager_group.id, 0))
+            if tenant_admin_group and tenant_admin_group not in user.group_ids:
+                group_cmds.append((4, tenant_admin_group.id, 0))
+            if group_cmds:
+                user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
 
-    # Grant Settings group to all tenant admins
-    admins = env['res.users'].with_context(active_test=False).search([('havano_role', '=', 'admin')])
-    for user in admins:
-        group_cmds = []
-        if erp_manager_group not in user.group_ids:
-            group_cmds.append((4, erp_manager_group.id, 0))
-        if tenant_admin_group and tenant_admin_group not in user.group_ids:
-            group_cmds.append((4, tenant_admin_group.id, 0))
-        if group_cmds:
-            user.sudo().write({'group_ids': group_cmds})
-
-    # Strip Settings group from cashiers
-    cashiers = env['res.users'].with_context(active_test=False).search([('havano_role', '=', 'user')])
-    for user in cashiers:
-        group_cmds = []
-        if erp_manager_group in user.group_ids:
-            group_cmds.append((3, erp_manager_group.id, 0))
-        if tenant_admin_group and tenant_admin_group in user.group_ids:
-            group_cmds.append((3, tenant_admin_group.id, 0))
-        if group_cmds:
-            user.sudo().write({'group_ids': group_cmds})
+        # Strip Settings group from cashiers
+        cashiers = env['res.users'].with_context(active_test=False).search([('havano_role', '=', 'user')])
+        for user in cashiers:
+            group_cmds = []
+            if erp_manager_group in user.group_ids:
+                group_cmds.append((3, erp_manager_group.id, 0))
+            if tenant_admin_group and tenant_admin_group in user.group_ids:
+                group_cmds.append((3, tenant_admin_group.id, 0))
+            if group_cmds:
+                user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
 
     # Seed missing accounts/payment methods for all existing tenants
     tenants = env['havanoposdesk.tenant'].with_context(active_test=False).search([])

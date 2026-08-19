@@ -611,6 +611,7 @@ class ResUsers(models.Model):
             tenant_admin_group = self.env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
             erp_manager_group = self.env.ref('base.group_erp_manager', raise_if_not_found=False)
             group_system = self.env.ref('base.group_system', raise_if_not_found=False)
+            internal_group = self.env.ref('base.group_user', raise_if_not_found=False)
             for user in self:
                 group_cmds = []
                 portal_group = self.env.ref('base.group_portal', raise_if_not_found=False)
@@ -622,6 +623,10 @@ class ResUsers(models.Model):
                 
                 if group_cmds:
                     user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
+
+                # Ensure all active ERP users have base.group_user (Internal User)
+                if internal_group and internal_group not in user.group_ids:
+                    user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, internal_group.id, 0)]})
 
                 if user.havano_role == 'super_admin':
                     if group_system and group_system not in user.group_ids:
