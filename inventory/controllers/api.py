@@ -3546,12 +3546,49 @@ class HavanoPOSDeskAPI(http.Controller):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
 
-        return self._make_json_response({
-            "message": [
-                {"name": "Cash", "account_name": "Cash", "currency": "USD"},
-                {"name": "EcoCash", "account_name": "EcoCash", "currency": "ZWG"}
+        token = request.httprequest.headers.get('Authorization')
+        if not token:
+            token = request.params.get('token')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+
+            domain = [
+                ('type', 'in', ['Cash', 'Bank']),
+                ('active', '=', True)
             ]
-        })
+            if user.havano_role != 'super_admin' and tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+
+            default_currency = tenant.currency_id.name if (tenant and tenant.currency_id) else 'USD'
+
+            payment_methods_records = env['havanoposdesk.account'].sudo().search_read(
+                domain,
+                ['id', 'name', 'type', 'currency_id']
+            )
+
+            accounts_data = []
+            for pm in payment_methods_records:
+                pm_curr = pm.get('currency_id')
+                currency_code = pm_curr[1] if isinstance(pm_curr, (list, tuple)) and len(pm_curr) > 1 else default_currency
+                accounts_data.append({
+                    "name": pm['name'],
+                    "account_name": pm['name'],
+                    "currency": currency_code
+                })
+
+            return self._make_json_response({
+                "message": accounts_data
+            })
+        finally:
+            if custom_cr:
+                custom_cr.close()
 
     @http.route('/api/resource/Item Group', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_resource_item_groups(self, **kwargs):
