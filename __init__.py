@@ -78,6 +78,17 @@ def post_migrate(cr, registry):
         except Exception:
             pass
 
+    # Clean up any leftover currency isolation record rules in ir_rule table
+    cr.execute("""
+        DELETE FROM ir_rule 
+        WHERE name IN ('Havano Currency Isolation', 'Havano Currency Rate Isolation')
+           OR model_id IN (SELECT id FROM ir_model WHERE model IN ('res.currency', 'res.currency.rate'));
+    """)
+
+    # Reset tenant_id to NULL on global currencies and rates so all users/tenants can access standard currencies
+    cr.execute("UPDATE res_currency SET tenant_id = NULL WHERE tenant_id IS NOT NULL;")
+    cr.execute("UPDATE res_currency_rate SET tenant_id = NULL WHERE tenant_id IS NOT NULL;")
+
     # Ensure global read access on res.currency and res.currency.rate in ir_model_access
     cr.execute("""
         INSERT INTO ir_model_access (name, model_id, perm_read, perm_write, perm_create, perm_unlink, active)
@@ -99,6 +110,10 @@ def post_migrate(cr, registry):
     """)
     if 'ir.model.access' in env:
         env['ir.model.access'].call_cache_clearing_methods()
+    if 'ir.rule' in env:
+        env['ir.rule'].clear_caches()
+    env.registry.clear_cache()
+
 
 
 
