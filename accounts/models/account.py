@@ -9,6 +9,7 @@ class Account(models.Model):
     ]
 
     name = fields.Char(string='Account Name', required=True)
+    active = fields.Boolean(string='Active', default=True)
     type = fields.Selection([
         ('Cash', 'Cash'),
         ('Bank', 'Bank'),
@@ -35,3 +36,14 @@ class Account(models.Model):
         string='Stores',
         default=lambda self: [self.env.user.default_store_id.id] if self.env.user.default_store_id else ([self.env.user.store_ids[0].id] if self.env.user.store_ids else [])
     )
+
+    def action_activate(self):
+        self.write({'active': True})
+
+    def action_deactivate(self):
+        self.write({'active': False})
+
+    def action_toggle_active(self):
+        for record in self:
+            record.active = not record.active
+

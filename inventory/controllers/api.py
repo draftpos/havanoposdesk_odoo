@@ -183,7 +183,8 @@ class HavanoPOSDeskAPI(http.Controller):
             # Fetch payment methods
             payment_methods_records = user_env['havanoposdesk.account'].sudo().search_read([
                 ('tenant_id', '=', user.tenant_id.id),
-                ('type', 'in', ['Cash', 'Bank'])
+                ('type', 'in', ['Cash', 'Bank']),
+                ('active', '=', True)
             ], ['id', 'name', 'type', 'currency_id'])
             payment_methods_data = []
             for pm in payment_methods_records:
@@ -1132,11 +1133,12 @@ class HavanoPOSDeskAPI(http.Controller):
             else:
                 user = request.env['res.users'].sudo().search([('id', '=', 2)], limit=1) or request.env.user
 
-        if user and getattr(user, 'tenant_id', None) and user.tenant_id:
-            try:
-                user.tenant_id._seed_default_data()
-            except Exception:
-                pass
+        # Self-healing on API requests commented out:
+        # if user and getattr(user, 'tenant_id', None) and user.tenant_id:
+        #     try:
+        #         user.tenant_id._seed_default_data()
+        #     except Exception:
+        #         pass
 
         return user
 
@@ -3075,7 +3077,8 @@ class HavanoPOSDeskAPI(http.Controller):
                         if payment_method_name:
                             acc = env['havanoposdesk.account'].search([
                                 ('tenant_id', '=', tenant.id), 
-                                ('name', 'ilike', payment_method_name)
+                                ('name', 'ilike', payment_method_name),
+                                ('active', '=', True)
                             ], limit=1)
                             if acc:
                                 account_id = acc.id
@@ -3180,6 +3183,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if pm_name:
                     acc = env['havanoposdesk.account'].sudo().search([
                         ('tenant_id', '=', tenant.id),
+                        ('active', '=', True),
                         ('name', 'ilike', str(pm_name).strip())
                     ], limit=1)
                     if acc:
@@ -5463,7 +5467,8 @@ class HavanoPOSDeskAPI(http.Controller):
         if tenant:
             accounts = env['havanoposdesk.account'].sudo().search([
                 ('tenant_id', '=', tenant.id),
-                ('type', 'in', ['Cash', 'Bank'])
+                ('type', 'in', ['Cash', 'Bank']),
+                ('active', '=', True)
             ])
             for acc in accounts:
                 payment_methods_list.append({
@@ -7889,7 +7894,7 @@ class HavanoPOSDeskAPI(http.Controller):
         env, custom_cr = self._get_env(user_id=uid)
         try:
             user = env['res.users'].browse(uid)
-            domain = []
+            domain = [('active', '=', True)]
             if user.havano_role != 'super_admin' and user.tenant_id:
                 domain.append(('tenant_id', '=', user.tenant_id.id))
             
@@ -8073,7 +8078,7 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant_id = user.tenant_id.id if user.tenant_id else False
 
             if request.httprequest.method == 'GET':
-                domain = [('type', '=', 'Expense')]
+                domain = [('type', '=', 'Expense'), ('active', '=', True)]
                 if user.havano_role != 'super_admin' and tenant_id:
                     domain.append(('tenant_id', '=', tenant_id))
                 

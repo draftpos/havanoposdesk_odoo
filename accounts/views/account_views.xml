@@ -6,12 +6,13 @@
             <field name="name">havanoposdesk.account.list</field>
             <field name="model">havanoposdesk.account</field>
             <field name="arch" type="xml">
-                <list string="Accounts">
+                <list string="Accounts" decoration-muted="not active">
                     <field name="name" />
                     <field name="type" />
                     <field name="store_ids" widget="many2many_tags" optional="show" />
                     <field name="currency_id" optional="show" invisible="type not in ['Cash', 'Bank']" />
                     <field name="balance" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                    <field name="active" widget="boolean_toggle"/>
                 </list>
             </field>
         </record>
@@ -22,11 +23,17 @@
             <field name="model">havanoposdesk.account</field>
             <field name="arch" type="xml">
                 <form string="Account">
+                    <header>
+                        <button name="action_activate" string="Activate" type="object" class="btn-primary" invisible="active"/>
+                        <button name="action_deactivate" string="Deactivate" type="object" class="btn-secondary" invisible="not active" confirm="Are you sure you want to deactivate this account? It will not be available for POS transactions or API."/>
+                    </header>
                     <sheet>
+                        <widget name="web_ribbon" title="Deactivated" bg_color="text-bg-danger" invisible="active"/>
                         <group>
                             <group>
                                 <field name="name" />
                                 <field name="type" />
+                                <field name="active" widget="boolean_toggle" />
                                 <field name="store_ids" widget="many2many_tags" />
                                 <field name="currency_id" invisible="type not in ['Cash', 'Bank']" />
                                 <field name="balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
@@ -45,6 +52,9 @@
                 <search string="Accounts">
                     <field name="name" />
                     <field name="type" />
+                    <filter string="Active" name="filter_active" domain="[('active','=',True)]" />
+                    <filter string="Deactivated / Archived" name="filter_inactive" domain="[('active','=',False)]" />
+                    <separator/>
                     <filter string="Expenses" name="filter_expense" domain="[('type','=','Expense')]" />
                     <filter string="Cash/Bank" name="filter_cash_bank" domain="[('type','in',['Cash','Bank'])]" />
                 </search>
@@ -56,6 +66,7 @@
             <field name="name">Chart of Accounts</field>
             <field name="res_model">havanoposdesk.account</field>
             <field name="view_mode">list,form</field>
+            <field name="context">{'active_test': False}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Create a new Account
@@ -70,7 +81,7 @@
             <field name="name">Cash Balance</field>
             <field name="res_model">havanoposdesk.account</field>
             <field name="view_mode">list,form</field>
-            <field name="context">{'search_default_filter_cash_bank': 1}</field>
+            <field name="context">{'search_default_filter_cash_bank': 1, 'search_default_filter_active': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     No Cash or Bank accounts found.

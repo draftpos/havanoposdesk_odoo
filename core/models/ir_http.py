@@ -103,12 +103,12 @@ class IrHttp(models.AbstractModel):
         
         if request.env.user.has_group('base.group_user'):
             user = request.env.user
-            # Self-heal missing defaults (accounts, payment methods, categories, etc.) for tenant
-            if getattr(user, 'tenant_id', None) and user.tenant_id:
-                try:
-                    user.tenant_id._seed_default_data()
-                except Exception:
-                    pass
+            # Self-healing on website login commented out:
+            # if getattr(user, 'tenant_id', None) and user.tenant_id:
+            #     try:
+            #         user.tenant_id._seed_default_data()
+            #     except Exception:
+            #         pass
 
             icp = request.env['ir.config_parameter'].sudo()
             result['havanoposdesk_app_name'] = icp.get_param('web.web_app_name', 'Havano')
