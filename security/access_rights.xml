@@ -152,6 +152,45 @@
             <field name="perm_create" eval="True"/>
             <field name="perm_unlink" eval="True"/>
         </record>
+        <record id="access_res_currency_user_all" model="ir.model.access">
+            <field name="name">res.currency user all</field>
+            <field name="model_id" search="[('model', '=', 'res.currency')]"/>
+            <field name="group_id" ref="base.group_user"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_res_currency_tenant_admin" model="ir.model.access">
+            <field name="name">res.currency tenant admin</field>
+            <field name="model_id" search="[('model', '=', 'res.currency')]"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_res_currency_rate_user_all" model="ir.model.access">
+            <field name="name">res.currency.rate user all</field>
+            <field name="model_id" search="[('model', '=', 'res.currency.rate')]"/>
+            <field name="group_id" ref="base.group_user"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_res_currency_rate_tenant_admin" model="ir.model.access">
+            <field name="name">res.currency.rate tenant admin</field>
+            <field name="model_id" search="[('model', '=', 'res.currency.rate')]"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
     </data>
 </odoo>
 

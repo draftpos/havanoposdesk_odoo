@@ -304,35 +304,45 @@ MODEL_FEATURE_MAP = {
 import logging
 _logger = logging.getLogger(__name__)
 
-from odoo.models import BaseModel
-original_check_access_rights = BaseModel.check_access_rights
+class IrModelAccess(models.Model):
+    _inherit = 'ir.model.access'
+
+    @api.model
+    def check(self, model, mode='read', raise_exception=True):
+        if mode == 'read' and model in ('res.currency', 'res.currency.rate'):
+            return True
+        return super().check(model, mode=mode, raise_exception=raise_exception)
+
 
 def enforce_backoffice_permissions(self, operation, raise_exception=True):
     if not isinstance(operation, str) or operation not in ('read', 'write', 'create', 'unlink'):
         return True
 
-    res = original_check_access_rights(self, operation, raise_exception)
+    # 1. Superuser / Admin user id 1 / Super Admin role always have full bypass
+    if self.env.su or self.env.user.id == 1:
+        return True
     
+    if getattr(self.env.user, 'havano_role', None) == 'super_admin':
+        return True
+
+    # 2. Currency and exchange rates must always be readable so monetary fields and reports render properly
+    if operation == 'read' and self._name in ('res.currency', 'res.currency.rate'):
+        return True
+
+    # 3. Context bypass for internal reads / exports
+    if operation == 'read' and self.env.context.get('bypass_backoffice_read'):
+        return True
+
+    # 4. Check backoffice permissions for custom models
     if self._name in MODEL_FEATURE_MAP:
-        if self.env.su or self.env.user.id == 1:
-            return res
-        
-        if getattr(self.env.user, 'havano_role', None) == 'super_admin':
-            return res
-
-        # Currency and exchange rates must always be readable so monetary fields and reports render properly
-        if operation == 'read' and self._name in ('res.currency', 'res.currency.rate'):
-            return res
-
-        if operation == 'read' and self.env.context.get('bypass_backoffice_read'):
-            return res
-
         user = self.env.user
         profile = user.user_rights_profile_id
         feature_name = MODEL_FEATURE_MAP[self._name]
         
-        _logger.info("CHECK_ACCESS_RIGHTS: user=%s, model=%s, feature=%s, operation=%s, profile=%s", user.login, self._name, feature_name, operation, profile.name if profile else None)
-        
+        # If user is Tenant Admin and has no explicit profile assigned, default to full access
+        if user.havano_role == 'admin' and not profile:
+            return True
+
         if not profile:
             if raise_exception:
                 raise AccessError(f"Permission Denied: No User Rights Profile assigned.")
@@ -345,19 +355,17 @@ def enforce_backoffice_permissions(self, operation, raise_exception=True):
             return False
             
         perm = bo_perm[0]
-        _logger.info("CHECK_ACCESS_RIGHTS PERM: is_full=%s, is_read_only=%s", perm.is_full_access, perm.is_read_only)
         if not perm.is_full_access and not perm.is_read_only:
             if raise_exception:
                 raise AccessError(f"Permission Denied: You do not have access to '{feature_name}'.")
             return False
             
-        if operation in ('write', 'create', 'unlink') and bo_perm[0].is_read_only:
-            _logger.info("CHECK_ACCESS_RIGHTS BLOCKING %s", operation)
+        if operation in ('write', 'create', 'unlink') and perm.is_read_only:
             if raise_exception:
                 raise AccessError(f"Permission Denied: You have Read-Only access to '{feature_name}'. You cannot create, modify, or delete records.")
             return False
                 
-    return res
+    return original_check_access_rights(self, operation, raise_exception)
 
 BaseModel.check_access_rights = enforce_backoffice_permissions
 
