@@ -31,3 +31,19 @@ class ResCurrency(models.Model):
                     domain.append(('tenant_id', '=', False))
                 if self.search_count(domain) > 0:
                     raise ValidationError(_("A currency with the code '%s' already exists for this tenant.") % clean_name)
+
+    def _check_access(self, operation: str):
+        if operation == 'read':
+            return None
+        return super()._check_access(operation)
+
+    def check_access(self, operation: str) -> None:
+        if operation == 'read':
+            return None
+        return super().check_access(operation)
+
+    def check_access_rights(self, operation, raise_exception=True):
+        if operation == 'read':
+            return True
+        return super().check_access_rights(operation, raise_exception=raise_exception)
+
