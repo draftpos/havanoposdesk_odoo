@@ -171,13 +171,28 @@ class HavanoPOSDeskAPI(http.Controller):
                 })
 
             # Fetch currencies
-            currencies_records = user_env['res.currency'].sudo().search_read([('active', '=', True)], ['id', 'name', 'symbol'])
+            tenant_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user_env['res.currency'].sudo().search([('name', '=', currency)], limit=1)
+            currencies_records = user_env['res.currency'].sudo().search([('active', '=', True)])
             currencies_data = []
+            today_date = fields.Date.context_today(user)
             for cur in currencies_records:
+                rate_val = 1.0
+                if tenant_curr and tenant_curr != cur:
+                    try:
+                        rate_val = cur._get_conversion_rate(tenant_curr, cur, user.company_id or user_env.company, today_date)
+                    except Exception:
+                        rate_val = cur.rate or 1.0
+                elif not tenant_curr:
+                    rate_val = cur.rate or 1.0
+
                 currencies_data.append({
-                    "id": cur['id'],
-                    "name": cur['name'],
-                    "symbol": cur['symbol']
+                    "id": cur.id,
+                    "name": cur.name,
+                    "symbol": cur.symbol,
+                    "exchange_rate": rate_val,
+                    "rate": rate_val,
+                    "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
+                    "decimal_places": cur.decimal_places,
                 })
 
             # Fetch payment methods
@@ -653,6 +668,176 @@ class HavanoPOSDeskAPI(http.Controller):
 
             uom = request.env['havanoposdesk.uom'].sudo().create(uom_vals)
             return request.make_response(json.dumps({'id': uom.id, 'name': uom.name, 'abbreviation': getattr(uom, 'abbreviation', uom.name), 'tenant_id': uom.tenant_id.id}), headers=[('Content-Type', 'application/json')], status=201)
+
+    # CURRENCIES
+    @http.route(['/api/currencies', '/api/currencies/'], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def handle_currencies(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.httprequest.args.to_dict()
+        if not token:
+            token = params.get('token')
+
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
+            
+            currencies = env['res.currency'].sudo().search([('active', '=', True)])
+            today_date = fields.Date.context_today(user)
+            data = []
+            for cur in currencies:
+                rate_val = 1.0
+                if base_curr and base_curr != cur:
+                    try:
+                        rate_val = cur._get_conversion_rate(base_curr, cur, user.company_id or env.company, today_date)
+                    except Exception:
+                        rate_val = cur.rate or 1.0
+                elif not base_curr:
+                    rate_val = cur.rate or 1.0
+
+                data.append({
+                    "id": cur.id,
+                    "name": cur.name,
+                    "symbol": cur.symbol,
+                    "exchange_rate": rate_val,
+                    "rate": rate_val,
+                    "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
+                    "decimal_places": cur.decimal_places,
+                })
+            return self._make_json_response({"data": data, "currencies": data})
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route([
+        '/api/resource/Currency',
+        '/api/resource/Currency/<string:currency_id>',
+        '/api/method/saas_api.www.api.get_currencies',
+        '/api/method/havano_pos_integration.api.get_currencies'
+    ], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_currencies(self, currency_id=None, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.httprequest.args.to_dict()
+        if not token:
+            token = params.get('token')
+
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
+            
+            domain = [('active', '=', True)]
+            if currency_id:
+                if currency_id.isdigit():
+                    domain.append(('id', '=', int(currency_id)))
+                else:
+                    domain.append(('name', '=ilike', currency_id.strip()))
+
+            currencies = env['res.currency'].sudo().search(domain)
+            today_date = fields.Date.context_today(user)
+            data = []
+            for cur in currencies:
+                rate_val = 1.0
+                if base_curr and base_curr != cur:
+                    try:
+                        rate_val = cur._get_conversion_rate(base_curr, cur, user.company_id or env.company, today_date)
+                    except Exception:
+                        rate_val = cur.rate or 1.0
+                elif not base_curr:
+                    rate_val = cur.rate or 1.0
+
+                data.append({
+                    "id": cur.id,
+                    "name": cur.name,
+                    "symbol": cur.symbol,
+                    "exchange_rate": rate_val,
+                    "rate": rate_val,
+                    "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
+                    "decimal_places": cur.decimal_places,
+                })
+            
+            if currency_id and data:
+                return self._make_json_response({"data": data[0], "message": data[0]})
+            return self._make_json_response({"data": data, "message": data})
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route([
+        '/api/resource/Exchange Rate',
+        '/api/resource/Exchange%20Rate',
+        '/api/method/saas_api.www.api.get_exchange_rates',
+        '/api/method/havano_pos_integration.api.get_exchange_rates'
+    ], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_exchange_rates(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = request.httprequest.args.to_dict()
+        if not token:
+            token = params.get('token')
+
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
+            
+            currencies = env['res.currency'].sudo().search([('active', '=', True)])
+            today_date = fields.Date.context_today(user)
+            data = []
+            for cur in currencies:
+                rate_val = 1.0
+                if base_curr and base_curr != cur:
+                    try:
+                        rate_val = cur._get_conversion_rate(base_curr, cur, user.company_id or env.company, today_date)
+                    except Exception:
+                        rate_val = cur.rate or 1.0
+                elif not base_curr:
+                    rate_val = cur.rate or 1.0
+
+                data.append({
+                    "id": cur.id,
+                    "currency": cur.name,
+                    "from_currency": base_curr.name if base_curr else cur.name,
+                    "to_currency": cur.name,
+                    "exchange_rate": rate_val,
+                    "rate": rate_val,
+                    "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
+                    "symbol": cur.symbol,
+                    "date": str(today_date),
+                })
+            return self._make_json_response({"data": data, "message": data})
+        finally:
+            if custom_cr:
+                custom_cr.close()
 
     # SUBSCRIPTIONS & PAYMENTS
     @http.route('/api/subscription/plans', auth='public', methods=['GET'], type='http', csrf=False, cors='*')

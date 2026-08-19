@@ -18,6 +18,9 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
         'stock_transfer': 'havanoposdesk.stock.transfer',
         'credit_note': 'havanoposdesk.sale',
         'debit_note': 'havanoposdesk.purchase',
+        'currency': 'res.currency',
+        'currency_rate': 'res.currency.rate',
+        'exchange_rate': 'res.currency.rate',
     }
 
     def _get_auth_env(self):
