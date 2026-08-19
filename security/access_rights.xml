@@ -187,9 +187,25 @@
             <field name="model_id" search="[('model', '=', 'res.currency.rate')]"/>
             <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
             <field name="perm_read" eval="True"/>
-            <field name="perm_write" eval="True"/>
-            <field name="perm_create" eval="True"/>
             <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_res_currency_global_read" model="ir.model.access">
+            <field name="name">res.currency global read</field>
+            <field name="model_id" search="[('model', '=', 'res.currency')]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_res_currency_rate_global_read" model="ir.model.access">
+            <field name="name">res.currency.rate global read</field>
+            <field name="model_id" search="[('model', '=', 'res.currency.rate')]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
         </record>
     </data>
 </odoo>

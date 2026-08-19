@@ -78,4 +78,27 @@ def post_migrate(cr, registry):
         except Exception:
             pass
 
+    # Ensure global read access on res.currency and res.currency.rate in ir_model_access
+    cr.execute("""
+        INSERT INTO ir_model_access (name, model_id, perm_read, perm_write, perm_create, perm_unlink, active)
+        SELECT 'res.currency global read', m.id, True, False, False, False, True
+        FROM ir_model m
+        WHERE m.model = 'res.currency'
+        AND NOT EXISTS (
+            SELECT 1 FROM ir_model_access a WHERE a.model_id = m.id AND a.group_id IS NULL AND a.perm_read = True
+        )
+    """)
+    cr.execute("""
+        INSERT INTO ir_model_access (name, model_id, perm_read, perm_write, perm_create, perm_unlink, active)
+        SELECT 'res.currency.rate global read', m.id, True, False, False, False, True
+        FROM ir_model m
+        WHERE m.model = 'res.currency.rate'
+        AND NOT EXISTS (
+            SELECT 1 FROM ir_model_access a WHERE a.model_id = m.id AND a.group_id IS NULL AND a.perm_read = True
+        )
+    """)
+    if 'ir.model.access' in env:
+        env['ir.model.access'].call_cache_clearing_methods()
+
+
 
