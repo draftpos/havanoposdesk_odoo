@@ -196,20 +196,37 @@ class HavanoPOSDeskAPI(http.Controller):
                 })
 
             # Fetch payment methods
-            payment_methods_records = user_env['havanoposdesk.account'].sudo().search_read([
-                ('tenant_id', '=', user.tenant_id.id),
+            pm_domain = [
                 ('type', 'in', ['Cash', 'Bank']),
                 ('active', '=', True)
-            ], ['id', 'name', 'type', 'currency_id'])
+            ]
+            if user.tenant_id:
+                pm_domain.append(('tenant_id', '=', user.tenant_id.id))
+            payment_methods_records = user_env['havanoposdesk.account'].sudo().search(pm_domain)
             payment_methods_data = []
             for pm in payment_methods_records:
-                pm_curr = pm.get('currency_id')
-                currency_code = pm_curr[1] if isinstance(pm_curr, (list, tuple)) and len(pm_curr) > 1 else (currency or 'USD')
+                pm_curr = pm.currency_id or tenant_curr
+                currency_code = pm_curr.name if pm_curr else (currency or 'USD')
+                rate_val = 1.0
+                if tenant_curr and pm_curr and tenant_curr != pm_curr:
+                    try:
+                        rate_val = pm_curr._get_conversion_rate(tenant_curr, pm_curr, user.company_id or user_env.company, today_date)
+                    except Exception:
+                        rate_val = pm_curr.rate or 1.0
+                elif pm_curr and not tenant_curr:
+                    rate_val = pm_curr.rate or 1.0
+
                 payment_methods_data.append({
-                    "id": pm['id'],
-                    "name": pm['name'],
-                    "type": pm['type'],
-                    "currency": currency_code
+                    "id": pm.id,
+                    "name": pm.name,
+                    "account_name": pm.name,
+                    "type": pm.type,
+                    "currency": currency_code,
+                    "currency_id": pm.currency_id.id if pm.currency_id else (tenant_curr.id if tenant_curr else False),
+                    "exchange_rate": rate_val,
+                    "rate": rate_val,
+                    "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
+                    "symbol": pm_curr.symbol if pm_curr else "$",
                 })
                 
             # Fetch warehouse items/products
@@ -3743,6 +3760,9 @@ class HavanoPOSDeskAPI(http.Controller):
         try:
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
+            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
+            default_currency = base_curr.name if base_curr else 'USD'
 
             domain = [
                 ('type', 'in', ['Cash', 'Bank']),
@@ -3751,21 +3771,33 @@ class HavanoPOSDeskAPI(http.Controller):
             if user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
 
-            default_currency = tenant.currency_id.name if (tenant and tenant.currency_id) else 'USD'
-
-            payment_methods_records = env['havanoposdesk.account'].sudo().search_read(
-                domain,
-                ['id', 'name', 'type', 'currency_id']
-            )
+            accounts = env['havanoposdesk.account'].sudo().search(domain)
+            today_date = fields.Date.context_today(user)
 
             accounts_data = []
-            for pm in payment_methods_records:
-                pm_curr = pm.get('currency_id')
-                currency_code = pm_curr[1] if isinstance(pm_curr, (list, tuple)) and len(pm_curr) > 1 else default_currency
+            for acc in accounts:
+                acc_curr = acc.currency_id or base_curr
+                currency_code = acc_curr.name if acc_curr else default_currency
+                rate_val = 1.0
+                if base_curr and acc_curr and base_curr != acc_curr:
+                    try:
+                        rate_val = acc_curr._get_conversion_rate(base_curr, acc_curr, user.company_id or env.company, today_date)
+                    except Exception:
+                        rate_val = acc_curr.rate or 1.0
+                elif acc_curr and not base_curr:
+                    rate_val = acc_curr.rate or 1.0
+
                 accounts_data.append({
-                    "name": pm['name'],
-                    "account_name": pm['name'],
-                    "currency": currency_code
+                    "id": acc.id,
+                    "name": acc.name,
+                    "account_name": acc.name,
+                    "type": acc.type,
+                    "currency": currency_code,
+                    "currency_id": acc.currency_id.id if acc.currency_id else (base_curr.id if base_curr else False),
+                    "exchange_rate": rate_val,
+                    "rate": rate_val,
+                    "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
+                    "symbol": acc_curr.symbol if acc_curr else "$",
                 })
 
             return self._make_json_response({
@@ -5686,6 +5718,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
         # Payment Methods
         payment_methods_list = []
+        base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False)
+        today_date = fields.Date.context_today(user)
         if tenant:
             accounts = env['havanoposdesk.account'].sudo().search([
                 ('tenant_id', '=', tenant.id),
@@ -5693,13 +5727,37 @@ class HavanoPOSDeskAPI(http.Controller):
                 ('active', '=', True)
             ])
             for acc in accounts:
+                acc_curr = acc.currency_id or base_curr
+                rate_val = 1.0
+                if base_curr and acc_curr and base_curr != acc_curr:
+                    try:
+                        rate_val = acc_curr._get_conversion_rate(base_curr, acc_curr, user.company_id or env.company, today_date)
+                    except Exception:
+                        rate_val = acc_curr.rate or 1.0
+                elif acc_curr and not base_curr:
+                    rate_val = acc_curr.rate or 1.0
+
                 payment_methods_list.append({
+                    "id": acc.id,
                     "name": acc.name,
                     "type": acc.type,
-                    "currency": acc.currency_id.name if acc.currency_id else currency
+                    "currency": acc_curr.name if acc_curr else currency,
+                    "currency_id": acc.currency_id.id if acc.currency_id else (base_curr.id if base_curr else False),
+                    "exchange_rate": rate_val,
+                    "rate": rate_val,
+                    "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
+                    "symbol": acc_curr.symbol if acc_curr else "$",
                 })
         else:
-            payment_methods_list.append({"name": "Cash", "type": "Cash", "currency": currency})
+            payment_methods_list.append({
+                "name": "Cash",
+                "type": "Cash",
+                "currency": currency,
+                "exchange_rate": 1.0,
+                "rate": 1.0,
+                "inverse_rate": 1.0,
+                "symbol": "$",
+            })
         
         uom_records = env['havanoposdesk.uom'].sudo().search([('tenant_id', '=', tenant.id)]) if tenant else env['havanoposdesk.uom'].sudo().search([])
         uom_list = [u.name for u in uom_records]
