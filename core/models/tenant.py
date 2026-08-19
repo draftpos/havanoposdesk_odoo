@@ -458,28 +458,68 @@ class HavanoposdeskTenant(models.Model):
 
     def _seed_default_data(self):
         self.ensure_one()
-        _logger.info("SEED_DEFAULT_DATA CALLED VIA ORM")
-        store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', self.id)], limit=1)
-        store_id = store.id if store else False
+        _logger.info("SEED_DEFAULT_DATA CALLED FOR TENANT: %s (id: %s)", self.name, self.id)
         tenant_id = self.id
         
         usd = self.env.ref('base.USD', raise_if_not_found=False)
         currency_id = self.currency_id.id if self.currency_id else (usd.id if usd else False)
         
-        # 1. Customer Group
-        cg = self.env['havanoposdesk.customer.group'].sudo().create({
-            'name': 'Default Group',
-            'tenant_id': tenant_id,
-        })
-        
-        # 2. Supplier
-        self.env['havanoposdesk.supplier'].sudo().create({
-            'name': 'General Supplier',
-            'tenant_id': tenant_id,
-            'store_id': store_id,
-        })
-        
-        # 3. Default Deposit Accounts / Payment Methods
+        # 1. Default Store
+        store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not store:
+            store = self.env['havanoposdesk.store'].sudo().create({
+                'name': self.name or 'Main Store',
+                'tenant_id': tenant_id,
+                'is_default': True,
+                'currency_id': currency_id,
+            })
+        store_id = store.id if store else False
+
+        # 2. Default POS Terminal
+        terminal = self.env['havanoposdesk.pos.terminal'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not terminal and store:
+            self.env['havanoposdesk.pos.terminal'].sudo().create({
+                'name': 'Pos 1',
+                'store_id': store.id,
+                'tenant_id': tenant_id,
+            })
+
+        # 3. Default User Rights Profiles
+        profiles = [
+            ('Super Admin Profile', 'super_admin'),
+            ('Admin Profile', 'admin'),
+            ('Cashier Profile', 'cashier'),
+        ]
+        for prof_name, role in profiles:
+            existing_prof = self.env['havanoposdesk.user.rights.profile'].sudo().search([
+                ('tenant_id', '=', tenant_id),
+                '|', ('name', '=ilike', prof_name), ('havano_role', '=', role)
+            ], limit=1)
+            if not existing_prof:
+                self.env['havanoposdesk.user.rights.profile'].sudo().create({
+                    'name': prof_name,
+                    'tenant_id': tenant_id,
+                    'havano_role': role,
+                })
+
+        # 4. Customer Group
+        cg = self.env['havanoposdesk.customer.group'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not cg:
+            cg = self.env['havanoposdesk.customer.group'].sudo().create({
+                'name': 'Default Group',
+                'tenant_id': tenant_id,
+            })
+
+        # 5. Supplier
+        supplier = self.env['havanoposdesk.supplier'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not supplier:
+            self.env['havanoposdesk.supplier'].sudo().create({
+                'name': 'General Supplier',
+                'tenant_id': tenant_id,
+                'store_id': store_id,
+            })
+
+        # 6. Default Deposit Accounts / Payment Methods
         deposit_accounts = [
             ('Cash', 'Cash'),
             ('Bank', 'Bank'),
@@ -500,8 +540,8 @@ class HavanoposdeskTenant(models.Model):
                     'store_id': store_id,
                     'store_ids': [(6, 0, [store_id])] if store_id else False,
                 })
-        
-        # 4. Default Expenses Accounts
+
+        # 7. Default Expenses Accounts
         expenses = [
             'Electricity',
             'Rent',
@@ -515,6 +555,7 @@ class HavanoposdeskTenant(models.Model):
             'Transport & Travel',
             'Advertising & Marketing',
             'Bank Charges',
+            'Lunch',
         ]
         for exp in expenses:
             existing_exp = self.env['havanoposdesk.account'].sudo().search([
@@ -530,33 +571,35 @@ class HavanoposdeskTenant(models.Model):
                     'store_id': store_id,
                     'store_ids': [(6, 0, [store_id])] if store_id else False,
                 })
-            
-        # 5. Default Customer
-        self.env['havanoposdesk.customer'].sudo().create({
-            'name': 'Cash Customer',
-            'customer_group_id': cg.id,
-            'tenant_id': tenant_id,
-            'store_ids': [(6, 0, [store_id])] if store_id else False,
-        })
-        
-        # 6. Default Categories
-        self.env['havanoposdesk.category'].sudo().create([
-            {
-                'name': 'Basic',
+
+        # 8. Default Customer
+        customer = self.env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not customer:
+            self.env['havanoposdesk.customer'].sudo().create({
+                'name': 'Cash Customer',
+                'customer_group_id': cg.id if cg else False,
                 'tenant_id': tenant_id,
                 'store_ids': [(6, 0, [store_id])] if store_id else False,
-            },
-            {
-                'name': 'Beverages',
-                'tenant_id': tenant_id,
-                'store_ids': [(6, 0, [store_id])] if store_id else False,
-            }
-        ])
-        
-        # 7. Default Pricelist
+            })
+
+        # 9. Default Categories
+        categories = ['Basic', 'Beverages']
+        for cat_name in categories:
+            existing_cat = self.env['havanoposdesk.category'].sudo().search([
+                ('name', '=ilike', cat_name),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_cat:
+                self.env['havanoposdesk.category'].sudo().create({
+                    'name': cat_name,
+                    'tenant_id': tenant_id,
+                    'store_ids': [(6, 0, [store_id])] if store_id else False,
+                })
+
+        # 10. Default Pricelist
         retail_pl = self.env['havanoposdesk.pricelist'].sudo().search([
             ('tenant_id', '=', tenant_id),
-            ('name', '=ilike', 'Retail')
+            ('type', '=', 'selling')
         ], limit=1)
         if not retail_pl:
             retail_pl = self.env['havanoposdesk.pricelist'].sudo().create({
@@ -570,28 +613,38 @@ class HavanoposdeskTenant(models.Model):
                 store.sudo().write({'pricelist_ids': [(6, 0, [retail_pl.id])]})
             if not store.pricelist_id:
                 store.sudo().write({'pricelist_id': retail_pl.id})
-        
-        # 8. Default UOMs — 'Each' is first and is the default for products and API
+
+        # 11. Default UOMs — 'Each' is first and is the default for products and API
         uoms = ['Each', 'Kg', 'Litre', 'Meter', 'Pieces', 'Box', 'Set']
         for uom in uoms:
-            self.env['havanoposdesk.uom'].sudo().create({
-                'name': uom,
-                'tenant_id': tenant_id,
-            })
-        
-        # 9. Default Taxes — seeded as INACTIVE so tenant manually activates what they need
+            existing_uom = self.env['havanoposdesk.uom'].sudo().search([
+                ('name', '=ilike', uom),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_uom:
+                self.env['havanoposdesk.uom'].sudo().create({
+                    'name': uom,
+                    'tenant_id': tenant_id,
+                })
+
+        # 12. Default Taxes — seeded as INACTIVE so tenant manually activates what they need
         default_taxes = [
             ('VAT', 15.0, 'Sales'),
             ('Exempt', 0.0, 'Sales'),
         ]
         for (tax_name, tax_rate, tax_type) in default_taxes:
-            self.env['havanoposdesk.tax'].sudo().create({
-                'name': tax_name,
-                'rate': tax_rate,
-                'tax_type': tax_type,
-                'active': False,
-                'tenant_id': tenant_id,
-            })
+            existing_tax = self.env['havanoposdesk.tax'].sudo().search([
+                ('name', '=ilike', tax_name),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_tax:
+                self.env['havanoposdesk.tax'].sudo().create({
+                    'name': tax_name,
+                    'rate': tax_rate,
+                    'tax_type': tax_type,
+                    'active': False,
+                    'tenant_id': tenant_id,
+                })
 
     def action_approve(self):
         for tenant in self:

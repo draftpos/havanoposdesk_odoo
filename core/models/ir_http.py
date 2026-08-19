@@ -102,13 +102,20 @@ class IrHttp(models.AbstractModel):
         result = super(IrHttp, self).session_info()
         
         if request.env.user.has_group('base.group_user'):
+            user = request.env.user
+            # Self-heal missing defaults (accounts, payment methods, categories, etc.) for tenant
+            if getattr(user, 'tenant_id', None) and user.tenant_id:
+                try:
+                    user.tenant_id._seed_default_data()
+                except Exception:
+                    pass
+
             icp = request.env['ir.config_parameter'].sudo()
             result['havanoposdesk_app_name'] = icp.get_param('web.web_app_name', 'Havano')
             result['havanoposdesk_bot_name'] = icp.get_param('havanoposdesk.bot_name', 'HavanoBot')
             result['havanoposdesk_web_base_url'] = icp.get_param('havanoposdesk.web_base_url', 'Havano')
             
             # Override "My Company" in the Top Bar to show Store Name or Tenant Name
-            user = request.env.user
             display_name = "My Company"
             if hasattr(user, 'default_store_id') and user.default_store_id:
                 display_name = user.default_store_id.name

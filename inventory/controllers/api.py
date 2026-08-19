@@ -1109,24 +1109,36 @@ class HavanoPOSDeskAPI(http.Controller):
 
     # HELPER METHOD TO GET AUTHENTICATED USER OR FALLBACK
     def _get_user(self):
+        user = None
         uid = request.session.uid
         if uid:
-            return request.env['res.users'].sudo().browse(uid)
+            user = request.env['res.users'].sudo().browse(uid)
             
-        auth_header = request.httprequest.headers.get('Authorization')
-        if auth_header:
-            uid_res, login_res = self._verify_token(auth_header)
-            if uid_res:
-                return request.env['res.users'].sudo().browse(uid_res)
-                
-        if request.env.user and request.env.user.id != request.env.ref('base.public_user').id:
-            return request.env.user
+        if not user or not user.exists():
+            auth_header = request.httprequest.headers.get('Authorization')
+            if auth_header:
+                uid_res, login_res = self._verify_token(auth_header)
+                if uid_res:
+                    user = request.env['res.users'].sudo().browse(uid_res)
+                    
+        if (not user or not user.exists()) and request.env.user and request.env.user.id != request.env.ref('base.public_user').id:
+            user = request.env.user
             
-        # Fallback for testing on localhost
-        admin_user = request.env['res.users'].sudo().search([('havano_role', '=', 'admin')], limit=1)
-        if admin_user:
-            return admin_user
-        return request.env['res.users'].sudo().search([('id', '=', 2)], limit=1) or request.env.user
+        if not user or not user.exists():
+            # Fallback for testing on localhost
+            admin_user = request.env['res.users'].sudo().search([('havano_role', '=', 'admin')], limit=1)
+            if admin_user:
+                user = admin_user
+            else:
+                user = request.env['res.users'].sudo().search([('id', '=', 2)], limit=1) or request.env.user
+
+        if user and getattr(user, 'tenant_id', None) and user.tenant_id:
+            try:
+                user.tenant_id._seed_default_data()
+            except Exception:
+                pass
+
+        return user
 
 
     # HELPER METHOD TO GET CURRENT STORE FROM REQUEST PARAMS OR USER CONTEXT (NO FALLBACKS)
