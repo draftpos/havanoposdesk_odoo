@@ -978,8 +978,24 @@ class HavanoPOSDeskAPI(http.Controller):
         if not plan.exists():
             return request.make_response(json.dumps({'error': 'Plan not found'}), headers=[('Content-Type', 'application/json')], status=404)
             
-        additional_terminals = data.get('additional_terminals', data.get('additional_stores', 0))
-        additional_stores = data.get('additional_stores', 0)
+        if plan.is_custom:
+            if 'additional_terminals' in data:
+                additional_terminals = int(data.get('additional_terminals') or 0)
+                stores_per_term = plan.stores_per_terminal or 3
+                base_term = plan.max_terminals or 1
+                additional_stores = (base_term + additional_terminals) * stores_per_term
+            elif 'additional_stores' in data:
+                additional_stores = int(data.get('additional_stores') or 0)
+                stores_per_term = plan.stores_per_terminal or 3
+                base_term = plan.max_terminals or 1
+                calc_terms = additional_stores // stores_per_term
+                additional_terminals = max(0, calc_terms - base_term)
+            else:
+                additional_terminals = 0
+                additional_stores = 0
+        else:
+            additional_terminals = 0
+            additional_stores = int(data.get('additional_stores') or 0)
         tenant.action_select_plan(plan.id, additional_stores=additional_stores, additional_terminals=additional_terminals)
         
         return request.make_response(json.dumps({

@@ -181,36 +181,55 @@ class HavanoposdeskTenant(models.Model):
                 tenant.effective_max_stores = 0
                 tenant.effective_max_terminals = 0
             elif plan.is_custom:
-                extra_term = max(0, tenant.additional_terminals or 0)
+                stores_per_term = plan.stores_per_terminal or 3
                 base_term = plan.max_terminals or 1
+                extra_term = max(0, tenant.additional_terminals or 0)
+                if extra_term == 0 and tenant.additional_stores > 0:
+                    calculated_total_terms = tenant.additional_stores // stores_per_term
+                    if calculated_total_terms > base_term:
+                        extra_term = calculated_total_terms - base_term
+                    elif tenant.additional_stores > (base_term * stores_per_term):
+                        extra_term = (tenant.additional_stores - (base_term * stores_per_term)) // stores_per_term
                 total_term = base_term + extra_term
                 tenant.effective_max_terminals = total_term
-                tenant.effective_max_stores = total_term * (plan.stores_per_terminal or 3)
+                tenant.effective_max_stores = max(total_term * stores_per_term, tenant.additional_stores or 0)
             else:
                 tenant.effective_max_terminals = plan.max_terminals or 0
                 tenant.effective_max_stores = plan.max_stores or (tenant.effective_max_terminals * 3)
 
-    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'subscription_plan_id.extra_store_price', 'additional_terminals')
+    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'subscription_plan_id.extra_store_price', 'subscription_plan_id.stores_per_terminal', 'additional_terminals', 'additional_stores')
     def _compute_subscription_total_amount(self):
         for tenant in self:
             plan = tenant.subscription_plan_id
             if not plan:
                 tenant.subscription_total_amount = 0.0
             elif plan.is_custom:
+                stores_per_term = plan.stores_per_terminal or 3
+                base_term = plan.max_terminals or 1
                 extra_term = max(0, tenant.additional_terminals or 0)
+                if extra_term == 0 and tenant.additional_stores > 0:
+                    calculated_total_terms = tenant.additional_stores // stores_per_term
+                    if calculated_total_terms > base_term:
+                        extra_term = calculated_total_terms - base_term
                 extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
                 tenant.subscription_total_amount = (plan.price or 12.0) + (extra_term * extra_price)
             else:
                 tenant.subscription_total_amount = plan.price or 0.0
 
-    @api.depends('pending_subscription_plan_id', 'pending_subscription_plan_id.price', 'pending_subscription_plan_id.is_custom', 'pending_subscription_plan_id.extra_terminal_price', 'pending_subscription_plan_id.extra_store_price', 'pending_additional_terminals')
+    @api.depends('pending_subscription_plan_id', 'pending_subscription_plan_id.price', 'pending_subscription_plan_id.is_custom', 'pending_subscription_plan_id.extra_terminal_price', 'pending_subscription_plan_id.extra_store_price', 'pending_subscription_plan_id.stores_per_terminal', 'pending_additional_terminals', 'pending_additional_stores')
     def _compute_pending_subscription_total_amount(self):
         for tenant in self:
             plan = tenant.pending_subscription_plan_id
             if not plan:
                 tenant.pending_subscription_total_amount = 0.0
             elif plan.is_custom:
+                stores_per_term = plan.stores_per_terminal or 3
+                base_term = plan.max_terminals or 1
                 extra_term = max(0, tenant.pending_additional_terminals or 0)
+                if extra_term == 0 and tenant.pending_additional_stores > 0:
+                    calculated_total_terms = tenant.pending_additional_stores // stores_per_term
+                    if calculated_total_terms > base_term:
+                        extra_term = calculated_total_terms - base_term
                 extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
                 tenant.pending_subscription_total_amount = (plan.price or 12.0) + (extra_term * extra_price)
             else:
@@ -656,8 +675,10 @@ class HavanoposdeskTenant(models.Model):
             target_plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
             if tenant.pending_subscription_plan_id:
                 vals['subscription_plan_id'] = tenant.pending_subscription_plan_id.id
+                vals['additional_terminals'] = tenant.pending_additional_terminals
                 vals['additional_stores'] = tenant.pending_additional_stores
                 vals['pending_subscription_plan_id'] = False
+                vals['pending_additional_terminals'] = 0
                 vals['pending_additional_stores'] = 0
 
             if target_plan:
@@ -679,7 +700,8 @@ class HavanoposdeskTenant(models.Model):
             if tenant.pending_subscription_plan_id:
                 vals = {
                     'pending_subscription_plan_id': False,
-                    'pending_additional_stores': 0
+                    'pending_additional_terminals': 0,
+                    'pending_additional_stores': 0,
                 }
                 if not tenant.subscription_plan_id or tenant.subscription_state != 'active':
                     vals['subscription_state'] = 'cancelled'
@@ -691,8 +713,19 @@ class HavanoposdeskTenant(models.Model):
 
     def action_select_plan(self, plan_id, additional_stores=0, additional_terminals=0):
         plan = self.env['havanoposdesk.subscription.plan'].sudo().browse(plan_id)
-        extra_terminals = max(0, int(additional_terminals or 0)) if (plan.exists() and plan.is_custom) else 0
-        extra_stores = ( (plan.max_terminals or 1) + extra_terminals ) * (plan.stores_per_terminal or 3) if (plan.exists() and plan.is_custom) else max(0, int(additional_stores or 0))
+        if plan.exists() and plan.is_custom:
+            stores_per_term = plan.stores_per_terminal or 3
+            base_term = plan.max_terminals or 1
+            extra_terminals = max(0, int(additional_terminals or 0))
+            if extra_terminals == 0 and int(additional_stores or 0) > 0:
+                calc_terms = int(additional_stores) // stores_per_term
+                if calc_terms > base_term:
+                    extra_terminals = calc_terms - base_term
+            extra_stores = (base_term + extra_terminals) * stores_per_term
+        else:
+            extra_terminals = 0
+            extra_stores = max(0, int(additional_stores or 0))
+
         if self.check_subscription_active():
             self.with_context(bypass_subscription_check=True).write({
                 'pending_subscription_plan_id': plan_id,

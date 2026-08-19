@@ -100,16 +100,16 @@
                             <group string="Active Subscription &amp; Wallet">
                                 <field name="name"
                                        readonly="not context.get('is_super_admin', False)"/>
-                                <field name="account_balance" readonly="1"/>
+                                <field name="account_balance" readonly="not context.get('is_super_admin', False)"/>
                                 <field name="subscription_plan_id"
                                        options="{'no_create': True}"
-                                       readonly="1"/>
-                                <field name="additional_terminals" readonly="1"/>
-                                <field name="additional_stores" readonly="1"/>
+                                       readonly="not context.get('is_super_admin', False)"/>
+                                <field name="additional_terminals" readonly="not context.get('is_super_admin', False)"/>
+                                <field name="additional_stores" readonly="not context.get('is_super_admin', False)"/>
                                 <field name="effective_max_stores" readonly="1"/>
                                 <field name="effective_max_terminals" readonly="1"/>
                                 <field name="subscription_total_amount" readonly="1"/>
-                                <field name="payment_status" readonly="1"/>
+                                <field name="payment_status" readonly="not context.get('is_super_admin', False)"/>
                             </group>
 
                             <group string="Duration &amp; Status">
