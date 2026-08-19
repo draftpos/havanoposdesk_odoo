@@ -155,12 +155,8 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
                 'allow_advanced_pricing': True
             })
             
-            # Create Store
-            store = env['havanoposdesk.store'].create({
-                'name': 'Main Store',
-                'tenant_id': tenant.id,
-                'is_default': True
-            })
+            # Get default store created during tenant initialization
+            store = env['havanoposdesk.store'].search([('tenant_id', '=', tenant.id)], limit=1)
             
             # Create User
             user = env['res.users'].create({
@@ -169,8 +165,8 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
                 'password': password,
                 'tenant_id': tenant.id,
                 'havano_role': 'admin',
-                'store_ids': [(4, store.id)],
-                'default_store_id': store.id
+                'store_ids': [(4, store.id)] if store else False,
+                'default_store_id': store.id if store else False
             })
 
             # Return defaults

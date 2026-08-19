@@ -479,23 +479,57 @@ class HavanoposdeskTenant(models.Model):
             'store_id': store_id,
         })
         
-        # 3. Default Deposit Account
-        self.env['havanoposdesk.account'].sudo().create({
-            'name': 'Cash',
-            'type': 'Cash',
-            'tenant_id': tenant_id,
-            'currency_id': currency_id,
-        })
+        # 3. Default Deposit Accounts / Payment Methods
+        deposit_accounts = [
+            ('Cash', 'Cash'),
+            ('Bank', 'Bank'),
+            ('EcoCash', 'Bank'),
+            ('Card / Swipe', 'Bank'),
+        ]
+        for acc_name, acc_type in deposit_accounts:
+            existing_acc = self.env['havanoposdesk.account'].sudo().search([
+                ('name', '=ilike', acc_name),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_acc:
+                self.env['havanoposdesk.account'].sudo().create({
+                    'name': acc_name,
+                    'type': acc_type,
+                    'tenant_id': tenant_id,
+                    'currency_id': currency_id,
+                    'store_id': store_id,
+                    'store_ids': [(6, 0, [store_id])] if store_id else False,
+                })
         
-        # 4. Default Expenses Account
-        expenses = ['Electricity', 'Rent', 'Utilities', 'Wages & Salaries', 'Breakages', 'Council Licenses', 'Maintanences', 'Fuel']
+        # 4. Default Expenses Accounts
+        expenses = [
+            'Electricity',
+            'Rent',
+            'Utilities',
+            'Wages & Salaries',
+            'Breakages',
+            'Council Licenses',
+            'Maintenance',
+            'Fuel',
+            'Stationery & Office Supplies',
+            'Transport & Travel',
+            'Advertising & Marketing',
+            'Bank Charges',
+        ]
         for exp in expenses:
-            self.env['havanoposdesk.account'].sudo().create({
-                'name': exp,
-                'type': 'Expense',
-                'tenant_id': tenant_id,
-                'currency_id': currency_id,
-            })
+            existing_exp = self.env['havanoposdesk.account'].sudo().search([
+                ('name', '=ilike', exp),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_exp:
+                self.env['havanoposdesk.account'].sudo().create({
+                    'name': exp,
+                    'type': 'Expense',
+                    'tenant_id': tenant_id,
+                    'currency_id': currency_id,
+                    'store_id': store_id,
+                    'store_ids': [(6, 0, [store_id])] if store_id else False,
+                })
             
         # 5. Default Customer
         self.env['havanoposdesk.customer'].sudo().create({

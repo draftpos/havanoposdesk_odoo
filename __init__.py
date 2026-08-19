@@ -54,4 +54,12 @@ def post_migrate(cr, registry):
         if group_cmds:
             user.sudo().write({'group_ids': group_cmds})
 
+    # Seed missing accounts/payment methods for all existing tenants
+    tenants = env['havanoposdesk.tenant'].with_context(active_test=False).search([])
+    for tenant in tenants:
+        try:
+            tenant._seed_default_data()
+        except Exception:
+            pass
+
 
