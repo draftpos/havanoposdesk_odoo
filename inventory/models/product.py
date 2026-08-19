@@ -40,12 +40,6 @@ class HavanoposdeskProduct(models.Model):
             else:
                 record.display_name = base_name
 
-    @api.model
-    def _name_search(self, name='', args=None, operator='ilike', limit=100, order=None):
-        args = list(args or [])
-        if name:
-            args += ['|', ('name', operator, name), ('item_code', operator, name)]
-        return self._search(args, limit=limit, order=order)
 
     @api.model
     def default_get(self, fields_list):

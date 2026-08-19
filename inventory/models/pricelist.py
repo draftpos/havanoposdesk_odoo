@@ -35,8 +35,8 @@ class HavanoposdeskPricelist(models.Model):
                     raise ValidationError(f"A Pricelist with the name '{record.name}' already exists in your workspace. Please choose a different name.")
 
     @api.model
-    def name_search(self, name='', args=None, operator='ilike', limit=100):
+    def name_search(self, name='', domain=None, operator='ilike', limit=100):
         if self.env.context.get('import_file') and operator == '=':
             operator = 'ilike'
-        return super().name_search(name=name, args=args, operator=operator, limit=limit)
+        return super().name_search(name=name, domain=domain, operator=operator, limit=limit)
 
