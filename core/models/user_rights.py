@@ -304,6 +304,9 @@ MODEL_FEATURE_MAP = {
 import logging
 _logger = logging.getLogger(__name__)
 
+from odoo.models import BaseModel
+original_check_access_rights = BaseModel.check_access_rights
+
 class IrModelAccess(models.Model):
     _inherit = 'ir.model.access'
 
