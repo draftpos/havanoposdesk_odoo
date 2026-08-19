@@ -420,8 +420,8 @@ class Sale(models.Model):
                 if base_qty > 0:
                     # Update price on parent product
                     if not sale.is_return:
-                        base_rate = line.rate / (sale.exchange_rate or 1.0)
-                        base_cost = line.cost_price / (sale.exchange_rate or 1.0)
+                        base_rate = line.rate
+                        base_cost = line.cost_price
                         line.product_id.sudo().write({
                             'selling_price': base_rate,
                             'buying_price': (base_cost / line.uom_qty_multiplier) if line.uom_qty_multiplier else base_cost,
@@ -817,18 +817,17 @@ class SaleLine(models.Model):
                 ], limit=1)
                 
             if price_record:
-                line.rate = price_record.price * (line.exchange_rate or 1.0)
+                line.rate = price_record.price
                 line.uom_qty_multiplier = price_record.qty_to_be_sold
                 base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                line.cost_price = (base_cost * price_record.qty_to_be_sold) * (line.exchange_rate or 1.0)
+                line.cost_price = base_cost * price_record.qty_to_be_sold
             else:
                 if line.uom_id == line.product_id.uom_id:
-                    # Convert the base selling price to the transaction currency using the exchange rate
                     base_price = line.product_id.selling_price
-                    line.rate = base_price * (line.exchange_rate or 1.0)
+                    line.rate = base_price
                     
                     base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                    line.cost_price = base_cost * (line.exchange_rate or 1.0)
+                    line.cost_price = base_cost
                     line.uom_qty_multiplier = 1.0
                 else:
                     fallback_record = self.env['havanoposdesk.product.uom.price'].search([
@@ -837,19 +836,18 @@ class SaleLine(models.Model):
                         ('pricelist_id.type', '=', 'selling')
                     ], limit=1)
                     if fallback_record:
-                        line.rate = fallback_record.price * (line.exchange_rate or 1.0)
+                        line.rate = fallback_record.price
                         line.uom_qty_multiplier = fallback_record.qty_to_be_sold
                         base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                        line.cost_price = (base_cost * fallback_record.qty_to_be_sold) * (line.exchange_rate or 1.0)
+                        line.cost_price = base_cost * fallback_record.qty_to_be_sold
                     else:
-                        line.rate = line.product_id.selling_price * (line.exchange_rate or 1.0)
+                        line.rate = line.product_id.selling_price
                         line.uom_qty_multiplier = 1.0
 
     def _recompute_prices_for_currency(self):
         for line in self:
             if not line.product_id:
                 continue
-            rate = line.sale_id.exchange_rate or 1.0
             price_record = False
             if line.sale_id.pricelist_id:
                 price_record = self.env['havanoposdesk.product.uom.price'].search([
@@ -859,14 +857,14 @@ class SaleLine(models.Model):
                 ], limit=1)
                 
             if price_record:
-                line.rate = price_record.price * rate
+                line.rate = price_record.price
                 base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                line.cost_price = (base_cost * price_record.qty_to_be_sold) * rate
+                line.cost_price = base_cost * price_record.qty_to_be_sold
             else:
                 if line.uom_id == line.product_id.uom_id:
-                    line.rate = line.product_id.selling_price * rate
+                    line.rate = line.product_id.selling_price
                     base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                    line.cost_price = base_cost * rate
+                    line.cost_price = base_cost
                 else:
                     fallback_record = self.env['havanoposdesk.product.uom.price'].search([
                         ('product_id', '=', line.product_id.id),
@@ -874,19 +872,19 @@ class SaleLine(models.Model):
                         ('pricelist_id.type', '=', 'selling')
                     ], limit=1)
                     if fallback_record:
-                        line.rate = fallback_record.price * rate
+                        line.rate = fallback_record.price
                         base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                        line.cost_price = (base_cost * fallback_record.qty_to_be_sold) * rate
+                        line.cost_price = base_cost * fallback_record.qty_to_be_sold
                     else:
-                        line.rate = line.product_id.selling_price * rate
+                        line.rate = line.product_id.selling_price
                         base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
-                        line.cost_price = base_cost * rate
+                        line.cost_price = base_cost
 
     @api.onchange('rate')
     def _onchange_rate(self):
         if self.tenant_id.restrict_price_modification and not self.env.user.has_group('havanoposdesk_odoo.group_tenant_admin'):
             base_price = self.product_id.selling_price if self.product_id else 0.0
-            self.rate = self._origin.rate if getattr(self, '_origin', False) else (base_price * (self.exchange_rate or 1.0))
+            self.rate = self._origin.rate if getattr(self, '_origin', False) else base_price
             return {
                 'warning': {
                     'title': 'Price Modification Restricted',
@@ -895,17 +893,17 @@ class SaleLine(models.Model):
             }
 
         if self.product_id:
-            expected_rate = self.product_id.selling_price * (self.exchange_rate or 1.0)
+            expected_rate = self.product_id.selling_price
             if abs(self.rate - expected_rate) > 0.01:
                 avg_cost_rec = self.env['havanoposdesk.product.costing'].sudo().search([
                     ('product_id', '=', self.product_id.id),
                     ('cost_type', '=', 'average')
                 ], order='id desc', limit=1)
                 base_cost = avg_cost_rec.price if avg_cost_rec else (self.product_id.buying_price or self.product_id.cost_price or 0.0)
-                self.cost_price = base_cost * (self.exchange_rate or 1.0)
+                self.cost_price = base_cost
             else:
                 base_cost = self.product_id.buying_price or self.product_id.cost_price or 0.0
-                self.cost_price = base_cost * (self.exchange_rate or 1.0)
+                self.cost_price = base_cost
 
     @api.onchange('accepted_qty', 'product_id')
     def _onchange_qty(self):
