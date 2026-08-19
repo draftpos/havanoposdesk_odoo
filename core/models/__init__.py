@@ -6,6 +6,7 @@ from . import subscription
 from . import payment
 from . import payment_transaction
 from . import res_config_settings
+from . import res_currency
 from . import res_currency_rate
 from . import user_rights
 from . import ir_module_module

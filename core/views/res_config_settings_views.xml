@@ -60,7 +60,10 @@
                         <setting string="Business Currency" help="Main currency of your business">
                             <div class="content-group mt8">
                                 <field name="has_transactions" invisible="1"/>
-                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions"/>
+                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]"/>
+                            </div>
+                            <div class="mt16">
+                                <button name="%(action_havanoposdesk_currencies)d" type="action" string="Manage Currencies" icon="fa-arrow-right" class="btn-link"/>
                             </div>
                         </setting>
                         <setting string="Business Logo" help="Upload the business logo to be used on all invoices and reports.">
