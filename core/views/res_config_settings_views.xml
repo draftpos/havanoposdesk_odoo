@@ -525,5 +525,8 @@
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_suppliers'}</field>
     </record>
+
+    <!-- Attach actions to root menus defined in other files -->
+    <menuitem id="havanoposdesk_odoo.menu_tenant_admin_settings_root" action="action_havanoposdesk_settings_my_business"/>
 </odoo>
 
