@@ -20,6 +20,12 @@ class HavanoposdeskPricelist(models.Model):
         required=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
+    currency_id = fields.Many2one(
+        'res.currency',
+        string='Currency',
+        help='Currency for prices in this pricelist. If not set, the base currency is assumed.',
+        default=lambda self: self.env.user.tenant_id.currency_id.id if self.env.user.tenant_id and self.env.user.tenant_id.currency_id else False,
+    )
 
     @api.constrains('name', 'tenant_id')
     def _check_unique_name(self):

@@ -176,6 +176,16 @@ class Sale(models.Model):
 
     @api.onchange('pricelist_id')
     def _onchange_pricelist_id(self):
+        # Auto-set the document currency from the pricelist currency
+        if self.pricelist_id and self.pricelist_id.currency_id:
+            self.currency_id = self.pricelist_id.currency_id.id
+            # Trigger exchange rate fetch
+            self._onchange_currency_id()
+        elif self.pricelist_id and not self.pricelist_id.currency_id:
+            # No currency on pricelist means base currency
+            if self.tenant_id and self.tenant_id.currency_id:
+                self.currency_id = self.tenant_id.currency_id.id
+                self.exchange_rate = 1.0
         if self.line_ids:
             for line in self.line_ids:
                 line._onchange_product_uom()
