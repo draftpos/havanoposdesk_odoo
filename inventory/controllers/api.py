@@ -1,5 +1,4 @@
 from datetime import datetime
-from dataclasses import fields
 from odoo.orm import environments
 import odoo.orm.environments
 from odoo import http, fields
@@ -5781,7 +5780,6 @@ class HavanoPOSDeskAPI(http.Controller):
         # Days left and company status
         days_left = 30
         if tenant and tenant.subscription_end_date:
-            from odoo import fields
             days_left = (tenant.subscription_end_date - fields.Date.context_today(user)).days
         
         company_status = tenant.subscription_state if tenant else 'active'
@@ -8222,7 +8220,6 @@ class HavanoPOSDeskAPI(http.Controller):
 
         env, custom_cr = self._get_env(user_id=uid)
         try:
-            from odoo import fields
             user = env['res.users'].browse(uid)
             tenant_id = user.tenant_id.id if user.tenant_id else False
 
