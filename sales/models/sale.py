@@ -864,9 +864,10 @@ class SaleLine(models.Model):
                 record.price_tax_fc = record.price_tax * rate
                 record.amount_fc = record.amount * rate
             else:
-                record.price_subtotal_fc = record.price_subtotal
-                record.price_tax_fc = record.price_tax
-                record.amount_fc = record.amount
+                rate = record.exchange_rate if record.exchange_rate else 1.0
+                record.price_subtotal_fc = record.price_subtotal / rate
+                record.price_tax_fc = record.price_tax / rate
+                record.amount_fc = record.amount / rate
 
     @api.depends('product_id')
     def _compute_available_uom_ids(self):

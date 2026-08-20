@@ -128,10 +128,10 @@
                                         <field name="tax_ids" widget="many2many_tags" domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]" width="15%" optional="show" options="{'no_create': True, 'no_create_edit': True, 'no_quick_create': True, 'no_search_more': True}" />
                                         <field name="price_tax" string="Tax Amt" width="15%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="amount" width="20%" widget="monetary" options="{'currency_field': 'currency_id'}" />
-                                        <!-- Foreign-Currency columns (shown only when invoice uses a different currency from base) -->
-                                        <field name="price_subtotal_fc" string="Rate (FC)" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" column_invisible="not parent.is_cross_currency" />
-                                        <field name="price_tax_fc" string="Tax (FC)" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" column_invisible="not parent.is_cross_currency" />
-                                        <field name="amount_fc" string="Total (FC)" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <!-- Base-Currency columns (shown only when invoice uses a different currency from base) -->
+                                        <field name="price_subtotal_fc" string="Rate (Base)" optional="show" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <field name="price_tax_fc" string="Tax (Base)" optional="show" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <field name="amount_fc" string="Total (Base)" optional="show" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
