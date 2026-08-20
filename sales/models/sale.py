@@ -882,6 +882,44 @@ class SaleLine(models.Model):
             uom_ids.extend(prices.mapped('uom_id.id'))
             line.available_uom_ids = [(6, 0, list(set(uom_ids)))]
 
+    def _convert_price_to_document_currency(self, price, price_source_pricelist=None):
+        """Convert a price from the pricelist/base currency to the document currency.
+        
+        If the pricelist has a currency set, that's the source currency.
+        If not, prices are assumed to be in the tenant's base currency.
+        
+        If the source currency matches the document currency, no conversion needed.
+        If they differ, multiply by the exchange rate (base → foreign) or divide (foreign → base).
+        """
+        sale = self.sale_id
+        if not sale or not sale.currency_id or not sale.tenant_id or not sale.tenant_id.currency_id:
+            return price
+            
+        doc_currency = sale.currency_id
+        base_currency = sale.tenant_id.currency_id
+        exchange_rate = sale.exchange_rate or 1.0
+        
+        # Determine the source currency of the price
+        if price_source_pricelist and price_source_pricelist.currency_id:
+            source_currency = price_source_pricelist.currency_id
+        else:
+            source_currency = base_currency  # default: prices are in base currency
+        
+        # No conversion needed if source matches document
+        if source_currency == doc_currency:
+            return price
+        
+        # Source is base currency, document is foreign → multiply by exchange rate
+        if source_currency == base_currency:
+            return price * exchange_rate
+        
+        # Source is foreign, document is base → divide by exchange rate
+        if doc_currency == base_currency and exchange_rate:
+            return price / exchange_rate
+        
+        # Both are different non-base currencies — rare edge case, return as-is
+        return price
+
     @api.onchange('product_id', 'uom_id')
     def _onchange_product_uom(self):
         for line in self:
@@ -896,22 +934,25 @@ class SaleLine(models.Model):
             line.tax_ids = [(6, 0, line.product_id.sale_tax_ids.ids)]
             
             price_record = False
-            if line.sale_id.pricelist_id:
+            pricelist = line.sale_id.pricelist_id
+            if pricelist:
                 price_record = self.env['havanoposdesk.product.uom.price'].search([
                     ('product_id', '=', line.product_id.id),
                     ('uom_id', '=', line.uom_id.id),
-                    ('pricelist_id', '=', line.sale_id.pricelist_id.id)
+                    ('pricelist_id', '=', pricelist.id)
                 ], limit=1)
                 
             if price_record:
-                line.rate = price_record.price
+                raw_price = price_record.price
+                line.rate = line._convert_price_to_document_currency(raw_price, pricelist)
                 line.uom_qty_multiplier = price_record.qty_to_be_sold
                 base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                 line.cost_price = base_cost * price_record.qty_to_be_sold
             else:
                 if line.uom_id == line.product_id.uom_id:
                     base_price = line.product_id.selling_price
-                    line.rate = base_price
+                    # Product selling_price is always in base currency
+                    line.rate = line._convert_price_to_document_currency(base_price)
                     
                     base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                     line.cost_price = base_cost
@@ -923,12 +964,15 @@ class SaleLine(models.Model):
                         ('pricelist_id.type', '=', 'selling')
                     ], limit=1)
                     if fallback_record:
-                        line.rate = fallback_record.price
+                        fallback_pricelist = fallback_record.pricelist_id
+                        raw_price = fallback_record.price
+                        line.rate = line._convert_price_to_document_currency(raw_price, fallback_pricelist)
                         line.uom_qty_multiplier = fallback_record.qty_to_be_sold
                         base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                         line.cost_price = base_cost * fallback_record.qty_to_be_sold
                     else:
-                        line.rate = line.product_id.selling_price
+                        base_price = line.product_id.selling_price
+                        line.rate = line._convert_price_to_document_currency(base_price)
                         line.uom_qty_multiplier = 1.0
 
     def _recompute_prices_for_currency(self):
@@ -936,20 +980,23 @@ class SaleLine(models.Model):
             if not line.product_id:
                 continue
             price_record = False
-            if line.sale_id.pricelist_id:
+            pricelist = line.sale_id.pricelist_id
+            if pricelist:
                 price_record = self.env['havanoposdesk.product.uom.price'].search([
                     ('product_id', '=', line.product_id.id),
                     ('uom_id', '=', line.uom_id.id),
-                    ('pricelist_id', '=', line.sale_id.pricelist_id.id)
+                    ('pricelist_id', '=', pricelist.id)
                 ], limit=1)
                 
             if price_record:
-                line.rate = price_record.price
+                raw_price = price_record.price
+                line.rate = line._convert_price_to_document_currency(raw_price, pricelist)
                 base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                 line.cost_price = base_cost * price_record.qty_to_be_sold
             else:
                 if line.uom_id == line.product_id.uom_id:
-                    line.rate = line.product_id.selling_price
+                    base_price = line.product_id.selling_price
+                    line.rate = line._convert_price_to_document_currency(base_price)
                     base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                     line.cost_price = base_cost
                 else:
@@ -959,11 +1006,14 @@ class SaleLine(models.Model):
                         ('pricelist_id.type', '=', 'selling')
                     ], limit=1)
                     if fallback_record:
-                        line.rate = fallback_record.price
+                        fallback_pricelist = fallback_record.pricelist_id
+                        raw_price = fallback_record.price
+                        line.rate = line._convert_price_to_document_currency(raw_price, fallback_pricelist)
                         base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                         line.cost_price = base_cost * fallback_record.qty_to_be_sold
                     else:
-                        line.rate = line.product_id.selling_price
+                        base_price = line.product_id.selling_price
+                        line.rate = line._convert_price_to_document_currency(base_price)
                         base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                         line.cost_price = base_cost
 
