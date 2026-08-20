@@ -111,15 +111,21 @@ class Sale(models.Model):
     @api.onchange('customer')
     def _onchange_customer(self):
         if self.customer:
-            self.currency_id = self.customer.currency_id.id
-            # Auto-fetch exchange rate for the customer's currency
-            if self.customer.currency_id and self.tenant_id and self.tenant_id.currency_id:
-                if self.customer.currency_id == self.tenant_id.currency_id:
+            # Prefer secondary currency if multi-currency is allowed for this customer
+            target_currency = self.customer.currency_id
+            if self.customer.allow_multi_currency and self.customer.secondary_currency_id:
+                target_currency = self.customer.secondary_currency_id
+                
+            self.currency_id = target_currency.id
+            
+            # Auto-fetch exchange rate for the target currency
+            if target_currency and self.tenant_id and self.tenant_id.currency_id:
+                if target_currency == self.tenant_id.currency_id:
                     self.exchange_rate = 1.0
                 else:
                     date = self.date or fields.Date.context_today(self)
-                    rate = self.customer.currency_id._get_conversion_rate(
-                        self.tenant_id.currency_id, self.customer.currency_id, self.env.company, date
+                    rate = target_currency._get_conversion_rate(
+                        self.tenant_id.currency_id, target_currency, self.env.company, date
                     )
                     self.exchange_rate = rate or 1.0
 

@@ -71,6 +71,10 @@
                                 <field name="date" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="allowed_pricelist_ids" invisible="1" />
                                 <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" readonly="state != 'draft'" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="available_currency_ids" invisible="1" />
+                                <field name="allow_multi_currency" invisible="1" />
+                                <field name="currency_id" invisible="allow_multi_currency == False" domain="[('id', 'in', available_currency_ids)]" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="exchange_rate" invisible="allow_multi_currency == False" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark" />
                                 <field name="is_return" invisible="1" />
                                 <field name="is_quotation" invisible="1" />
@@ -78,12 +82,8 @@
                                 <field name="tenant_id" invisible="1" />
                             </group>
                             <group>
-                                <!-- RIGHT: Local Invoice ID, Currency, Exchange Rate, Payment fields -->
+                                <!-- RIGHT: Local Invoice ID, Payment fields -->
                                 <field name="local_invoice_id" readonly="1" class="border-bottom border-dark" />
-                                <field name="available_currency_ids" invisible="1" />
-                                <field name="allow_multi_currency" invisible="1" />
-                                <field name="currency_id" invisible="allow_multi_currency == False" domain="[('id', 'in', available_currency_ids)]" options="{'no_create': True}" class="border-bottom border-dark" />
-                                <field name="exchange_rate" invisible="allow_multi_currency == False" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" invisible="is_quotation" />
                                 <field name="payment_policy" invisible="payment_status != 'cash' or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" />
                                 <field name="account_id" invisible="payment_status != 'cash' or payment_policy != 'single' or is_quotation" required="not is_quotation and payment_status == 'cash' and payment_policy == 'single'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark" />
