@@ -221,11 +221,16 @@
                             <thead>
                                 <tr>
                                     <th style="width: 5%;">#</th>
-                                    <th class="text-left" style="width: 45%;">Description</th>
-                                    <th style="width: 10%;">Qty</th>
-                                    <th style="width: 15%;">Unit Price (<span t-field="doc.currency_id.symbol"/>)</th>
-                                    <th style="width: 10%;">Tax Amount (<span t-field="doc.currency_id.symbol"/>)</th>
-                                    <th style="width: 10%;">Total Amount (<span t-field="doc.currency_id.symbol"/>)</th>
+                                    <th class="text-left" t-att-style="'width: 30%;' if doc.is_cross_currency else 'width: 45%;'">Description</th>
+                                    <th t-att-style="'width: 8%;' if doc.is_cross_currency else 'width: 10%;'">Qty</th>
+                                    <th t-att-style="'width: 12%;' if doc.is_cross_currency else 'width: 15%;'">Unit Price (<span t-field="doc.currency_id.symbol"/>)</th>
+                                    <th t-att-style="'width: 8%;' if doc.is_cross_currency else 'width: 10%;'">Tax Amount (<span t-field="doc.currency_id.symbol"/>)</th>
+                                    <th t-att-style="'width: 12%;' if doc.is_cross_currency else 'width: 10%;'">Total Amount (<span t-field="doc.currency_id.symbol"/>)</th>
+                                    <t t-if="doc.is_cross_currency">
+                                        <th style="width: 10%;">Price (<span t-field="doc.tenant_currency_id.symbol"/>)</th>
+                                        <th style="width: 8%;">Tax (<span t-field="doc.tenant_currency_id.symbol"/>)</th>
+                                        <th style="width: 12%;">Total (<span t-field="doc.tenant_currency_id.symbol"/>)</th>
+                                    </t>
                                 </tr>
                             </thead>
                             <tbody>
@@ -248,6 +253,16 @@
 
                                         <td><span t-esc="tax_amt" t-options='{"widget": "float", "precision": 2}'/></td>
                                         <td><span t-esc="line_total" t-options='{"widget": "float", "precision": 2}'/></td>
+
+                                        <!-- Cross-currency base equivalents -->
+                                        <t t-if="doc.is_cross_currency">
+                                            <t t-set="rate_base" t-value="line.rate / doc.exchange_rate if doc.exchange_rate else line.rate"/>
+                                            <t t-set="tax_base" t-value="tax_amt / doc.exchange_rate if doc.exchange_rate else tax_amt"/>
+                                            <t t-set="total_base" t-value="line_total / doc.exchange_rate if doc.exchange_rate else line_total"/>
+                                            <td><span t-esc="rate_base" t-options='{"widget": "float", "precision": 2}'/></td>
+                                            <td><span t-esc="tax_base" t-options='{"widget": "float", "precision": 2}'/></td>
+                                            <td><span t-esc="total_base" t-options='{"widget": "float", "precision": 2}'/></td>
+                                        </t>
                                     </tr>
                                     <t t-set="line_idx" t-value="line_idx + 1"/>
                                 </t>
@@ -257,21 +272,45 @@
                         <!-- Totals Section -->
                         <table class="w-100" style="margin-top: 15px;">
                             <tr>
-                                <td class="w-60"></td>
+                                <td class="w-60" style="vertical-align: bottom; text-align: left; padding-left: 10px;">
+                                    <t t-if="doc.is_cross_currency">
+                                        <div style="font-size: 12px; font-weight: bold; color: #475569; margin-bottom: 5px;">
+                                            Exchange Rate: 1 <span t-field="doc.tenant_currency_id.name"/> = <span t-field="doc.exchange_rate" t-options='{"widget": "float", "precision": 4}'/> <span t-field="doc.currency_id.name"/>
+                                        </div>
+                                    </t>
+                                </td>
                                 <td class="w-40 text-right">
                                     <table style="width: 100%; border-collapse: collapse; text-align: right; font-size: 12px;">
                                         <tr>
                                             <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: bold;">SUBTOTAL (Excl. Tax)</td>
                                             <td style="padding: 6px 10px; border: 1px solid #e2e8f0; width: 40%;"><span t-field="doc.amount_untaxed" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
                                         </tr>
+                                        <t t-if="doc.is_cross_currency">
+                                            <tr>
+                                                <td style="padding: 4px 10px; border: 1px solid #e2e8f0; color: #64748b; font-style: italic;">Subtotal (<span t-field="doc.tenant_currency_id.name"/>)</td>
+                                                <td style="padding: 4px 10px; border: 1px solid #e2e8f0; color: #64748b;"><span t-esc="doc.amount_untaxed / doc.exchange_rate if doc.exchange_rate else doc.amount_untaxed" t-options='{"widget": "monetary", "display_currency": doc.tenant_currency_id}'/></td>
+                                            </tr>
+                                        </t>
                                         <tr>
                                             <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: bold;">TOTAL TAX</td>
                                             <td style="padding: 6px 10px; border: 1px solid #e2e8f0;"><span t-field="doc.amount_tax" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
                                         </tr>
+                                        <t t-if="doc.is_cross_currency">
+                                            <tr>
+                                                <td style="padding: 4px 10px; border: 1px solid #e2e8f0; color: #64748b; font-style: italic;">Total Tax (<span t-field="doc.tenant_currency_id.name"/>)</td>
+                                                <td style="padding: 4px 10px; border: 1px solid #e2e8f0; color: #64748b;"><span t-esc="doc.amount_tax / doc.exchange_rate if doc.exchange_rate else doc.amount_tax" t-options='{"widget": "monetary", "display_currency": doc.tenant_currency_id}'/></td>
+                                            </tr>
+                                        </t>
                                         <tr class="bg-primary-dark">
                                             <td style="padding: 8px 10px; font-weight: bold; font-size: 13px;">TOTAL (Incl. Tax)</td>
                                             <td style="padding: 8px 10px; font-weight: bold; font-size: 14px;"><span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
                                         </tr>
+                                        <t t-if="doc.is_cross_currency">
+                                            <tr style="background-color: #f1f5f9;">
+                                                <td style="padding: 6px 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;">Total (<span t-field="doc.tenant_currency_id.name"/>)</td>
+                                                <td style="padding: 6px 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;"><span t-field="doc.amount_total_base" t-options='{"widget": "monetary", "display_currency": doc.tenant_currency_id}'/></td>
+                                            </tr>
+                                        </t>
                                     </table>
                                 </td>
                             </tr>

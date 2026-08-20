@@ -117,21 +117,32 @@
                                 <field name="line_ids" readonly="state != 'draft'" widget="section_and_note_one2many" mode="list,kanban">
                                     <list editable="bottom">
                                         <field name="currency_id" column_invisible="True" />
+                                        <field name="exchange_rate" column_invisible="True" />
                                         <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('is_active', '=', True)]" width="40%" string="Item" />
                                         <field name="available_uom_ids" column_invisible="True" />
-                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{'no_create': True}" width="15%" />
+                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{&apos;no_create&apos;: True}" width="15%" />
                                         <field name="accepted_qty" string="Qty" width="15%" />
                                         <field name="rate" width="15%" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="tax_ids" widget="many2many_tags" domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]" width="15%" optional="show" options="{'no_create': True, 'no_create_edit': True, 'no_quick_create': True, 'no_search_more': True}" />
+                                        <field name="price_tax" string="Tax Amt" width="15%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="amount" width="20%" widget="monetary" options="{'currency_field': 'currency_id'}" />
+                                        <!-- Foreign-Currency columns (shown only when invoice uses a different currency from base) -->
+                                        <field name="price_subtotal_fc" string="Rate (FC)" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <field name="price_tax_fc" string="Tax (FC)" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <field name="amount_fc" string="Total (FC)" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" column_invisible="not parent.is_cross_currency" />
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
+                                    <field name="is_cross_currency" invisible="1" />
                                     <field name="amount_untaxed" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Excl" invisible="not is_tax_enabled and amount_tax == 0" />
                                     <field name="amount_tax" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Tax" invisible="not is_tax_enabled and amount_tax == 0" />
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Incl" />
+                                    <!-- Foreign-Currency footer totals: shown only when document currency differs from base -->
+                                    <field name="amount_untaxed_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Excl (Base Curr)" invisible="not is_cross_currency or (not is_tax_enabled and amount_tax == 0)" class="text-muted" />
+                                    <field name="amount_tax_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Tax (Base Curr)" invisible="not is_cross_currency or (not is_tax_enabled and amount_tax == 0)" class="text-muted" />
+                                    <field name="amount_total_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Incl (Base Curr)" invisible="not is_cross_currency" class="text-muted fw-bold" />
                                 </group>
                             </page>
                             <page string="Payment Breakdown" name="payment_entries" invisible="payment_status != 'cash' or payment_policy != 'multi' or is_quotation">

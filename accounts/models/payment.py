@@ -32,6 +32,19 @@ class Payment(models.Model):
                 date = self.date or fields.Date.context_today(self)
                 rate = self.currency_id._get_conversion_rate(self.tenant_id.currency_id, self.currency_id, self.env.company, date)
                 self.exchange_rate = rate or 1.0
+
+    @api.onchange('account_id')
+    def _onchange_account_id(self):
+        """Auto-populate currency from the selected deposit account.
+
+        When a bank/cash account is chosen and it carries an explicit
+        currency, we copy that currency to the payment and immediately
+        re-trigger the exchange-rate lookup so the rate is also filled in
+        without the user having to touch the Currency field manually.
+        """
+        if self.account_id and self.account_id.currency_id:
+            self.currency_id = self.account_id.currency_id
+            self._onchange_currency_id()
     
     payment_type = fields.Selection([
         ('receipt', 'Receive Money'),
@@ -256,6 +269,18 @@ class PaymentLine(models.Model):
                 date = self.payment_id.date or fields.Date.context_today(self)
                 rate = self.currency_id._get_conversion_rate(self.tenant_id.currency_id, self.currency_id, self.env.company, date)
                 self.exchange_rate = rate or 1.0
+
+    @api.onchange('account_id')
+    def _onchange_line_account_id(self):
+        """Auto-populate currency from the selected account on a payment line.
+
+        When a bank/cash account is chosen and it carries a currency, that
+        currency is copied to the payment line and the exchange rate is
+        looked up automatically.
+        """
+        if self.account_id and self.account_id.currency_id:
+            self.currency_id = self.account_id.currency_id
+            self._onchange_currency_id()
 
     @api.depends('amount', 'exchange_rate')
     def _compute_amount_base(self):

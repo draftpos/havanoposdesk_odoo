@@ -112,6 +112,16 @@ class Sale(models.Model):
     def _onchange_customer(self):
         if self.customer:
             self.currency_id = self.customer.currency_id.id
+            # Auto-fetch exchange rate for the customer's currency
+            if self.customer.currency_id and self.tenant_id and self.tenant_id.currency_id:
+                if self.customer.currency_id == self.tenant_id.currency_id:
+                    self.exchange_rate = 1.0
+                else:
+                    date = self.date or fields.Date.context_today(self)
+                    rate = self.customer.currency_id._get_conversion_rate(
+                        self.tenant_id.currency_id, self.customer.currency_id, self.env.company, date
+                    )
+                    self.exchange_rate = rate or 1.0
 
     @api.onchange('currency_id', 'tenant_id')
     def _onchange_currency_id(self):
@@ -168,7 +178,15 @@ class Sale(models.Model):
     amount_untaxed = fields.Float(string='Untaxed Amount', compute='_compute_amount_total', store=True)
     amount_tax = fields.Float(string='Taxes', compute='_compute_amount_total', store=True)
     amount_total = fields.Float(string='Total Amount', compute='_compute_amount_total', store=True)
-    
+
+    # Foreign-currency footer totals (document currency, not base)
+    amount_untaxed_fc = fields.Float(string='Total Excl (FC)', compute='_compute_fc_totals', store=True)
+    amount_tax_fc = fields.Float(string='Total Tax (FC)', compute='_compute_fc_totals', store=True)
+    amount_total_fc = fields.Float(string='Total Incl (FC)', compute='_compute_fc_totals', store=True)
+    is_cross_currency = fields.Boolean(
+        string='Cross-Currency', compute='_compute_is_cross_currency', store=True
+    )
+
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
     amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
     amount_paid_base = fields.Float(string='Paid (Base)', compute='_compute_amount_paid_base', store=True)
@@ -216,6 +234,34 @@ class Sale(models.Model):
                 record.amount_total_base = record.amount_total / record.exchange_rate
             else:
                 record.amount_total_base = record.amount_total
+
+    @api.depends('currency_id', 'tenant_currency_id')
+    def _compute_is_cross_currency(self):
+        for record in self:
+            record.is_cross_currency = (
+                bool(record.currency_id)
+                and bool(record.tenant_currency_id)
+                and record.currency_id != record.tenant_currency_id
+            )
+
+    @api.depends('amount_untaxed', 'amount_tax', 'amount_total', 'exchange_rate', 'currency_id', 'tenant_currency_id')
+    def _compute_fc_totals(self):
+        """Compute footer totals expressed in the document's foreign currency.
+
+        If the document currency is the base currency (company currency), the
+        foreign currency equivalent is calculated by multiplying base totals by the exchange rate.
+        Otherwise, the document is already in foreign currency, so we store the document totals.
+        """
+        for record in self:
+            if record.currency_id == record.tenant_currency_id:
+                rate = record.exchange_rate if record.exchange_rate else 1.0
+                record.amount_untaxed_fc = record.amount_untaxed * rate
+                record.amount_tax_fc = record.amount_tax * rate
+                record.amount_total_fc = record.amount_total * rate
+            else:
+                record.amount_untaxed_fc = record.amount_untaxed
+                record.amount_tax_fc = record.amount_tax
+                record.amount_total_fc = record.amount_total
 
     @api.depends('payment_ids.amount_base', 'amount_total_base')
     def _compute_amount_paid_base(self):
@@ -683,6 +729,12 @@ class SaleLine(models.Model):
     price_subtotal = fields.Float(string='Subtotal', compute='_compute_amount', store=True)
     price_tax = fields.Float(string='Tax', compute='_compute_amount', store=True)
     amount = fields.Float(string='Total', compute='_compute_amount', store=True)
+
+    # Foreign-currency equivalents — expressed in the document currency (FC)
+    price_subtotal_fc = fields.Float(string='Rate (FC)', compute='_compute_fc_amounts', store=True)
+    price_tax_fc = fields.Float(string='Tax (FC)', compute='_compute_fc_amounts', store=True)
+    amount_fc = fields.Float(string='Total (FC)', compute='_compute_fc_amounts', store=True)
+
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM')
     uom_qty_multiplier = fields.Float(string='UOM Multiplier', default=1.0)
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
@@ -765,20 +817,39 @@ class SaleLine(models.Model):
             sign = -1.0 if record.sale_id.is_return else 1.0
             base_amount = record.accepted_qty * record.rate
             taxes = record.tax_ids
-            
+
             inclusive_taxes = taxes.filtered(lambda t: t.is_inclusive)
             exclusive_taxes = taxes.filtered(lambda t: not t.is_inclusive)
-            
+
             rate_incl = sum(inclusive_taxes.mapped('rate')) / 100.0
             rate_excl = sum(exclusive_taxes.mapped('rate')) / 100.0
-            
+
             untaxed_amount = base_amount / (1.0 + rate_incl)
             inclusive_tax_amount = base_amount - untaxed_amount
             exclusive_tax_amount = untaxed_amount * rate_excl
-            
+
             record.price_subtotal = untaxed_amount * sign
             record.price_tax = (inclusive_tax_amount + exclusive_tax_amount) * sign
             record.amount = record.price_subtotal + record.price_tax
+
+    @api.depends('price_subtotal', 'price_tax', 'amount', 'exchange_rate', 'sale_id.exchange_rate', 'sale_id.currency_id', 'sale_id.tenant_currency_id')
+    def _compute_fc_amounts(self):
+        """Convert line amounts into the document's foreign currency.
+
+        If the document currency is the base currency (company currency), the
+        foreign currency equivalent is calculated by multiplying base amounts by the exchange rate.
+        Otherwise, the document is already in foreign currency, so we store the document amounts.
+        """
+        for record in self:
+            if record.sale_id.currency_id == record.sale_id.tenant_currency_id:
+                rate = record.exchange_rate if record.exchange_rate else 1.0
+                record.price_subtotal_fc = record.price_subtotal * rate
+                record.price_tax_fc = record.price_tax * rate
+                record.amount_fc = record.amount * rate
+            else:
+                record.price_subtotal_fc = record.price_subtotal
+                record.price_tax_fc = record.price_tax
+                record.amount_fc = record.amount
 
     @api.depends('product_id')
     def _compute_available_uom_ids(self):

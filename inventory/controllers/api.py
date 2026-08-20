@@ -2760,12 +2760,40 @@ class HavanoPOSDeskAPI(http.Controller):
                 sale_user = user
 
             payment_policy, account_id, payment_commands = self._prepare_payment_vals(env, tenant, customer, params)
+            
+            # Resolve currency
+            doc_currency = False
+            currency_param = params.get('currency') or params.get('currency_id')
+            if currency_param:
+                if isinstance(currency_param, int):
+                    doc_currency = env['res.currency'].sudo().browse(currency_param)
+                else:
+                    doc_currency = env['res.currency'].sudo().search([('name', '=ilike', str(currency_param).strip())], limit=1)
+            
+            if not doc_currency:
+                doc_currency = customer.currency_id or tenant.currency_id or env.company.currency_id
+
+            # Resolve exchange rate
+            doc_exchange_rate = float(params.get('exchange_rate') or 0.0)
+            if doc_exchange_rate <= 0:
+                if doc_currency and tenant.currency_id:
+                    if doc_currency == tenant.currency_id:
+                        doc_exchange_rate = 1.0
+                    else:
+                        date = fields.Date.context_today(sale_user)
+                        rate = doc_currency._get_conversion_rate(tenant.currency_id, doc_currency, env.company, date)
+                        doc_exchange_rate = rate or 1.0
+                else:
+                    doc_exchange_rate = 1.0
+
             sale_vals = {
                 'customer': customer.id,
                 'store': store.name,
                 'store_id': store.id,
                 'tenant_id': tenant.id,
                 'terminal_id': terminal.id,
+                'currency_id': doc_currency.id if doc_currency else False,
+                'exchange_rate': doc_exchange_rate,
                 'line_ids': sale_lines,
                 'state': 'done',
                 'salesperson_id': sale_user.id,
@@ -3322,12 +3350,40 @@ class HavanoPOSDeskAPI(http.Controller):
 
                         payment_policy, account_id, payment_commands = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
 
+                        # Resolve currency
+                        doc_currency = False
+                        currency_param = sale_data.get('currency') or sale_data.get('currency_id')
+                        if currency_param:
+                            if isinstance(currency_param, int):
+                                doc_currency = env['res.currency'].sudo().browse(currency_param)
+                            else:
+                                doc_currency = env['res.currency'].sudo().search([('name', '=ilike', str(currency_param).strip())], limit=1)
+                        
+                        if not doc_currency:
+                            doc_currency = customer.currency_id or tenant.currency_id or env.company.currency_id
+
+                        # Resolve exchange rate
+                        doc_exchange_rate = float(sale_data.get('exchange_rate') or 0.0)
+                        if doc_exchange_rate <= 0:
+                            if doc_currency and tenant.currency_id:
+                                if doc_currency == tenant.currency_id:
+                                    doc_exchange_rate = 1.0
+                                else:
+                                    from odoo import fields
+                                    date = fields.Date.context_today(sale_user)
+                                    rate = doc_currency._get_conversion_rate(tenant.currency_id, doc_currency, env.company, date)
+                                    doc_exchange_rate = rate or 1.0
+                            else:
+                                doc_exchange_rate = 1.0
+
                         sale_vals = {
                             'customer': customer.id,
                             'store': store.name,
                             'store_id': store.id,
                             'tenant_id': tenant.id,
                             'terminal_id': terminal.id if terminal else False,
+                            'currency_id': doc_currency.id if doc_currency else False,
+                            'exchange_rate': doc_exchange_rate,
                             'line_ids': lines,
                             'state': 'done',
                             'salesperson_id': sale_user.id,
