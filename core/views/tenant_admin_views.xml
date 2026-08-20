@@ -190,11 +190,84 @@ else:
             </field>
         </record>
 
+        <!-- Custom currency list view with base currency indicator -->
+        <record id="view_havanoposdesk_currency_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.currency.list</field>
+            <field name="model">res.currency</field>
+            <field name="priority">20</field>
+            <field name="arch" type="xml">
+                <list string="Currencies" decoration-muted="(not active)" decoration-bf="is_base_currency">
+                    <field name="name"/>
+                    <field name="symbol"/>
+                    <field name="full_name" string="Name" optional="show"/>
+                    <field name="is_base_currency" string="Base" widget="boolean_toggle" readonly="1"/>
+                    <field name="date" string="Last Update"/>
+                    <field name="rate" digits="[12,6]"/>
+                    <field name="active" widget="boolean_toggle"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Custom currency form view with base currency switch and exchange rate history -->
+        <record id="view_havanoposdesk_currency_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.currency.form</field>
+            <field name="model">res.currency</field>
+            <field name="priority">20</field>
+            <field name="arch" type="xml">
+                <form string="Currency">
+                    <div class="alert alert-info text-center" role="alert" invisible="not is_base_currency">
+                        <i class="fa fa-star me-1"></i> This is your base (default) currency.
+                    </div>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                                <field name="full_name" string="Name"/>
+                                <field name="is_base_currency" widget="boolean_toggle" readonly="1" string="Base Currency"/>
+                                <field name="active" widget="boolean_toggle"/>
+                            </group>
+                            <group>
+                                <field name="symbol"/>
+                                <field name="currency_unit_label"/>
+                                <field name="currency_subunit_label"/>
+                                <field name="position"/>
+                            </group>
+                        </group>
+
+                        <notebook invisible="is_base_currency">
+                            <page string="Current Rates" name="rates">
+                                <field name="rate_ids" widget="one2many">
+                                    <list string="Rates" editable="top" limit="25" create="1" edit="0" delete="0">
+                                        <field name="name"/>
+                                        <field name="company_rate" digits="[12,6]"/>
+                                        <field name="inverse_company_rate" digits="[12,6]"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Exchange Rate History" name="rate_history">
+                                <field name="rate_ids" widget="one2many" readonly="1">
+                                    <list string="Rate History" limit="50" create="0" edit="0" delete="0" decoration-muted="name != today">
+                                        <field name="name" string="Date"/>
+                                        <field name="company_rate" string="Unit per Base" digits="[12,6]"/>
+                                        <field name="inverse_company_rate" string="Base per Unit" digits="[12,6]"/>
+                                        <field name="write_date" string="Last Modified"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
         <!-- Custom currency action accessible to tenant admins -->
         <record id="action_havanoposdesk_currencies" model="ir.actions.act_window">
             <field name="name">Currencies</field>
             <field name="res_model">res.currency</field>
             <field name="view_mode">list,form</field>
+            <field name="view_ids" eval="[(5, 0, 0),
+                (0, 0, {'view_mode': 'list', 'view_id': ref('view_havanoposdesk_currency_tree')}),
+                (0, 0, {'view_mode': 'form', 'view_id': ref('view_havanoposdesk_currency_form')})]"/>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Add a new Currency
@@ -209,7 +282,7 @@ else:
             <field name="name">havanoposdesk.currency.rate.list</field>
             <field name="model">res.currency.rate</field>
             <field name="arch" type="xml">
-                <list string="Exchange Rates" editable="bottom">
+                <list string="Exchange Rates" editable="bottom" create="1" edit="0" delete="0">
                     <field name="currency_id" />
                     <field name="name" string="Date" />
                     <field name="company_rate" string="Unit per Base Currency" digits="[12,6]" />

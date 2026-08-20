@@ -11,6 +11,20 @@ class ResCurrency(models.Model):
         index=True
     )
 
+    is_base_currency = fields.Boolean(
+        string='Base Currency',
+        compute='_compute_is_base_currency',
+        store=False,
+        help='Indicates if this is the base (default) currency for your business.',
+    )
+
+    @api.depends_context('uid')
+    def _compute_is_base_currency(self):
+        tenant = self.env.user.tenant_id
+        base_currency_id = tenant.currency_id.id if tenant and tenant.currency_id else False
+        for rec in self:
+            rec.is_base_currency = (rec.id == base_currency_id) if base_currency_id else False
+
     _unique_name = models.Constraint(
         'unique (name, tenant_id)',
         "The currency code must be unique per tenant!",
