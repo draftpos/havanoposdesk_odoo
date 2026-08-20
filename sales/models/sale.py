@@ -275,9 +275,10 @@ class Sale(models.Model):
                 record.amount_tax_fc = record.amount_tax * rate
                 record.amount_total_fc = record.amount_total * rate
             else:
-                record.amount_untaxed_fc = record.amount_untaxed
-                record.amount_tax_fc = record.amount_tax
-                record.amount_total_fc = record.amount_total
+                rate = record.exchange_rate if record.exchange_rate else 1.0
+                record.amount_untaxed_fc = record.amount_untaxed / rate
+                record.amount_tax_fc = record.amount_tax / rate
+                record.amount_total_fc = record.amount_total / rate
 
     @api.depends('payment_ids.amount_base', 'amount_total_base')
     def _compute_amount_paid_base(self):
