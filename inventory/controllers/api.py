@@ -1371,7 +1371,12 @@ class HavanoPOSDeskAPI(http.Controller):
                 if store.exists():
                     return store
             except ValueError:
-                pass
+                domain = [('name', '=', store_val)]
+                if tenant:
+                    domain.append(('tenant_id', '=', tenant.id))
+                store = request.env['havanoposdesk.store'].sudo().search(domain, limit=1)
+                if store:
+                    return store
         
         if user and user.selected_shop_id:
             return user.selected_shop_id
