@@ -107,10 +107,7 @@ def post_migrate(env):
             SELECT 1 FROM ir_model_access a WHERE a.model_id = m.id AND a.group_id IS NULL AND a.perm_read = True
         )
     """)
-    if 'ir.model.access' in env:
-        env['ir.model.access'].call_cache_clearing_methods()
-    if 'ir.rule' in env:
-        env['ir.rule'].clear_caches()
+
     env.registry.clear_cache()
 
 
