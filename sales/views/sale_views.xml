@@ -64,16 +64,13 @@
                                 <field name="customer" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="tenant_currency_id" invisible="1"/>
                                 <field name="customer_balance" string="Customer Balance" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" invisible="not customer or is_quotation" class="text-muted"/>
-                                <field name="customer_allow_multi_currency" invisible="1"/>
-                                <field name="customer_secondary_currency_id" invisible="1"/>
-                                <field name="customer_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'customer_secondary_currency_id'}" invisible="not customer_allow_multi_currency or is_quotation" class="text-muted"/>
+
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="date" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="allowed_pricelist_ids" invisible="1" />
                                 <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" readonly="state != 'draft'" options="{'no_create': True}" class="border-bottom border-dark" />
-                                <field name="available_currency_ids" invisible="1" />
                                 <field name="allow_multi_currency" invisible="1" />
-                                <field name="currency_id" invisible="allow_multi_currency == False" domain="[('id', 'in', available_currency_ids)]" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="currency_id" invisible="allow_multi_currency == False" options="{'no_create': True}" class="border-bottom border-dark" />
                                 <field name="exchange_rate" invisible="allow_multi_currency == False" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark" />
                                 <field name="is_return" invisible="1" />

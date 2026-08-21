@@ -58,10 +58,7 @@ class Payment(models.Model):
     
     customer_id = fields.Many2one('havanoposdesk.customer', string='Customer')
     customer_balance = fields.Float(related='customer_id.balance', string='Customer Balance')
-    customer_secondary_balance = fields.Float(related='customer_id.secondary_balance', string='Secondary Balance')
-    customer_allow_multi_currency = fields.Boolean(related='customer_id.allow_multi_currency', string='Customer Multi Currency')
-    customer_secondary_currency_id = fields.Many2one('res.currency', related='customer_id.secondary_currency_id')
-    
+
     supplier_id = fields.Many2one('havanoposdesk.supplier', string='Supplier')
     supplier_balance = fields.Float(related='supplier_id.balance', string='Supplier Balance')
     supplier_secondary_balance = fields.Float(related='supplier_id.secondary_balance', string='Secondary Balance')

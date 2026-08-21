@@ -27,11 +27,8 @@
                             <group>
                                 <field name="tenant_allow_multi_currency" invisible="1" />
                                 <field name="currency_id" class="border-bottom border-dark" />
-                                <field name="allow_multi_currency" invisible="not tenant_allow_multi_currency" class="border-bottom border-dark" />
-                                <field name="secondary_currency_id" invisible="not allow_multi_currency" class="border-bottom border-dark" />
                                 <field name="tenant_currency_id" invisible="1" />
                                 <field name="balance" readonly="1" class="border-bottom border-dark" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" />
-                                <field name="secondary_balance" readonly="1" class="border-bottom border-dark" widget="monetary" options="{'currency_field': 'secondary_currency_id'}" invisible="not allow_multi_currency"/>
                             </group>
                         </group>
                     </sheet>
@@ -54,8 +51,6 @@
                     <field name="country_id" optional="show" />
                     <field name="tenant_currency_id" column_invisible="True" />
                     <field name="balance" optional="show" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" />
-                    <field name="secondary_currency_id" column_invisible="True" />
-                    <field name="secondary_balance" optional="show" widget="monetary" options="{'currency_field': 'secondary_currency_id'}" invisible="secondary_balance == 0"/>
                     <field name="tin" optional="show" />
                     <field name="vat" optional="show" />
                 </list>

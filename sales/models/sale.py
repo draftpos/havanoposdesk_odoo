@@ -22,9 +22,7 @@ class Sale(models.Model):
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default=lambda self: 'New')
     customer = fields.Many2one('havanoposdesk.customer', string='Customer', required=True)
     customer_balance = fields.Float(related='customer.balance', string='Customer Balance')
-    customer_secondary_balance = fields.Float(related='customer.secondary_balance', string='Secondary Balance')
-    customer_allow_multi_currency = fields.Boolean(related='customer.allow_multi_currency', string='Customer Multi Currency')
-    customer_secondary_currency_id = fields.Many2one('res.currency', related='customer.secondary_currency_id')
+
     
     store = fields.Char(string='Store Name')
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
@@ -94,28 +92,15 @@ class Sale(models.Model):
     )
     currency_id = fields.Many2one('res.currency', string='Currency', required=True)
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
-    available_currency_ids = fields.Many2many('res.currency', compute='_compute_available_currencies', store=False)
+
     allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency')
 
-    @api.depends('customer')
-    def _compute_available_currencies(self):
-        for record in self:
-            if record.customer:
-                currencies = record.customer.currency_id
-                if record.customer.allow_multi_currency and record.customer.secondary_currency_id:
-                    currencies |= record.customer.secondary_currency_id
-                record.available_currency_ids = currencies.ids
-            else:
-                record.available_currency_ids = False
+
 
     @api.onchange('customer')
     def _onchange_customer(self):
         if self.customer:
-            # Prefer secondary currency if multi-currency is allowed for this customer
             target_currency = self.customer.currency_id
-            if self.customer.allow_multi_currency and self.customer.secondary_currency_id:
-                target_currency = self.customer.secondary_currency_id
-                
             self.currency_id = target_currency.id
             
             # Auto-fetch exchange rate for the target currency
