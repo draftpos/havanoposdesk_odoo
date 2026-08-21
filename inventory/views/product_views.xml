@@ -60,12 +60,12 @@
                                     <group string="Price information">
                                         <label for="buying_price" />
                                         <div class="o_row">
-                                            <field name="buying_price" readonly="is_bundle == True" force_save="1" class="border-bottom border-dark" />
+                                            <field name="buying_price" readonly="is_bundle == True or id" force_save="1" class="border-bottom border-dark" />
                                         </div>
                                         
                                         <label for="selling_price" />
                                         <div class="o_row">
-                                            <field name="selling_price" readonly="is_bundle == True" force_save="1" class="border-bottom border-dark" />
+                                            <field name="selling_price" readonly="is_bundle == True or id" force_save="1" class="border-bottom border-dark" />
                                         </div>
                                         <field name="markup" class="border-bottom border-dark" />
                                         <field name="id" invisible="1" />
