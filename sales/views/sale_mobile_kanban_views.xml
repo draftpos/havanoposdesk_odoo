@@ -11,8 +11,9 @@
                     <field name="customer" />
                     <field name="date" />
                     <field name="amount_total" />
-                    <field name="amount_balance_base" />
-                    <field name="payment_status" />
+                    <field name="amount_paid" />
+                    <field name="amount_balance" />
+                    <field name="payment_status_display" />
                     <templates>
                         <t t-name="card">
                             <div t-attf-class="oe_kanban_global_click havano-kanban-card">
@@ -27,14 +28,13 @@
                                 <div class="havano-card-date">
                                     <field name="date" widget="date" />
                                 </div>
-                                <div t-attf-class="havano-card-badge #{record.payment_status.raw_value == 'cash' ? 'badge-paid' : (record.payment_status.raw_value == 'partial' ? 'badge-unpaid' : 'badge-unpaid')}">
-                                    <t t-if="record.payment_status.raw_value == 'cash'">PAID</t>
-                                    <t t-elif="record.payment_status.raw_value == 'partial'">PARTIAL</t>
+                                <div t-attf-class="havano-card-badge #{record.payment_status_display.raw_value == 'cash' ? 'badge-paid' : 'badge-unpaid'}">
+                                    <t t-if="record.payment_status_display.raw_value == 'cash'">PAID</t>
                                     <t t-else="">UNPAID</t>
                                 </div>
                                 <div class="havano-card-totals">
                                     <div>Total : $<field name="amount_total" /></div>
-                                    <div>Balance : $<t t-if="record.payment_status.raw_value == 'cash'">0.00</t><t t-else=""><field name="amount_balance_base" /></t></div>
+                                    <div>Balance : $<t t-if="record.payment_status_display.raw_value == 'cash'">0.00</t><t t-else=""><field name="amount_balance" /></t></div>
                                 </div>
                                 <div class="havano-card-actions">
                                     <i class="fa fa-print" title="Print" />

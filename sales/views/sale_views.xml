@@ -14,7 +14,7 @@
                     <field name="name" string="Reference" optional="show" />
                     <field name="local_invoice_id" optional="hide" />
                     <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-info="is_quotation" decoration-bf="is_return or is_quotation" />
-                    <field name="payment_status" optional="show" column_invisible="context.get('default_is_quotation')" />
+                    <field name="payment_status_display" optional="show" column_invisible="context.get('default_is_quotation')" string="Payment Status" />
                     <field name="account_id" optional="show" column_invisible="context.get('default_is_quotation')" />
                     <field name="customer" optional="show" />
                     <field name="date" string="Date" optional="show" />
@@ -24,7 +24,7 @@
                     <field name="amount_untaxed" string="Total Exclu" widget="monetary" optional="hide" />
                     <field name="amount_tax" string="Total Tax" widget="monetary" optional="hide" />
                     <field name="amount_total" string="Total" widget="monetary" optional="show" />
-                    <field name="amount_total_base" string="Base Total" sum="Base Total" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="show" />
+                    <field name="amount_total_base" string="Base Total" sum="Base Total" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="hide" />
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return" optional="show" />
                     <field name="fiscal_status" string="ZIMRA Status" widget="badge" decoration-success="fiscal_status == 'fiscalized'" decoration-warning="fiscal_status == 'PENDING_SYNC'" decoration-danger="fiscal_status == 'failed'" optional="show"/>
                 </list>
@@ -81,7 +81,8 @@
                             <group>
                                 <!-- RIGHT: Local Invoice ID, Payment fields -->
                                 <field name="local_invoice_id" readonly="1" class="border-bottom border-dark" />
-                                <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" invisible="is_quotation" />
+                                <field name="payment_status" invisible="1" />
+                                <field name="payment_status_display" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" invisible="is_quotation" />
                                 <field name="payment_policy" invisible="payment_status not in ['cash', 'partial'] or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" />
                                 <field name="account_id" invisible="payment_status not in ['cash', 'partial'] or payment_policy != 'single' or is_quotation" required="not is_quotation and payment_status in ['cash', 'partial'] and payment_policy == 'single'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark" />
                                 <field name="single_payment_amount" invisible="payment_status not in ['cash', 'partial'] or payment_policy != 'single' or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" />
@@ -93,16 +94,16 @@
                                         <div class="card-body bg-light py-2 px-3">
                                             <div class="row mb-1 align-items-center">
                                                 <div class="col-6 fw-bold">Total Invoiced:</div>
-                                                <div class="col-6 text-end"><field name="amount_total_base" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" nolabel="1"/></div>
+                                                <div class="col-6 text-end"><field name="amount_total" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/></div>
                                             </div>
                                             <div class="row mb-1 align-items-center">
                                                 <div class="col-6 fw-bold text-success">Paid Amount:</div>
-                                                <div class="col-6 text-end text-success fw-bold"><field name="amount_paid_base" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" nolabel="1"/></div>
+                                                <div class="col-6 text-end text-success fw-bold"><field name="amount_paid" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/></div>
                                             </div>
                                             <hr class="my-1 border-secondary"/>
                                             <div class="row mt-1 align-items-center">
                                                 <div class="col-6 fw-bold text-danger">Balance Due:</div>
-                                                <div class="col-6 text-end text-danger fw-bold"><field name="amount_balance_base" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" nolabel="1"/></div>
+                                                <div class="col-6 text-end text-danger fw-bold"><field name="amount_balance" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/></div>
                                             </div>
                                         </div>
                                     </div>
@@ -126,9 +127,9 @@
                                         <field name="price_tax" string="Tax Amt" width="15%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="amount" width="20%" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <!-- Base-Currency columns (shown only when invoice uses a different currency from base) -->
-                                        <field name="price_subtotal_fc" string="Rate (Base)" optional="show" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
-                                        <field name="price_tax_fc" string="Tax (Base)" optional="show" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
-                                        <field name="amount_fc" string="Total (Base)" optional="show" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <field name="price_subtotal_fc" string="Rate (Base)" optional="hide" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <field name="price_tax_fc" string="Tax (Base)" optional="hide" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <field name="amount_fc" string="Total (Base)" optional="hide" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
@@ -137,9 +138,9 @@
                                     <field name="amount_tax" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Tax" invisible="not is_tax_enabled and amount_tax == 0" />
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Incl" />
                                     <!-- Foreign-Currency footer totals: shown only when document currency differs from base -->
-                                    <field name="amount_untaxed_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Excl (Base Curr)" invisible="not is_cross_currency or (not is_tax_enabled and amount_tax == 0)" class="text-muted" />
-                                    <field name="amount_tax_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Tax (Base Curr)" invisible="not is_cross_currency or (not is_tax_enabled and amount_tax == 0)" class="text-muted" />
-                                    <field name="amount_total_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Incl (Base Curr)" invisible="not is_cross_currency" class="text-muted fw-bold" />
+                                    <field name="amount_untaxed_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Excl (Base Curr)" invisible="1" class="text-muted" />
+                                    <field name="amount_tax_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Tax (Base Curr)" invisible="1" class="text-muted" />
+                                    <field name="amount_total_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Incl (Base Curr)" invisible="1" class="text-muted fw-bold" />
                                 </group>
                             </page>
                             <page string="Payment Breakdown" name="payment_entries" invisible="payment_status not in ['cash', 'partial'] or payment_policy != 'multi' or is_quotation">
@@ -148,14 +149,15 @@
                                         <field name="tenant_id" column_invisible="True"/>
                                         <field name="payment_type" column_invisible="True"/>
                                         <field name="customer_id" column_invisible="True"/>
+                                        <field name="tenant_currency_id" column_invisible="True"/>
                                         <field name="name" readonly="1" force_save="1" optional="hide"/>
                                         <field name="account_id" required="1"/>
                                         <field name="currency_id" />
                                         <field name="exchange_rate" />
                                         <field name="amount" sum="Total"/>
-                                        <field name="amount_base" sum="Base Total" readonly="1" force_save="1"/>
-                                        <field name="amount_owing_currency" string="Owing (Currency)" readonly="1" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                        <field name="amount_owing_base" string="Owing (Base)" readonly="1" widget="monetary" options="{'currency_field': 'tenant_currency_id'}"/>
+                                        <field name="amount_base" sum="Base Total" readonly="1" force_save="1" optional="hide"/>
+                                        <field name="amount_owing_currency" string="Balance Due" readonly="1" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                        <field name="amount_owing_base" string="Owing (Base)" readonly="1" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="hide"/>
                                         <field name="state" readonly="1" force_save="1"/>
                                     </list>
                                 </field>
@@ -221,7 +223,7 @@
                     <field name="name" string="Reference Number" filter_domain="['|', ('name', 'ilike', self), ('customer', 'ilike', self)]" />
                     <field name="customer" />
                     <field name="store_id" />
-                    <field name="payment_status" />
+                    <field name="payment_status_display" />
                     <field name="create_uid" />
                     <field name="date" />
                     <filter string="Quotations" name="filter_quotations" domain="[('is_quotation', '=', True)]" />
@@ -235,7 +237,7 @@
                     <filter string="Customer" name="filter_customer" domain="[('customer', '!=', False)]" />
                     <group>
                         <filter string="Reference" name="group_by_reference" context="{'group_by': 'name'}" />
-                        <filter string="Payment Mode" name="group_by_payment" context="{'group_by': 'payment_status'}" />
+                        <filter string="Payment Mode" name="group_by_payment" context="{'group_by': 'payment_status_display'}" />
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'date:day'}" />
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}" />
                         <filter string="Customer" name="group_by_customer" context="{'group_by': 'customer'}" />

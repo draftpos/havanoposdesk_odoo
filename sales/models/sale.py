@@ -69,6 +69,10 @@ class Sale(models.Model):
         ('partial', 'Partial'),
         ('account', 'On Account')
     ], string='Payment Status', default='cash', required=True)
+    payment_status_display = fields.Selection([
+        ('cash', 'Paid'),
+        ('account', 'On Account')
+    ], string='Payment Status', compute='_compute_payment_status_display', inverse='_inverse_payment_status_display', store=True)
     payment_policy = fields.Selection([
         ('single', 'Single Payment'),
         ('multi', 'Split / Multi-Currency Payment')
@@ -197,6 +201,8 @@ class Sale(models.Model):
     amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
     amount_paid_base = fields.Float(string='Paid (Base)', compute='_compute_amount_paid_base', store=True)
     amount_balance_base = fields.Float(string='Balance Due (Base)', compute='_compute_amount_paid_base', store=True)
+    amount_paid = fields.Float(string='Paid Amount', compute='_compute_amount_paid_base', store=True)
+    amount_balance = fields.Float(string='Balance Due', compute='_compute_amount_paid_base', store=True)
     single_payment_amount = fields.Float(string='Payment Amount', compute='_compute_single_payment_amount', store=True, readonly=False)
     
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
@@ -273,19 +279,45 @@ class Sale(models.Model):
     @api.onchange('account_id')
     def _onchange_account_id(self):
         if self.account_id and self.account_id.is_silent_on_account():
-            self.payment_status = 'partial'
+            self.payment_status = 'account'
+            self.payment_status_display = 'account'
 
-    @api.depends('payment_ids.amount_base', 'payment_ids.state', 'payment_ids.payment_type', 'amount_total_base', 'payment_status')
+    @api.depends('payment_status')
+    def _compute_payment_status_display(self):
+        for record in self:
+            record.payment_status_display = 'cash' if record.payment_status == 'cash' else 'account'
+
+    def _inverse_payment_status_display(self):
+        for record in self:
+            if record.payment_status == 'partial' and record.payment_status_display == 'account':
+                continue
+            record.payment_status = record.payment_status_display or 'cash'
+
+    @api.depends(
+        'payment_ids.amount', 'payment_ids.amount_base', 'payment_ids.state',
+        'payment_ids.payment_type', 'payment_ids.currency_id', 'amount_total',
+        'amount_total_base', 'payment_status', 'currency_id', 'exchange_rate'
+    )
     def _compute_amount_paid_base(self):
         for record in self:
             posted = record.payment_ids.filtered(
                 lambda p: p.state == 'posted' and p.payment_type == 'receipt'
             )
             record.amount_paid_base = sum(posted.mapped('amount_base'))
+            paid_doc = 0.0
+            for payment in posted:
+                if payment.currency_id == record.currency_id:
+                    paid_doc += payment.amount
+                else:
+                    rate = record.exchange_rate if record.exchange_rate else 1.0
+                    paid_doc += payment.amount_base * rate
+            record.amount_paid = paid_doc
             if record.payment_status == 'cash':
                 record.amount_balance_base = 0.0
+                record.amount_balance = 0.0
             else:
                 record.amount_balance_base = max(record.amount_total_base - record.amount_paid_base, 0.0)
+                record.amount_balance = max(record.amount_total - paid_doc, 0.0)
 
     @api.depends('amount_total')
     def _compute_single_payment_amount(self):
@@ -785,6 +817,11 @@ class Sale(models.Model):
         if 'store' in res:
             res['store']['searchable'] = False
             res['store']['sortable'] = False
+        # Partial is API-only; keep Paid / On Account on the UI field.
+        if 'payment_status' in res and res['payment_status'].get('selection'):
+            res['payment_status']['selection'] = [
+                option for option in res['payment_status']['selection'] if option[0] != 'partial'
+            ]
         return res
 
 class SaleLine(models.Model):

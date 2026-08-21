@@ -23,15 +23,22 @@ class Payment(models.Model):
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
     amount_base = fields.Float(string='Base Amount', compute='_compute_amount_base', store=True)
     amount_owing_base = fields.Float(string='Owing (Base)', compute='_compute_amount_owing', store=True)
-    amount_owing_currency = fields.Float(string='Owing (Currency)', compute='_compute_amount_owing', store=True)
+    amount_owing_currency = fields.Float(string='Balance Due', compute='_compute_amount_owing', store=True)
 
-    @api.depends('sale_id.amount_balance_base', 'exchange_rate', 'currency_id', 'tenant_currency_id')
+    @api.depends(
+        'sale_id.amount_balance', 'sale_id.amount_balance_base', 'sale_id.currency_id',
+        'exchange_rate', 'currency_id', 'tenant_currency_id'
+    )
     def _compute_amount_owing(self):
         for record in self:
-            owing_base = record.sale_id.amount_balance_base if record.sale_id else 0.0
+            sale = record.sale_id
+            owing_base = sale.amount_balance_base if sale else 0.0
             record.amount_owing_base = owing_base
-            rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
-            record.amount_owing_currency = owing_base * rate
+            if sale and record.currency_id and sale.currency_id and record.currency_id == sale.currency_id:
+                record.amount_owing_currency = sale.amount_balance
+            else:
+                rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                record.amount_owing_currency = owing_base * rate
 
     @api.onchange('currency_id', 'tenant_id')
     def _onchange_currency_id(self):
