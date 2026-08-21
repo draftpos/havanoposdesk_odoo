@@ -255,6 +255,7 @@ class HavanoposdeskProduct(models.Model):
         ('white', 'White'),
     ], string='Color')
     image_1920 = fields.Image(string='Image', max_width=1920, max_height=1920)
+    not_for_sale = fields.Boolean(string='Not For Sale', default=False)
     
     # Advanced Pricing
     discount_percentage = fields.Float(string='Discount Percentage')

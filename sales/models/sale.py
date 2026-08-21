@@ -721,7 +721,7 @@ class SaleLine(models.Model):
     store_id = fields.Many2one(related='sale_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='sale_id.currency_id', readonly=True)
     exchange_rate = fields.Float(related='sale_id.exchange_rate', readonly=True)
-    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True, domain="[('not_for_sale', '=', False), ('is_active', '=', True)]")
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
     rate = fields.Float(string='Rate')
@@ -740,6 +740,12 @@ class SaleLine(models.Model):
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
     cost_price = fields.Float(string='Cost Price', compute='_compute_cost_price', store=True, readonly=False)
     gross_profit = fields.Float(string='Gross Profit', compute='_compute_gross_profit', store=True)
+
+    @api.constrains('product_id')
+    def _check_product_not_for_sale(self):
+        for line in self:
+            if line.product_id and line.product_id.not_for_sale:
+                raise ValidationError(_("The product '%s' is marked as 'Not for Sale' and cannot be added to sales.") % line.product_id.name)
 
     def _resolve_uom_multiplier(self, product_id, uom_id):
         """Return the qty_to_be_sold multiplier for a given product + UOM pair.

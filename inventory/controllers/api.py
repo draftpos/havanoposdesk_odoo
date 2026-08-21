@@ -229,7 +229,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 })
                 
             # Fetch warehouse items/products
-            product_domain = [('is_active', '=', True)]
+            product_domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
             if user.havano_role != 'super_admin':
                 if user.tenant_id:
                     product_domain.append(('tenant_id', '=', user.tenant_id.id))
@@ -468,7 +468,7 @@ class HavanoPOSDeskAPI(http.Controller):
         user = request.env['res.users'].sudo().browse(uid)
         
         if request.httprequest.method == 'GET':
-            domain = [('is_active', '=', True)]
+            domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
             if user.havano_role != 'super_admin':
                 if not user.tenant_id:
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
@@ -605,7 +605,7 @@ class HavanoPOSDeskAPI(http.Controller):
         store = self._get_current_store(user, tenant, request_params)
 
         if request.httprequest.method == 'GET':
-            domain = []
+            domain = [('not_for_pos', '=', False)]
             if user.havano_role != 'super_admin':
                 if not user.tenant_id:
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
@@ -1529,7 +1529,7 @@ class HavanoPOSDeskAPI(http.Controller):
         customers = request.env['havanoposdesk.customer'].sudo().search(domain)
         
         # Load products/items for client caching
-        prod_domain = [('is_active', '=', True)]
+        prod_domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
         if tenant:
             prod_domain.append(('tenant_id', '=', tenant.id))
         if store:
@@ -2156,7 +2156,7 @@ class HavanoPOSDeskAPI(http.Controller):
         user = self._get_user()
         tenant = user.tenant_id
         
-        product_domain = [('is_active', '=', True)]
+        product_domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
         
         # Resolve tenant filtering
         req_tenant = params.get('tenant_id') or params.get('tenant')
@@ -3894,7 +3894,7 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
 
-            domain = []
+            domain = [('not_for_pos', '=', False)]
             if user.havano_role != 'super_admin':
                 if tenant:
                     domain.append(('tenant_id', '=', tenant.id))
@@ -4077,7 +4077,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     except Exception:
                         pass
 
-                product_domain = []
+                product_domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
                 if user.havano_role != 'super_admin' and tenant:
                     product_domain.append(('tenant_id', '=', tenant.id))
                 if target_item_code:
@@ -4246,7 +4246,7 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
 
-            product_domain = []
+            product_domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
             products = env['havanoposdesk.product'].search(product_domain)

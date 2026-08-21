@@ -72,6 +72,8 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
                     user = env['res.users'].browse(uid)
                     if user.tenant_id and hasattr(Model, 'tenant_id'):
                         domain.append(('tenant_id', '=', user.tenant_id.id))
+                    if model_name == 'category':
+                        domain.append(('not_for_pos', '=', False))
                     
                     records = Model.search(domain)
                     data = records.read()
