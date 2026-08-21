@@ -15,19 +15,19 @@
                         </div>
                         <group>
                             <group>
-                                <field name="tin" class="border-bottom border-dark" />
-                                <field name="vat" class="border-bottom border-dark" />
+                                <field name="currency_id" class="border-bottom border-dark" />
+                                <field name="tenant_currency_id" invisible="1" />
                                 <field name="store_ids" widget="many2many_tags" class="border-bottom border-dark" options="{'no_create': True}" />
                                 <field name="customer_group_id" class="border-bottom border-dark" />
-                                <field name="phone" class="border-bottom border-dark" />
-                                <field name="address" class="border-bottom border-dark" />
                                 <field name="city" class="border-bottom border-dark" />
                                 <field name="country_id" options="{'no_create': True}" class="border-bottom border-dark" />
                             </group>
                             <group>
+                                <field name="tin" class="border-bottom border-dark" />
+                                <field name="vat" class="border-bottom border-dark" />
                                 <field name="tenant_allow_multi_currency" invisible="1" />
-                                <field name="currency_id" class="border-bottom border-dark" />
-                                <field name="tenant_currency_id" invisible="1" />
+                                <field name="phone" class="border-bottom border-dark" />
+                                <field name="address" class="border-bottom border-dark" />
                                 <field name="balance" readonly="1" class="border-bottom border-dark" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" />
                             </group>
                         </group>
