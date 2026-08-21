@@ -58,10 +58,15 @@ class Sale(models.Model):
                 record.invoice_type = 'Sales Invoice'
     
     def _default_account_id(self):
-        return self.env['havanoposdesk.account'].search([('type', 'in', ['Cash', 'Bank']), ('active', '=', True)], limit=1).id
+        return self.env['havanoposdesk.account'].search([
+            ('type', 'in', ['Cash', 'Bank']),
+            ('active', '=', True),
+            ('is_on_account', '=', False),
+        ], limit=1).id
 
     payment_status = fields.Selection([
         ('cash', 'Paid'),
+        ('partial', 'Partial'),
         ('account', 'On Account')
     ], string='Payment Status', default='cash', required=True)
     payment_policy = fields.Selection([
@@ -265,15 +270,28 @@ class Sale(models.Model):
                 record.amount_tax_fc = record.amount_tax / rate
                 record.amount_total_fc = record.amount_total / rate
 
-    @api.depends('payment_ids.amount_base', 'amount_total_base')
+    @api.onchange('account_id')
+    def _onchange_account_id(self):
+        if self.account_id and self.account_id.is_silent_on_account():
+            self.payment_status = 'partial'
+
+    @api.depends('payment_ids.amount_base', 'payment_ids.state', 'payment_ids.payment_type', 'amount_total_base', 'payment_status')
     def _compute_amount_paid_base(self):
         for record in self:
-            record.amount_paid_base = sum(record.payment_ids.mapped('amount_base'))
-            record.amount_balance_base = record.amount_total_base - record.amount_paid_base
+            posted = record.payment_ids.filtered(
+                lambda p: p.state == 'posted' and p.payment_type == 'receipt'
+            )
+            record.amount_paid_base = sum(posted.mapped('amount_base'))
+            if record.payment_status == 'cash':
+                record.amount_balance_base = 0.0
+            else:
+                record.amount_balance_base = max(record.amount_total_base - record.amount_paid_base, 0.0)
 
     @api.depends('amount_total')
     def _compute_single_payment_amount(self):
         for record in self:
+            if record.single_payment_amount:
+                continue
             record.single_payment_amount = record.amount_total
 
     @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
@@ -312,7 +330,7 @@ class Sale(models.Model):
             # Default account_id for cash sales if not provided
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             if vals.get('payment_status', 'cash') == 'cash' and not vals.get('account_id'):
-                domain = [('type', 'in', ['Cash', 'Bank'])]
+                domain = [('type', 'in', ['Cash', 'Bank']), ('is_on_account', '=', False)]
                 if tenant_id:
                     domain.append(('tenant_id', '=', tenant_id))
                 account = self.env['havanoposdesk.account'].search(domain, limit=1)
@@ -425,6 +443,91 @@ class Sale(models.Model):
         self.action_post()
         return self.action_print()
 
+    def _is_on_account_account(self, account, payment_method_name=None):
+        Account = self.env['havanoposdesk.account']
+        return Account.is_on_account_method(account, payment_method_name)
+
+    def _payment_amount_base(self, amount, exchange_rate):
+        rate = exchange_rate if exchange_rate and exchange_rate != 0 else 1.0
+        return amount / rate
+
+    def _post_sale_payments(self):
+        """Post real receipts only. Cap at the invoice total. Skip on-account modes."""
+        self.ensure_one()
+        sale = self
+        remaining_base = sale.amount_total_base
+        used_on_account = sale._is_on_account_account(sale.account_id)
+
+        def _cap_and_post(payment):
+            nonlocal remaining_base
+            if remaining_base <= 0.0001:
+                if payment.state == 'draft':
+                    payment.unlink()
+                return 0.0
+            if payment.amount_base > remaining_base + 0.0001:
+                rate = payment.exchange_rate if payment.exchange_rate and payment.exchange_rate != 0 else 1.0
+                payment.amount = remaining_base * rate
+            if payment.amount <= 0:
+                if payment.state == 'draft':
+                    payment.unlink()
+                return 0.0
+            if payment.state == 'draft':
+                payment.action_post()
+            remaining_base = max(remaining_base - payment.amount_base, 0.0)
+            return payment.amount_base
+
+        existing = sale.payment_ids.filtered(lambda p: p.state != 'cancelled')
+        silent = existing.filtered(lambda p: sale._is_on_account_account(p.account_id))
+        if silent:
+            used_on_account = True
+            silent.filtered(lambda p: p.state == 'draft').unlink()
+
+        real = sale.payment_ids.filtered(
+            lambda p: p.state != 'cancelled' and not sale._is_on_account_account(p.account_id)
+        )
+
+        if real:
+            for payment in real:
+                _cap_and_post(payment)
+        elif sale.payment_policy == 'multi' and not used_on_account:
+            raise ValidationError("You must add at least one payment entry for cash sales in the Payment Breakdown tab.")
+        elif not used_on_account:
+            if not sale.account_id:
+                raise ValidationError("You must select a Deposit Account for Single Payment cash sales.")
+            payment_amount = sale.single_payment_amount if sale.single_payment_amount > 0 else sale.amount_total
+            requested_base = sale._payment_amount_base(payment_amount, sale.exchange_rate)
+            if requested_base > remaining_base + 0.0001:
+                payment_amount = remaining_base * (sale.exchange_rate if sale.exchange_rate and sale.exchange_rate != 0 else 1.0)
+            elif requested_base + 0.0001 >= remaining_base:
+                payment_amount = sale.amount_total
+            if payment_amount > 0:
+                payment = self.env['havanoposdesk.payment'].create([{
+                    'payment_type': 'receipt',
+                    'partner_type': 'customer',
+                    'customer_id': sale.customer.id,
+                    'account_id': sale.account_id.id,
+                    'currency_id': sale.currency_id.id,
+                    'exchange_rate': sale.exchange_rate,
+                    'amount': payment_amount,
+                    'date': sale.posting_date or fields.Date.context_today(sale),
+                    'tenant_id': sale.tenant_id.id,
+                    'sale_id': sale.id,
+                }])
+                _cap_and_post(payment)
+
+        paid_base = sum(
+            sale.payment_ids.filtered(lambda p: p.state == 'posted' and p.payment_type == 'receipt').mapped('amount_base')
+        )
+        if used_on_account:
+            new_status = 'partial'
+        elif paid_base + 0.0001 >= sale.amount_total_base:
+            new_status = 'cash'
+        elif paid_base > 0:
+            new_status = 'partial'
+        else:
+            new_status = 'account'
+        sale.write({'payment_status': new_status})
+
     def action_post(self):
         for sale in self:
             if sale.state != 'draft':
@@ -434,34 +537,9 @@ class Sale(models.Model):
                 sale.write({'state': 'done'})
                 continue
             
-            # Handle payments if cash
-            if sale.payment_status == 'cash':
-                if sale.payment_policy == 'multi':
-                    if not sale.payment_ids:
-                        raise ValidationError("You must add at least one payment entry for cash sales in the Payment Breakdown tab.")
-                    
-                    for payment in sale.payment_ids:
-                        if payment.state == 'draft':
-                            payment.action_post()
-                else:
-                    if not sale.account_id:
-                        raise ValidationError("You must select a Deposit Account for Single Payment cash sales.")
-                    
-                    payment_amount = sale.single_payment_amount if sale.single_payment_amount > 0 else sale.amount_total
-                    if payment_amount > 0:
-                        payment = self.env['havanoposdesk.payment'].create([{
-                            'payment_type': 'receipt',
-                            'partner_type': 'customer',
-                            'customer_id': sale.customer.id,
-                            'account_id': sale.account_id.id,
-                            'currency_id': sale.currency_id.id,
-                            'exchange_rate': sale.exchange_rate,
-                            'amount': payment_amount,
-                            'date': sale.posting_date or fields.Date.context_today(sale),
-                            'tenant_id': sale.tenant_id.id,
-                            'sale_id': sale.id,
-                        }])
-                        payment.action_post()
+            # Handle payments
+            if sale.payment_status != 'account':
+                sale._post_sale_payments()
 
             for line in sale.line_ids:
                 base_qty = line.accepted_qty * line.uom_qty_multiplier

@@ -9,6 +9,7 @@
                 <list string="Accounts" decoration-muted="not active">
                     <field name="name" />
                     <field name="type" />
+                    <field name="is_on_account" optional="show" />
                     <field name="store_ids" widget="many2many_tags" optional="show" />
                     <field name="currency_id" optional="show" invisible="type not in ['Cash', 'Bank']" />
                     <field name="balance" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}"/>
@@ -33,6 +34,7 @@
                             <group>
                                 <field name="name" />
                                 <field name="type" />
+                                <field name="is_on_account" invisible="type != 'Cash'" />
                                 <field name="active" widget="boolean_toggle" />
                                 <field name="store_ids" widget="many2many_tags" />
                                 <field name="currency_id" invisible="type not in ['Cash', 'Bank']" />

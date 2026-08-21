@@ -29,6 +29,12 @@ class Account(models.Model):
         ('Bank', 'Bank'),
         ('Expense', 'Expense')
     ], string='Account Type', required=True)
+    is_on_account = fields.Boolean(
+        string='On Account',
+        default=False,
+        help='Silent payment mode: does not receive money or create payment entries. '
+             'Sales using this mode are marked Partial. Only available for Cash accounts.'
+    )
     currency_id = fields.Many2one(
         'res.currency',
         string='Currency',
@@ -50,6 +56,38 @@ class Account(models.Model):
         string='Stores',
         default=lambda self: [self.env.user.default_store_id.id] if self.env.user.default_store_id else ([self.env.user.store_ids[0].id] if self.env.user.store_ids else [])
     )
+
+    @api.onchange('type')
+    def _onchange_type_on_account(self):
+        if self.type != 'Cash':
+            self.is_on_account = False
+
+    @api.constrains('is_on_account', 'type')
+    def _check_on_account_cash_only(self):
+        for record in self:
+            if record.is_on_account and record.type != 'Cash':
+                raise ValidationError("On Account can only be used when Account Type is Cash.")
+
+    @api.model
+    def is_on_account_method(self, account=None, payment_method_name=None):
+        """True for on-account modes: no receipt is posted and nothing is received."""
+        if account:
+            if account.is_on_account:
+                return True
+            names = [(account.name or ''), (payment_method_name or '')]
+        else:
+            names = [(payment_method_name or '')]
+        for raw in names:
+            name = raw.strip().lower().replace('_', ' ').replace('-', ' ')
+            if name in ('on account', 'user account', 'onaccount', 'useraccount'):
+                return True
+            if 'on account' in name:
+                return True
+        return False
+
+    def is_silent_on_account(self, payment_method_name=None):
+        self.ensure_one()
+        return self.is_on_account_method(self, payment_method_name)
 
     def action_activate(self):
         self.write({'active': True})

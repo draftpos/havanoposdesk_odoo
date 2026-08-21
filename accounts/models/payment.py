@@ -22,6 +22,16 @@ class Payment(models.Model):
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
     amount_base = fields.Float(string='Base Amount', compute='_compute_amount_base', store=True)
+    amount_owing_base = fields.Float(string='Owing (Base)', compute='_compute_amount_owing', store=True)
+    amount_owing_currency = fields.Float(string='Owing (Currency)', compute='_compute_amount_owing', store=True)
+
+    @api.depends('sale_id.amount_balance_base', 'exchange_rate', 'currency_id', 'tenant_currency_id')
+    def _compute_amount_owing(self):
+        for record in self:
+            owing_base = record.sale_id.amount_balance_base if record.sale_id else 0.0
+            record.amount_owing_base = owing_base
+            rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+            record.amount_owing_currency = owing_base * rate
 
     @api.onchange('currency_id', 'tenant_id')
     def _onchange_currency_id(self):
@@ -67,7 +77,7 @@ class Payment(models.Model):
     
     is_multi_currency = fields.Boolean(string='Multi-currencies on payment', default=False)
     payment_line_ids = fields.One2many('havanoposdesk.payment.line', 'payment_id', string='Payment Breakdown')
-    account_id = fields.Many2one('havanoposdesk.account', string='Bank/Cash Account', domain="[('type', 'in', ['Bank', 'Cash']), ('active', '=', True)]")
+    account_id = fields.Many2one('havanoposdesk.account', string='Bank/Cash Account', domain="[('type', 'in', ['Bank', 'Cash']), ('active', '=', True), ('is_on_account', '=', False)]")
     
 
     amount = fields.Float(string='Amount', required=True, default=0.0, compute='_compute_amount', store=True, readonly=False)
