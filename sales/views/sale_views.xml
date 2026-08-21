@@ -237,7 +237,7 @@
                     <filter string="Customer" name="filter_customer" domain="[('customer', '!=', False)]" />
                     <group>
                         <filter string="Reference" name="group_by_reference" context="{'group_by': 'name'}" />
-                        <filter string="Payment Mode" name="group_by_payment" context="{'group_by': 'payment_status_display'}" />
+                        <filter string="Payment Mode" name="group_by_payment" context="{'group_by': 'payment_status'}" />
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'date:day'}" />
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}" />
                         <filter string="Customer" name="group_by_customer" context="{'group_by': 'customer'}" />

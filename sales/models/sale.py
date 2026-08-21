@@ -72,7 +72,7 @@ class Sale(models.Model):
     payment_status_display = fields.Selection([
         ('cash', 'Paid'),
         ('account', 'On Account')
-    ], string='Payment Status', compute='_compute_payment_status_display', inverse='_inverse_payment_status_display', store=True)
+    ], string='Payment Status', compute='_compute_payment_status_display', inverse='_inverse_payment_status_display')
     payment_policy = fields.Selection([
         ('single', 'Single Payment'),
         ('multi', 'Split / Multi-Currency Payment')
@@ -201,8 +201,8 @@ class Sale(models.Model):
     amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
     amount_paid_base = fields.Float(string='Paid (Base)', compute='_compute_amount_paid_base', store=True)
     amount_balance_base = fields.Float(string='Balance Due (Base)', compute='_compute_amount_paid_base', store=True)
-    amount_paid = fields.Float(string='Paid Amount', compute='_compute_amount_paid_base', store=True)
-    amount_balance = fields.Float(string='Balance Due', compute='_compute_amount_paid_base', store=True)
+    amount_paid = fields.Float(string='Paid Amount', compute='_compute_amount_paid_base')
+    amount_balance = fields.Float(string='Balance Due', compute='_compute_amount_paid_base')
     single_payment_amount = fields.Float(string='Payment Amount', compute='_compute_single_payment_amount', store=True, readonly=False)
     
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
