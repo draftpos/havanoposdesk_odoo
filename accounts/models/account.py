@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 
 class Account(models.Model):
     _name = 'havanoposdesk.account'
@@ -7,6 +8,19 @@ class Account(models.Model):
     _sql_constraints = [
         ('name_tenant_uniq', 'unique (name, tenant_id)', 'Account name must be unique per tenant!')
     ]
+
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_account_name(self):
+        for record in self:
+            if record.name and record.tenant_id:
+                # Case-insensitive search for duplicates
+                duplicate = self.search([
+                    ('tenant_id', '=', record.tenant_id.id),
+                    ('name', '=ilike', record.name),
+                    ('id', '!=', record.id)
+                ], limit=1)
+                if duplicate:
+                    raise ValidationError("An account with the name '%s' already exists for this tenant!" % record.name)
 
     name = fields.Char(string='Account Name', required=True)
     active = fields.Boolean(string='Active', default=True)
