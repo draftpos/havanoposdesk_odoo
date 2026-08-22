@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_havanoposdesk_production_order_form" model="ir.ui.view">
+        <field name="name">havanoposdesk.production.order.form</field>
+        <field name="model">havanoposdesk.production.order</field>
+        <field name="arch" type="xml">
+            <form string="Production Order">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="bom_id" options="{'no_create': True}"/>
+                            <field name="qty_to_produce"/>
+                        </group>
+                        <group>
+                            <field name="tenant_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Raw Materials" name="raw_materials">
+                            <field name="raw_material_ids">
+                                <list editable="bottom">
+                                    <field name="product_id" readonly="1"/>
+                                    <field name="uom_id" readonly="1"/>
+                                    <field name="qty" readonly="1"/>
+                                    <field name="total_qty" readonly="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Outputs" name="outputs">
+                            <field name="output_ids">
+                                <list editable="bottom">
+                                    <field name="product_id" readonly="1"/>
+                                    <field name="uom_id" readonly="1"/>
+                                    <field name="qty" readonly="1"/>
+                                    <field name="total_qty" readonly="1"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_havanoposdesk_production_order_tree" model="ir.ui.view">
+        <field name="name">havanoposdesk.production.order.tree</field>
+        <field name="model">havanoposdesk.production.order</field>
+        <field name="arch" type="xml">
+            <list string="Production Orders">
+                <field name="name"/>
+                <field name="bom_id"/>
+                <field name="qty_to_produce"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Sequence for Production Orders -->
+    <record id="seq_havanoposdesk_production_order" model="ir.sequence">
+        <field name="name">Production Order Sequence</field>
+        <field name="code">havanoposdesk.production.order</field>
+        <field name="prefix">PO/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="action_havanoposdesk_production_order" model="ir.actions.act_window">
+        <field name="name">Production Orders</field>
+        <field name="res_model">havanoposdesk.production.order</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

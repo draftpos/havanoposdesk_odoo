@@ -365,6 +365,9 @@
                         <setting id="allow_advanced_pricing_setting" help="Allow setting different prices based on pricelists (e.g. Retail, Wholesale) and multiple units of measure.">
                             <field name="biz_allow_advanced_pricing"/>
                         </setting>
+                        <setting id="enable_manufacturing_setting" string="Enable Manufacturing" help="Enable Manufacturing (Bill of Materials and Production Orders).">
+                            <field name="biz_enable_manufacturing"/>
+                        </setting>
                     </block>
                     <block title="Sequence Configuration" name="stock_seq_config">
                         <setting id="prod_seq_setting" string="Product Product Codes">

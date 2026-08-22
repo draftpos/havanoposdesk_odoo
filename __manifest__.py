@@ -58,6 +58,14 @@
         'suppliers/views/supplier_views.xml',
         'suppliers/views/suppliers_mobile_kanban_views.xml',
         'sales/data/sequence.xml',
+        # Migrations
+        'migrations/views/migration_wizard_views.xml',
+
+        # Manufacturing
+        'manufacturing/security/ir.model.access.csv',
+        'manufacturing/views/bom_views.xml',
+        'manufacturing/views/production_order_views.xml',
+        'manufacturing/views/menu_views.xml',
         'sales/wizard/sale_return_wizard_views.xml',
         'sales/views/sale_report_templates.xml',
         'sales/views/report_views.xml',

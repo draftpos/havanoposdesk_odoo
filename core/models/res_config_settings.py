@@ -60,6 +60,7 @@ class ResConfigSettings(models.TransientModel):
                 ("product_name_format", "VARCHAR"),
                 ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
                 ("payment_status", "VARCHAR"),
+                ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
             ]
             for col_name, col_type in cols:
                 if col_name not in existing_cols:
@@ -218,6 +219,11 @@ class ResConfigSettings(models.TransientModel):
     biz_enable_shift = fields.Boolean(
         string="Enable Shift Management",
         related='tenant_id.enable_shift',
+        readonly=False
+    )
+    biz_enable_manufacturing = fields.Boolean(
+        string="Enable Manufacturing",
+        related='tenant_id.enable_manufacturing',
         readonly=False
     )
 

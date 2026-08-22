@@ -4,6 +4,8 @@ from . import inventory
 from . import sales
 from . import suppliers
 from . import controllers
+from . import migrations
+from . import manufacturing
 
 
 def post_migrate(cr, registry):

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_havanoposdesk_manufacturing_root" 
+              name="Manufacturing" 
+              web_icon="mrp,static/description/icon.png"
+              sequence="50"/>
+
+    <menuitem id="menu_havanoposdesk_manufacturing_bom" 
+              name="Bills of Materials" 
+              parent="menu_havanoposdesk_manufacturing_root" 
+              action="action_havanoposdesk_manufacturing_bom" 
+              sequence="10"/>
+
+    <menuitem id="menu_havanoposdesk_manufacturing_orders" 
+              name="Production Orders" 
+              parent="menu_havanoposdesk_manufacturing_root" 
+              action="action_havanoposdesk_production_order" 
+              sequence="20"/>
+</odoo>

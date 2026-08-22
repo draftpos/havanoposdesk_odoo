@@ -45,6 +45,7 @@ class HavanoposdeskTenant(models.Model):
             ("fiscal_api_secret", "VARCHAR"),
             ("fiscal_device_sn", "VARCHAR"),
             ("fiscal_ping_interval", "INTEGER DEFAULT 5"),
+            ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
         ]
         for col_name, col_type in columns:
             try:
@@ -99,6 +100,9 @@ class HavanoposdeskTenant(models.Model):
     fiscal_api_secret = fields.Char(string='API Secret')
     fiscal_device_sn = fields.Char(string='Device Serial No (EFD SN)')
     fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
+
+    # Manufacturing Settings
+    enable_manufacturing = fields.Boolean(string='Enable Manufacturing', default=False)
 
     has_transactions = fields.Boolean(string="Has Transactions", compute="_compute_has_transactions")
     

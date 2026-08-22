@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_havanoposdesk_manufacturing_bom_form" model="ir.ui.view">
+        <field name="name">havanoposdesk.manufacturing.bom.form</field>
+        <field name="model">havanoposdesk.manufacturing.bom</field>
+        <field name="arch" type="xml">
+            <form string="Bill of Materials">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="BOM Reference..."/>
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="tenant_id" invisible="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Raw Materials" name="raw_materials">
+                            <field name="raw_material_ids">
+                                <list editable="bottom">
+                                    <field name="product_id" domain="[('sale_ok', '=', False)]"/>
+                                    <field name="uom_id"/>
+                                    <field name="qty"/>
+                                    <field name="total_qty" readonly="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Outputs" name="outputs">
+                            <field name="output_ids">
+                                <list editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="uom_id"/>
+                                    <field name="qty"/>
+                                    <field name="total_qty" readonly="1"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_havanoposdesk_manufacturing_bom_tree" model="ir.ui.view">
+        <field name="name">havanoposdesk.manufacturing.bom.tree</field>
+        <field name="model">havanoposdesk.manufacturing.bom</field>
+        <field name="arch" type="xml">
+            <list string="Bill of Materials">
+                <field name="name"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_havanoposdesk_manufacturing_bom" model="ir.actions.act_window">
+        <field name="name">Bill of Materials</field>
+        <field name="res_model">havanoposdesk.manufacturing.bom</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>
