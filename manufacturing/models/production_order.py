@@ -1,4 +1,5 @@
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 class HavanoPosDeskProductionOrder(models.Model):
     _name = 'havanoposdesk.production.order'
@@ -85,7 +86,7 @@ class HavanoPosDeskProductionOrder(models.Model):
             for raw in order.raw_material_ids:
                 if raw.total_qty > raw.on_hand_qty:
                     # Put a warning for deficit
-                    raise models.ValidationError(
+                    raise ValidationError(
                         f"Insufficient quantity on hand for raw material: {raw.product_id.name}. Expected: {raw.total_qty}, Available: {raw.on_hand_qty}"
                     )
             
