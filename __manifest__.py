@@ -59,7 +59,7 @@
         'suppliers/views/suppliers_mobile_kanban_views.xml',
         'sales/data/sequence.xml',
         # Migrations
-        'migrations/views/migration_wizard_views.xml',
+        # 'migrations/views/migration_wizard_views.xml',
 
         # Manufacturing
         'manufacturing/security/ir.model.access.csv',
