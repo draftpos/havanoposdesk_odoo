@@ -17,6 +17,15 @@ class HavanoPosDeskManufacturingBom(models.Model):
         'bom_id', 
         string='Outputs'
     )
+    raw_material_product_ids = fields.Many2many(
+        'havanoposdesk.product',
+        compute='_compute_raw_material_product_ids'
+    )
+
+    @api.depends('raw_material_ids.product_id')
+    def _compute_raw_material_product_ids(self):
+        for bom in self:
+            bom.raw_material_product_ids = bom.raw_material_ids.mapped('product_id').ids
 
 class HavanoPosDeskManufacturingBomLine(models.Model):
     _name = 'havanoposdesk.manufacturing.bom.line'
@@ -32,11 +41,18 @@ class HavanoPosDeskManufacturingBomLine(models.Model):
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', related='product_id.uom_id', readonly=True)
     qty = fields.Float(string='Quantity', default=1.0, required=True)
     total_qty = fields.Float(string='Total Quantity', compute='_compute_total_qty', store=True)
+    price_unit = fields.Float(string='Unit Cost', related='product_id.buying_price', readonly=True)
+    total_price = fields.Float(string='Total Cost', compute='_compute_total_price', store=True)
 
     @api.depends('qty')
     def _compute_total_qty(self):
         for line in self:
             line.total_qty = line.qty
+
+    @api.depends('qty', 'price_unit')
+    def _compute_total_price(self):
+        for line in self:
+            line.total_price = line.qty * line.price_unit
 
 class HavanoPosDeskManufacturingBomOutput(models.Model):
     _name = 'havanoposdesk.manufacturing.bom.output'
@@ -51,8 +67,27 @@ class HavanoPosDeskManufacturingBomOutput(models.Model):
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', related='product_id.uom_id', readonly=True)
     qty = fields.Float(string='Quantity', default=1.0, required=True)
     total_qty = fields.Float(string='Total Quantity', compute='_compute_total_qty', store=True)
+    price_unit = fields.Float(string='Unit Cost', compute='_compute_output_price', store=True, readonly=False)
+    total_price = fields.Float(string='Total Cost', compute='_compute_total_price', store=True)
 
     @api.depends('qty')
     def _compute_total_qty(self):
         for line in self:
             line.total_qty = line.qty
+
+    @api.depends('bom_id.raw_material_ids.total_price', 'bom_id.output_ids.qty')
+    def _compute_output_price(self):
+        for line in self:
+            if not line.bom_id:
+                continue
+            total_raw_cost = sum(line.bom_id.raw_material_ids.mapped('total_price'))
+            total_output_qty = sum(line.bom_id.output_ids.mapped('qty'))
+            if total_output_qty > 0:
+                line.price_unit = total_raw_cost / total_output_qty
+            else:
+                line.price_unit = 0.0
+
+    @api.depends('qty', 'price_unit')
+    def _compute_total_price(self):
+        for line in self:
+            line.total_price = line.qty * line.price_unit

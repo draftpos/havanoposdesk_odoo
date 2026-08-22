@@ -22,22 +22,27 @@
                     </group>
                     <notebook>
                         <page string="Raw Materials" name="raw_materials">
+                            <field name="raw_material_product_ids" invisible="1"/>
                             <field name="raw_material_ids">
                                 <list editable="bottom">
-                                    <field name="product_id" readonly="1"/>
+                                    <field name="product_id" domain="[('not_for_sale', '=', True)]"/>
                                     <field name="uom_id" readonly="1"/>
-                                    <field name="qty" readonly="1"/>
-                                    <field name="total_qty" readonly="1"/>
+                                    <field name="qty"/>
+                                    <field name="total_qty"/>
+                                    <field name="price_unit"/>
+                                    <field name="total_price" readonly="1"/>
                                 </list>
                             </field>
                         </page>
                         <page string="Outputs" name="outputs">
                             <field name="output_ids">
                                 <list editable="bottom">
-                                    <field name="product_id" readonly="1"/>
+                                    <field name="product_id" domain="[('not_for_sale', '=', True), ('id', 'not in', parent.raw_material_product_ids)]"/>
                                     <field name="uom_id" readonly="1"/>
-                                    <field name="qty" readonly="1"/>
-                                    <field name="total_qty" readonly="1"/>
+                                    <field name="qty"/>
+                                    <field name="total_qty"/>
+                                    <field name="price_unit"/>
+                                    <field name="total_price" readonly="1"/>
                                 </list>
                             </field>
                         </page>
