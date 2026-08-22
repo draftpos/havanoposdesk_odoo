@@ -24,10 +24,6 @@
             <field name="model">havanoposdesk.account</field>
             <field name="arch" type="xml">
                 <form string="Account">
-                    <header>
-                        <button name="action_activate" string="Activate" type="object" class="btn-primary" invisible="active"/>
-                        <button name="action_deactivate" string="Deactivate" type="object" class="btn-secondary" invisible="not active" confirm="Are you sure you want to deactivate this account? It will not be available for POS transactions or API."/>
-                    </header>
                     <sheet>
                         <widget name="web_ribbon" title="Deactivated" bg_color="text-bg-danger" invisible="active"/>
                         <group>
