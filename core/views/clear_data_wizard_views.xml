@@ -18,7 +18,6 @@
                         <field name="reason"
                                placeholder="Explain why you are wiping this data (minimum 20 characters)…"
                                required="state == 'request'"/>
-                        <field name="password" password="True" required="state == 'request'"/>
                         <field name="confirm_loss" required="state == 'request'"/>
                     </group>
                 </div>

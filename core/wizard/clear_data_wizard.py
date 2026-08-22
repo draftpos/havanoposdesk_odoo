@@ -26,7 +26,6 @@ class ClearDataWizard(models.TransientModel):
     confirm_loss = fields.Boolean(
         string='I understand that this will permanently delete data and it cannot be recovered.'
     )
-    password     = fields.Char(string='Your Password')
     result_log   = fields.Text(string='Deletion Report', readonly=True)
 
     # ── Helpers ──────────────────────────────────────────────────────────────
@@ -78,23 +77,6 @@ class ClearDataWizard(models.TransientModel):
             raise ValidationError(
                 "You must tick the confirmation checkbox before proceeding."
             )
-        if not self.password:
-            raise ValidationError("Please enter your password.")
-
-        try:
-            from odoo.exceptions import AccessDenied
-            try:
-                self.env.user._check_credentials(self.password, {'interactive': False})
-            except TypeError:
-                self.env.user._check_credentials(self.password, self.env)
-        except AccessDenied:
-            raise ValidationError("Incorrect password.")
-        except Exception:
-            # Fallback if any other exception occurs during auth
-            try:
-                self.env['res.users'].authenticate(self.env.cr.dbname, self.env.user.login, self.password, {})
-            except Exception:
-                raise ValidationError("Incorrect password.")
 
         # Execute deletion and capture report
         self.result_log = self._execute_deletion()
