@@ -52,6 +52,7 @@
         <field name="arch" type="xml">
             <list string="Bill of Materials">
                 <field name="name"/>
+                <field name="output_summary"/>
                 <field name="total_cost"/>
             </list>
         </field>
