@@ -466,7 +466,7 @@ class ResUsers(models.Model):
                 if not default_store:
                     default_store = self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1)
                 
-                if default_store:
+                if default_store and not vals.get('default_store_id'):
                     vals['default_store_id'] = default_store.id
                     if 'store_ids' not in vals:
                         vals['store_ids'] = [(6, 0, [default_store.id])]
