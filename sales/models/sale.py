@@ -296,35 +296,70 @@ class Sale(models.Model):
     @api.depends(
         'payment_ids.amount', 'payment_ids.amount_base', 'payment_ids.state',
         'payment_ids.payment_type', 'payment_ids.currency_id', 'amount_total',
-        'amount_total_base', 'payment_status', 'currency_id', 'exchange_rate'
+        'amount_total_base', 'payment_status', 'payment_policy', 'single_payment_amount',
+        'currency_id', 'exchange_rate', 'state'
     )
     def _compute_amount_paid_base(self):
         for record in self:
-            posted = record.payment_ids.filtered(
-                lambda p: p.state == 'posted' and p.payment_type == 'receipt'
+            valid_states = ('posted',) if record.state in ('confirmed', 'done') else ('draft', 'posted')
+            valid_payments = record.payment_ids.filtered(
+                lambda p: p.state in valid_states and p.payment_type == 'receipt'
             )
-            record.amount_paid_base = sum(posted.mapped('amount_base'))
-            paid_doc = 0.0
-            for payment in posted:
-                if payment.currency_id == record.currency_id:
-                    paid_doc += payment.amount
-                else:
-                    rate = record.exchange_rate if record.exchange_rate else 1.0
-                    paid_doc += payment.amount_base * rate
-            record.amount_paid = paid_doc
-            if record.payment_status == 'cash':
-                record.amount_balance_base = 0.0
-                record.amount_balance = 0.0
-            else:
-                record.amount_balance_base = max(record.amount_total_base - record.amount_paid_base, 0.0)
-                record.amount_balance = max(record.amount_total - paid_doc, 0.0)
 
-    @api.depends('amount_total')
+            if record.payment_policy == 'multi':
+                record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+                paid_doc = 0.0
+                for payment in valid_payments:
+                    if payment.currency_id == record.currency_id:
+                        paid_doc += payment.amount
+                    else:
+                        rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                        paid_doc += payment.amount_base * rate
+                record.amount_paid = paid_doc
+            elif record.payment_status == 'account':
+                record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+                paid_doc = 0.0
+                for payment in valid_payments:
+                    if payment.currency_id == record.currency_id:
+                        paid_doc += payment.amount
+                    else:
+                        rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                        paid_doc += payment.amount_base * rate
+                record.amount_paid = paid_doc
+            else:
+                if record.state in ('confirmed', 'done') and valid_payments:
+                    record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+                    paid_doc = 0.0
+                    for payment in valid_payments:
+                        if payment.currency_id == record.currency_id:
+                            paid_doc += payment.amount
+                        else:
+                            rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                            paid_doc += payment.amount_base * rate
+                    record.amount_paid = paid_doc
+                else:
+                    payment_amount = record.single_payment_amount if record.single_payment_amount > 0 else record.amount_total
+                    record.amount_paid = payment_amount
+                    rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                    record.amount_paid_base = payment_amount / rate
+
+            record.amount_balance_base = max(record.amount_total_base - record.amount_paid_base, 0.0)
+            record.amount_balance = max(record.amount_total - record.amount_paid, 0.0)
+
+    @api.depends('amount_total', 'payment_policy', 'payment_status')
     def _compute_single_payment_amount(self):
         for record in self:
-            if record.single_payment_amount:
-                continue
-            record.single_payment_amount = record.amount_total
+            if record.payment_policy == 'single' and record.payment_status != 'account':
+                if not record.single_payment_amount or record.single_payment_amount <= 0.0:
+                    record.single_payment_amount = record.amount_total
+            else:
+                record.single_payment_amount = record.amount_total
+
+    @api.onchange('amount_total', 'line_ids')
+    def _onchange_amount_total_sync_single_payment(self):
+        for record in self:
+            if record.state == 'draft' and record.payment_policy == 'single' and record.payment_status != 'account':
+                record.single_payment_amount = record.amount_total
 
     @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
     def _compute_total_cost(self):
