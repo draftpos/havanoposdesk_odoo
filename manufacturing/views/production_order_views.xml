@@ -60,6 +60,7 @@
                 <field name="name"/>
                 <field name="bom_id"/>
                 <field name="qty_to_produce"/>
+                <field name="total_cost"/>
             </list>
         </field>
     </record>
@@ -68,8 +69,9 @@
     <record id="seq_havanoposdesk_production_order" model="ir.sequence">
         <field name="name">Production Order Sequence</field>
         <field name="code">havanoposdesk.production.order</field>
-        <field name="prefix">PO/</field>
+        <field name="prefix"></field>
         <field name="padding">5</field>
+        <field name="number_next">10001</field>
         <field name="company_id" eval="False"/>
     </record>
 

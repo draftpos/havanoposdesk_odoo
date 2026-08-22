@@ -21,6 +21,12 @@ class HavanoPosDeskManufacturingBom(models.Model):
         'havanoposdesk.product',
         compute='_compute_raw_material_product_ids'
     )
+    total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
+
+    @api.depends('raw_material_ids.total_price')
+    def _compute_total_cost(self):
+        for bom in self:
+            bom.total_cost = sum(bom.raw_material_ids.mapped('total_price'))
 
     @api.depends('raw_material_ids.product_id')
     def _compute_raw_material_product_ids(self):
