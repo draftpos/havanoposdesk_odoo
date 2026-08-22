@@ -18,7 +18,7 @@
                         <page string="Raw Materials" name="raw_materials">
                             <field name="raw_material_ids">
                                 <list editable="bottom">
-                                    <field name="product_id" domain="[('sale_ok', '=', False)]"/>
+                                    <field name="product_id" domain="[('not_for_sale', '=', True)]"/>
                                     <field name="uom_id"/>
                                     <field name="qty"/>
                                     <field name="total_qty" readonly="1"/>

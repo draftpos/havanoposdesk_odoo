@@ -57,8 +57,8 @@ class HavanoPosDeskProductionOrderRawMaterial(models.Model):
     _description = 'Production Order Raw Material'
 
     order_id = fields.Many2one('havanoposdesk.production.order', string='Order', ondelete='cascade', required=True)
-    product_id = fields.Many2one('product.product', string='Item', required=True)
-    uom_id = fields.Many2one('uom.uom', string='UOM', related='product_id.uom_id', readonly=True)
+    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', related='product_id.uom_id', readonly=True)
     qty = fields.Float(string='Unit Quantity')
     total_qty = fields.Float(string='Total Quantity', required=True)
 
@@ -67,7 +67,7 @@ class HavanoPosDeskProductionOrderOutput(models.Model):
     _description = 'Production Order Output'
 
     order_id = fields.Many2one('havanoposdesk.production.order', string='Order', ondelete='cascade', required=True)
-    product_id = fields.Many2one('product.product', string='Item', required=True)
-    uom_id = fields.Many2one('uom.uom', string='UOM', related='product_id.uom_id', readonly=True)
+    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', related='product_id.uom_id', readonly=True)
     qty = fields.Float(string='Unit Quantity')
     total_qty = fields.Float(string='Total Quantity', required=True)

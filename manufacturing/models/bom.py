@@ -24,12 +24,12 @@ class HavanoPosDeskManufacturingBomLine(models.Model):
 
     bom_id = fields.Many2one('havanoposdesk.manufacturing.bom', string='BOM', ondelete='cascade', required=True)
     product_id = fields.Many2one(
-        'product.product', 
+        'havanoposdesk.product', 
         string='Item', 
         required=True,
-        domain="[('sale_ok', '=', False)]"
+        domain="[('not_for_sale', '=', True)]"
     )
-    uom_id = fields.Many2one('uom.uom', string='UOM', related='product_id.uom_id', readonly=True)
+    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', related='product_id.uom_id', readonly=True)
     qty = fields.Float(string='Quantity', default=1.0, required=True)
     total_qty = fields.Float(string='Total Quantity', compute='_compute_total_qty', store=True)
 
@@ -44,11 +44,11 @@ class HavanoPosDeskManufacturingBomOutput(models.Model):
 
     bom_id = fields.Many2one('havanoposdesk.manufacturing.bom', string='BOM', ondelete='cascade', required=True)
     product_id = fields.Many2one(
-        'product.product', 
+        'havanoposdesk.product', 
         string='Item', 
         required=True
     )
-    uom_id = fields.Many2one('uom.uom', string='UOM', related='product_id.uom_id', readonly=True)
+    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', related='product_id.uom_id', readonly=True)
     qty = fields.Float(string='Quantity', default=1.0, required=True)
     total_qty = fields.Float(string='Total Quantity', compute='_compute_total_qty', store=True)
 
