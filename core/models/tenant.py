@@ -408,10 +408,6 @@ class HavanoposdeskTenant(models.Model):
             if not vals.get('subscription_plan_id'):
                 plan = self.env['havanoposdesk.subscription.plan'].sudo().search([('name', 'ilike', 'Demo Plan')], limit=1)
                 if not plan:
-                    plan = self.env.ref('havanoposdesk_odoo.subscription_plan_1', raise_if_not_found=False)
-                if not plan:
-                    plan = self.env['havanoposdesk.subscription.plan'].sudo().search([], order='id asc', limit=1)
-                if not plan:
                     plan = self.env['havanoposdesk.subscription.plan'].sudo().create({
                         'name': 'Demo Plan',
                         'price': 0.0,
