@@ -25,6 +25,11 @@ class HavanoPosDeskProductionOrder(models.Model):
     )
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
 
+    state = fields.Selection([
+        ('draft', 'Draft'),
+        ('completed', 'Completed')
+    ], string='Status', default='draft', required=True, copy=False)
+
     @api.depends('raw_material_ids.total_price')
     def _compute_total_cost(self):
         for order in self:
@@ -71,6 +76,47 @@ class HavanoPosDeskProductionOrder(models.Model):
                 vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.production.order') or 'New'
         return super().create(vals_list)
 
+    def action_complete(self):
+        for order in self:
+            if order.state == 'completed':
+                continue
+            
+            # Check raw materials deficit
+            for raw in order.raw_material_ids:
+                if raw.total_qty > raw.on_hand_qty:
+                    # Put a warning for deficit
+                    raise models.ValidationError(
+                        f"Insufficient quantity on hand for raw material: {raw.product_id.name}. Expected: {raw.total_qty}, Available: {raw.on_hand_qty}"
+                    )
+            
+            ledger_obj = self.env['havanoposdesk.stock.ledger'].sudo()
+            
+            # Deduct raw materials
+            for raw in order.raw_material_ids:
+                ledger_obj.create({
+                    'product_id': raw.product_id.id,
+                    'out_qty': raw.total_qty,
+                    'in_qty': 0.0,
+                    'type': 'Production (Raw Material)',
+                    'doc_no': order.name,
+                    'tenant_id': order.tenant_id.id,
+                    'buying_price': raw.price_unit,
+                })
+                
+            # Add outputs
+            for out in order.output_ids:
+                ledger_obj.create({
+                    'product_id': out.product_id.id,
+                    'in_qty': out.total_qty,
+                    'out_qty': 0.0,
+                    'type': 'Production (Output)',
+                    'doc_no': order.name,
+                    'tenant_id': order.tenant_id.id,
+                    'buying_price': out.price_unit,
+                })
+            
+            order.state = 'completed'
+
 class HavanoPosDeskProductionOrderRawMaterial(models.Model):
     _name = 'havanoposdesk.production.order.raw_material'
     _description = 'Production Order Raw Material'
@@ -82,6 +128,7 @@ class HavanoPosDeskProductionOrderRawMaterial(models.Model):
     total_qty = fields.Float(string='Total Quantity', required=True)
     price_unit = fields.Float(string='Unit Cost', related='product_id.buying_price', readonly=True)
     total_price = fields.Float(string='Total Cost', compute='_compute_total_price', store=True)
+    on_hand_qty = fields.Float(string='Qty On Hand', related='product_id.on_hand_qty', readonly=True)
 
     @api.depends('total_qty', 'price_unit')
     def _compute_total_price(self):

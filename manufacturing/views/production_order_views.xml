@@ -5,6 +5,10 @@
         <field name="model">havanoposdesk.production.order</field>
         <field name="arch" type="xml">
             <form string="Production Order">
+                <header>
+                    <button name="action_complete" string="Complete Production" type="object" class="oe_highlight" invisible="state == 'completed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,completed"/>
+                </header>
                 <sheet>
                     <div class="oe_title">
                         <h1>
@@ -13,8 +17,8 @@
                     </div>
                     <group>
                         <group>
-                            <field name="bom_id" options="{'no_create': True}"/>
-                            <field name="qty_to_produce"/>
+                            <field name="bom_id" options="{'no_create': True}" readonly="state == 'completed'"/>
+                            <field name="qty_to_produce" readonly="state == 'completed'"/>
                         </group>
                         <group>
                             <field name="tenant_id" invisible="1"/>
@@ -23,10 +27,11 @@
                     <notebook>
                         <page string="Raw Materials" name="raw_materials">
                             <field name="raw_material_product_ids" invisible="1"/>
-                            <field name="raw_material_ids">
+                            <field name="raw_material_ids" readonly="state == 'completed'">
                                 <list editable="bottom">
                                     <field name="product_id" domain="[('not_for_sale', '=', True)]"/>
                                     <field name="uom_id" readonly="1"/>
+                                    <field name="on_hand_qty"/>
                                     <field name="qty" sum="Total Qty"/>
                                     <field name="total_qty" sum="Total"/>
                                     <field name="price_unit"/>
@@ -35,7 +40,7 @@
                             </field>
                         </page>
                         <page string="Outputs" name="outputs">
-                            <field name="output_ids">
+                            <field name="output_ids" readonly="state == 'completed'">
                                 <list editable="bottom">
                                     <field name="product_id" domain="[('not_for_sale', '=', True), ('id', 'not in', parent.raw_material_product_ids)]"/>
                                     <field name="uom_id" readonly="1"/>
@@ -61,6 +66,7 @@
                 <field name="bom_id"/>
                 <field name="qty_to_produce"/>
                 <field name="total_cost"/>
+                <field name="state" widget="badge" decoration-success="state == 'completed'" decoration-info="state == 'draft'"/>
             </list>
         </field>
     </record>
