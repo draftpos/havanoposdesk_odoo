@@ -52,7 +52,7 @@ class HavanoposdeskProduct(models.Model):
                 res['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
         return res
     buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
-    selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', store=True, readonly=False)
+    selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', inverse='_inverse_selling_price', store=True, readonly=False)
     uom_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='UOM Prices')
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
@@ -310,6 +310,22 @@ class HavanoposdeskProduct(models.Model):
                     )
                     if price_line:
                         record.selling_price = price_line[0].price
+
+    def _inverse_selling_price(self):
+        for record in self:
+            if not record.is_bundle:
+                default_store = self.env.user.default_store_id
+                if not default_store and self.env.user.store_ids:
+                    default_store = self.env.user.store_ids[0]
+                if not default_store and record.store_ids:
+                    default_store = record.store_ids[0]
+                
+                if default_store:
+                    price_lines = record.uom_price_ids.filtered(
+                        lambda p: p.store_id.id == default_store.id and (not record.uom_id or p.uom_id.id == record.uom_id.id)
+                    )
+                    for price_line in price_lines:
+                        price_line.price = record.selling_price
 
     @api.onchange('is_bundle', 'bundle_item_ids')
     def _onchange_bundle_item_ids(self):
