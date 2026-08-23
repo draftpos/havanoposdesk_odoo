@@ -53,6 +53,7 @@ class HavanoposdeskProduct(models.Model):
         return res
     buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
     selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', store=True, readonly=False)
+    uom_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='UOM Prices')
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
@@ -290,12 +291,25 @@ class HavanoposdeskProduct(models.Model):
                     ) % (product.name, store_name, pricelist_name, uom_name))
                 seen.add(key)
 
-    @api.depends('is_bundle', 'bundle_item_ids', 'bundle_item_ids.qty', 'bundle_item_ids.buying_price', 'bundle_item_ids.selling_price', 'bundle_item_ids.subtotal_cost', 'bundle_item_ids.subtotal_selling')
+    @api.depends('is_bundle', 'bundle_item_ids', 'bundle_item_ids.qty', 'bundle_item_ids.buying_price', 'bundle_item_ids.selling_price', 'bundle_item_ids.subtotal_cost', 'bundle_item_ids.subtotal_selling', 'uom_price_ids.price')
     def _compute_bundle_prices(self):
         for record in self:
             if record.is_bundle:
                 record.buying_price = sum(item.subtotal_cost for item in record.bundle_item_ids)
                 record.selling_price = sum(item.subtotal_selling for item in record.bundle_item_ids)
+            elif record.id:
+                default_store = self.env.user.default_store_id
+                if not default_store and self.env.user.store_ids:
+                    default_store = self.env.user.store_ids[0]
+                if not default_store and record.store_ids:
+                    default_store = record.store_ids[0]
+                
+                if default_store and default_store.pricelist_id:
+                    price_line = record.uom_price_ids.filtered(
+                        lambda p: p.store_id.id == default_store.id and p.pricelist_id.id == default_store.pricelist_id.id and (not record.uom_id or p.uom_id.id == record.uom_id.id)
+                    )
+                    if price_line:
+                        record.selling_price = price_line[0].price
 
     @api.onchange('is_bundle', 'bundle_item_ids')
     def _onchange_bundle_item_ids(self):

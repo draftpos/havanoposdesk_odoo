@@ -23,48 +23,15 @@ class ResCurrencyRate(models.Model):
         return super().check_access_rights(operation, raise_exception=raise_exception)
 
     def write(self, vals):
-        for rate in self:
-            if rate._is_used_in_transactions():
-                raise UserError(_("This exchange rate cannot be modified because it has been used in sales or payments transactions."))
+        # Only allow writing during creation (when no ID yet) or system operations
+        # For existing records, block changes to rate fields
+        rate_fields = {'company_rate', 'inverse_company_rate', 'rate', 'name', 'currency_id'}
+        if rate_fields & set(vals.keys()):
+            for rate in self:
+                if rate.id and isinstance(rate.id, int):
+                    raise UserError(_("Exchange rates cannot be modified. Please add a new rate entry instead."))
         return super().write(vals)
 
     def unlink(self):
-        for rate in self:
-            if rate._is_used_in_transactions():
-                raise UserError(_("This exchange rate cannot be deleted because it has been used in sales or payments transactions."))
-        return super().unlink()
-
-    def _is_used_in_transactions(self):
-        self.ensure_one()
-        # Check sales
-        Sale = self.env['havanoposdesk.sale']
-        sales = Sale.search([
-            ('currency_id', '=', self.currency_id.id),
-            ('posting_date', '=', self.name),
-            ('state', 'in', ['confirmed', 'done'])
-        ], limit=1)
-        if sales:
-            return True
-
-        # Check payments
-        Payment = self.env['havanoposdesk.payment']
-        payments = Payment.search([
-            ('currency_id', '=', self.currency_id.id),
-            ('date', '=', self.name),
-            ('state', '=', 'posted')
-        ], limit=1)
-        if payments:
-            return True
-
-        # Check payment lines
-        PaymentLine = self.env['havanoposdesk.payment.line']
-        payment_lines = PaymentLine.search([
-            ('currency_id', '=', self.currency_id.id),
-            ('payment_id.date', '=', self.name),
-            ('payment_id.state', '=', 'posted')
-        ], limit=1)
-        if payment_lines:
-            return True
-
-        return False
+        raise UserError(_("Exchange rates cannot be deleted. They are kept for historical audit purposes."))
 

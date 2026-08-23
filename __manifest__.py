@@ -1,6 +1,6 @@
 {
     'name': 'Havano ERP (havanoposdesk_odoo)',
-    'version': '19.0.1.25',
+    'version': '19.0.1.26',
     'category': 'Sales/Point of Sale',
     'summary': 'Unified ERP backend serving Flutter POS app and Odoo UI',
     'description': """
@@ -109,6 +109,7 @@
             'havanoposdesk_odoo/static/src/js/profit_and_loss.js',
             'havanoposdesk_odoo/static/src/xml/profit_and_loss.xml',
             'havanoposdesk_odoo/static/src/js/custom_home_menu.js',
+            'havanoposdesk_odoo/static/src/xml/custom_home_menu.xml',
             'havanoposdesk_odoo/static/src/scss/custom_home_menu.scss',
             'havanoposdesk_odoo/static/src/scss/mobile_kanban_design.scss',
             'havanoposdesk_odoo/static/src/js/mobile_kanban_design.js',

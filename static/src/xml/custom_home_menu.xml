@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="havanoposdesk_odoo.CustomHomeMenu" owl="1">
+        <div class="custom_home_menu_overlay">
+            <div class="custom_home_menu_container">
+                <div class="custom_home_menu_grid">
+                    <t t-foreach="apps" t-as="app" t-key="app.id">
+                        <a href="#"
+                           class="custom_home_menu_app_card"
+                           t-on-click.prevent="(ev) => this.onAppClick(ev, app)">
+                            <div class="custom_home_menu_app_icon">
+                                <t t-if="app.webIconData">
+                                    <img t-att-src="app.webIconData" alt=""/>
+                                </t>
+                                <t t-elif="app.webIcon and app.webIcon.iconClass">
+                                    <i t-att-class="app.webIcon.iconClass"/>
+                                </t>
+                                <t t-else="">
+                                    <i class="oi oi-apps"></i>
+                                </t>
+                            </div>
+                            <div class="custom_home_menu_app_name"><t t-esc="app.name"/></div>
+                        </a>
+                    </t>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

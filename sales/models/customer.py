@@ -31,13 +31,7 @@ class Customer(models.Model):
 
     name = fields.Char(string='Customer Name', required=True)
     
-    @api.constrains('currency_id', 'secondary_currency_id')
-    def _check_currencies(self):
-        for record in self:
-            if record.allow_multi_currency and record.currency_id and record.secondary_currency_id:
-                if record.currency_id == record.secondary_currency_id:
-                    from odoo.exceptions import ValidationError
-                    raise ValidationError("The primary and secondary currencies cannot be the same.")
+
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
         string='Tenant', 
@@ -51,15 +45,7 @@ class Customer(models.Model):
         string='Currency', 
         default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
     )
-    allow_multi_currency = fields.Boolean(
-        string='Allow Multi Currency', 
-        default=lambda self: self.env.user.tenant_id.global_multi_currency_customers if self.env.user.tenant_id else False
-    )
-    secondary_currency_id = fields.Many2one(
-        'res.currency', 
-        string='Secondary Currency',
-        default=lambda self: self.env.user.tenant_id.global_secondary_currency_id.id if self.env.user.tenant_id and self.env.user.tenant_id.global_multi_currency_customers else False
-    )
+
     def _default_country_id(self):
         return self.env['res.country'].search([('name', '=', 'Zimbabwe')], limit=1).id
 
@@ -94,19 +80,9 @@ class Customer(models.Model):
     sale_ids = fields.One2many('havanoposdesk.sale', 'customer', string='Sales')
     payment_ids = fields.One2many('havanoposdesk.payment', 'customer_id', string='Payments')
     balance = fields.Float(string='Balance', compute='_compute_balance', store=False)
-    secondary_balance = fields.Float(string='Secondary Balance', compute='_compute_secondary_balance', store=False)
     store_ids = fields.Many2many('havanoposdesk.store', string='Stores', default=_default_store_ids)
 
-    @api.depends('balance', 'secondary_currency_id', 'allow_multi_currency')
-    def _compute_secondary_balance(self):
-        for record in self:
-            if record.allow_multi_currency and record.secondary_currency_id and record.tenant_currency_id:
-                rate = record.tenant_currency_id._get_conversion_rate(
-                    record.tenant_currency_id, record.secondary_currency_id, self.env.company, fields.Date.context_today(record)
-                )
-                record.secondary_balance = record.balance * rate
-            else:
-                record.secondary_balance = 0.0
+
 
     @api.depends('sale_ids.amount_total_base', 'sale_ids.is_return', 'sale_ids.payment_status', 'sale_ids.state', 'payment_ids.amount_base', 'payment_ids.payment_type', 'payment_ids.state')
     def _compute_balance(self):

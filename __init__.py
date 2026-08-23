@@ -8,17 +8,16 @@ from . import migrations
 from . import manufacturing
 
 
-def post_migrate(cr, registry):
+def post_migrate(env):
     """
     After module upgrade: ensure every user with havano_role='admin' has
     base.group_erp_manager so the Settings icon is visible to Tenant Admins.
     Also ensure cashier users (havano_role='user') do NOT have that group.
     """
-    from odoo import api, SUPERUSER_ID
-    env = api.Environment(cr, SUPERUSER_ID, {})
-
     # Ensure all users have email set (copy from login if blank/null)
-    cr.execute("UPDATE res_users SET email = login WHERE (email IS NULL OR email = '') AND login LIKE '%@%'")
+    users_without_email = env['res.users'].search([('email', '=', False), ('login', 'like', '%@%')])
+    for user in users_without_email:
+        user.email = user.login
 
     erp_manager_group = env.ref('base.group_erp_manager', raise_if_not_found=False)
     tenant_admin_group = env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
@@ -81,18 +80,18 @@ def post_migrate(cr, registry):
             pass
 
     # Clean up any leftover currency isolation record rules in ir_rule table
-    cr.execute("""
+    env.cr.execute("""
         DELETE FROM ir_rule 
         WHERE name IN ('Havano Currency Isolation', 'Havano Currency Rate Isolation')
            OR model_id IN (SELECT id FROM ir_model WHERE model IN ('res.currency', 'res.currency.rate'));
     """)
 
     # Reset tenant_id to NULL on global currencies and rates so all users/tenants can access standard currencies
-    cr.execute("UPDATE res_currency SET tenant_id = NULL WHERE tenant_id IS NOT NULL;")
-    cr.execute("UPDATE res_currency_rate SET tenant_id = NULL WHERE tenant_id IS NOT NULL;")
+    env.cr.execute("UPDATE res_currency SET tenant_id = NULL WHERE tenant_id IS NOT NULL;")
+    env.cr.execute("UPDATE res_currency_rate SET tenant_id = NULL WHERE tenant_id IS NOT NULL;")
 
     # Ensure global read access on res.currency and res.currency.rate in ir_model_access
-    cr.execute("""
+    env.cr.execute("""
         INSERT INTO ir_model_access (name, model_id, perm_read, perm_write, perm_create, perm_unlink, active)
         SELECT 'res.currency global read', m.id, True, False, False, False, True
         FROM ir_model m
@@ -101,7 +100,7 @@ def post_migrate(cr, registry):
             SELECT 1 FROM ir_model_access a WHERE a.model_id = m.id AND a.group_id IS NULL AND a.perm_read = True
         )
     """)
-    cr.execute("""
+    env.cr.execute("""
         INSERT INTO ir_model_access (name, model_id, perm_read, perm_write, perm_create, perm_unlink, active)
         SELECT 'res.currency.rate global read', m.id, True, False, False, False, True
         FROM ir_model m
@@ -110,10 +109,7 @@ def post_migrate(cr, registry):
             SELECT 1 FROM ir_model_access a WHERE a.model_id = m.id AND a.group_id IS NULL AND a.perm_read = True
         )
     """)
-    if 'ir.model.access' in env:
-        env['ir.model.access'].call_cache_clearing_methods()
-    if 'ir.rule' in env:
-        env['ir.rule'].clear_caches()
+
     env.registry.clear_cache()
 
 

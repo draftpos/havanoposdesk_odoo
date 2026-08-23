@@ -29,7 +29,7 @@
     </record>
 
     <record id="action_report_sale_document_html" model="ir.actions.report">
-        <field name="name">Sales Document (HTML / Quick Print)</field>
+        <field name="name">Sales Invoice</field>
         <field name="model">havanoposdesk.sale</field>
         <field name="report_type">qweb-html</field>
         <field name="report_name">havanoposdesk_odoo.report_sale_document</field>

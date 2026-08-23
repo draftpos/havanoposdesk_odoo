@@ -1371,7 +1371,12 @@ class HavanoPOSDeskAPI(http.Controller):
                 if store.exists():
                     return store
             except ValueError:
-                pass
+                domain = [('name', '=', store_val)]
+                if tenant:
+                    domain.append(('tenant_id', '=', tenant.id))
+                store = request.env['havanoposdesk.store'].sudo().search(domain, limit=1)
+                if store:
+                    return store
         
         if user and user.selected_shop_id:
             return user.selected_shop_id
@@ -1791,7 +1796,13 @@ class HavanoPOSDeskAPI(http.Controller):
 
             lines.append((0, 0, line_vals))
             
-        payment_policy, account_id, payment_commands = self._prepare_payment_vals(request.env, tenant, customer, data)
+        payment_vals = self._prepare_payment_vals(request.env, tenant, customer, data)
+        if payment_vals['payment_status'] != 'cash' and tenant and not tenant.allow_credit_sales:
+            return request.make_response(
+                json.dumps({'error': 'Oops! Creating sales on credit is disabled.'}),
+                headers=[('Content-Type', 'application/json')],
+                status=400,
+            )
         sale_vals = {
             'customer': customer.id,
             'store': store.name,
@@ -1801,14 +1812,16 @@ class HavanoPOSDeskAPI(http.Controller):
             'line_ids': lines,
             'state': 'done',
             'salesperson_id': user.id,
-            'payment_status': 'cash',
-            'payment_policy': payment_policy,
+            'payment_status': payment_vals['payment_status'],
+            'payment_policy': payment_vals['payment_policy'],
             'local_invoice_id': local_invoice_id,
         }
-        if account_id:
-            sale_vals['account_id'] = account_id
-        if payment_commands:
-            sale_vals['payment_ids'] = payment_commands
+        if payment_vals.get('account_id'):
+            sale_vals['account_id'] = payment_vals['account_id']
+        if payment_vals.get('single_payment_amount') is not None:
+            sale_vals['single_payment_amount'] = payment_vals['single_payment_amount']
+        if payment_vals.get('payment_commands'):
+            sale_vals['payment_ids'] = payment_vals['payment_commands']
 
         sale = request.env['havanoposdesk.sale'].with_user(user.id).sudo().create(sale_vals)
         
@@ -2759,7 +2772,9 @@ class HavanoPOSDeskAPI(http.Controller):
             if not sale_user:
                 sale_user = user
 
-            payment_policy, account_id, payment_commands = self._prepare_payment_vals(env, tenant, customer, params)
+            payment_vals = self._prepare_payment_vals(env, tenant, customer, params)
+            if payment_vals['payment_status'] != 'cash' and tenant and not tenant.allow_credit_sales:
+                return self._make_json_response({"error": "Oops! Creating sales on credit is disabled."}, status=400)
             
             # Resolve currency
             doc_currency = False
@@ -2797,14 +2812,16 @@ class HavanoPOSDeskAPI(http.Controller):
                 'line_ids': sale_lines,
                 'state': 'done',
                 'salesperson_id': sale_user.id,
-                'payment_status': 'cash',
-                'payment_policy': payment_policy,
+                'payment_status': payment_vals['payment_status'],
+                'payment_policy': payment_vals['payment_policy'],
                 'local_invoice_id': local_invoice_id,
             }
-            if account_id:
-                sale_vals['account_id'] = account_id
-            if payment_commands:
-                sale_vals['payment_ids'] = payment_commands
+            if payment_vals.get('account_id'):
+                sale_vals['account_id'] = payment_vals['account_id']
+            if payment_vals.get('single_payment_amount') is not None:
+                sale_vals['single_payment_amount'] = payment_vals['single_payment_amount']
+            if payment_vals.get('payment_commands'):
+                sale_vals['payment_ids'] = payment_vals['payment_commands']
 
             sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
 
@@ -3172,6 +3189,10 @@ class HavanoPOSDeskAPI(http.Controller):
                         "total": sale.amount_untaxed if sale.amount_tax > 0 else sale.amount_total,
                         "total_taxes_and_charges": sale.amount_tax,
                         "grand_total": sale.amount_total,
+                        "paid_amount": sale.amount_paid,
+                        "outstanding_amount": 0.0 if sale.payment_status == 'cash' else sale.amount_balance,
+                        "balance_due": 0.0 if sale.payment_status == 'cash' else sale.amount_balance,
+                        "payment_status": sale.payment_status,
                         "created_by": created_by,
                         "last_modified_by": created_by,
                     })
@@ -3246,11 +3267,6 @@ class HavanoPOSDeskAPI(http.Controller):
                         ], limit=1)
                         if not customer:
                             responses.append({"error": f"Oops! The customer '{customer_name}' does not exist for your business.", "local_invoice_id": local_invoice_id})
-                            continue
-                        
-                        payment_status = sale_data.get('payment_status', 'cash')
-                        if payment_status != 'cash' and not tenant.allow_credit_sales:
-                            responses.append({"error": "Oops! Creating sales on credit is disabled.", "local_invoice_id": local_invoice_id})
                             continue
 
                         lines = []
@@ -3348,7 +3364,14 @@ class HavanoPOSDeskAPI(http.Controller):
                         if not sale_user:
                             sale_user = user
 
-                        payment_policy, account_id, payment_commands = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
+                        payment_vals = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
+                        payment_status = payment_vals['payment_status']
+                        payment_policy = payment_vals['payment_policy']
+                        account_id = payment_vals.get('account_id') or account_id
+                        payment_commands = payment_vals.get('payment_commands') or []
+                        if payment_status != 'cash' and not tenant.allow_credit_sales:
+                            responses.append({"error": "Oops! Creating sales on credit is disabled.", "local_invoice_id": local_invoice_id})
+                            continue
 
                         # Resolve currency
                         doc_currency = False
@@ -3396,6 +3419,8 @@ class HavanoPOSDeskAPI(http.Controller):
                             sale_vals['pricelist_id'] = pricelist_id
                         if account_id:
                             sale_vals['account_id'] = account_id
+                        if payment_vals.get('single_payment_amount') is not None:
+                            sale_vals['single_payment_amount'] = payment_vals['single_payment_amount']
                         if payment_commands:
                             sale_vals['payment_ids'] = payment_commands
 
@@ -3425,23 +3450,71 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.close()
 
+    def _normalize_payment_status(self, raw_status):
+        status = (raw_status or 'cash')
+        if not isinstance(status, str):
+            status = 'cash'
+        status = status.strip().lower().replace('-', ' ').replace('_', ' ')
+        if status in ('cash', 'paid'):
+            return 'cash'
+        if status in ('partial', 'partly paid', 'partially paid'):
+            return 'partial'
+        if status in ('account', 'on account', 'unpaid', 'credit'):
+            return 'account'
+        return 'cash'
+
     def _prepare_payment_vals(self, env, tenant, customer, sale_data, default_account_id=False):
+        empty = {
+            'payment_policy': 'single',
+            'account_id': default_account_id,
+            'payment_commands': [],
+            'payment_status': self._normalize_payment_status(sale_data.get('payment_status')),
+            'single_payment_amount': None,
+        }
         try:
+            Account = env['havanoposdesk.account'].sudo()
+            invoice_total = float(
+                sale_data.get('grand_total')
+                or sale_data.get('total')
+                or sale_data.get('amount_total')
+                or sale_data.get('net_total')
+                or 0.0
+            )
+            specified_raw = sale_data.get('paid_amount')
+            if specified_raw is None:
+                specified_raw = sale_data.get('paid')
+            specified_paid = None
+            if specified_raw is not None and specified_raw != '':
+                specified_paid = float(specified_raw)
+
             payments_input = sale_data.get('payments')
             if not payments_input or not isinstance(payments_input, list):
-                pm_name = sale_data.get('payment_method')
-                if pm_name:
+                pm_name = sale_data.get('payment_method') or sale_data.get('mode_of_payment')
+                if pm_name or specified_paid is not None:
+                    amount = specified_paid if specified_paid is not None else invoice_total
                     payments_input = [{
                         'payment_method': pm_name,
-                        'amount': sale_data.get('paid_amount') or sale_data.get('grand_total') or sale_data.get('total') or 0.0
+                        'amount': amount,
                     }]
 
-            if not payments_input:
-                return 'single', default_account_id, []
+            requested_status = self._normalize_payment_status(sale_data.get('payment_status'))
+            if requested_status == 'account' and not payments_input:
+                return empty
 
-            payment_policy = 'multi' if len(payments_input) > 1 else 'single'
+            if not payments_input:
+                return empty
+
             payment_commands = []
             primary_account_id = default_account_id
+            used_on_account = False
+            real_sum = 0.0
+
+            remaining_cap = invoice_total if invoice_total > 0 else None
+            if specified_paid is not None:
+                if remaining_cap is not None:
+                    remaining_cap = min(specified_paid, remaining_cap)
+                else:
+                    remaining_cap = specified_paid
 
             for p in payments_input:
                 if not isinstance(p, dict):
@@ -3453,8 +3526,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 p_ref = p.get('reference') or p.get('memo')
 
                 p_account = False
+                acc = False
                 if pm_name:
-                    acc = env['havanoposdesk.account'].sudo().search([
+                    acc = Account.search([
                         ('tenant_id', '=', tenant.id),
                         ('active', '=', True),
                         ('name', 'ilike', str(pm_name).strip())
@@ -3464,34 +3538,83 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 if not p_account:
                     p_account = default_account_id
+                    if p_account:
+                        acc = Account.browse(p_account)
+
+                is_silent = Account.is_on_account_method(acc if acc else False, pm_name)
+                if is_silent:
+                    used_on_account = True
+                    if p_account and not primary_account_id:
+                        primary_account_id = p_account
+                    continue
 
                 if p_account and not primary_account_id:
                     primary_account_id = p_account
 
+                if remaining_cap is not None:
+                    if p_amount > remaining_cap:
+                        p_amount = remaining_cap
+                    remaining_cap = max(remaining_cap - p_amount, 0.0)
+
+                if p_amount <= 0 or not p_account:
+                    continue
+
                 curr_rec = False
                 if p_curr:
                     curr_rec = env['res.currency'].sudo().search([('name', '=ilike', str(p_curr).strip())], limit=1)
+                if not curr_rec and acc and acc.currency_id:
+                    curr_rec = acc.currency_id
                 if not curr_rec:
                     curr_rec = tenant.currency_id
 
-                if p_amount > 0 and p_account:
-                    payment_commands.append((0, 0, {
-                        'tenant_id': tenant.id,
-                        'customer_id': customer.id,
-                        'partner_type': 'customer',
-                        'payment_type': 'receipt',
-                        'account_id': p_account,
-                        'currency_id': curr_rec.id if curr_rec else tenant.currency_id.id,
-                        'exchange_rate': p_rate if p_rate > 0 else 1.0,
-                        'amount': p_amount,
-                        'reference': p_ref,
-                        'state': 'draft',
-                    }))
+                payment_commands.append((0, 0, {
+                    'tenant_id': tenant.id,
+                    'customer_id': customer.id,
+                    'partner_type': 'customer',
+                    'payment_type': 'receipt',
+                    'account_id': p_account,
+                    'currency_id': curr_rec.id if curr_rec else tenant.currency_id.id,
+                    'exchange_rate': p_rate if p_rate > 0 else 1.0,
+                    'amount': p_amount,
+                    'reference': p_ref,
+                    'state': 'draft',
+                }))
+                real_sum += p_amount
 
-            return payment_policy, primary_account_id, payment_commands
+            payment_policy = 'multi' if len(payment_commands) > 1 else 'single'
+            single_payment_amount = None
+            if payment_policy == 'single':
+                if specified_paid is not None:
+                    target = min(specified_paid, invoice_total) if invoice_total > 0 else specified_paid
+                    single_payment_amount = real_sum if real_sum > 0 else target
+                elif invoice_total > 0 and not used_on_account:
+                    single_payment_amount = invoice_total
+                elif real_sum > 0:
+                    single_payment_amount = real_sum
+
+            if used_on_account:
+                payment_status = 'partial'
+            elif invoice_total > 0 and real_sum + 0.0001 >= invoice_total:
+                payment_status = 'cash'
+            elif real_sum > 0:
+                payment_status = 'partial'
+            else:
+                payment_status = requested_status if requested_status in ('cash', 'partial', 'account') else 'cash'
+
+            # Cash-only: payments must not exceed the invoice; fully paid => balance 0.
+            if payment_status == 'cash' and invoice_total > 0 and not used_on_account:
+                single_payment_amount = invoice_total
+
+            return {
+                'payment_policy': payment_policy,
+                'account_id': primary_account_id,
+                'payment_commands': payment_commands,
+                'payment_status': payment_status,
+                'single_payment_amount': single_payment_amount,
+            }
         except Exception as e:
             _logger.warning(f"Error preparing payment vals: {e}")
-            return 'single', default_account_id, []
+            return empty
 
     @http.route([
         '/api/resource/Purchase Invoice',
@@ -3863,6 +3986,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "name": acc.name,
                     "account_name": acc.name,
                     "type": acc.type,
+                    "on_account": bool(acc.is_on_account),
+                    "is_on_account": bool(acc.is_on_account),
                     "currency": currency_code,
                     "currency_id": acc.currency_id.id if acc.currency_id else (base_curr.id if base_curr else False),
                     "exchange_rate": rate_val,
@@ -5812,6 +5937,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "id": acc.id,
                     "name": acc.name,
                     "type": acc.type,
+                    "on_account": bool(acc.is_on_account),
+                    "is_on_account": bool(acc.is_on_account),
                     "currency": acc_curr.name if acc_curr else currency,
                     "currency_id": acc.currency_id.id if acc.currency_id else (base_curr.id if base_curr else False),
                     "exchange_rate": rate_val,
@@ -8254,6 +8381,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 result.append({
                     "name": a.name,
                     "account_type": a.type,
+                    "on_account": bool(a.is_on_account),
+                    "is_on_account": bool(a.is_on_account),
                     "root_type": "Asset" if a.type in ["Cash", "Bank"] else "Expense"
                 })
             return self._make_json_response({"data": result})

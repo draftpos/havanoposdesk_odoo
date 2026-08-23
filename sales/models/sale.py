@@ -22,9 +22,7 @@ class Sale(models.Model):
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default=lambda self: 'New')
     customer = fields.Many2one('havanoposdesk.customer', string='Customer', required=True)
     customer_balance = fields.Float(related='customer.balance', string='Customer Balance')
-    customer_secondary_balance = fields.Float(related='customer.secondary_balance', string='Secondary Balance')
-    customer_allow_multi_currency = fields.Boolean(related='customer.allow_multi_currency', string='Customer Multi Currency')
-    customer_secondary_currency_id = fields.Many2one('res.currency', related='customer.secondary_currency_id')
+
     
     store = fields.Char(string='Store Name')
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
@@ -60,12 +58,21 @@ class Sale(models.Model):
                 record.invoice_type = 'Sales Invoice'
     
     def _default_account_id(self):
-        return self.env['havanoposdesk.account'].search([('type', 'in', ['Cash', 'Bank']), ('active', '=', True)], limit=1).id
+        return self.env['havanoposdesk.account'].search([
+            ('type', 'in', ['Cash', 'Bank']),
+            ('active', '=', True),
+            ('is_on_account', '=', False),
+        ], limit=1).id
 
     payment_status = fields.Selection([
         ('cash', 'Paid'),
+        ('partial', 'Partial'),
         ('account', 'On Account')
     ], string='Payment Status', default='cash', required=True)
+    payment_status_display = fields.Selection([
+        ('cash', 'Paid'),
+        ('account', 'On Account')
+    ], string='Payment Status', compute='_compute_payment_status_display', inverse='_inverse_payment_status_display')
     payment_policy = fields.Selection([
         ('single', 'Single Payment'),
         ('multi', 'Split / Multi-Currency Payment')
@@ -94,32 +101,25 @@ class Sale(models.Model):
     )
     currency_id = fields.Many2one('res.currency', string='Currency', required=True)
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
-    available_currency_ids = fields.Many2many('res.currency', compute='_compute_available_currencies', store=False)
+
     allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency')
 
-    @api.depends('customer')
-    def _compute_available_currencies(self):
-        for record in self:
-            if record.customer:
-                currencies = record.customer.currency_id
-                if record.customer.allow_multi_currency and record.customer.secondary_currency_id:
-                    currencies |= record.customer.secondary_currency_id
-                record.available_currency_ids = currencies.ids
-            else:
-                record.available_currency_ids = False
+
 
     @api.onchange('customer')
     def _onchange_customer(self):
         if self.customer:
-            self.currency_id = self.customer.currency_id.id
-            # Auto-fetch exchange rate for the customer's currency
-            if self.customer.currency_id and self.tenant_id and self.tenant_id.currency_id:
-                if self.customer.currency_id == self.tenant_id.currency_id:
+            target_currency = self.customer.currency_id
+            self.currency_id = target_currency.id
+            
+            # Auto-fetch exchange rate for the target currency
+            if target_currency and self.tenant_id and self.tenant_id.currency_id:
+                if target_currency == self.tenant_id.currency_id:
                     self.exchange_rate = 1.0
                 else:
                     date = self.date or fields.Date.context_today(self)
-                    rate = self.customer.currency_id._get_conversion_rate(
-                        self.tenant_id.currency_id, self.customer.currency_id, self.env.company, date
+                    rate = target_currency._get_conversion_rate(
+                        self.tenant_id.currency_id, target_currency, self.env.company, date
                     )
                     self.exchange_rate = rate or 1.0
 
@@ -170,6 +170,16 @@ class Sale(models.Model):
 
     @api.onchange('pricelist_id')
     def _onchange_pricelist_id(self):
+        # Auto-set the document currency from the pricelist currency
+        if self.pricelist_id and self.pricelist_id.currency_id:
+            self.currency_id = self.pricelist_id.currency_id.id
+            # Trigger exchange rate fetch
+            self._onchange_currency_id()
+        elif self.pricelist_id and not self.pricelist_id.currency_id:
+            # No currency on pricelist means base currency
+            if self.tenant_id and self.tenant_id.currency_id:
+                self.currency_id = self.tenant_id.currency_id.id
+                self.exchange_rate = 1.0
         if self.line_ids:
             for line in self.line_ids:
                 line._onchange_product_uom()
@@ -191,6 +201,8 @@ class Sale(models.Model):
     amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
     amount_paid_base = fields.Float(string='Paid (Base)', compute='_compute_amount_paid_base', store=True)
     amount_balance_base = fields.Float(string='Balance Due (Base)', compute='_compute_amount_paid_base', store=True)
+    amount_paid = fields.Float(string='Paid Amount', compute='_compute_amount_paid_base')
+    amount_balance = fields.Float(string='Balance Due', compute='_compute_amount_paid_base')
     single_payment_amount = fields.Float(string='Payment Amount', compute='_compute_single_payment_amount', store=True, readonly=False)
     
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
@@ -259,20 +271,95 @@ class Sale(models.Model):
                 record.amount_tax_fc = record.amount_tax * rate
                 record.amount_total_fc = record.amount_total * rate
             else:
-                record.amount_untaxed_fc = record.amount_untaxed
-                record.amount_tax_fc = record.amount_tax
-                record.amount_total_fc = record.amount_total
+                rate = record.exchange_rate if record.exchange_rate else 1.0
+                record.amount_untaxed_fc = record.amount_untaxed / rate
+                record.amount_tax_fc = record.amount_tax / rate
+                record.amount_total_fc = record.amount_total / rate
 
-    @api.depends('payment_ids.amount_base', 'amount_total_base')
+    @api.onchange('account_id')
+    def _onchange_account_id(self):
+        if self.account_id and self.account_id.is_silent_on_account():
+            self.payment_status = 'account'
+            self.payment_status_display = 'account'
+
+    @api.depends('payment_status')
+    def _compute_payment_status_display(self):
+        for record in self:
+            record.payment_status_display = 'cash' if record.payment_status == 'cash' else 'account'
+
+    def _inverse_payment_status_display(self):
+        for record in self:
+            if record.payment_status == 'partial' and record.payment_status_display == 'account':
+                continue
+            record.payment_status = record.payment_status_display or 'cash'
+
+    @api.depends(
+        'payment_ids.amount', 'payment_ids.amount_base', 'payment_ids.state',
+        'payment_ids.payment_type', 'payment_ids.currency_id', 'amount_total',
+        'amount_total_base', 'payment_status', 'payment_policy', 'single_payment_amount',
+        'currency_id', 'exchange_rate', 'state'
+    )
     def _compute_amount_paid_base(self):
         for record in self:
-            record.amount_paid_base = sum(record.payment_ids.mapped('amount_base'))
-            record.amount_balance_base = record.amount_total_base - record.amount_paid_base
+            valid_states = ('posted',) if record.state in ('confirmed', 'done') else ('draft', 'posted')
+            valid_payments = record.payment_ids.filtered(
+                lambda p: p.state in valid_states and p.payment_type == 'receipt'
+            )
 
-    @api.depends('amount_total')
+            if record.payment_policy == 'multi':
+                record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+                paid_doc = 0.0
+                for payment in valid_payments:
+                    if payment.currency_id == record.currency_id:
+                        paid_doc += payment.amount
+                    else:
+                        rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                        paid_doc += payment.amount_base * rate
+                record.amount_paid = paid_doc
+            elif record.payment_status == 'account':
+                record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+                paid_doc = 0.0
+                for payment in valid_payments:
+                    if payment.currency_id == record.currency_id:
+                        paid_doc += payment.amount
+                    else:
+                        rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                        paid_doc += payment.amount_base * rate
+                record.amount_paid = paid_doc
+            else:
+                if record.state in ('confirmed', 'done') and valid_payments:
+                    record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+                    paid_doc = 0.0
+                    for payment in valid_payments:
+                        if payment.currency_id == record.currency_id:
+                            paid_doc += payment.amount
+                        else:
+                            rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                            paid_doc += payment.amount_base * rate
+                    record.amount_paid = paid_doc
+                else:
+                    payment_amount = record.single_payment_amount if record.single_payment_amount > 0 else record.amount_total
+                    record.amount_paid = payment_amount
+                    rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                    record.amount_paid_base = payment_amount / rate
+
+            record.amount_balance_base = max(record.amount_total_base - record.amount_paid_base, 0.0)
+            record.amount_balance = max(record.amount_total - record.amount_paid, 0.0)
+
+    @api.depends('amount_total', 'payment_policy', 'payment_status')
     def _compute_single_payment_amount(self):
         for record in self:
-            record.single_payment_amount = record.amount_total
+            if record.payment_policy == 'single' and record.payment_status != 'account':
+                if not record.single_payment_amount or record.single_payment_amount <= 0.0:
+                    record.single_payment_amount = record.amount_total
+            else:
+                record.single_payment_amount = record.amount_total
+
+    @api.onchange('amount_total', 'line_ids')
+    def _onchange_amount_total_sync_single_payment(self):
+        for record in self:
+            if record.state == 'draft' and record.payment_policy == 'single' and record.payment_status != 'account':
+                record.single_payment_amount = record.amount_total
 
     @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
     def _compute_total_cost(self):
@@ -310,7 +397,7 @@ class Sale(models.Model):
             # Default account_id for cash sales if not provided
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             if vals.get('payment_status', 'cash') == 'cash' and not vals.get('account_id'):
-                domain = [('type', 'in', ['Cash', 'Bank'])]
+                domain = [('type', 'in', ['Cash', 'Bank']), ('is_on_account', '=', False)]
                 if tenant_id:
                     domain.append(('tenant_id', '=', tenant_id))
                 account = self.env['havanoposdesk.account'].search(domain, limit=1)
@@ -423,6 +510,91 @@ class Sale(models.Model):
         self.action_post()
         return self.action_print()
 
+    def _is_on_account_account(self, account, payment_method_name=None):
+        Account = self.env['havanoposdesk.account']
+        return Account.is_on_account_method(account, payment_method_name)
+
+    def _payment_amount_base(self, amount, exchange_rate):
+        rate = exchange_rate if exchange_rate and exchange_rate != 0 else 1.0
+        return amount / rate
+
+    def _post_sale_payments(self):
+        """Post real receipts only. Cap at the invoice total. Skip on-account modes."""
+        self.ensure_one()
+        sale = self
+        remaining_base = sale.amount_total_base
+        used_on_account = sale._is_on_account_account(sale.account_id)
+
+        def _cap_and_post(payment):
+            nonlocal remaining_base
+            if remaining_base <= 0.0001:
+                if payment.state == 'draft':
+                    payment.unlink()
+                return 0.0
+            if payment.amount_base > remaining_base + 0.0001:
+                rate = payment.exchange_rate if payment.exchange_rate and payment.exchange_rate != 0 else 1.0
+                payment.amount = remaining_base * rate
+            if payment.amount <= 0:
+                if payment.state == 'draft':
+                    payment.unlink()
+                return 0.0
+            if payment.state == 'draft':
+                payment.action_post()
+            remaining_base = max(remaining_base - payment.amount_base, 0.0)
+            return payment.amount_base
+
+        existing = sale.payment_ids.filtered(lambda p: p.state != 'cancelled')
+        silent = existing.filtered(lambda p: sale._is_on_account_account(p.account_id))
+        if silent:
+            used_on_account = True
+            silent.filtered(lambda p: p.state == 'draft').unlink()
+
+        real = sale.payment_ids.filtered(
+            lambda p: p.state != 'cancelled' and not sale._is_on_account_account(p.account_id)
+        )
+
+        if real:
+            for payment in real:
+                _cap_and_post(payment)
+        elif sale.payment_policy == 'multi' and not used_on_account:
+            raise ValidationError("You must add at least one payment entry for cash sales in the Payment Breakdown tab.")
+        elif not used_on_account:
+            if not sale.account_id:
+                raise ValidationError("You must select a Deposit Account for Single Payment cash sales.")
+            payment_amount = sale.single_payment_amount if sale.single_payment_amount > 0 else sale.amount_total
+            requested_base = sale._payment_amount_base(payment_amount, sale.exchange_rate)
+            if requested_base > remaining_base + 0.0001:
+                payment_amount = remaining_base * (sale.exchange_rate if sale.exchange_rate and sale.exchange_rate != 0 else 1.0)
+            elif requested_base + 0.0001 >= remaining_base:
+                payment_amount = sale.amount_total
+            if payment_amount > 0:
+                payment = self.env['havanoposdesk.payment'].create([{
+                    'payment_type': 'receipt',
+                    'partner_type': 'customer',
+                    'customer_id': sale.customer.id,
+                    'account_id': sale.account_id.id,
+                    'currency_id': sale.currency_id.id,
+                    'exchange_rate': sale.exchange_rate,
+                    'amount': payment_amount,
+                    'date': sale.posting_date or fields.Date.context_today(sale),
+                    'tenant_id': sale.tenant_id.id,
+                    'sale_id': sale.id,
+                }])
+                _cap_and_post(payment)
+
+        paid_base = sum(
+            sale.payment_ids.filtered(lambda p: p.state == 'posted' and p.payment_type == 'receipt').mapped('amount_base')
+        )
+        if used_on_account:
+            new_status = 'partial'
+        elif paid_base + 0.0001 >= sale.amount_total_base:
+            new_status = 'cash'
+        elif paid_base > 0:
+            new_status = 'partial'
+        else:
+            new_status = 'account'
+        sale.write({'payment_status': new_status})
+
     def action_post(self):
         for sale in self:
             if sale.state != 'draft':
@@ -432,34 +604,9 @@ class Sale(models.Model):
                 sale.write({'state': 'done'})
                 continue
             
-            # Handle payments if cash
-            if sale.payment_status == 'cash':
-                if sale.payment_policy == 'multi':
-                    if not sale.payment_ids:
-                        raise ValidationError("You must add at least one payment entry for cash sales in the Payment Breakdown tab.")
-                    
-                    for payment in sale.payment_ids:
-                        if payment.state == 'draft':
-                            payment.action_post()
-                else:
-                    if not sale.account_id:
-                        raise ValidationError("You must select a Deposit Account for Single Payment cash sales.")
-                    
-                    payment_amount = sale.single_payment_amount if sale.single_payment_amount > 0 else sale.amount_total
-                    if payment_amount > 0:
-                        payment = self.env['havanoposdesk.payment'].create([{
-                            'payment_type': 'receipt',
-                            'partner_type': 'customer',
-                            'customer_id': sale.customer.id,
-                            'account_id': sale.account_id.id,
-                            'currency_id': sale.currency_id.id,
-                            'exchange_rate': sale.exchange_rate,
-                            'amount': payment_amount,
-                            'date': sale.posting_date or fields.Date.context_today(sale),
-                            'tenant_id': sale.tenant_id.id,
-                            'sale_id': sale.id,
-                        }])
-                        payment.action_post()
+            # Handle payments
+            if sale.payment_status != 'account':
+                sale._post_sale_payments()
 
             for line in sale.line_ids:
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
@@ -705,6 +852,11 @@ class Sale(models.Model):
         if 'store' in res:
             res['store']['searchable'] = False
             res['store']['sortable'] = False
+        # Partial is API-only; keep Paid / On Account on the UI field.
+        if 'payment_status' in res and res['payment_status'].get('selection'):
+            res['payment_status']['selection'] = [
+                option for option in res['payment_status']['selection'] if option[0] != 'partial'
+            ]
         return res
 
 class SaleLine(models.Model):
@@ -853,9 +1005,10 @@ class SaleLine(models.Model):
                 record.price_tax_fc = record.price_tax * rate
                 record.amount_fc = record.amount * rate
             else:
-                record.price_subtotal_fc = record.price_subtotal
-                record.price_tax_fc = record.price_tax
-                record.amount_fc = record.amount
+                rate = record.exchange_rate if record.exchange_rate else 1.0
+                record.price_subtotal_fc = record.price_subtotal / rate
+                record.price_tax_fc = record.price_tax / rate
+                record.amount_fc = record.amount / rate
 
     @api.depends('product_id')
     def _compute_available_uom_ids(self):
@@ -872,6 +1025,44 @@ class SaleLine(models.Model):
             uom_ids.extend(prices.mapped('uom_id.id'))
             line.available_uom_ids = [(6, 0, list(set(uom_ids)))]
 
+    def _convert_price_to_document_currency(self, price, price_source_pricelist=None):
+        """Convert a price from the pricelist/base currency to the document currency.
+        
+        If the pricelist has a currency set, that's the source currency.
+        If not, prices are assumed to be in the tenant's base currency.
+        
+        If the source currency matches the document currency, no conversion needed.
+        If they differ, multiply by the exchange rate (base → foreign) or divide (foreign → base).
+        """
+        sale = self.sale_id
+        if not sale or not sale.currency_id or not sale.tenant_id or not sale.tenant_id.currency_id:
+            return price
+            
+        doc_currency = sale.currency_id
+        base_currency = sale.tenant_id.currency_id
+        exchange_rate = sale.exchange_rate or 1.0
+        
+        # Determine the source currency of the price
+        if price_source_pricelist and price_source_pricelist.currency_id:
+            source_currency = price_source_pricelist.currency_id
+        else:
+            source_currency = base_currency  # default: prices are in base currency
+        
+        # No conversion needed if source matches document
+        if source_currency == doc_currency:
+            return price
+        
+        # Source is base currency, document is foreign → multiply by exchange rate
+        if source_currency == base_currency:
+            return price * exchange_rate
+        
+        # Source is foreign, document is base → divide by exchange rate
+        if doc_currency == base_currency and exchange_rate:
+            return price / exchange_rate
+        
+        # Both are different non-base currencies — rare edge case, return as-is
+        return price
+
     @api.onchange('product_id', 'uom_id')
     def _onchange_product_uom(self):
         for line in self:
@@ -886,22 +1077,25 @@ class SaleLine(models.Model):
             line.tax_ids = [(6, 0, line.product_id.sale_tax_ids.ids)]
             
             price_record = False
-            if line.sale_id.pricelist_id:
+            pricelist = line.sale_id.pricelist_id
+            if pricelist:
                 price_record = self.env['havanoposdesk.product.uom.price'].search([
                     ('product_id', '=', line.product_id.id),
                     ('uom_id', '=', line.uom_id.id),
-                    ('pricelist_id', '=', line.sale_id.pricelist_id.id)
+                    ('pricelist_id', '=', pricelist.id)
                 ], limit=1)
                 
             if price_record:
-                line.rate = price_record.price
+                raw_price = price_record.price
+                line.rate = line._convert_price_to_document_currency(raw_price, pricelist)
                 line.uom_qty_multiplier = price_record.qty_to_be_sold
                 base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                 line.cost_price = base_cost * price_record.qty_to_be_sold
             else:
                 if line.uom_id == line.product_id.uom_id:
                     base_price = line.product_id.selling_price
-                    line.rate = base_price
+                    # Product selling_price is always in base currency
+                    line.rate = line._convert_price_to_document_currency(base_price)
                     
                     base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                     line.cost_price = base_cost
@@ -913,12 +1107,15 @@ class SaleLine(models.Model):
                         ('pricelist_id.type', '=', 'selling')
                     ], limit=1)
                     if fallback_record:
-                        line.rate = fallback_record.price
+                        fallback_pricelist = fallback_record.pricelist_id
+                        raw_price = fallback_record.price
+                        line.rate = line._convert_price_to_document_currency(raw_price, fallback_pricelist)
                         line.uom_qty_multiplier = fallback_record.qty_to_be_sold
                         base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                         line.cost_price = base_cost * fallback_record.qty_to_be_sold
                     else:
-                        line.rate = line.product_id.selling_price
+                        base_price = line.product_id.selling_price
+                        line.rate = line._convert_price_to_document_currency(base_price)
                         line.uom_qty_multiplier = 1.0
 
     def _recompute_prices_for_currency(self):
@@ -926,20 +1123,23 @@ class SaleLine(models.Model):
             if not line.product_id:
                 continue
             price_record = False
-            if line.sale_id.pricelist_id:
+            pricelist = line.sale_id.pricelist_id
+            if pricelist:
                 price_record = self.env['havanoposdesk.product.uom.price'].search([
                     ('product_id', '=', line.product_id.id),
                     ('uom_id', '=', line.uom_id.id),
-                    ('pricelist_id', '=', line.sale_id.pricelist_id.id)
+                    ('pricelist_id', '=', pricelist.id)
                 ], limit=1)
                 
             if price_record:
-                line.rate = price_record.price
+                raw_price = price_record.price
+                line.rate = line._convert_price_to_document_currency(raw_price, pricelist)
                 base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                 line.cost_price = base_cost * price_record.qty_to_be_sold
             else:
                 if line.uom_id == line.product_id.uom_id:
-                    line.rate = line.product_id.selling_price
+                    base_price = line.product_id.selling_price
+                    line.rate = line._convert_price_to_document_currency(base_price)
                     base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                     line.cost_price = base_cost
                 else:
@@ -949,11 +1149,14 @@ class SaleLine(models.Model):
                         ('pricelist_id.type', '=', 'selling')
                     ], limit=1)
                     if fallback_record:
-                        line.rate = fallback_record.price
+                        fallback_pricelist = fallback_record.pricelist_id
+                        raw_price = fallback_record.price
+                        line.rate = line._convert_price_to_document_currency(raw_price, fallback_pricelist)
                         base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                         line.cost_price = base_cost * fallback_record.qty_to_be_sold
                     else:
-                        line.rate = line.product_id.selling_price
+                        base_price = line.product_id.selling_price
+                        line.rate = line._convert_price_to_document_currency(base_price)
                         base_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                         line.cost_price = base_cost
 

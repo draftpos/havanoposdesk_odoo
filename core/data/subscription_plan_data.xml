@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
-        <!-- Plan 1: 1 Terminal, 3 Stores -->
+        <!-- Plan 1: Demo Plan -->
         <record id="subscription_plan_1" model="havanoposdesk.subscription.plan">
-            <field name="name">Plan 1 (1 Terminal, 3 Stores)</field>
-            <field name="price">12.00</field>
-            <field name="duration_days">30</field>
-            <field name="max_stores">3</field>
-            <field name="max_terminals">1</field>
-            <field name="max_users">2</field>
+            <field name="name">Demo Plan (10 Terminals, 10 Stores)</field>
+            <field name="price">0.00</field>
+            <field name="duration_days">14</field>
+            <field name="max_stores">10</field>
+            <field name="max_terminals">10</field>
+            <field name="max_users">10</field>
             <field name="is_custom">False</field>
         </record>
 
