@@ -22,20 +22,6 @@
                     </group>
                 </div>
 
-                <!-- ── Step 2: Verify ── -->
-                <div invisible="state != 'verify'">
-                    <div class="alert alert-warning" role="alert" style="margin-bottom:16px;">
-                        <strong>📧 Check your email.</strong>
-                        A 6-digit verification code has been sent to your registered email address.
-                        Enter it below to confirm the deletion.
-                    </div>
-                    <group>
-                        <field name="entered_code"
-                               placeholder="e.g. 032841"
-                               required="state == 'verify'"/>
-                    </group>
-                </div>
-
                 <!-- ── Step 3: Done ── -->
                 <div invisible="state != 'done'">
                     <div class="alert alert-success" role="alert" style="margin-bottom:16px;">
@@ -55,16 +41,10 @@
 
                 <footer>
                     <!-- Step 1 -->
-                    <button string="Send Verification Code"
-                            type="object" name="action_send_code"
+                    <button string="✓ Confirm &amp; Delete Data"
+                            type="object" name="action_delete_data"
                             class="btn-danger"
                             invisible="state != 'request'"/>
-
-                    <!-- Step 2 -->
-                    <button string="✓ Confirm &amp; Delete Data"
-                            type="object" name="action_verify_and_delete"
-                            class="btn-danger"
-                            invisible="state != 'verify'"/>
 
                     <!-- Step 3 -->
                     <button string="Close"

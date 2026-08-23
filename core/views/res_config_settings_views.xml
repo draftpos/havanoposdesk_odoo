@@ -69,6 +69,9 @@
                         <setting string="Business Logo" help="Upload the business logo to be used on all invoices and reports.">
                             <field name="biz_logo" widget="image" class="w-100 bg-view"/>
                         </setting>
+                        <setting id="enable_manufacturing_setting" string="Enable Manufacturing" help="Enable Manufacturing (Bill of Materials and Production Orders).">
+                            <field name="biz_enable_manufacturing"/>
+                        </setting>
                     </block>
 
                     <block title="ZIMRA Fiscalization Configuration" name="fiscalization_config">

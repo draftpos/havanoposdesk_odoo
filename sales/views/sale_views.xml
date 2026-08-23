@@ -116,7 +116,7 @@
                                     <list editable="bottom">
                                         <field name="currency_id" column_invisible="True" />
                                         <field name="exchange_rate" column_invisible="True" />
-                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('is_active', '=', True)]" width="40%" string="Item" />
+                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('is_active', '=', True), ('not_for_sale', '=', False)]" width="40%" string="Item" />
                                         <field name="available_uom_ids" column_invisible="True" />
                                         <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{&apos;no_create&apos;: True}" width="15%" />
                                         <field name="accepted_qty" string="Qty" width="15%" />

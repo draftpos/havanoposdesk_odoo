@@ -13,7 +13,6 @@ class ClearDataWizard(models.TransientModel):
 
     state = fields.Selection([
         ('request', 'Request'),
-        ('verify',  'Verify'),
         ('done',    'Done'),
     ], string='State', default='request')
 
@@ -27,9 +26,7 @@ class ClearDataWizard(models.TransientModel):
     confirm_loss = fields.Boolean(
         string='I understand that this will permanently delete data and it cannot be recovered.'
     )
-    generated_code = fields.Char(string='Generated Code')
-    entered_code   = fields.Char(string='Verification Code')
-    result_log     = fields.Text(string='Deletion Report', readonly=True)
+    result_log   = fields.Text(string='Deletion Report', readonly=True)
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -67,9 +64,9 @@ class ClearDataWizard(models.TransientModel):
             domain.append(('id', '!=', self.env.user.id))
         return self.env['res.users'].sudo().search(domain)
 
-    # ── Step 1: request ──────────────────────────────────────────────────────
+    # ── Step 1: Request & Delete ──────────────────────────────────────────────
 
-    def action_send_code(self):
+    def action_delete_data(self):
         self.ensure_one()
 
         if not self.reason or len(self.reason.strip()) < 20:
@@ -80,61 +77,6 @@ class ClearDataWizard(models.TransientModel):
             raise ValidationError(
                 "You must tick the confirmation checkbox before proceeding."
             )
-
-        # Generate 6-digit code
-        code = ''.join(random.choices(string.digits, k=6))
-        self.generated_code = code
-        self.state = 'verify'
-
-        # Send code to the current user's email (from their partner record)
-        user_email = self.env.user.partner_id.email
-        if user_email:
-            try:
-                self._send_template(
-                    'havanoposdesk_odoo.mail_template_clear_data_code',
-                    user_email,
-                )
-                _logger.info("Clear data: verification code sent to %s", user_email)
-            except Exception as e:
-                _logger.error(
-                    "Clear data: could not send code to %s: %s", user_email, e
-                )
-        else:
-            _logger.warning(
-                "Clear data: user %s has no email address — code not emailed.",
-                self.env.user.login,
-            )
-
-        # Notify all OTHER system admins (best-effort)
-        try:
-            for admin in self._get_system_admins(exclude_self=True):
-                admin_email = admin.partner_id.email
-                if admin_email:
-                    self._send_template(
-                        'havanoposdesk_odoo.mail_template_clear_data_notify',
-                        admin_email,
-                        extra_ctx={'notify_admin_name': admin.name},
-                    )
-        except Exception as e:
-            _logger.warning("Clear data: admin notification failed: %s", e)
-
-        return {
-            'type':      'ir.actions.act_window',
-            'res_model': self._name,
-            'res_id':    self.id,
-            'view_mode': 'form',
-            'target':    'new',
-        }
-
-    # ── Step 2: verify & delete ───────────────────────────────────────────────
-
-    def action_verify_and_delete(self):
-        self.ensure_one()
-
-        if not self.entered_code:
-            raise ValidationError("Please enter the verification code.")
-        if self.entered_code.strip() != self.generated_code:
-            raise ValidationError("Incorrect verification code. Please try again.")
 
         # Execute deletion and capture report
         self.result_log = self._execute_deletion()
