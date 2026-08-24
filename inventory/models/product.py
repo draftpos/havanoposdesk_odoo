@@ -320,12 +320,12 @@ class HavanoposdeskProduct(models.Model):
                 if not default_store and record.store_ids:
                     default_store = record.store_ids[0]
                 
-                if default_store:
-                    price_lines = record.uom_price_ids.filtered(
-                        lambda p: p.store_id.id == default_store.id and (not record.uom_id or p.uom_id.id == record.uom_id.id)
+                if default_store and default_store.pricelist_id:
+                    price_line = record.uom_price_ids.filtered(
+                        lambda p: p.store_id.id == default_store.id and p.pricelist_id.id == default_store.pricelist_id.id and (not record.uom_id or p.uom_id.id == record.uom_id.id)
                     )
-                    for price_line in price_lines:
-                        price_line.price = record.selling_price
+                    if price_line:
+                        price_line[0].price = record.selling_price
 
     @api.onchange('is_bundle', 'bundle_item_ids')
     def _onchange_bundle_item_ids(self):
