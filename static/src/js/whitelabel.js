@@ -96,7 +96,7 @@ function addLogoutLink() {
         logoutLink.setAttribute("aria-label", "Logout");
         const systray = navbar.querySelector(".o_menu_systray");
         if (systray) {
-            navbar.insertBefore(logoutLink, systray);
+            systray.appendChild(logoutLink);
         } else {
             navbar.appendChild(logoutLink);
         }
