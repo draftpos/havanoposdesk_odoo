@@ -30,7 +30,8 @@
             <field name="model_id" ref="base.model_res_users"/>
             <field name="state">code</field>
             <field name="code">
-tenant = env.user.tenant_id if 'tenant_id' in env.user._fields else False
+user = env.user
+tenant = user.tenant_id if 'tenant_id' in user._fields else False
 
 if tenant and tenant.enable_payroll and tenant.payroll_url:
     action = {
