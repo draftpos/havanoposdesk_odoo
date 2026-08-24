@@ -7,6 +7,8 @@ class ResCurrencyRate(models.Model):
     currency_id = fields.Many2one('res.currency', readonly=False)
     tenant_id = fields.Many2one(related='currency_id.tenant_id', store=True, readonly=True, index=True)
 
+    _unique_name_per_day = models.Constraint('CHECK (TRUE)')
+
     def _check_access(self, operation: str):
         if operation == 'read':
             return None

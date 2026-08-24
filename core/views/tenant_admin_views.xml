@@ -304,8 +304,6 @@ else:
             </field>
         </record>
         
-        <menuitem id="menu_my_business_exchange_rate" name="Exchange Rates" parent="menu_accounts_master" action="action_havanoposdesk_exchange_rates" sequence="30" />
-
         
 
     </data>
