@@ -27,6 +27,7 @@ class HavanoPOSDeskAPI(http.Controller):
         timezone = data.get('timezone')
         items_limit = data.get('items_limit')
         device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
+        app_version = data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version')
         
         if not login or not password:
             return request.make_response(json.dumps({'error': 'Username and password are required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -95,6 +96,18 @@ class HavanoPOSDeskAPI(http.Controller):
                         user.sudo().write({'tz': timezone_str})
                     except Exception:
                         pass
+
+            if app_version and device_hardware_id and user.tenant_id:
+                login_terminal = user_env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('device_hardware_id', '=', device_hardware_id),
+                    ('tenant_id', '=', user.tenant_id.id),
+                ], limit=1)
+                if login_terminal:
+                    login_terminal.write({
+                        'app_version': str(app_version),
+                        'last_seen': fields.Datetime.now(),
+                        'last_logged_in_user_id': user.id,
+                    })
                     
             # Split full name into first and last name
             names = (user.name or "").split(' ', 1)
@@ -330,6 +343,7 @@ class HavanoPOSDeskAPI(http.Controller):
                                 "name": t.name,
                                 "status": t.status,
                                 "device_hardware_id": t.device_hardware_id,
+                                "app_version": t.app_version,
                                 "is_taken": bool(t.taken_by_user_id),
                                 "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
                                 "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
@@ -7184,6 +7198,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         "name": t.name,
                         "status": t.status,
                         "device_hardware_id": t.device_hardware_id,
+                        "app_version": t.app_version,
                         "is_taken": bool(t.taken_by_user_id),
                         "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
                         "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
@@ -7329,6 +7344,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
             terminal_id = data.get('terminal_id')
             device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
+            app_version = data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version')
             take_over = data.get('take_over', False)
 
             if not terminal_id:
@@ -7393,6 +7409,8 @@ class HavanoPOSDeskAPI(http.Controller):
             terminal.write({
                 'status': 'online',
                 'device_hardware_id': device_hardware_id,
+                'app_version': str(app_version) if app_version else terminal.app_version,
+                'last_seen': fields.Datetime.now(),
                 'last_logged_in_user_id': user.id,
                 'taken_by_user_id': user.id,
                 'sequence_prefix': sale_id_prefix
@@ -7482,6 +7500,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         "name": t.name,
                         "status": t.status,
                         "device_hardware_id": t.device_hardware_id,
+                        "app_version": t.app_version,
                         "is_taken": bool(t.taken_by_user_id),
                         "taken_by_user_id": t.taken_by_user_id.id if t.taken_by_user_id else None,
                         "taken_by_user_name": t.taken_by_user_id.name if t.taken_by_user_id else None,
