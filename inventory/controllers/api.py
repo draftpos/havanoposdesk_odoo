@@ -3480,6 +3480,14 @@ class HavanoPOSDeskAPI(http.Controller):
                 or sale_data.get('net_total')
                 or 0.0
             )
+            if invoice_total <= 0:
+                invoice_lines = sale_data.get('items') or sale_data.get('lines') or []
+                invoice_total = sum(
+                    float(item.get('qty') or item.get('quantity') or 1.0)
+                    * float(item.get('rate') or item.get('price') or 0.0)
+                    for item in invoice_lines
+                    if isinstance(item, dict)
+                )
             specified_raw = sale_data.get('paid_amount')
             if specified_raw is None:
                 specified_raw = sale_data.get('paid')
