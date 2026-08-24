@@ -13,6 +13,15 @@ _logger = logging.getLogger(__name__)
 
 class HavanoPOSDeskAPI(http.Controller):
 
+    def _get_sale_date(self, sale_data):
+        """Return the client-supplied date for the sale document."""
+        return (
+            sale_data.get('date')
+            or sale_data.get('sale_date')
+            or sale_data.get('posting_date')
+            or fields.Datetime.now()
+        )
+
     # AUTHENTICATION
     @http.route(['/api/auth/login', '/api/method/saas_api.www.api.login'], auth='public', methods=['POST'], type='http', csrf=False, cors='*')
     def api_login(self, **kw):
@@ -1824,6 +1833,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'tenant_id': tenant.id,
             'terminal_id': terminal.id if terminal else False,
             'line_ids': lines,
+            'date': self._get_sale_date(data),
             'state': 'done',
             'salesperson_id': user.id,
             'payment_status': payment_vals['payment_status'],
@@ -2824,6 +2834,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'currency_id': doc_currency.id if doc_currency else False,
                 'exchange_rate': doc_exchange_rate,
                 'line_ids': sale_lines,
+                'date': self._get_sale_date(params),
                 'state': 'done',
                 'salesperson_id': sale_user.id,
                 'payment_status': payment_vals['payment_status'],
@@ -3424,6 +3435,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             'currency_id': doc_currency.id if doc_currency else False,
                             'exchange_rate': doc_exchange_rate,
                             'line_ids': lines,
+                            'date': self._get_sale_date(sale_data),
                             'state': 'done',
                             'salesperson_id': sale_user.id,
                             'payment_status': payment_status,
