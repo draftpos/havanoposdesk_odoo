@@ -222,7 +222,7 @@ class HavanoPayrollController(http.Controller):
     @http.route('/havano/payroll/redirect', type='http', auth='user')
     def payroll_redirect(self, **kwargs):
         user = request.env.user
-        tenant = user.tenant_id if hasattr(user, 'tenant_id') and user.tenant_id else None
+        tenant = user.tenant_id.sudo() if hasattr(user, 'tenant_id') and user.tenant_id else None
         if tenant and tenant.enable_payroll and tenant.payroll_url:
             return werkzeug.utils.redirect(tenant.payroll_url)
         return werkzeug.utils.redirect('/odoo?payroll_error=not_configured')

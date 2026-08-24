@@ -25,12 +25,12 @@
         <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="havanoposdesk_odoo,static/description/purchases.png"/>
         <menuitem id="menu_accounts_root" name="Accounts" sequence="40" web_icon="havanoposdesk_odoo,static/description/accounts.png"/>
         
-        <record id="action_payroll_external" model="ir.actions.act_url">
+        <record id="action_payroll_external_redirect" model="ir.actions.act_url">
             <field name="name">Payroll External Link</field>
             <field name="url">/havano/payroll/redirect</field>
             <field name="target">new</field>
         </record>
-        <menuitem id="menu_payroll_root" name="Payroll" action="action_payroll_external" sequence="45" web_icon="havanoposdesk_odoo,static/description/payroll.png" groups="base.group_user"/>
+        <menuitem id="menu_payroll_root" name="Payroll" action="action_payroll_external_redirect" sequence="45" web_icon="havanoposdesk_odoo,static/description/payroll.png" groups="base.group_user"/>
         
         <menuitem id="menu_dashboard_main" name="Dashboard" sequence="5" web_icon="board,static/description/icon.png" action="action_havano_dashboard_client"/>
 
