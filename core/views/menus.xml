@@ -25,31 +25,10 @@
         <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="havanoposdesk_odoo,static/description/purchases.png"/>
         <menuitem id="menu_accounts_root" name="Accounts" sequence="40" web_icon="havanoposdesk_odoo,static/description/accounts.png"/>
         
-        <record id="action_payroll_external" model="ir.actions.server">
+        <record id="action_payroll_external" model="ir.actions.act_url">
             <field name="name">Payroll External Link</field>
-            <field name="model_id" ref="base.model_res_users"/>
-            <field name="state">code</field>
-            <field name="code">
-tenant = env.user.tenant_id if 'tenant_id' in env.user._fields else False
-
-if tenant and tenant.enable_payroll and tenant.payroll_url:
-    action = {
-        'type': 'ir.actions.act_url',
-        'url': tenant.payroll_url,
-        'target': 'new',
-    }
-else:
-    action = {
-        'type': 'ir.actions.client',
-        'tag': 'display_notification',
-        'params': {
-            'title': 'Configuration Missing',
-            'message': 'Payroll URL is not configured. Please enable it in Settings.',
-            'type': 'warning',
-            'sticky': False,
-        }
-    }
-            </field>
+            <field name="url">/havano/payroll/redirect</field>
+            <field name="target">new</field>
         </record>
         <menuitem id="menu_payroll_root" name="Payroll" action="action_payroll_external" sequence="45" web_icon="havanoposdesk_odoo,static/description/payroll.png" groups="base.group_user"/>
         
