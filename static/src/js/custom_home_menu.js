@@ -5,6 +5,7 @@ import { patch } from "@web/core/utils/patch";
 import { onMounted, onWillUnmount, Component } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+import { session } from "@web/session";
 
 export class CustomHomeMenuComponent extends Component {
     static template = "havanoposdesk_odoo.CustomHomeMenu";
@@ -25,7 +26,11 @@ export class CustomHomeMenuComponent extends Component {
 
     get apps() {
         const allApps = this.menuService.getApps();
-        return allApps.filter((app) => app.xmlid !== "havanoposdesk_odoo.menu_custom_home_menu_root");
+        let apps = allApps.filter((app) => app.xmlid !== "havanoposdesk_odoo.menu_custom_home_menu_root");
+        if (!session.biz_enable_payroll) {
+            apps = apps.filter((app) => app.xmlid !== "havanoposdesk_odoo.menu_payroll_root");
+        }
+        return apps;
     }
 
     onAppClick(ev, app) {

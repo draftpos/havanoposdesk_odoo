@@ -74,6 +74,15 @@
                         </setting>
                     </block>
 
+                    <block title="Payroll Integration" name="payroll_integration_config">
+                        <setting string="Enable Payroll" help="Enable the Payroll Module">
+                            <field name="biz_enable_payroll"/>
+                        </setting>
+                        <setting string="Payroll URL" help="Enter the URL to the external Payroll system" invisible="not biz_enable_payroll">
+                            <field name="biz_payroll_url"/>
+                        </setting>
+                    </block>
+
                     <block title="ZIMRA Fiscalization Configuration" name="fiscalization_config">
                         <setting string="Enable Fiscalization" help="Toggle ZIMRA Electronic Fiscal Device integration ON/OFF">
                             <field name="biz_enable_fiscalization"/>
