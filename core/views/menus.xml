@@ -31,14 +31,14 @@
             <field name="state">code</field>
             <field name="code">
 user = env.user
-tenant = getattr(user, 'tenant_id', False)
+tenant = user.tenant_id if 'tenant_id' in user._fields else False
 has_access = False
 
-if env.su or user.id == 1 or getattr(user, 'havano_role', False) == 'super_admin':
+if env.su or user.id == 1 or ('havano_role' in user._fields and user.havano_role == 'super_admin'):
     has_access = True
-elif getattr(user, 'havano_role', False) == 'admin' and not user.user_rights_profile_id:
+elif 'havano_role' in user._fields and user.havano_role == 'admin' and not user.user_rights_profile_id:
     has_access = True
-elif getattr(user, 'user_rights_profile_id', False):
+elif 'user_rights_profile_id' in user._fields and user.user_rights_profile_id:
     pos_perm = user.user_rights_profile_id.permission_ids.filtered(lambda p: p.feature == 'Payroll')
     bo_perm = user.user_rights_profile_id.backoffice_permission_ids.filtered(lambda p: p.feature == 'Payroll')
     if (pos_perm and pos_perm[0].can_read) or (bo_perm and (bo_perm[0].is_full_access or bo_perm[0].is_read_only)):
