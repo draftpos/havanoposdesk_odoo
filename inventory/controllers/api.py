@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time
 from odoo.orm import environments
 import odoo.orm.environments
 from odoo import http, fields
@@ -21,13 +21,30 @@ class HavanoPOSDeskAPI(http.Controller):
             or sale_data.get('posting_date')
             or fields.Datetime.now()
         )
+        parsed_date = None
         if isinstance(sale_date, str):
             for date_format in ('%Y-%m-%d', '%Y-%d-%m'):
                 try:
-                    return datetime.strptime(sale_date, date_format)
+                    parsed_date = datetime.strptime(sale_date, date_format)
+                    break
                 except ValueError:
                     continue
-        return sale_date
+        else:
+            parsed_date = sale_date
+
+        posting_time = sale_data.get('posting_time')
+        if posting_time is not None and parsed_date:
+            if isinstance(posting_time, str):
+                for time_format in ('%H:%M:%S', '%H:%M'):
+                    try:
+                        posting_time = datetime.strptime(posting_time, time_format).time()
+                        break
+                    except ValueError:
+                        continue
+            if isinstance(posting_time, time):
+                return datetime.combine(parsed_date.date(), posting_time)
+
+        return parsed_date or sale_date
 
     # AUTHENTICATION
     @http.route(['/api/auth/login', '/api/method/saas_api.www.api.login'], auth='public', methods=['POST'], type='http', csrf=False, cors='*')
