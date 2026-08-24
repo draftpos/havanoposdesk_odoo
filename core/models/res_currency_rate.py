@@ -4,6 +4,7 @@ from odoo.exceptions import UserError
 class ResCurrencyRate(models.Model):
     _inherit = 'res.currency.rate'
 
+    name = fields.Datetime(string='Date', required=True, index=True, default=fields.Datetime.now)
     currency_id = fields.Many2one('res.currency', readonly=False)
     tenant_id = fields.Many2one(related='currency_id.tenant_id', store=True, readonly=True, index=True)
 
