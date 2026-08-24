@@ -46,6 +46,8 @@ class HavanoposdeskTenant(models.Model):
             ("fiscal_device_sn", "VARCHAR"),
             ("fiscal_ping_interval", "INTEGER DEFAULT 5"),
             ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
+            ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
+            ("payroll_url", "VARCHAR"),
         ]
         for col_name, col_type in columns:
             try:
@@ -98,6 +100,9 @@ class HavanoposdeskTenant(models.Model):
     fiscal_base_url = fields.Char(string='Base URL', default='https://erpfiscal.havano.online')
     fiscal_api_key = fields.Char(string='API Key')
     fiscal_api_secret = fields.Char(string='API Secret')
+
+    enable_payroll = fields.Boolean(string='Enable Payroll', default=False)
+    payroll_url = fields.Char(string='Payroll URL')
     fiscal_device_sn = fields.Char(string='Device Serial No (EFD SN)')
     fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
 

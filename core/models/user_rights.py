@@ -155,6 +155,7 @@ class HavanoposdeskUserRightsPermission(models.Model):
         ('Suppliers', 'Suppliers'),
         ('Customers', 'Customers'),
         ('Expenses', 'Expenses'),
+        ('Payroll', 'Payroll'),
         ('User Profiles', 'User Profiles')
     ], string='Feature', required=True)
     can_read = fields.Boolean(string='Read', default=True)
@@ -212,6 +213,7 @@ class HavanoposdeskBackofficePermission(models.Model):
         ('Sync Issues', 'Sync Issues'),
         ('Configs', 'Configs'),
         ('Settings', 'Settings'),
+        ('Payroll', 'Payroll'),
         ('Dashboard', 'Dashboard'),
         ('Tenants', 'Tenants'),
         ('Subscription Plans', 'Subscription Plans'),
@@ -235,7 +237,7 @@ class HavanoposdeskBackofficePermission(models.Model):
             'purchases': ['Purchases', 'Expense Posting', 'Payments', 'Suppliers'],
             'inventory': ['Products', 'Categories', 'UOM', 'Pricelists', 'Stock Transfers', 'Stock Adjustments', 'Stock Evaluations', 'Stock Ledger', 'Stores'],
             'accounting': ['Taxes', 'Exchange Rate', 'Currencies', 'Chart of Accounts', 'Item Profitability', 'Category Profitability'],
-            'settings': ['Users', 'User Rights Profiles', 'My Subscription', 'POS Terminals', 'Profit and Loss', 'Cash Balance', 'Daily Sales', 'Cashier Profitability', 'Shop Profitability', 'System Logs', 'Issues', 'Sync Issues', 'Configs', 'Settings', 'Dashboard', 'Tenants', 'Subscription Plans', 'Payment Providers', 'Support Tickets', 'My Preferences']
+            'settings': ['Users', 'User Rights Profiles', 'My Subscription', 'POS Terminals', 'Profit and Loss', 'Cash Balance', 'Daily Sales', 'Cashier Profitability', 'Shop Profitability', 'System Logs', 'Issues', 'Sync Issues', 'Configs', 'Settings', 'Payroll', 'Dashboard', 'Tenants', 'Subscription Plans', 'Payment Providers', 'Support Tickets', 'My Preferences']
         }
         feature_to_cat = {}
         for cat, features in cat_map.items():

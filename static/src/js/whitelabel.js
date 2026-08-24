@@ -78,7 +78,7 @@ function replaceOdooLogo() {
             <img src="/havanoposdesk_odoo/static/src/img/havan_2.png"
                  alt="${appName}"
                  style="height:28px; width:auto; object-fit:contain;"
-                 onerror="this.style.display='none'; this.nextSibling.style.display='flex'"/>
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"/>
             <span style="display:none; font-weight:700; font-size:18px; color:#fff; letter-spacing:-0.5px;">${appName}</span>
         `;
         // Insert at the beginning of the navbar
