@@ -15,12 +15,19 @@ class HavanoPOSDeskAPI(http.Controller):
 
     def _get_sale_date(self, sale_data):
         """Return the client-supplied date for the sale document."""
-        return (
+        sale_date = (
             sale_data.get('date')
             or sale_data.get('sale_date')
             or sale_data.get('posting_date')
             or fields.Datetime.now()
         )
+        if isinstance(sale_date, str):
+            for date_format in ('%Y-%m-%d', '%Y-%d-%m'):
+                try:
+                    return datetime.strptime(sale_date, date_format)
+                except ValueError:
+                    continue
+        return sale_date
 
     # AUTHENTICATION
     @http.route(['/api/auth/login', '/api/method/saas_api.www.api.login'], auth='public', methods=['POST'], type='http', csrf=False, cors='*')
