@@ -44,6 +44,8 @@ class IrHttp(models.AbstractModel):
                         ("product_name_format", "VARCHAR"),
                         ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
                         ("payment_status", "VARCHAR"),
+                        ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
+                        ("payroll_url", "VARCHAR"),
                     ]
                     # Fetch existing columns to avoid redundant ALTER TABLE calls (which require AccessExclusiveLocks)
                     cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'havanoposdesk_tenant'")
@@ -114,6 +116,9 @@ class IrHttp(models.AbstractModel):
             result['havanoposdesk_app_name'] = icp.get_param('web.web_app_name', 'Havano')
             result['havanoposdesk_bot_name'] = icp.get_param('havanoposdesk.bot_name', 'HavanoBot')
             result['havanoposdesk_web_base_url'] = icp.get_param('havanoposdesk.web_base_url', 'Havano')
+            
+            if hasattr(user, 'tenant_id') and user.tenant_id:
+                result['biz_enable_payroll'] = user.tenant_id.enable_payroll
             
             # Override "My Company" in the Top Bar to show Store Name or Tenant Name
             display_name = "My Company"

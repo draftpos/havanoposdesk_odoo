@@ -61,6 +61,8 @@ class ResConfigSettings(models.TransientModel):
                 ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
                 ("payment_status", "VARCHAR"),
                 ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
+                ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
+                ("payroll_url", "VARCHAR"),
             ]
             for col_name, col_type in cols:
                 if col_name not in existing_cols:
@@ -225,6 +227,18 @@ class ResConfigSettings(models.TransientModel):
         string="Enable Manufacturing",
         related='tenant_id.enable_manufacturing',
         readonly=False
+    )
+
+    biz_enable_payroll = fields.Boolean(
+        related='tenant_id.enable_payroll',
+        readonly=False,
+        string="Enable Payroll"
+    )
+
+    biz_payroll_url = fields.Char(
+        related='tenant_id.payroll_url',
+        readonly=False,
+        string="Payroll URL"
     )
 
     # ZIMRA Fiscalization Settings
@@ -482,6 +496,14 @@ class ResConfigSettings(models.TransientModel):
         icp = self.env['ir.config_parameter'].sudo()
         old_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
         super().set_values()
+        
+        # Explicitly save tenant related fields to ensure they persist
+        if self.tenant_id:
+            self.tenant_id.sudo().write({
+                'enable_payroll': self.biz_enable_payroll,
+                'payroll_url': self.biz_payroll_url,
+            })
+            
         bot_name = icp.get_param('havanoposdesk.bot_name', 'HavanoBot')
         bot_email = icp.get_param('havanoposdesk.bot_email', 'bot@havano.cloud')
         # Rename OdooBot in the database
