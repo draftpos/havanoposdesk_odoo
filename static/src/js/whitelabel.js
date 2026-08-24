@@ -94,7 +94,12 @@ function addLogoutLink() {
         logoutLink.href = "/web/session/logout";
         logoutLink.textContent = "Logout";
         logoutLink.setAttribute("aria-label", "Logout");
-        navbar.appendChild(logoutLink);
+        const systray = navbar.querySelector(".o_menu_systray");
+        if (systray) {
+            navbar.insertBefore(logoutLink, systray);
+        } else {
+            navbar.appendChild(logoutLink);
+        }
     }
 }
 
