@@ -99,10 +99,20 @@ class Sale(models.Model):
         required=True, 
         default=_default_store_id
     )
-    currency_id = fields.Many2one('res.currency', string='Currency', required=True)
+    currency_id = fields.Many2one(
+        'res.currency',
+        string='Currency',
+        required=True,
+        domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]",
+    )
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
 
     allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency')
+
+    @api.constrains('tenant_id', 'currency_id')
+    def _check_currency_belongs_to_tenant(self):
+        for sale in self:
+            self.env['res.currency']._validate_tenant_currency(sale.currency_id, sale.tenant_id)
 
 
 
@@ -431,18 +441,23 @@ class Sale(models.Model):
 
             # Ensure currency_id is set for API/mobile sync where onchange isn't triggered
             if not vals.get('currency_id'):
+                tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val) if tenant_id_val else self.env['havanoposdesk.tenant']
                 if vals.get('customer'):
                     customer = self.env['havanoposdesk.customer'].browse(vals['customer'])
                     if customer.currency_id:
+                        self.env['res.currency']._validate_tenant_currency(customer.currency_id, tenant)
                         vals['currency_id'] = customer.currency_id.id
                 if not vals.get('currency_id'):
-                    tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
-                    if tenant_id_val:
-                        tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val)
-                        if tenant.currency_id:
-                            vals['currency_id'] = tenant.currency_id.id
+                    if tenant.currency_id:
+                        vals['currency_id'] = tenant.currency_id.id
                     if not vals.get('currency_id'):
-                        vals['currency_id'] = self.env.company.currency_id.id
+                        raise ValidationError(_("The selected tenant must have a currency before a sale can be saved."))
+
+            tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
+            tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val) if tenant_id_val else self.env['havanoposdesk.tenant']
+            if vals.get('currency_id'):
+                self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
 
         sales = super().create(vals_list)
         
@@ -464,6 +479,11 @@ class Sale(models.Model):
         for record in self:
             if record.state != 'draft' and any(f not in allowed_post_fields for f in vals.keys()):
                 raise ValidationError("You cannot modify a confirmed sale. Please cancel it first.")
+            tenant = self.env['havanoposdesk.tenant'].browse(vals.get('tenant_id', record.tenant_id.id))
+            if 'currency_id' in vals:
+                self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
+            elif 'tenant_id' in vals:
+                self.env['res.currency']._validate_tenant_currency(record.currency_id, tenant)
 
         # Sync values on write
         if 'store' in vals and 'store_id' not in vals:

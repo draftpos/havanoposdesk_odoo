@@ -3193,6 +3193,8 @@ class HavanoPOSDeskAPI(http.Controller):
                         "outstanding_amount": 0.0 if sale.payment_status == 'cash' else sale.amount_balance,
                         "balance_due": 0.0 if sale.payment_status == 'cash' else sale.amount_balance,
                         "payment_status": sale.payment_status,
+                        "account_id": sale.account_id.id if sale.account_id else False,
+                        "account": sale.account_id.name if sale.account_id else "",
                         "created_by": created_by,
                         "last_modified_by": created_by,
                     })

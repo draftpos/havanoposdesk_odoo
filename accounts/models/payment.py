@@ -17,10 +17,16 @@ class Payment(models.Model):
         'res.currency', 
         string='Currency', 
         required=True,
+        domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]",
         default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
     )
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
+
+    @api.constrains('tenant_id', 'currency_id')
+    def _check_currency_belongs_to_tenant(self):
+        for payment in self:
+            self.env['res.currency']._validate_tenant_currency(payment.currency_id, payment.tenant_id)
     amount_base = fields.Float(string='Base Amount', compute='_compute_amount_base', store=True)
     amount_owing_base = fields.Float(string='Owing (Base)', compute='_compute_amount_owing', store=True)
     amount_owing_currency = fields.Float(string='Balance Due', compute='_compute_amount_owing', store=True)
@@ -103,6 +109,11 @@ class Payment(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
+            if tenant.currency_id and not vals.get('currency_id'):
+                vals['currency_id'] = tenant.currency_id.id
+            if vals.get('currency_id'):
+                self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
             if tenant_id:
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
                 if tenant and not tenant.check_subscription_active():
@@ -127,6 +138,11 @@ class Payment(models.Model):
         for record in self:
             if record.state != 'draft' and not self.env.context.get('bypass_payment_check') and any(f not in ['state'] for f in vals.keys()):
                 raise ValidationError("You cannot modify a confirmed/posted payment. Please cancel it first.")
+            tenant = self.env['havanoposdesk.tenant'].browse(vals.get('tenant_id', record.tenant_id.id))
+            if 'currency_id' in vals:
+                self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
+            elif 'tenant_id' in vals:
+                self.env['res.currency']._validate_tenant_currency(record.currency_id, tenant)
         return super().write(vals)
 
     def unlink(self):
@@ -268,11 +284,37 @@ class PaymentLine(models.Model):
         'res.currency', 
         string='Currency', 
         required=True,
+        domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]",
         default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
     )
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
     amount = fields.Float(string='Amount', required=True, default=0.0)
     amount_base = fields.Float(string='Base Amount', compute='_compute_amount_base', store=True)
+
+    @api.constrains('payment_id', 'currency_id')
+    def _check_currency_belongs_to_tenant(self):
+        for line in self:
+            tenant = line.payment_id.tenant_id
+            self.env['res.currency']._validate_tenant_currency(line.currency_id, tenant)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            payment = self.env['havanoposdesk.payment'].browse(vals.get('payment_id'))
+            if payment.tenant_id and not vals.get('currency_id'):
+                vals['currency_id'] = payment.tenant_id.currency_id.id
+            if vals.get('currency_id'):
+                self.env['res.currency']._validate_tenant_currency(vals['currency_id'], payment.tenant_id)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        for line in self:
+            payment = self.env['havanoposdesk.payment'].browse(vals.get('payment_id', line.payment_id.id))
+            if 'currency_id' in vals:
+                self.env['res.currency']._validate_tenant_currency(vals['currency_id'], payment.tenant_id)
+            elif 'payment_id' in vals:
+                self.env['res.currency']._validate_tenant_currency(line.currency_id, payment.tenant_id)
+        return super().write(vals)
 
     @api.onchange('currency_id', 'payment_id')
     def _onchange_currency_id(self):

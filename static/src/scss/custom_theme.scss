@@ -69,6 +69,24 @@
     padding-right: 15px !important;
 }
 
+.havano_logout_link {
+    margin-left: auto;
+    padding: 0 8px;
+    color: white !important;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 46px;
+    text-decoration: none !important;
+    white-space: nowrap;
+    transition: opacity 0.2s ease;
+}
+
+.havano_logout_link:hover,
+.havano_logout_link:focus-visible {
+    opacity: 0.8;
+    text-decoration: underline !important;
+}
+
 .o_main_navbar .o_menu_systray > div > a,
 .o_main_navbar .o_menu_systray > li > a {
     border-radius: 50px !important;

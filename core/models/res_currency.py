@@ -4,6 +4,15 @@ from odoo.exceptions import ValidationError
 class ResCurrency(models.Model):
     _inherit = 'res.currency'
 
+    @api.model
+    def _validate_tenant_currency(self, currency, tenant):
+        currency = self.browse(currency) if isinstance(currency, int) else currency
+        if currency and tenant and currency.tenant_id and currency.tenant_id != tenant:
+            raise ValidationError(_(
+                "Currency '%s' belongs to another tenant and cannot be used here."
+            ) % currency.display_name)
+        return currency
+
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant',
         string='Tenant',

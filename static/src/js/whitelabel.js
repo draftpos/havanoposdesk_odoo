@@ -86,6 +86,18 @@ function replaceOdooLogo() {
     }
 }
 
+function addLogoutLink() {
+    const navbar = document.querySelector(".o_main_navbar");
+    if (navbar && !navbar.querySelector(".havano_logout_link")) {
+        const logoutLink = document.createElement("a");
+        logoutLink.className = "havano_logout_link";
+        logoutLink.href = "/web/session/logout";
+        logoutLink.textContent = "Logout";
+        logoutLink.setAttribute("aria-label", "Logout");
+        navbar.appendChild(logoutLink);
+    }
+}
+
 // ── 3. Set document title ──────────────────────────────────────────────────
 function patchDocumentTitle() {
     const appName = session.havanoposdesk_app_name || "Havano";
@@ -108,6 +120,7 @@ function patchDocumentTitle() {
 // ── 4. Run all patches when DOM is ready ──────────────────────────────────
 function applyWhiteLabel() {
     replaceOdooLogo();
+    addLogoutLink();
     patchDocumentTitle();
     patchOdooReferences();
 }

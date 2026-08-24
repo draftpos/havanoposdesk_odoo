@@ -70,7 +70,7 @@
                                 <field name="allowed_pricelist_ids" invisible="1" />
                                 <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" readonly="state != 'draft'" options="{'no_create': True}" class="border-bottom border-dark" />
                                 <field name="allow_multi_currency" invisible="1" />
-                                <field name="currency_id" invisible="allow_multi_currency == False" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="currency_id" invisible="allow_multi_currency == False" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]" options="{'no_create': True}" class="border-bottom border-dark" />
                                 <field name="exchange_rate" invisible="allow_multi_currency == False" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark" />
                                 <field name="is_return" invisible="1" />
@@ -152,7 +152,7 @@
                                         <field name="tenant_currency_id" column_invisible="True"/>
                                         <field name="name" readonly="1" force_save="1" optional="hide"/>
                                         <field name="account_id" required="1"/>
-                                        <field name="currency_id" />
+                                        <field name="currency_id" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', parent.tenant_id)]" />
                                         <field name="exchange_rate" />
                                         <field name="amount" sum="Total"/>
                                         <field name="amount_base" sum="Base Total" readonly="1" force_save="1" optional="hide"/>
