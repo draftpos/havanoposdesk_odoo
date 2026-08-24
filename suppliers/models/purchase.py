@@ -9,7 +9,11 @@ class Purchase(models.Model):
         return 0.0
 
     def _default_store_id(self):
-        return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
+        tenant_id = self.env.context.get('default_tenant_id') or self.env.user.tenant_id.id
+        domain = [('is_default', '=', True)]
+        if tenant_id:
+            domain.append(('tenant_id', '=', tenant_id))
+        return self.env['havanoposdesk.store'].search(domain, limit=1).id
 
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default=lambda self: 'New')
     external_ref = fields.Char(string='External Reference', copy=False, readonly=True, help="Reference from external POS system")
@@ -51,7 +55,7 @@ class Purchase(models.Model):
     supplier_secondary_balance = fields.Float(related='supplier.secondary_balance', string='Secondary Balance')
     supplier_allow_multi_currency = fields.Boolean(related='supplier.allow_multi_currency', string='Supplier Multi Currency')
     supplier_secondary_currency_id = fields.Many2one('res.currency', related='supplier.secondary_currency_id')
-    store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
+    store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True, default=_default_store_id)
     currency_id = fields.Many2one('res.currency', string='Currency', required=True)
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
     available_currency_ids = fields.Many2many('res.currency', compute='_compute_available_currencies', store=False)
@@ -114,6 +118,11 @@ class Purchase(models.Model):
     def _compute_invoice_type(self):
         for record in self:
             record.invoice_type = 'Debit Note' if record.is_return else 'Purchase Invoice'
+
+    @api.constrains('store_id')
+    def _check_store_id(self):
+        if any(not purchase.store_id for purchase in self):
+            raise ValidationError(_('A store is required for every purchase. Configure a default store before creating a purchase.'))
             
     line_ids = fields.One2many('havanoposdesk.purchase.line', 'purchase_id', string='Items')
 
@@ -140,6 +149,15 @@ class Purchase(models.Model):
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
                 if tenant and not tenant.check_subscription_active():
                     raise ValidationError(_("Your subscription has expired and the grace period has ended. Please upgrade your package to resume operations."))
+
+            if not vals.get('store_id'):
+                default_store_domain = [('is_default', '=', True)]
+                if tenant_id:
+                    default_store_domain.append(('tenant_id', '=', tenant_id))
+                default_store = self.env['havanoposdesk.store'].search(default_store_domain, limit=1)
+                if not default_store:
+                    raise ValidationError(_('A default store must be configured before creating a purchase.'))
+                vals['store_id'] = default_store.id
 
             if vals.get('payment_status') == 'cash' and not vals.get('account_id'):
                 raise ValidationError(_("Please specify a cash/bank payment account for cash purchases."))
@@ -179,6 +197,8 @@ class Purchase(models.Model):
     def write(self, vals):
         from odoo.exceptions import ValidationError
         for record in self:
+            if 'store_id' in vals and not vals['store_id']:
+                raise ValidationError(_('A store is required for every purchase.'))
             if record.state != 'draft' and any(f not in ['state'] for f in vals.keys()):
                 raise ValidationError("You cannot modify a confirmed/posted purchase. Please cancel it first.")
             payment_status = vals.get('payment_status', record.payment_status)
@@ -425,6 +445,8 @@ class Purchase(models.Model):
         for purchase in self:
             if purchase.state != 'cancelled':
                 continue
+            if not purchase.store_id:
+                raise ValidationError(_('A store is required before resetting a purchase to draft.'))
             purchase.write({'state': 'draft'})
 
 class PurchaseLine(models.Model):

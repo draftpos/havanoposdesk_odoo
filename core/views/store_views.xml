@@ -42,7 +42,7 @@
                                     </group>
                                     <group>
                                         <field name="active"/>
-                                        <field name="is_default"/>
+                                        <field name="is_default" readonly="is_default"/>
                                         <field name="auto_populate_data"/>
                                     </group>
                                 </group>

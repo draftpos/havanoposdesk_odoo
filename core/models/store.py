@@ -117,6 +117,8 @@ class HavanoposdeskStore(models.Model):
     @api.constrains('is_default', 'tenant_id')
     def _check_single_default_store(self):
         for store in self:
+            if self.env.context.get('skip_default_store_check'):
+                continue
             if store.is_default:
                 domain = [
                     ('tenant_id', '=', store.tenant_id.id),
@@ -125,6 +127,21 @@ class HavanoposdeskStore(models.Model):
                 ]
                 if self.search_count(domain) > 0:
                     raise ValidationError("Only one store can be set as the default store per tenant.")
+            elif not self.search_count([
+                ('tenant_id', '=', store.tenant_id.id),
+                ('is_default', '=', True),
+            ]):
+                raise ValidationError(_('Each tenant must have one default store.'))
+
+    @api.onchange('is_default')
+    def _onchange_is_default(self):
+        if self.is_default:
+            return {
+                'warning': {
+                    'title': _('Default Store Switched'),
+                    'message': _('This store will become the default store when you save. The current default store will be switched off.'),
+                }
+            }
 
     @api.constrains('name', 'tenant_id')
     def _check_unique_store_name_per_tenant(self):
@@ -208,9 +225,19 @@ class HavanoposdeskStore(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        assigned_default_tenants = set()
         for vals in vals_list:
             if vals.get('name'):
                 vals['name'] = vals['name'].strip()
+
+            tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            if tenant_id and tenant_id not in assigned_default_tenants and not self.sudo().search_count([
+                ('tenant_id', '=', tenant_id),
+                ('is_default', '=', True),
+            ]):
+                vals['is_default'] = True
+                assigned_default_tenants.add(tenant_id)
+
             if self.env.user.havano_role == 'super_admin':
                 continue
                 
@@ -373,6 +400,25 @@ class HavanoposdeskStore(models.Model):
           - havanoposdesk_stock_adjustment_line (store Char)
           - havanoposdesk_purchase_line     (store Char)
         """
+        if vals.get('is_default'):
+            for store in self:
+                self.search([
+                    ('tenant_id', '=', store.tenant_id.id),
+                    ('is_default', '=', True),
+                    ('id', '!=', store.id),
+                ]).with_context(
+                    allow_default_switch=True,
+                    skip_default_store_check=True,
+                ).write({'is_default': False})
+        elif vals.get('is_default') is False and not self.env.context.get('allow_default_switch'):
+            for store in self:
+                if store.is_default and not self.search_count([
+                    ('tenant_id', '=', store.tenant_id.id),
+                    ('is_default', '=', True),
+                    ('id', '!=', store.id),
+                ]):
+                    raise ValidationError(_('You cannot untick the only default store. Select another store as default first.'))
+
         new_name = vals.get('name')
 
         if new_name:
