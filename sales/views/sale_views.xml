@@ -229,7 +229,7 @@
                     <filter string="Quotations" name="filter_quotations" domain="[('is_quotation', '=', True)]" />
                     <filter string="Sales Invoices" name="filter_invoices" domain="[('is_quotation', '=', False), ('is_return', '=', False)]" />
                     <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
-                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
                     <filter string="Reference" name="filter_reference" domain="[('name', '!=', False)]" />
                     <filter string="Payment Mode" name="filter_payment" domain="[('payment_status', '!=', False)]" />
                     <filter string="Created On" name="filter_created_on" date="date" />

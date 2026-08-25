@@ -48,7 +48,7 @@
                     <field name="create_date"/>
                     <separator/>
                     <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
                     <filter string="Cashier" name="filter_cashier" domain="[('salesperson_id', '!=', False)]"/>
                     <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
