@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
 
 class Account(models.Model):
@@ -41,6 +41,7 @@ class Account(models.Model):
         help='Currency used for this Cash or Bank account.',
         default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
     )
+    tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
     balance = fields.Float(string='Balance', default=0.0)
     
     # Store reference for multi-tenancy if applicable
@@ -71,7 +72,7 @@ class Account(models.Model):
     @api.constrains('tenant_id', 'currency_id')
     def _check_currency_belongs_to_tenant(self):
         for account in self:
-            if account.tenant_id and (not account.currency_id or account.currency_id.tenant_id != account.tenant_id):
+            if account.tenant_id and account.currency_id and account.currency_id != account.tenant_currency_id and account.currency_id.tenant_id != account.tenant_id:
                 raise ValidationError(_(
                     "Account '%s' must use a currency belonging to the same tenant."
                 ) % account.name)
