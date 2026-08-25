@@ -228,8 +228,8 @@
                     <field name="date" />
                     <filter string="Quotations" name="filter_quotations" domain="[('is_quotation', '=', True)]" />
                     <filter string="Sales Invoices" name="filter_invoices" domain="[('is_quotation', '=', False), ('is_return', '=', False)]" />
-                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
-                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="Today" name="today" date="date" default_period="today" />
+                    <filter string="This Month" name="this_month" date="date" default_period="this_month" />
                     <filter string="Reference" name="filter_reference" domain="[('name', '!=', False)]" />
                     <filter string="Payment Mode" name="filter_payment" domain="[('payment_status', '!=', False)]" />
                     <filter string="Created On" name="filter_created_on" date="date" />
@@ -243,8 +243,8 @@
                         <filter string="Customer" name="group_by_customer" context="{'group_by': 'customer'}" />
                         <filter string="Store" name="group_by_store" context="{'group_by': 'store_id'}" />
                         <filter string="Currency" name="group_by_currency" context="{'group_by': 'currency_id'}" />
-                        <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}" />
-                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}" />
+                        <filter string="Today" name="group_today" date="date" default_period="today" context="{'group_by': 'date:day'}" />
+                        <filter string="This Month" name="group_month" date="date" default_period="this_month" context="{'group_by': 'date:month'}" />
                     </group>
                 </search>
             </field>
