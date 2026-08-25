@@ -113,12 +113,19 @@
                                     <group>
                                         <field name="kitchen_settings_enabled" invisible="1" />
                                         <div class="d-flex flex-wrap gap-3 align-items-center" invisible="not kitchen_settings_enabled">
+                                            <label for="kitchen_order_1" string="Order 1" />
                                             <field name="kitchen_order_1" />
+                                            <label for="kitchen_order_2" string="Order 2" />
                                             <field name="kitchen_order_2" />
+                                            <label for="kitchen_order_3" string="Order 3" />
                                             <field name="kitchen_order_3" />
+                                            <label for="kitchen_order_4" string="Order 4" />
                                             <field name="kitchen_order_4" />
+                                            <label for="kitchen_order_5" string="Order 5" />
                                             <field name="kitchen_order_5" />
+                                            <label for="kitchen_order_6" string="Order 6" />
                                             <field name="kitchen_order_6" />
+                                            <label for="kitchen_order_7" string="Order 7" />
                                             <field name="kitchen_order_7" />
                                         </div>
                                         <field name="is_active" class="border-bottom border-dark" />

@@ -311,7 +311,14 @@ class HavanoPOSDeskAPI(http.Controller):
                     "description": p.name,
                     "stock_uom": p.uom_id.name or "Pieces",
                     "actual_qty": qty,
-                    "projected_qty": qty
+                    "projected_qty": qty,
+                    "custom_is_order_item_1": int(p.kitchen_order_1),
+                    "custom_is_order_item_2": int(p.kitchen_order_2),
+                    "custom_is_order_item_3": int(p.kitchen_order_3),
+                    "custom_is_order_item_4": int(p.kitchen_order_4),
+                    "custom_is_order_item_5": int(p.kitchen_order_5),
+                    "custom_is_order_item_6": int(p.kitchen_order_6),
+                    "custom_is_order_item_7": int(p.kitchen_order_7),
                 })
                 
             import base64
