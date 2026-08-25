@@ -99,24 +99,24 @@
                         <group>
                             <group string="Active Subscription &amp; Wallet">
                                 <field name="name"
-                                       readonly="not context.get('is_super_admin', False)"/>
-                                <field name="account_balance" readonly="not context.get('is_super_admin', False)"/>
+                                        readonly="not context.is_super_admin"/>
+                                    <field name="account_balance" readonly="not context.is_super_admin"/>
                                 <field name="subscription_plan_id"
                                        options="{'no_create': True}"
-                                       readonly="not context.get('is_super_admin', False)"/>
-                                <field name="additional_terminals" readonly="not context.get('is_super_admin', False)"/>
-                                <field name="additional_stores" readonly="not context.get('is_super_admin', False)"/>
+                                        readonly="not context.is_super_admin"/>
+                                    <field name="additional_terminals" readonly="not context.is_super_admin"/>
+                                    <field name="additional_stores" readonly="not context.is_super_admin"/>
                                 <field name="effective_max_stores" readonly="1"/>
                                 <field name="effective_max_terminals" readonly="1"/>
                                 <field name="subscription_total_amount" readonly="1"/>
-                                <field name="payment_status" readonly="not context.get('is_super_admin', False)"/>
+                                <field name="payment_status" readonly="not context.is_super_admin"/>
                             </group>
 
                             <group string="Duration &amp; Status">
                                 <field name="subscription_start_date" readonly="1"/>
                                 <field name="subscription_end_date" readonly="1"/>
                                 <field name="active"
-                                       readonly="not context.get('is_super_admin', False)"/>
+                                       readonly="not context.is_super_admin"/>
                             </group>
                         </group>
 

@@ -14,8 +14,8 @@
                     <field name="name" string="Reference" optional="show" />
                     <field name="local_invoice_id" optional="hide" />
                     <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-info="is_quotation" decoration-bf="is_return or is_quotation" />
-                    <field name="payment_status_display" optional="show" column_invisible="context.get('default_is_quotation')" string="Payment Status" />
-                    <field name="account_id" optional="show" column_invisible="context.get('default_is_quotation')" />
+                    <field name="payment_status_display" optional="show" column_invisible="context.default_is_quotation" string="Payment Status" />
+                    <field name="account_id" optional="show" column_invisible="context.default_is_quotation" />
                     <field name="customer" optional="show" />
                     <field name="date" string="Date" optional="show" />
                     <field name="store_id" optional="show" />
