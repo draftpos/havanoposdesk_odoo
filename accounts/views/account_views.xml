@@ -33,7 +33,8 @@
                                 <field name="is_on_account" invisible="type != 'Cash'" />
                                 <field name="active" widget="boolean_toggle" />
                                 <field name="store_ids" widget="many2many_tags" />
-                                <field name="currency_id" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]" invisible="type not in ['Cash', 'Bank']" />
+                                <field name="tenant_id" invisible="1" />
+                                <field name="currency_id" domain="[('tenant_id', '=', tenant_id)]" invisible="type not in ['Cash', 'Bank']" />
                                 <field name="balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             </group>
                         </group>
@@ -64,7 +65,7 @@
             <field name="name">Chart of Accounts</field>
             <field name="res_model">havanoposdesk.account</field>
             <field name="view_mode">list,form</field>
-            <field name="domain">['|', ('currency_id', '=', False), ('currency_id.tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain">[('tenant_id', '=', user.tenant_id.id), ('currency_id.tenant_id', '=', user.tenant_id.id)]</field>
             <field name="context">{'active_test': False}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
@@ -80,6 +81,7 @@
             <field name="name">Cash Balance</field>
             <field name="res_model">havanoposdesk.account</field>
             <field name="view_mode">list,form</field>
+            <field name="domain">[('tenant_id', '=', user.tenant_id.id), ('currency_id.tenant_id', '=', user.tenant_id.id)]</field>
             <field name="context">{'search_default_filter_cash_bank': 1, 'search_default_filter_active': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
