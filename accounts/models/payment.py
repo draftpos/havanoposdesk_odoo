@@ -90,7 +90,7 @@ class Payment(models.Model):
     
     is_multi_currency = fields.Boolean(string='Multi-currencies on payment', default=False)
     payment_line_ids = fields.One2many('havanoposdesk.payment.line', 'payment_id', string='Payment Breakdown')
-    account_id = fields.Many2one('havanoposdesk.account', string='Bank/Cash Account', domain="[('type', 'in', ['Bank', 'Cash']), ('active', '=', True), ('is_on_account', '=', False)]")
+    account_id = fields.Many2one('havanoposdesk.account', string='Bank/Cash Account', domain="[('tenant_id', '=', tenant_id), ('type', 'in', ['Bank', 'Cash']), ('active', '=', True), ('is_on_account', '=', False), ('currency_id.tenant_id', '=', tenant_id)]")
     
 
     amount = fields.Float(string='Amount', required=True, default=0.0, compute='_compute_amount', store=True, readonly=False)

@@ -109,7 +109,7 @@ class Purchase(models.Model):
         ('cash', 'Paid'),
         ('account', 'On Account')
     ], string='Payment Status', default='account', required=True)
-    account_id = fields.Many2one('havanoposdesk.account', string='Payment Account', domain="[('tenant_id', '=', tenant_id), ('type', 'in', ['Cash', 'Bank']), ('active', '=', True), ('is_on_account', '=', False), '|', ('currency_id', '=', False), '|', ('currency_id.tenant_id', '=', False), ('currency_id.tenant_id', '=', tenant_id)]")
+    account_id = fields.Many2one('havanoposdesk.account', string='Payment Account', domain="[('tenant_id', '=', tenant_id), ('type', 'in', ['Cash', 'Bank']), ('active', '=', True), ('is_on_account', '=', False), ('currency_id.tenant_id', '=', tenant_id)]")
     pos_payment_id = fields.Many2one('havanoposdesk.payment', string='POS Payment Batch')
     invoice_type = fields.Char(string='Type', compute='_compute_invoice_type', store=True)
     is_tax_enabled = fields.Boolean(related='tenant_id.enable_tax', string='Tax Enabled')

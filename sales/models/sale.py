@@ -77,7 +77,7 @@ class Sale(models.Model):
         ('single', 'Single Payment'),
         ('multi', 'Split / Multi-Currency Payment')
     ], string='Payment Policy', default='single')
-    account_id = fields.Many2one('havanoposdesk.account', string='Deposit Account', domain="[('type', 'in', ['Cash', 'Bank']), ('active', '=', True)]", default=_default_account_id)
+    account_id = fields.Many2one('havanoposdesk.account', string='Deposit Account', domain="[('tenant_id', '=', tenant_id), ('type', 'in', ['Cash', 'Bank']), ('active', '=', True), ('currency_id.tenant_id', '=', tenant_id)]", default=_default_account_id)
     pos_payment_id = fields.Many2one('havanoposdesk.payment', string='POS Payment Batch')
     payment_ids = fields.One2many('havanoposdesk.payment', 'sale_id', string='Payments')
     

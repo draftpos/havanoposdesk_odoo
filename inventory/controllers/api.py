@@ -217,9 +217,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
             # Fetch currencies
             tenant_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if not tenant and hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user_env['res.currency'].sudo().search(self._tenant_currency_domain(tenant) + [('name', '=', currency)], limit=1)
-            currencies_records = user_env['res.currency'].sudo().search(
-                self._tenant_currency_domain(tenant), order='tenant_id desc, name, id'
-            )
+            currencies_records = self._tenant_currencies(user_env, tenant)
             currencies_data = []
             today_date = fields.Date.context_today(user)
             for cur in currencies_records:
@@ -744,6 +742,24 @@ class HavanoPOSDeskAPI(http.Controller):
             uom = request.env['havanoposdesk.uom'].sudo().create(uom_vals)
             return request.make_response(json.dumps({'id': uom.id, 'name': uom.name, 'abbreviation': getattr(uom, 'abbreviation', uom.name), 'tenant_id': uom.tenant_id.id}), headers=[('Content-Type', 'application/json')], status=201)
 
+    def _tenant_currency_domain(self, tenant):
+        domain = [('active', '=', True)]
+        if tenant:
+            domain.extend(['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant.id)])
+        return domain
+
+    def _tenant_currencies(self, env, tenant):
+        currencies = env['res.currency'].sudo().search(
+            self._tenant_currency_domain(tenant), order='tenant_id desc, name, id'
+        )
+        seen_names = set()
+        selected = env['res.currency'].browse()
+        for currency in currencies:
+            if currency.name not in seen_names:
+                seen_names.add(currency.name)
+                selected |= currency
+        return selected
+
     # CURRENCIES
     @http.route(['/api/currencies', '/api/currencies/'], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def handle_currencies(self, **kw):
@@ -767,9 +783,7 @@ class HavanoPOSDeskAPI(http.Controller):
             store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
             base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if not tenant and hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
             
-            currencies = env['res.currency'].sudo().search(
-                self._tenant_currency_domain(tenant), order='tenant_id desc, name, id'
-            )
+            currencies = self._tenant_currencies(env, tenant)
             today_date = fields.Date.context_today(user)
             data = []
             for cur in currencies:
@@ -830,7 +844,11 @@ class HavanoPOSDeskAPI(http.Controller):
                 else:
                     domain.append(('name', '=ilike', currency_id.strip()))
 
-            currencies = env['res.currency'].sudo().search(domain)
+            currencies = env['res.currency'].sudo().search(domain, order='tenant_id desc, name, id')
+            seen_names = set()
+            currencies = currencies.filtered(lambda currency: not (
+                currency.name in seen_names or seen_names.add(currency.name)
+            ))
             today_date = fields.Date.context_today(user)
             data = []
             for cur in currencies:
@@ -887,9 +905,7 @@ class HavanoPOSDeskAPI(http.Controller):
             store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
             base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
             
-            currencies = env['res.currency'].sudo().search(
-                self._tenant_currency_domain(tenant), order='tenant_id desc, name, id'
-            )
+            currencies = self._tenant_currencies(env, tenant)
             today_date = fields.Date.context_today(user)
             data = []
             for cur in currencies:
