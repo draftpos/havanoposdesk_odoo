@@ -4116,6 +4116,7 @@ class HavanoPOSDeskAPI(http.Controller):
             ]
             if user.havano_role != 'super_admin' and tenant:
                 domain.extend([
+                    
                     ('tenant_id', '=', tenant.id),
                     ('currency_id.tenant_id', '=', tenant.id),
                 ])
