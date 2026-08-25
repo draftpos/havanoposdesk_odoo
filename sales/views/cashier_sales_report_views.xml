@@ -47,8 +47,8 @@
                     <field name="create_uid"/>
                     <field name="create_date"/>
                     <separator/>
-                    <filter string="Today" name="today" date="date" default_period="today"/>
-                    <filter string="This Month" name="this_month" date="date" default_period="this_month"/>
+                    <filter string="Today" name="today" date="date" default_period="day"/>
+                    <filter string="This Month" name="this_month" date="date" default_period="month"/>
                     <filter string="Cashier" name="filter_cashier" domain="[('salesperson_id', '!=', False)]"/>
                     <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
@@ -59,8 +59,8 @@
                         <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by':'create_uid'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by':'create_date:day'}"/>
-                        <filter string="Today" name="group_today" date="date" default_period="today" context="{'group_by': 'date:day'}"/>
-                        <filter string="This Month" name="group_month" date="date" default_period="this_month" context="{'group_by': 'date:month'}"/>
+                        <filter string="Today" name="group_today" date="date" default_period="day" context="{'group_by': 'date:day'}"/>
+                        <filter string="This Month" name="group_month" date="date" default_period="month" context="{'group_by': 'date:month'}"/>
                     </group>
                 </search>
             </field>
