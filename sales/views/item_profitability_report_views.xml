@@ -52,7 +52,7 @@
                     <field name="create_uid"/>
                     <field name="create_date"/>
                     <separator/>
-                    <filter string="Today" name="today" date="date" default_period="day"/>
+                    <filter string="Today" name="today" date="date" default_period="today"/>
                     <filter string="This Month" name="this_month" date="date" default_period="month"/>
                     <filter string="Item Code" name="filter_item_code" domain="[('item_code', '!=', False)]"/>
                     <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
@@ -66,7 +66,7 @@
                         <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by':'create_date:day'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by':'create_uid'}"/>
-                        <filter string="Today" name="group_today" date="date" default_period="day" context="{'group_by': 'date:day'}"/>
+                        <filter string="Today" name="group_today" date="date" default_period="today" context="{'group_by': 'date:day'}"/>
                         <filter string="This Month" name="group_month" date="date" default_period="month" context="{'group_by': 'date:month'}"/>
                     </group>
                 </search>
