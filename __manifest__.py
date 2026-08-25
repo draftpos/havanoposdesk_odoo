@@ -1,6 +1,6 @@
 {
     'name': 'Havano ERP (havanoposdesk_odoo)',
-    'version': '19.0.1.27',
+    'version': '19.0.1.28',
     'category': 'Sales/Point of Sale',
     'summary': 'Unified ERP backend serving Flutter POS app and Odoo UI',
     'description': """
