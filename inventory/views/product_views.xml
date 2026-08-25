@@ -37,41 +37,6 @@
                             <style>
                                 /* Disable Odoo's forced ALL-CAPS on notebook tabs */
                                 .o_notebook .nav-tabs .nav-link { text-transform: none !important; font-size: 14px; }
-                                .havanoposdesk-kitchen-orders {
-                                    display: flex !important;
-                                    flex-wrap: wrap;
-                                    gap: 12px 18px;
-                                    width: 100%;
-                                    align-items: center;
-                                }
-                                .havanoposdesk-kitchen-order {
-                                    display: flex !important;
-                                    flex: 1 1 180px;
-                                    min-width: 0;
-                                    align-items: center;
-                                    gap: 6px;
-                                }
-                                .havanoposdesk-kitchen-order label {
-                                    flex: 0 0 auto;
-                                    white-space: nowrap;
-                                }
-                                .havanoposdesk-kitchen-order .o_field_widget {
-                                    flex: 1 1 auto;
-                                    min-width: 0;
-                                }
-                                .havanoposdesk-product-active {
-                                    display: flex !important;
-                                    align-items: center;
-                                    gap: 8px;
-                                    width: 100%;
-                                    margin-top: 12px;
-                                }
-                                @media (max-width: 900px) {
-                                    .havanoposdesk-kitchen-order { flex-basis: 220px; }
-                                }
-                                @media (max-width: 520px) {
-                                    .havanoposdesk-kitchen-order { flex-basis: 100%; }
-                                }
                             </style>
                             <page string="Details">
                                 <group>
@@ -147,40 +112,20 @@
                                 <group>
                                     <group>
                                         <field name="kitchen_settings_enabled" invisible="1" />
-                                        <div class="havanoposdesk-kitchen-orders" invisible="not kitchen_settings_enabled">
-                                            <div class="havanoposdesk-kitchen-order">
-                                                <label for="kitchen_order_1" string="Order 1" />
-                                                <field name="kitchen_order_1" />
-                                            </div>
-                                            <div class="havanoposdesk-kitchen-order">
-                                                <label for="kitchen_order_2" string="Order 2" />
-                                                <field name="kitchen_order_2" />
-                                            </div>
-                                            <div class="havanoposdesk-kitchen-order">
-                                                <label for="kitchen_order_3" string="Order 3" />
-                                                <field name="kitchen_order_3" />
-                                            </div>
-                                            <div class="havanoposdesk-kitchen-order">
-                                                <label for="kitchen_order_4" string="Order 4" />
-                                                <field name="kitchen_order_4" />
-                                            </div>
-                                            <div class="havanoposdesk-kitchen-order">
-                                                <label for="kitchen_order_5" string="Order 5" />
-                                                <field name="kitchen_order_5" />
-                                            </div>
-                                            <div class="havanoposdesk-kitchen-order">
-                                                <label for="kitchen_order_6" string="Order 6" />
-                                                <field name="kitchen_order_6" />
-                                            </div>
-                                            <div class="havanoposdesk-kitchen-order">
-                                                <label for="kitchen_order_7" string="Order 7" />
-                                                <field name="kitchen_order_7" />
-                                            </div>
-                                        </div>
-                                        <div class="havanoposdesk-product-active">
-                                            <label for="is_active" string="Active" />
-                                            <field name="is_active" class="border-bottom border-dark" />
-                                        </div>
+                                        <group invisible="not kitchen_settings_enabled">
+                                            <group>
+                                                <field name="kitchen_order_1" string="Order 1" />
+                                                <field name="kitchen_order_2" string="Order 2" />
+                                                <field name="kitchen_order_3" string="Order 3" />
+                                                <field name="kitchen_order_4" string="Order 4" />
+                                            </group>
+                                            <group>
+                                                <field name="kitchen_order_5" string="Order 5" />
+                                                <field name="kitchen_order_6" string="Order 6" />
+                                                <field name="kitchen_order_7" string="Order 7" />
+                                            </group>
+                                        </group>
+                                        <field name="is_active" string="Active" class="border-bottom border-dark" />
                                         <field name="internal_notes" class="border-bottom border-dark" />
                                     </group>
                                 </group>
