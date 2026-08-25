@@ -265,6 +265,17 @@ class HavanoposdeskProduct(models.Model):
     # Other
     internal_notes = fields.Text(string='Internal Notes')
     is_active = fields.Boolean(string='Active', default=True)
+    kitchen_settings_enabled = fields.Boolean(
+        related='tenant_id.enable_kitchen_settings',
+        string='Kitchen Settings Enabled'
+    )
+    kitchen_order_1 = fields.Boolean(string='Order 1', default=False)
+    kitchen_order_2 = fields.Boolean(string='Order 2', default=False)
+    kitchen_order_3 = fields.Boolean(string='Order 3', default=False)
+    kitchen_order_4 = fields.Boolean(string='Order 4', default=False)
+    kitchen_order_5 = fields.Boolean(string='Order 5', default=False)
+    kitchen_order_6 = fields.Boolean(string='Order 6', default=False)
+    kitchen_order_7 = fields.Boolean(string='Order 7', default=False)
     
     category_id = fields.Many2one('havanoposdesk.category', string='Category', default=lambda self: (self.env['havanoposdesk.category'].search([('name', '=', 'Basic')], limit=1) or self.env['havanoposdesk.category'].create({'name': 'Basic'})).id)
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=lambda self: (self.env['havanoposdesk.uom'].search([('name', '=', 'Each')], limit=1) or self.env['havanoposdesk.uom'].create({'name': 'Each'})).id)

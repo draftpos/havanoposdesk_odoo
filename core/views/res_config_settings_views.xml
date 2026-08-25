@@ -153,6 +153,12 @@
                             <field name="biz_enable_shift"/>
                         </setting>
                     </block>
+
+                    <block title="Stock Settings" name="stock_settings_config">
+                        <setting string="Kitchen Settings" help="Enable kitchen order selections on products">
+                            <field name="biz_enable_kitchen_settings"/>
+                        </setting>
+                    </block>
                 </app>
 
                 <!-- SaaS Config Settings -->

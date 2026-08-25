@@ -56,6 +56,7 @@ class ResConfigSettings(models.TransientModel):
                 ("enable_payment_entries", "BOOLEAN DEFAULT FALSE"),
                 ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
                 ("enable_shift", "BOOLEAN DEFAULT FALSE"),
+                ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
                 ("theme_color", "VARCHAR"),
                 ("product_name_format", "VARCHAR"),
                 ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
@@ -221,6 +222,11 @@ class ResConfigSettings(models.TransientModel):
     biz_enable_shift = fields.Boolean(
         string="Enable Shift Management",
         related='tenant_id.enable_shift',
+        readonly=False
+    )
+    biz_enable_kitchen_settings = fields.Boolean(
+        string="Enable Kitchen Settings",
+        related='tenant_id.enable_kitchen_settings',
         readonly=False
     )
     biz_enable_manufacturing = fields.Boolean(

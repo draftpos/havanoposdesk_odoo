@@ -33,6 +33,7 @@ class HavanoposdeskTenant(models.Model):
             ("enable_payment_entries", "BOOLEAN DEFAULT FALSE"),
             ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
             ("enable_shift", "BOOLEAN DEFAULT FALSE"),
+            ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
             ("theme_color", "VARCHAR"),
             ("product_name_format", "VARCHAR"),
             ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
@@ -388,6 +389,7 @@ class HavanoposdeskTenant(models.Model):
     enable_payment_entries = fields.Boolean(string='Enable Payment Entries', default=False)
     show_qty_on_hand = fields.Boolean(string='Show Qty on Hand in POS', default=False)
     enable_shift = fields.Boolean(string='Enable Shift Management', default=False)
+    enable_kitchen_settings = fields.Boolean(string='Enable Kitchen Settings', default=False)
     enable_tax = fields.Boolean(string='Enable Tax', default=False)
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
