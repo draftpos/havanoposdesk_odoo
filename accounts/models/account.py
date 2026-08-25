@@ -68,6 +68,14 @@ class Account(models.Model):
             if record.is_on_account and record.type != 'Cash':
                 raise ValidationError("On Account can only be used when Account Type is Cash.")
 
+    @api.constrains('tenant_id', 'currency_id')
+    def _check_currency_belongs_to_tenant(self):
+        for account in self:
+            if account.tenant_id and (not account.currency_id or account.currency_id.tenant_id != account.tenant_id):
+                raise ValidationError(_(
+                    "Account '%s' must use a currency belonging to the same tenant."
+                ) % account.name)
+
     @api.model
     def is_on_account_method(self, account=None, payment_method_name=None):
         """True for on-account modes: no receipt is posted and nothing is received."""

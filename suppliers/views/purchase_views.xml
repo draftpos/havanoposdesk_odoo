@@ -46,7 +46,7 @@
                             <group>
                                 <field name="posting_date" readonly="state != 'draft'" class="border-bottom border-dark"/>
                                 <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}"/>
-                                <field name="account_id" invisible="payment_status != 'cash'" required="payment_status == 'cash'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark"/>
+                                <field name="account_id" domain="[('tenant_id', '=', tenant_id), ('type', 'in', ['Cash', 'Bank']), ('active', '=', True), ('is_on_account', '=', False), ('currency_id.tenant_id', '=', tenant_id)]" invisible="payment_status != 'cash'" required="payment_status == 'cash'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark"/>
                                 <field name="store_id" options="{'no_create': True}" required="1" readonly="state != 'draft'" class="border-bottom border-dark"/>
                             </group>
                         </group>

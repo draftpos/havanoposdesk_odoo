@@ -180,7 +180,7 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id or (user_env['havanoposdesk.tenant'].sudo().search([], limit=1) if 'havanoposdesk.tenant' in user_env else False)
             company_name = user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or user.company_id.name or 'Havano Co'
             
-            currency = (tenant.currency_id.name if tenant and tenant.currency_id else False) or (store.currency_id.name if store and store.currency_id else False) or (user.company_id.currency_id.name if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user.api_currency or (tenant.api_currency if tenant else False) or 'USD'
+            currency = (tenant.currency_id.name if tenant and tenant.currency_id else False) or (store.currency_id.name if store and store.currency_id else False) or (user.company_id.currency_id.name if not tenant and hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user.api_currency or (tenant.api_currency if tenant else False) or 'USD'
             
             # Fetch default customer from database, or fallback/create
             default_customer_name = ""
@@ -216,8 +216,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 })
 
             # Fetch currencies
-            tenant_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user_env['res.currency'].sudo().search([('name', '=', currency)], limit=1)
-            currencies_records = user_env['res.currency'].sudo().search([('active', '=', True)])
+            tenant_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if not tenant and hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False) or user_env['res.currency'].sudo().search(self._tenant_currency_domain(tenant) + [('name', '=', currency)], limit=1)
+            currencies_records = user_env['res.currency'].sudo().search(
+                self._tenant_currency_domain(tenant), order='tenant_id desc, name, id'
+            )
             currencies_data = []
             today_date = fields.Date.context_today(user)
             for cur in currencies_records:
@@ -246,7 +248,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 ('active', '=', True)
             ]
             if user.tenant_id:
-                pm_domain.append(('tenant_id', '=', user.tenant_id.id))
+                pm_domain.extend([
+                    ('tenant_id', '=', user.tenant_id.id),
+                    ('currency_id.tenant_id', '=', user.tenant_id.id),
+                ])
             payment_methods_records = user_env['havanoposdesk.account'].sudo().search(pm_domain)
             payment_methods_data = []
             for pm in payment_methods_records:
@@ -760,9 +765,11 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
             store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
-            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
+            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if not tenant and hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
             
-            currencies = env['res.currency'].sudo().search([('active', '=', True)])
+            currencies = env['res.currency'].sudo().search(
+                self._tenant_currency_domain(tenant), order='tenant_id desc, name, id'
+            )
             today_date = fields.Date.context_today(user)
             data = []
             for cur in currencies:
@@ -814,9 +821,9 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
             store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
-            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
+            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if not tenant and hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
             
-            domain = [('active', '=', True)]
+            domain = self._tenant_currency_domain(tenant)
             if currency_id:
                 if currency_id.isdigit():
                     domain.append(('id', '=', int(currency_id)))
@@ -880,7 +887,9 @@ class HavanoPOSDeskAPI(http.Controller):
             store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
             base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
             
-            currencies = env['res.currency'].sudo().search([('active', '=', True)])
+            currencies = env['res.currency'].sudo().search(
+                self._tenant_currency_domain(tenant), order='tenant_id desc, name, id'
+            )
             today_date = fields.Date.context_today(user)
             data = []
             for cur in currencies:
@@ -2838,7 +2847,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if isinstance(currency_param, int):
                     doc_currency = env['res.currency'].sudo().browse(currency_param)
                 else:
-                    doc_currency = env['res.currency'].sudo().search([('name', '=ilike', str(currency_param).strip())], limit=1)
+                    doc_currency = env['res.currency'].sudo().search(self._tenant_currency_domain(tenant) + [('name', '=ilike', str(currency_param).strip())], limit=1)
             
             if not doc_currency:
                 doc_currency = customer.currency_id or tenant.currency_id or env.company.currency_id
@@ -3438,7 +3447,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             if isinstance(currency_param, int):
                                 doc_currency = env['res.currency'].sudo().browse(currency_param)
                             else:
-                                doc_currency = env['res.currency'].sudo().search([('name', '=ilike', str(currency_param).strip())], limit=1)
+                                doc_currency = env['res.currency'].sudo().search(self._tenant_currency_domain(tenant) + [('name', '=ilike', str(currency_param).strip())], limit=1)
                         
                         if not doc_currency:
                             doc_currency = customer.currency_id or tenant.currency_id or env.company.currency_id
@@ -3539,12 +3548,14 @@ class HavanoPOSDeskAPI(http.Controller):
                     ('tenant_id', '=', tenant.id),
                     ('type', 'in', ['Cash', 'Bank']),
                     ('active', '=', True),
+                    ('currency_id.tenant_id', '=', tenant.id),
                 ], limit=1)
             else:
                 account = Account.search([
                     ('tenant_id', '=', tenant.id),
                     ('type', 'in', ['Cash', 'Bank']),
                     ('active', '=', True),
+                    ('currency_id.tenant_id', '=', tenant.id),
                     ('name', '=ilike', str(account_ref).strip()),
                 ], limit=1)
                 if not account:
@@ -3552,6 +3563,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         ('tenant_id', '=', tenant.id),
                         ('type', 'in', ['Cash', 'Bank']),
                         ('active', '=', True),
+                        ('currency_id.tenant_id', '=', tenant.id),
                         ('name', 'ilike', str(account_ref).strip()),
                     ], limit=1)
                 if not account and isinstance(payment_data, dict):
@@ -3570,6 +3582,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             ('type', '=', account_type),
                             ('active', '=', True),
                             ('is_on_account', '=', False),
+                            ('currency_id.tenant_id', '=', tenant.id),
                         ], limit=1)
             if account:
                 return account
@@ -3580,6 +3593,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 ('tenant_id', '=', tenant.id),
                 ('type', 'in', ['Cash', 'Bank']),
                 ('active', '=', True),
+                ('currency_id.tenant_id', '=', tenant.id),
             ], limit=1)
             if account:
                 return account
@@ -3683,7 +3697,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 curr_rec = False
                 if p_curr:
-                    curr_rec = env['res.currency'].sudo().search([('name', '=ilike', str(p_curr).strip())], limit=1)
+                    curr_rec = env['res.currency'].sudo().search(self._tenant_currency_domain(tenant) + [('name', '=ilike', str(p_curr).strip())], limit=1)
                 if not curr_rec and acc and acc.currency_id:
                     curr_rec = acc.currency_id
                 if not curr_rec:
@@ -4082,10 +4096,13 @@ class HavanoPOSDeskAPI(http.Controller):
 
             domain = [
                 ('type', 'in', ['Cash', 'Bank']),
-                ('active', '=', True)
+                ('active', '=', True),
             ]
             if user.havano_role != 'super_admin' and tenant:
-                domain.append(('tenant_id', '=', tenant.id))
+                domain.extend([
+                    ('tenant_id', '=', tenant.id),
+                    ('currency_id.tenant_id', '=', tenant.id),
+                ])
 
             accounts = env['havanoposdesk.account'].sudo().search(domain)
             today_date = fields.Date.context_today(user)
@@ -6042,7 +6059,8 @@ class HavanoPOSDeskAPI(http.Controller):
             accounts = env['havanoposdesk.account'].sudo().search([
                 ('tenant_id', '=', tenant.id),
                 ('type', 'in', ['Cash', 'Bank']),
-                ('active', '=', True)
+                ('active', '=', True),
+                ('currency_id.tenant_id', '=', tenant.id),
             ])
             for acc in accounts:
                 acc_curr = acc.currency_id or base_curr
@@ -8467,7 +8485,10 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             domain = []
             if user.havano_role != 'super_admin' and user.tenant_id:
-                domain.append(('tenant_id', '=', user.tenant_id.id))
+                domain.extend([
+                    ('tenant_id', '=', user.tenant_id.id),
+                    ('currency_id.tenant_id', '=', user.tenant_id.id),
+                ])
             
             users = env['res.users'].search(domain)
             result = []

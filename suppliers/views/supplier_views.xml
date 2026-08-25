@@ -15,9 +15,9 @@
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" class="border-bottom border-dark"/>
                                 <field name="tenant_id" invisible="1"/>
                                 <field name="tenant_allow_multi_currency" invisible="1" />
-                                <field name="currency_id" class="border-bottom border-dark" />
+                                <field name="currency_id" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]" class="border-bottom border-dark" />
                                 <field name="allow_multi_currency" invisible="not tenant_allow_multi_currency" class="border-bottom border-dark" />
-                                <field name="secondary_currency_id" invisible="not allow_multi_currency" class="border-bottom border-dark" />
+                                <field name="secondary_currency_id" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]" invisible="not allow_multi_currency" class="border-bottom border-dark" />
                             </group>
                             <group>
                                 <field name="address" class="border-bottom border-dark"/>
