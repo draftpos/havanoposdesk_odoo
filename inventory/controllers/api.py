@@ -3515,6 +3515,69 @@ class HavanoPOSDeskAPI(http.Controller):
             return 'account'
         return 'cash'
 
+    def _resolve_sale_payment_account(self, env, tenant, payment_data, default_account_id=False):
+        """Resolve an API payment reference to the tenant's cash/bank account."""
+        Account = env['havanoposdesk.account'].sudo()
+        account_ref = (
+            payment_data.get('account_id')
+            or payment_data.get('account')
+            or payment_data.get('deposit_account')
+            or payment_data.get('payment_account')
+        ) if isinstance(payment_data, dict) else False
+
+        if account_ref:
+            if isinstance(account_ref, int) or str(account_ref).isdigit():
+                account = Account.search([
+                    ('id', '=', int(account_ref)),
+                    ('tenant_id', '=', tenant.id),
+                    ('type', 'in', ['Cash', 'Bank']),
+                    ('active', '=', True),
+                ], limit=1)
+            else:
+                account = Account.search([
+                    ('tenant_id', '=', tenant.id),
+                    ('type', 'in', ['Cash', 'Bank']),
+                    ('active', '=', True),
+                    ('name', '=ilike', str(account_ref).strip()),
+                ], limit=1)
+                if not account:
+                    account = Account.search([
+                        ('tenant_id', '=', tenant.id),
+                        ('type', 'in', ['Cash', 'Bank']),
+                        ('active', '=', True),
+                        ('name', 'ilike', str(account_ref).strip()),
+                    ], limit=1)
+                if not account and isinstance(payment_data, dict):
+                    method_name = str(
+                        payment_data.get('payment_method')
+                        or payment_data.get('method')
+                        or payment_data.get('mode_of_payment')
+                        or ''
+                    ).strip().lower()
+                    account_type = 'Cash' if method_name in ('cash', 'cash payment') else False
+                    if method_name in ('card', 'bank', 'bank transfer', 'visa', 'mastercard'):
+                        account_type = 'Bank'
+                    if account_type:
+                        account = Account.search([
+                            ('tenant_id', '=', tenant.id),
+                            ('type', '=', account_type),
+                            ('active', '=', True),
+                            ('is_on_account', '=', False),
+                        ], limit=1)
+            if account:
+                return account
+
+        if default_account_id:
+            account = Account.search([
+                ('id', '=', default_account_id),
+                ('tenant_id', '=', tenant.id),
+                ('type', 'in', ['Cash', 'Bank']),
+                ('active', '=', True),
+            ], limit=1)
+            if account:
+                return account
+        return Account.browse()
+
     def _prepare_payment_vals(self, env, tenant, customer, sale_data, default_account_id=False):
         empty = {
             'payment_policy': 'single',
@@ -3585,21 +3648,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 p_rate = float(p.get('exchange_rate') or 1.0)
                 p_ref = p.get('reference') or p.get('memo')
 
-                p_account = False
-                acc = False
-                if pm_name:
-                    acc = Account.search([
-                        ('tenant_id', '=', tenant.id),
-                        ('active', '=', True),
-                        ('name', 'ilike', str(pm_name).strip())
-                    ], limit=1)
-                    if acc:
-                        p_account = acc.id
-
-                if not p_account:
-                    p_account = default_account_id
-                    if p_account:
-                        acc = Account.browse(p_account)
+                account_ref = dict(p)
+                if not account_ref.get('account_id') and not account_ref.get('account'):
+                    account_ref['account'] = pm_name
+                acc = self._resolve_sale_payment_account(
+                    env, tenant, account_ref, default_account_id=default_account_id
+                )
+                p_account = acc.id if acc else False
 
                 is_silent = Account.is_on_account_method(acc if acc else False, pm_name)
                 if is_silent:
