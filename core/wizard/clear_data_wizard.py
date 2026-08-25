@@ -142,7 +142,7 @@ class ClearDataWizard(models.TransientModel):
             scope_label = f"Tenant: {tenant.name}"
 
         # ── ORM delete helper ─────────────────────────────────────────────────
-        def orm_delete(label, model_name, extra_domain=None):
+        def orm_delete(label, model_name, extra_domain=None, cancel_first=False):
             """
             Delete records of *model_name* using self.env (current DB, current
             registry).  Silently skips if the model is not installed on this site.
@@ -172,6 +172,20 @@ class ClearDataWizard(models.TransientModel):
                 records = self.env[model_name].sudo().search(domain)
                 count   = len(records)
                 if count:
+                    if cancel_first and hasattr(records, 'action_cancel'):
+                        active_records = records.filtered(
+                            lambda record: getattr(record, 'state', False)
+                            not in (False, 'draft', 'Draft', 'cancelled', 'Cancelled')
+                        )
+                        if active_records:
+                            active_records.action_cancel()
+
+                        cancelled_records = records.filtered(
+                            lambda record: getattr(record, 'state', False)
+                            in ('cancelled', 'Cancelled')
+                        )
+                        if cancelled_records and hasattr(cancelled_records, 'action_draft'):
+                            cancelled_records.action_draft()
                     records.unlink()
                 log.append(
                     f"  {'✓' if count else '–'}  {label:<35s} {count:>5} record(s)"
@@ -185,18 +199,25 @@ class ClearDataWizard(models.TransientModel):
         log.append("  TRANSACTIONS")
         log.append("═" * 52)
 
-        # Child records must come before parent records (FK order)
+        # Cancel parents first so their stock and account effects are reversed.
+        orm_delete("Sales",                   "havanoposdesk.sale", cancel_first=True)
+        orm_delete("Purchases",               "havanoposdesk.purchase", cancel_first=True)
+        orm_delete("Stock adjustments",       "havanoposdesk.stock.adjustment", cancel_first=True)
+        orm_delete("Stock entries",            "havanoposdesk.stock.entry", cancel_first=True)
+        orm_delete("Stock transfers",          "havanoposdesk.stock.transfer", cancel_first=True)
+        orm_delete("Expenses",                "havanoposdesk.expense", cancel_first=True)
+        orm_delete("Payments",                "havanoposdesk.payment", cancel_first=True)
+
+        # Dependent and derived records can be removed after reversal.
         orm_delete("Sale lines",              "havanoposdesk.sale.line")
-        orm_delete("Sales",                   "havanoposdesk.sale")
         orm_delete("Purchase lines",          "havanoposdesk.purchase.line")
-        orm_delete("Purchases",               "havanoposdesk.purchase")
         orm_delete("Stock adjustment lines",  "havanoposdesk.stock.adjustment.line")
-        orm_delete("Stock adjustments",       "havanoposdesk.stock.adjustment")
+        orm_delete("Stock entry lines",       "havanoposdesk.stock.entry.line")
+        orm_delete("Stock transfer lines",    "havanoposdesk.stock.transfer.line")
         orm_delete("Stock valuation",         "havanoposdesk.stock.valuation")
         orm_delete("Stock ledger",            "havanoposdesk.stock.ledger")
-        orm_delete("Payments",                "havanoposdesk.payment")
+        orm_delete("Payment lines",           "havanoposdesk.payment.line")
         orm_delete("Accounts",                "havanoposdesk.account")
-        orm_delete("Expenses",                "havanoposdesk.expense")
         orm_delete("Product costing history", "havanoposdesk.product.costing")
 
         # ── Master data (only when user chose 'all_data') ─────────────────────

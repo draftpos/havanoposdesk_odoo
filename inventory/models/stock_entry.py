@@ -173,6 +173,12 @@ class StockEntry(models.Model):
                 # Revert overall opening stock removed
             entry.write({'state': 'cancelled', 'docstatus': 2})
 
+    def action_draft(self):
+        self.filtered(lambda entry: entry.state == 'cancelled').write({
+            'state': 'draft',
+            'docstatus': 0,
+        })
+
 
 class StockEntryLine(models.Model):
     _name = 'havanoposdesk.stock.entry.line'
