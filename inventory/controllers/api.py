@@ -13,35 +13,33 @@ _logger = logging.getLogger(__name__)
 
 class HavanoPOSDeskAPI(http.Controller):
 
-    def _resolve_sale_user(self, env, sale_data, fallback_user, fallback_data=None):
+    def _resolve_sale_user(self, env, sale_data, tenant):
         sale_user_value = (
             sale_data.get('salesperson_id')
+            or sale_data.get('sales_person_id')
             or sale_data.get('salesperson')
+            or sale_data.get('sales_person')
         )
-        if not sale_user_value and fallback_data:
-            sale_user_value = (
-                fallback_data.get('salesperson_id')
-                or fallback_data.get('salesperson')
-            )
+        if not sale_user_value:
+            return False
 
-        if sale_user_value:
-            if isinstance(sale_user_value, int):
-                sale_user = env['res.users'].sudo().search([
-                    ('id', '=', sale_user_value),
-                    ('tenant_id', '=', fallback_user.tenant_id.id),
-                ], limit=1)
-            else:
-                salesperson_value = str(sale_user_value).strip()
-                sale_user = env['res.users'].sudo().search([
-                    ('tenant_id', '=', fallback_user.tenant_id.id),
-                    '|',
-                    ('login', '=', salesperson_value),
-                    ('name', '=ilike', salesperson_value),
-                ], limit=1)
-            if sale_user:
-                return sale_user
+        if isinstance(sale_user_value, int):
+            sale_user = env['res.users'].sudo().search([
+                ('id', '=', sale_user_value),
+                ('tenant_id', '=', tenant.id),
+            ], limit=1)
+        else:
+            salesperson_value = str(sale_user_value).strip()
+            sale_user = env['res.users'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                '|',
+                ('login', '=', salesperson_value),
+                ('name', '=ilike', salesperson_value),
+            ], limit=1)
+        if sale_user:
+            return sale_user
 
-        return fallback_user
+        return False
 
     def _get_sale_date(self, sale_data):
         """Return the client-supplied date for the sale document."""
@@ -3477,7 +3475,13 @@ class HavanoPOSDeskAPI(http.Controller):
                             if pl:
                                 pricelist_id = pl.id
 
-                        sale_user = self._resolve_sale_user(env, sale_data, authenticated_user, params)
+                        sale_user = self._resolve_sale_user(env, sale_data, tenant)
+                        if not sale_user:
+                            responses.append({
+                                "error": "salesperson is required and must match a user in this tenant.",
+                                "local_invoice_id": local_invoice_id,
+                            })
+                            continue
 
                         payment_vals = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
                         payment_status = payment_vals['payment_status']
