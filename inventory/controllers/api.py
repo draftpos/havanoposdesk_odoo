@@ -3337,8 +3337,17 @@ class HavanoPOSDeskAPI(http.Controller):
 
             env, custom_cr = self._get_env(user_id=uid)
             try:
-                user = env['res.users'].browse(uid)
-                tenant = user.tenant_id
+                authenticated_user = env['res.users'].browse(uid)
+                user = authenticated_user
+                cashier_login = params.get('cashier')
+                if cashier_login:
+                    cashier_user = env['res.users'].sudo().search([
+                        ('login', '=', str(cashier_login).strip())
+                    ], limit=1)
+                    if not cashier_user:
+                        raise Exception(f"User '{cashier_login}' not found. Please log in again online.")
+                    user = cashier_user
+                tenant = authenticated_user.tenant_id or user.tenant_id
 
                 sales_data = params.get('sales')
                 if not sales_data:
@@ -3468,7 +3477,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             if pl:
                                 pricelist_id = pl.id
 
-                        sale_user = self._resolve_sale_user(env, sale_data, user, params)
+                        sale_user = self._resolve_sale_user(env, sale_data, authenticated_user, params)
 
                         payment_vals = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
                         payment_status = payment_vals['payment_status']
