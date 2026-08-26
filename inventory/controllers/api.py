@@ -3411,10 +3411,10 @@ class HavanoPOSDeskAPI(http.Controller):
 
                             lines.append((0, 0, line_vals))
 
-                        terminal = user.selected_terminal_id
-                        if not terminal:
-                            responses.append({"error": "No terminal assigned.", "local_invoice_id": local_invoice_id})
-                            continue
+                        # terminal = user.selected_terminal_id
+                        # if not terminal:
+                        #     responses.append({"error": "No terminal assigned.", "local_invoice_id": local_invoice_id})
+                        #     continue
 
                         payment_method_name = sale_data.get('payment_method')
                         account_id = False
