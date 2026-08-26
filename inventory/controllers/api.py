@@ -1923,6 +1923,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'payment_status': payment_vals['payment_status'],
             'payment_policy': payment_vals['payment_policy'],
             'local_invoice_id': local_invoice_id,
+            'app_version': data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version'),
         }
         if payment_vals.get('account_id'):
             sale_vals['account_id'] = payment_vals['account_id']
@@ -3533,6 +3534,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             'payment_status': payment_status,
                             'payment_policy': payment_policy,
                             'local_invoice_id': local_invoice_id,
+                            'app_version': sale_data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version'),
                             'is_quotation': is_quotation,
                         }
                         if pricelist_id:

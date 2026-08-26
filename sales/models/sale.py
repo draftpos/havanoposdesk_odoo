@@ -28,6 +28,7 @@ class Sale(models.Model):
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
     posting_time = fields.Float(string='Posting Time', default=_default_posting_time)
     local_invoice_id = fields.Char(string='Local Invoice ID', copy=False)
+    app_version = fields.Char(string='App Version', copy=False)
     
     is_return = fields.Boolean(string='Is Credit Note', default=False)
     is_quotation = fields.Boolean(string='Is Quotation', default=False)
