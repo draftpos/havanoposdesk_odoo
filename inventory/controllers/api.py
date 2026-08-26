@@ -13,6 +13,37 @@ _logger = logging.getLogger(__name__)
 
 class HavanoPOSDeskAPI(http.Controller):
 
+    def _resolve_sale_user(self, env, sale_data, fallback_user, fallback_data=None):
+        sale_user_value = (
+            sale_data.get('salesperson_id')
+            or sale_data.get('salesperson')
+            or sale_data.get('cashier')
+            or sale_data.get('sales_person')
+            or sale_data.get('owner')
+            or sale_data.get('user')
+        )
+        if not sale_user_value and fallback_data:
+            sale_user_value = (
+                fallback_data.get('salesperson_id')
+                or fallback_data.get('salesperson')
+                or fallback_data.get('cashier')
+                or fallback_data.get('sales_person')
+                or fallback_data.get('owner')
+                or fallback_data.get('user')
+            )
+
+        if sale_user_value:
+            if isinstance(sale_user_value, int):
+                sale_user = env['res.users'].sudo().browse(sale_user_value).exists()
+            else:
+                sale_user = env['res.users'].sudo().search([
+                    ('login', '=', str(sale_user_value).strip())
+                ], limit=1)
+            if sale_user:
+                return sale_user
+
+        return fallback_user
+
     def _get_sale_date(self, sale_data):
         """Return the client-supplied date for the sale document."""
         sale_date = (
@@ -3438,14 +3469,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             if pl:
                                 pricelist_id = pl.id
 
-                        sale_user_email = sale_data.get('cashier') or sale_data.get('sales_person') or sale_data.get('owner') or sale_data.get('user')
-                        sale_user = None
-                        if sale_user_email:
-                            cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
-                            if cashier_user:
-                                sale_user = cashier_user
-                        if not sale_user:
-                            sale_user = user
+                        sale_user = self._resolve_sale_user(env, sale_data, user, params)
 
                         payment_vals = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
                         payment_status = payment_vals['payment_status']
