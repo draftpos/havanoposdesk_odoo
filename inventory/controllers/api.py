@@ -3225,7 +3225,16 @@ class HavanoPOSDeskAPI(http.Controller):
             
             env, custom_cr = self._get_env(user_id=uid)
             try:
-                user = env['res.users'].browse(uid)
+                user_email = params.get('cashier') or params.get('owner') or params.get('user')
+                user = None
+                if user_email:
+                    cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                    if cashier_user:
+                        user = cashier_user
+                    else:
+                        raise Exception(f"User '{user_email}' not found. Please log in again online.")
+                if not user:
+                    user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
 
                 domain = []
@@ -3328,7 +3337,16 @@ class HavanoPOSDeskAPI(http.Controller):
 
             env, custom_cr = self._get_env(user_id=uid)
             try:
-                user = env['res.users'].browse(uid)
+                user_email = params.get('cashier') or params.get('owner') or params.get('user')
+                user = None
+                if user_email:
+                    cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                    if cashier_user:
+                        user = cashier_user
+                    else:
+                        raise Exception(f"User '{user_email}' not found. Please log in again online.")
+                if not user:
+                    user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
 
                 sales_data = params.get('sales')
