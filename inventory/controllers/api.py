@@ -17,27 +17,26 @@ class HavanoPOSDeskAPI(http.Controller):
         sale_user_value = (
             sale_data.get('salesperson_id')
             or sale_data.get('salesperson')
-            or sale_data.get('cashier')
-            or sale_data.get('sales_person')
-            or sale_data.get('owner')
-            or sale_data.get('user')
         )
         if not sale_user_value and fallback_data:
             sale_user_value = (
                 fallback_data.get('salesperson_id')
                 or fallback_data.get('salesperson')
-                or fallback_data.get('cashier')
-                or fallback_data.get('sales_person')
-                or fallback_data.get('owner')
-                or fallback_data.get('user')
             )
 
         if sale_user_value:
             if isinstance(sale_user_value, int):
-                sale_user = env['res.users'].sudo().browse(sale_user_value).exists()
-            else:
                 sale_user = env['res.users'].sudo().search([
-                    ('login', '=', str(sale_user_value).strip())
+                    ('id', '=', sale_user_value),
+                    ('tenant_id', '=', fallback_user.tenant_id.id),
+                ], limit=1)
+            else:
+                salesperson_value = str(sale_user_value).strip()
+                sale_user = env['res.users'].sudo().search([
+                    ('tenant_id', '=', fallback_user.tenant_id.id),
+                    '|',
+                    ('login', '=', salesperson_value),
+                    ('name', '=ilike', salesperson_value),
                 ], limit=1)
             if sale_user:
                 return sale_user
@@ -3329,16 +3328,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
             env, custom_cr = self._get_env(user_id=uid)
             try:
-                user_email = params.get('cashier') or params.get('owner') or params.get('user')
-                user = None
-                if user_email:
-                    cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
-                    if cashier_user:
-                        user = cashier_user
-                    else:
-                        raise Exception(f"User '{user_email}' not found. Please log in again online.")
-                if not user:
-                    user = env['res.users'].browse(uid)
+                user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
 
                 sales_data = params.get('sales')
