@@ -3463,11 +3463,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
                         sale_user = self._resolve_sale_user(env, sale_data, tenant)
                         if not sale_user:
-                            responses.append({
-                                "error": "salesperson is required and must match a user in this tenant.",
-                                "local_invoice_id": local_invoice_id,
-                            })
-                            continue
+                            sale_user = user
 
                         payment_vals = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
                         payment_status = payment_vals['payment_status']
