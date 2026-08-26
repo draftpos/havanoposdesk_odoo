@@ -1803,12 +1803,6 @@ class HavanoPOSDeskAPI(http.Controller):
         if not terminal and user:
             terminal = user.selected_terminal_id
             
-        if not terminal:
-            return request.make_response(json.dumps({'error': 'No terminal assigned. Please select a terminal first.'}), headers=[('Content-Type', 'application/json')], status=400)
-            
-        if terminal.tenant_id.id != tenant.id:
-            return request.make_response(json.dumps({'error': 'Terminal does not belong to your account.'}), headers=[('Content-Type', 'application/json')], status=400)
-            
         store = self._get_current_store(user, tenant, data)
         if not store and terminal:
             store = terminal.store_id
@@ -2867,11 +2861,6 @@ class HavanoPOSDeskAPI(http.Controller):
                 sale_lines.append((0, 0, line_vals))
 
             terminal = user.selected_terminal_id
-            if not terminal:
-                return self._make_json_response({"error": "No terminal assigned. Please select a terminal first."}, status=400)
-            if terminal.tenant_id.id != tenant.id:
-                return self._make_json_response({"error": "Terminal does not belong to your account."}, status=400)
-                
             sale_user_email = params.get('cashier') or params.get('sales_person') or params.get('owner') or params.get('user')
             sale_user = None
             if sale_user_email:
@@ -2915,7 +2904,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'store': store.name,
                 'store_id': store.id,
                 'tenant_id': tenant.id,
-                'terminal_id': terminal.id,
+                'terminal_id': terminal.id if terminal else False,
                 'currency_id': doc_currency.id if doc_currency else False,
                 'exchange_rate': doc_exchange_rate,
                 'line_ids': sale_lines,
@@ -3450,10 +3439,6 @@ class HavanoPOSDeskAPI(http.Controller):
                             lines.append((0, 0, line_vals))
 
                         terminal = user.selected_terminal_id
-                        if not terminal:
-                            responses.append({"error": "No terminal assigned.", "local_invoice_id": local_invoice_id})
-                            continue
-
                         payment_method_name = sale_data.get('payment_method')
                         account_id = False
                         if payment_method_name:
