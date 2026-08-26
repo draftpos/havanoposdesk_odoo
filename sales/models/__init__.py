@@ -5,5 +5,6 @@ from . import category_sales_report
 from . import cashier_sales_report
 from . import terminal_sales_report
 from . import daily_sales_report
+from . import shift
 
 

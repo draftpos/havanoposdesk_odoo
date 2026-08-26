@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_havanoposdesk_shift_tree" model="ir.ui.view">
+        <field name="name">havanoposdesk.shift.tree</field>
+        <field name="model">havanoposdesk.shift</field>
+        <field name="arch" type="xml">
+            <list string="Shifts" default_order="start_date desc">
+                <field name="name" optional="show"/>
+                <field name="user_id" optional="show"/>
+                <field name="store_id" optional="show"/>
+                <field name="terminal_id" optional="hide"/>
+                <field name="start_date" optional="show"/>
+                <field name="end_date" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                
+                <field name="opening_cash" optional="show" widget="monetary"/>
+                <field name="actual_cash" optional="show" widget="monetary"/>
+                <field name="expected_cash" optional="hide" widget="monetary"/>
+                <field name="cash_difference" optional="hide" widget="monetary" decoration-danger="cash_difference &lt; 0" decoration-success="cash_difference == 0"/>
+                
+                <field name="total_expenses" optional="hide" widget="monetary"/>
+                <field name="total_credit_notes" optional="hide" widget="monetary"/>
+                
+                <field name="amount_cash" optional="hide" widget="monetary"/>
+                <field name="amount_card" optional="hide" widget="monetary"/>
+                <field name="amount_mobile" optional="hide" widget="monetary"/>
+                <field name="amount_bank" optional="hide" widget="monetary"/>
+                <field name="amount_other" optional="hide" widget="monetary"/>
+                
+                <field name="state" widget="badge" decoration-info="state == 'open'" decoration-success="state == 'closed'" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_havanoposdesk_shift_form" model="ir.ui.view">
+        <field name="name">havanoposdesk.shift.form</field>
+        <field name="model">havanoposdesk.shift</field>
+        <field name="arch" type="xml">
+            <form string="Shift">
+                <header>
+                    <button name="action_close_shift" string="Close Shift" type="object" class="oe_highlight" invisible="state == 'closed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="open,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="user_id" readonly="state == 'closed'"/>
+                            <field name="store_id" readonly="state == 'closed'"/>
+                            <field name="terminal_id" readonly="state == 'closed'"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="start_date" readonly="state == 'closed'"/>
+                            <field name="end_date" readonly="state == 'closed'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Cash Summary">
+                            <group>
+                                <group>
+                                    <field name="opening_cash" readonly="state == 'closed'"/>
+                                    <field name="actual_cash" readonly="state == 'closed'"/>
+                                    <field name="expected_cash" readonly="1"/>
+                                </group>
+                                <group>
+                                    <field name="cash_difference" readonly="1" decoration-danger="cash_difference &lt; 0" decoration-success="cash_difference == 0"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Payment Breakdown">
+                            <group>
+                                <group>
+                                    <field name="amount_cash" readonly="state == 'closed'"/>
+                                    <field name="amount_card" readonly="state == 'closed'"/>
+                                    <field name="amount_mobile" readonly="state == 'closed'"/>
+                                </group>
+                                <group>
+                                    <field name="amount_bank" readonly="state == 'closed'"/>
+                                    <field name="amount_other" readonly="state == 'closed'"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Other Metrics">
+                            <group>
+                                <group>
+                                    <field name="total_expenses" readonly="state == 'closed'"/>
+                                    <field name="total_credit_notes" readonly="state == 'closed'"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_havanoposdesk_shift" model="ir.actions.act_window">
+        <field name="name">Shifts</field>
+        <field name="res_model">havanoposdesk.shift</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new shift!
+            </p>
+        </field>
+    </record>
+</odoo>

@@ -12,6 +12,7 @@ access_havanoposdesk_stock_entry_line,havanoposdesk.stock.entry.line,model_havan
 access_havanoposdesk_purchase,havanoposdesk.purchase,model_havanoposdesk_purchase,base.group_user,1,1,1,1
 access_havanoposdesk_purchase_line,havanoposdesk.purchase.line,model_havanoposdesk_purchase_line,base.group_user,1,1,1,1
 access_havanoposdesk_sale,havanoposdesk.sale,model_havanoposdesk_sale,base.group_user,1,1,1,1
+access_havanoposdesk_shift,havanoposdesk.shift,model_havanoposdesk_shift,base.group_user,1,1,1,1
 access_havanoposdesk_sale_line,havanoposdesk.sale.line,model_havanoposdesk_sale_line,base.group_user,1,1,1,1
 access_havanoposdesk_customer,havanoposdesk.customer,model_havanoposdesk_customer,base.group_user,1,1,1,1
 access_havanoposdesk_supplier,havanoposdesk.supplier,model_havanoposdesk_supplier,base.group_user,1,1,1,1
