@@ -28,6 +28,7 @@
         'core/views/terminal_views.xml',
         'core/views/tenant_views.xml',
         'core/views/menus.xml',
+        'core/views/cash_transfer_views.xml',
         'core/views/tenant_admin_views.xml',
         'core/views/res_config_settings_views.xml',
         'core/views/whitelabel_templates.xml',

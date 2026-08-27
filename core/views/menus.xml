@@ -51,6 +51,7 @@
         <!-- Accounts Navigation Tabs -->
         <menuitem id="menu_accounts_master" name="Master" parent="menu_accounts_root" sequence="10"/>
         <menuitem id="menu_accounts_operations" name="Operations" parent="menu_accounts_root" sequence="20"/>
+        <menuitem id="menu_cash_transfer" name="Cash Transfers" parent="menu_accounts_operations" action="action_havanoposdesk_cash_transfer" sequence="15" groups="base.group_system"/>
         <menuitem id="menu_accounts_reports" name="Reports" parent="menu_accounts_root" sequence="30"/>
 
         <!-- Profit and Loss Client Action -->

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_havanoposdesk_cash_transfer_tree" model="ir.ui.view">
+        <field name="name">havanoposdesk.cash.transfer.tree</field>
+        <field name="model">havanoposdesk.cash.transfer</field>
+        <field name="arch" type="xml">
+            <list string="Cash Transfers" default_order="date desc">
+                <field name="date" optional="show"/>
+                <field name="store_id" optional="show"/>
+                <field name="from_branch_id" optional="show"/>
+                <field name="to_branch_id" optional="show"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="amount" optional="show" widget="monetary"/>
+                <field name="reason" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_havanoposdesk_cash_transfer_form" model="ir.ui.view">
+        <field name="name">havanoposdesk.cash.transfer.form</field>
+        <field name="model">havanoposdesk.cash.transfer</field>
+        <field name="arch" type="xml">
+            <form string="Cash Transfer">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Cash Transfer</h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="store_id"/>
+                            <field name="from_branch_id"/>
+                            <field name="to_branch_id"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="date"/>
+                            <field name="amount" widget="monetary"/>
+                            <field name="reason"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_havanoposdesk_cash_transfer" model="ir.actions.act_window">
+        <field name="name">Cash Transfers</field>
+        <field name="res_model">havanoposdesk.cash.transfer</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new cash transfer!
+            </p>
+        </field>
+    </record>
+</odoo>
