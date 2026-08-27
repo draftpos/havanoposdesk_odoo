@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_shift_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <div class="article" t-att-data-oe-model="doc and doc._name" t-att-data-oe-id="doc and doc.id">
+                    <t t-set="doc" t-value="doc.with_context(lang=env.user.lang)" />
+                    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+                    <style>
+                        body { margin: 0 !important; padding: 0 !important; background: #fff; }
+                        .print-container {
+                            width: 100%; margin: 0 !important; padding: 0 30px !important; box-sizing: border-box;
+                            font-family: 'Poppins', sans-serif;
+                            font-size: 13px; color: #1e293b; background: #fff;
+                        }
+                        .text-primary-dark { color: #0a2342; }
+                        .bg-primary-dark { background-color: #0a2342; color: #ffffff; }
+                        .text-center { text-align: center; }
+                        .text-left { text-align: left; }
+                        .text-right { text-align: right; }
+                        .w-100 { width: 100%; } .w-50 { width: 50%; }
+                        .font-bold { font-weight: bold; }
+                        .main-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                        .main-table th { background: #0a2342; color: #fff; padding: 8px 5px; font-size: 12px; border: 1px solid #fff; }
+                        .main-table td { padding: 8px 5px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; font-size: 13px;}
+                        .main-table td.desc-col { font-weight: 500; }
+                    </style>
+                    <script>
+                        if (navigator.userAgent.indexOf('wkhtmltopdf') === -1) {
+                            document.addEventListener("DOMContentLoaded", function() {
+                                var containers = document.querySelectorAll('.print-container');
+                                containers.forEach(function(el) {
+                                    el.style.margin = '20px auto';
+                                    el.style.padding = '40px';
+                                    el.style.width = 'calc(100% - 40px)';
+                                    el.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
+                                    el.style.border = '1px solid #e2e8f0';
+                                    el.style.borderRadius = '8px';
+                                });
+                                document.body.style.backgroundColor = '#f1f5f9';
+                                document.body.style.padding = '10px';
+                            });
+                        }
+                    </script>
+                    
+                    <div class="page print-container">
+                        <!-- Header -->
+                        <div class="text-center" style="margin-top: 0px; margin-bottom: 15px;">
+                            <span style="font-size: 24px; font-weight: 800; letter-spacing: 4px; color: #0a2342; position: relative; display: inline-block;">
+                                SHIFT REPORT
+                            </span>
+                        </div>
+                        
+                        <table class="w-100" style="margin-bottom: 15px; border-bottom: 2px solid #0a2342; padding-bottom: 15px;">
+                            <tr>
+                                <td class="w-50 text-left" style="vertical-align: top;">
+                                    <div style="font-size: 14px; margin-bottom: 5px;"><strong>Shift Reference:</strong> <span t-field="doc.name"/></div>
+                                    <div style="font-size: 14px; margin-bottom: 5px;"><strong>Store:</strong> <span t-field="doc.store_id.name"/></div>
+                                    <div style="font-size: 14px; margin-bottom: 5px;" t-if="doc.terminal_id"><strong>Terminal:</strong> <span t-field="doc.terminal_id.name"/></div>
+                                </td>
+                                <td class="w-50 text-right" style="vertical-align: top;">
+                                    <div style="font-size: 14px; margin-bottom: 5px;"><strong>Cashier:</strong> <span t-field="doc.user_id.name"/></div>
+                                    <div style="font-size: 14px; margin-bottom: 5px;"><strong>Status:</strong> <span t-field="doc.state"/></div>
+                                    <div style="font-size: 14px; margin-bottom: 5px;"><strong>Opened At:</strong> <span t-field="doc.start_date"/></div>
+                                    <div style="font-size: 14px; margin-bottom: 5px;" t-if="doc.end_date"><strong>Closed At:</strong> <span t-field="doc.end_date"/></div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <h3 class="text-primary-dark">Cash Summary</h3>
+                        <table class="main-table" style="margin-bottom: 20px;">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">Description</th>
+                                    <th class="text-right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="desc-col text-left">Opening Cash (Before)</td>
+                                    <td class="text-right"><span t-field="doc.opening_cash" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr>
+                                    <td class="desc-col text-left">Total Cash Payments</td>
+                                    <td class="text-right"><span t-field="doc.amount_cash" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr>
+                                    <td class="desc-col text-left">Total Expenses</td>
+                                    <td class="text-right" style="color: red;">-<span t-field="doc.total_expenses" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr class="bg-primary-dark">
+                                    <td class="desc-col font-bold text-left" style="color: white;">Expected Cash</td>
+                                    <td class="text-right font-bold" style="color: white;"><span t-field="doc.expected_cash" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr>
+                                    <td class="desc-col font-bold text-left">Actual Cash (After)</td>
+                                    <td class="text-right font-bold"><span t-field="doc.actual_cash" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr>
+                                    <td class="desc-col font-bold text-left">Cash Difference</td>
+                                    <td class="text-right font-bold">
+                                        <span t-field="doc.cash_difference" t-options='{"widget": "monetary", "display_currency": doc.currency_id}' t-att-style="'color: red;' if doc.cash_difference &lt; 0 else 'color: green;'"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3 class="text-primary-dark">Payment Breakdown</h3>
+                        <table class="main-table" style="margin-bottom: 20px;">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">Payment Method</th>
+                                    <th class="text-right">Total Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="desc-col text-left">Cash</td>
+                                    <td class="text-right"><span t-field="doc.amount_cash" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr>
+                                    <td class="desc-col text-left">Card</td>
+                                    <td class="text-right"><span t-field="doc.amount_card" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr>
+                                    <td class="desc-col text-left">Mobile</td>
+                                    <td class="text-right"><span t-field="doc.amount_mobile" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr>
+                                    <td class="desc-col text-left">Bank Transfer</td>
+                                    <td class="text-right"><span t-field="doc.amount_bank" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr>
+                                    <td class="desc-col text-left">Other</td>
+                                    <td class="text-right"><span t-field="doc.amount_other" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3 class="text-primary-dark">Other Metrics</h3>
+                        <table class="main-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">Description</th>
+                                    <th class="text-right">Total Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="desc-col text-left">Total Credit Notes</td>
+                                    <td class="text-right"><span t-field="doc.total_credit_notes" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Very Bottom Banner -->
+                        <div class="bg-primary-dark text-center" style="padding: 10px; font-size: 13px; margin-top: 30px;">
+                            <span>Powered by HavanoERP</span>
+                        </div>
+
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

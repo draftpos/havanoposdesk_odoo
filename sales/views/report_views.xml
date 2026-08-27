@@ -37,4 +37,26 @@
         <field name="print_report_name">(object.state in ('draft', 'sent') and 'Quotation - %s' % (object.name)) or 'Invoice - %s' % (object.name)</field>
         <field name="paperformat_id" ref="havanoposdesk_odoo.paperformat_havanoposdesk_sale"/>
     </record>
+
+    <record id="action_report_shift_document_pdf" model="ir.actions.report">
+        <field name="name">Shift Report (PDF)</field>
+        <field name="model">havanoposdesk.shift</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">havanoposdesk_odoo.report_shift_document</field>
+        <field name="report_file">havanoposdesk_odoo.report_shift_document</field>
+        <field name="print_report_name">'Shift Report - %s' % (object.name)</field>
+        <field name="binding_model_id" ref="model_havanoposdesk_shift"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="havanoposdesk_odoo.paperformat_havanoposdesk_sale"/>
+    </record>
+
+    <record id="action_report_shift_document_html" model="ir.actions.report">
+        <field name="name">Shift Report</field>
+        <field name="model">havanoposdesk.shift</field>
+        <field name="report_type">qweb-html</field>
+        <field name="report_name">havanoposdesk_odoo.report_shift_document</field>
+        <field name="report_file">havanoposdesk_odoo.report_shift_document</field>
+        <field name="print_report_name">'Shift Report - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="havanoposdesk_odoo.paperformat_havanoposdesk_sale"/>
+    </record>
 </odoo>

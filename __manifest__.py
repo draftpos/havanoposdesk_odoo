@@ -68,6 +68,7 @@
         'manufacturing/views/menu_views.xml',
         'sales/wizard/sale_return_wizard_views.xml',
         'sales/views/sale_report_templates.xml',
+        'sales/views/shift_report_templates.xml',
         'sales/views/report_views.xml',
         'sales/views/shift_views.xml',
         'sales/views/sale_views.xml',
