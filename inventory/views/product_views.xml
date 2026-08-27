@@ -194,7 +194,7 @@
                         <filter string="Track QTY" name="group_by_track_qty" context="{'group_by': 'track_qty'}" />
                         <filter string="Product Name" name="group_by_name" context="{'group_by': 'name'}" />
                         <filter string="Today" name="group_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:day'}" />
-                        <filter string="This Month" name="group_month" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" context="{'group_by': 'create_date:month'}" />
+                        <filter string="This Month" name="group_month" date="create_date" default_period="this_month" context="{'group_by': 'create_date:month'}" />
                     </group>
                 </search>
             </field>

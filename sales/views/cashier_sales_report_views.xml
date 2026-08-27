@@ -48,7 +48,7 @@
                     <field name="create_date"/>
                     <separator/>
                     <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]"/>
+                    <filter string="This Month" name="this_month" date="date" default_period="this_month" />
                     <filter string="Cashier" name="filter_cashier" domain="[('salesperson_id', '!=', False)]"/>
                     <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
@@ -60,7 +60,7 @@
                         <filter string="Created By" name="group_by_created_by" context="{'group_by':'create_uid'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by':'create_date:day'}"/>
                         <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}"/>
-                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" context="{'group_by': 'date:month'}"/>
+                        <filter string="This Month" name="group_month" date="date" default_period="this_month" context="{'group_by': 'date:month'}" />
                     </group>
                 </search>
             </field>
