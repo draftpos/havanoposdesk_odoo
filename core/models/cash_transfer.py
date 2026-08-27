@@ -5,6 +5,14 @@ class CashTransfer(models.Model):
     _description = "Cash Transfer between branches"
     _order = "date desc"
 
+    tenant_id = fields.Many2one(
+        "havanoposdesk.tenant",
+        string="Tenant",
+        default=lambda self: self.env.user.tenant_id.id,
+        index=True,
+        readonly=True,
+    )
+
     store_id = fields.Many2one(
         "havanoposdesk.store",
         string="Store",
