@@ -294,7 +294,7 @@
 
         
         <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="5" />
-        <menuitem id="menu_havanoposdesk_shift" name="Shifts" parent="menu_sales_operations" action="action_havanoposdesk_shift" sequence="6" groups="havanoposdesk_odoo.group_enable_shifts" />
+        <menuitem id="menu_havanoposdesk_shift" name="Shifts" parent="menu_sales_operations" action="action_havanoposdesk_shift" sequence="6" />
         <menuitem id="menu_quotations" name="Quotations" parent="menu_sales_operations" action="action_quotations" sequence="10" />
         <menuitem id="menu_sales_returns" name="Sales Returns" parent="menu_sales_reports" action="action_sales_returns" sequence="60" />
 
