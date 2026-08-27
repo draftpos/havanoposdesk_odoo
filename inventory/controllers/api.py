@@ -5994,18 +5994,53 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
 
         params = self._get_request_json()
-        terminal_id = params.get('terminal_id')
-        store_id = params.get('store_id')
-        opening_cash = float(params.get('opening_cash', 0.0))
+        terminal_param = params.get('terminal_id')
+        store_param = params.get('store_id')
+        opening_cash = float(params.get('opening_cash') or params.get('opening_amount') or 0.0)
+
+        # Parse payment_balances list from Flutter if provided
+        payment_balances = params.get('payment_balances') or []
+        if not opening_cash and payment_balances:
+            for pb in payment_balances:
+                m_name = (pb.get('payment_method') or pb.get('name') or '').lower()
+                amt = float(pb.get('opening_amount') or pb.get('amount') or 0.0)
+                if 'cash' in m_name or not opening_cash:
+                    opening_cash += amt
 
         env = request.env(user=uid)
-        
-        # Check if already open shift exists
+        user_rec = env['res.users'].browse(uid)
+        tenant = user_rec.tenant_id
+
+        # Resolve store
+        store_id = False
+        if store_param:
+            if isinstance(store_param, int) or (isinstance(store_param, str) and store_param.isdigit()):
+                store_id = int(store_param)
+            else:
+                store_rec = env['havanoposdesk.store'].sudo().search([('name', '=ilike', str(store_param).strip())], limit=1)
+                store_id = store_rec.id if store_rec else False
+        if not store_id:
+            store_id = (user_rec.default_store_id.id if user_rec.default_store_id else False) or (user_rec.store_ids[0].id if user_rec.store_ids else False)
+        if not store_id:
+            store_domain = [('tenant_id', '=', tenant.id)] if tenant else []
+            store = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
+            store_id = store.id if store else False
+
+        # Resolve terminal
+        terminal_id = False
+        if terminal_param:
+            if isinstance(terminal_param, int) or (isinstance(terminal_param, str) and terminal_param.isdigit()):
+                terminal_id = int(terminal_param)
+            else:
+                term_rec = env['havanoposdesk.pos.terminal'].sudo().search([('name', '=ilike', str(terminal_param).strip())], limit=1)
+                terminal_id = term_rec.id if term_rec else False
+
+        # Check if already open shift exists for this user
         existing_shift = env['havanoposdesk.shift'].sudo().search([
             ('user_id', '=', uid),
             ('state', '=', 'open')
         ], limit=1)
-        
+
         if existing_shift:
             return self._make_json_response({
                 "message": {
@@ -6014,23 +6049,28 @@ class HavanoPOSDeskAPI(http.Controller):
                         "id": existing_shift.id,
                         "name": existing_shift.name,
                         "status": "Open",
-                        "opening_time": str(existing_shift.start_date)
+                        "opening_time": str(existing_shift.start_date),
+                        "opening_cash": existing_shift.opening_cash,
+                        "store_id": existing_shift.store_id.id if existing_shift.store_id else None,
+                        "terminal_id": existing_shift.terminal_id.id if existing_shift.terminal_id else None
                     }
                 }
             })
-            
-        if not store_id:
-            store = env['havanoposdesk.store'].sudo().search([], limit=1)
-            store_id = store.id if store else False
-            
-        shift = env['havanoposdesk.shift'].sudo().create({
+
+        create_vals = {
             'user_id': uid,
             'store_id': store_id,
-            'terminal_id': terminal_id,
             'opening_cash': opening_cash,
-            'state': 'open'
-        })
-        
+            'state': 'open',
+            'start_date': fields.Datetime.now()
+        }
+        if tenant:
+            create_vals['tenant_id'] = tenant.id
+        if terminal_id:
+            create_vals['terminal_id'] = terminal_id
+
+        shift = env['havanoposdesk.shift'].sudo().create(create_vals)
+
         return self._make_json_response({
             "message": {
                 "status": "success",
@@ -6038,7 +6078,10 @@ class HavanoPOSDeskAPI(http.Controller):
                     "id": shift.id,
                     "name": shift.name,
                     "status": "Open",
-                    "opening_time": str(shift.start_date)
+                    "opening_time": str(shift.start_date),
+                    "opening_cash": shift.opening_cash,
+                    "store_id": shift.store_id.id if shift.store_id else None,
+                    "terminal_id": shift.terminal_id.id if shift.terminal_id else None
                 }
             }
         })
@@ -6058,39 +6101,63 @@ class HavanoPOSDeskAPI(http.Controller):
 
         params = self._get_request_json()
         env = request.env(user=uid)
-        
+
         shift = env['havanoposdesk.shift'].sudo().search([
             ('user_id', '=', uid),
             ('state', '=', 'open')
         ], limit=1)
-        
+
         if not shift:
             return self._make_json_response({"message": {"status": "error", "message": "No open shift found"}}, status=404)
-            
+
+        actual_cash = float(params.get('actual_cash') or params.get('closing_amount') or 0.0)
+        amount_cash = float(params.get('amount_cash') or 0.0)
+        amount_card = float(params.get('amount_card') or 0.0)
+        amount_mobile = float(params.get('amount_mobile') or 0.0)
+        amount_bank = float(params.get('amount_bank') or 0.0)
+        amount_other = float(params.get('amount_other') or 0.0)
+
+        # If payment_balances array is passed from Flutter
+        payment_balances = params.get('payment_balances') or []
+        if payment_balances:
+            for pb in payment_balances:
+                m_name = (pb.get('payment_method') or pb.get('name') or '').lower()
+                c_amt = float(pb.get('closing_amount') or pb.get('amount') or 0.0)
+                if 'cash' in m_name:
+                    actual_cash = c_amt
+                    amount_cash = c_amt
+                elif 'card' in m_name or 'pos' in m_name or 'visa' in m_name or 'master' in m_name:
+                    amount_card += c_amt
+                elif 'mobile' in m_name or 'ecocash' in m_name or 'mpesa' in m_name or 'airtel' in m_name or 'omari' in m_name:
+                    amount_mobile += c_amt
+                elif 'bank' in m_name or 'transfer' in m_name:
+                    amount_bank += c_amt
+                else:
+                    amount_other += c_amt
+
         # Update shift with closing details from POS
         update_vals = {
-            'actual_cash': float(params.get('actual_cash', 0.0)),
+            'actual_cash': actual_cash,
         }
-        
-        # If POS sends breakdowns, use them
-        if 'amount_cash' in params:
-            update_vals['amount_cash'] = float(params.get('amount_cash', 0.0))
-        if 'amount_card' in params:
-            update_vals['amount_card'] = float(params.get('amount_card', 0.0))
-        if 'amount_mobile' in params:
-            update_vals['amount_mobile'] = float(params.get('amount_mobile', 0.0))
-        if 'amount_bank' in params:
-            update_vals['amount_bank'] = float(params.get('amount_bank', 0.0))
-        if 'amount_other' in params:
-            update_vals['amount_other'] = float(params.get('amount_other', 0.0))
+
+        if amount_cash or 'amount_cash' in params:
+            update_vals['amount_cash'] = amount_cash
+        if amount_card or 'amount_card' in params:
+            update_vals['amount_card'] = amount_card
+        if amount_mobile or 'amount_mobile' in params:
+            update_vals['amount_mobile'] = amount_mobile
+        if amount_bank or 'amount_bank' in params:
+            update_vals['amount_bank'] = amount_bank
+        if amount_other or 'amount_other' in params:
+            update_vals['amount_other'] = amount_other
         if 'total_expenses' in params:
             update_vals['total_expenses'] = float(params.get('total_expenses', 0.0))
         if 'total_credit_notes' in params:
             update_vals['total_credit_notes'] = float(params.get('total_credit_notes', 0.0))
-            
+
         shift.write(update_vals)
         shift.action_close_shift()
-        
+
         return self._make_json_response({
             "message": {
                 "status": "success",
@@ -6124,7 +6191,7 @@ class HavanoPOSDeskAPI(http.Controller):
             ('user_id', '=', uid),
             ('state', '=', 'open')
         ], limit=1)
-        
+
         if not shift:
             return self._make_json_response({
                 "message": {
@@ -6132,7 +6199,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "shift": None
                 }
             })
-            
+
         return self._make_json_response({
             "message": {
                 "status": "success",
@@ -6140,22 +6207,55 @@ class HavanoPOSDeskAPI(http.Controller):
                     "id": shift.id,
                     "name": shift.name,
                     "status": "Open",
-                    "opening_time": str(shift.start_date)
+                    "opening_time": str(shift.start_date),
+                    "opening_cash": shift.opening_cash,
+                    "store_id": shift.store_id.id if shift.store_id else None,
+                    "terminal_id": shift.terminal_id.id if shift.terminal_id else None
                 }
             }
         })
-
 
     @http.route('/api/method/saas_api.www.api.get_shift_reports', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_shift_reports(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
 
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
+
+        env = request.env(user=uid)
+        user_rec = env['res.users'].browse(uid)
+        domain = [('user_id', '=', uid)]
+        if user_rec.tenant_id:
+            domain.append(('tenant_id', '=', user_rec.tenant_id.id))
+
+        shifts = env['havanoposdesk.shift'].sudo().search(domain, order='start_date desc', limit=50)
+        shift_list = []
+        for s in shifts:
+            shift_list.append({
+                "id": s.id,
+                "name": s.name,
+                "status": s.state.capitalize() if s.state else "Closed",
+                "opening_time": str(s.start_date) if s.start_date else "",
+                "closing_time": str(s.end_date) if s.end_date else "",
+                "opening_cash": s.opening_cash,
+                "actual_cash": s.actual_cash,
+                "expected_cash": s.expected_cash,
+                "difference": s.cash_difference,
+                "cashier": s.user_id.name if s.user_id else "",
+                "store": s.store_id.name if s.store_id else ""
+            })
+
         return self._make_json_response({
             "message": {
                 "status": "success",
-                "shifts": [],
-                "total_count": 0
+                "shifts": shift_list,
+                "total_count": len(shift_list)
             }
         })
 
