@@ -9057,11 +9057,15 @@ class HavanoPOSDeskAPI(http.Controller):
             result = []
             for a in accounts:
                 result.append({
+                    "id": a.id,
                     "name": a.name,
                     "account_type": a.type,
+                    "type": a.type,
                     "on_account": bool(a.is_on_account),
                     "is_on_account": bool(a.is_on_account),
-                    "root_type": "Asset" if a.type in ["Cash", "Bank"] else "Expense"
+                    "root_type": "Asset" if a.type in ["Cash", "Bank"] else "Expense",
+                    "balance": a.balance,
+                    "currency": a.currency_id.name if a.currency_id else ""
                 })
             return self._make_json_response({"data": result})
         except Exception:
@@ -9148,13 +9152,13 @@ class HavanoPOSDeskAPI(http.Controller):
                         store_obj = env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1)
 
                     # Resolve Expense Account (Expense Type)
-                    account = env['havanoposdesk.account'].search([
-                        ('name', '=', expense_type),
-                        ('type', '=', 'Expense')
-                    ], limit=1)
+                    account_domain = [('name', '=ilike', expense_type), ('type', '=', 'Expense')]
+                    if tenant_id:
+                        account_domain.append(('tenant_id', '=', tenant_id))
+                    account = env['havanoposdesk.account'].search(account_domain, limit=1)
                     if not account:
                         account = env['havanoposdesk.account'].search([
-                            ('name', '=', expense_type)
+                            ('name', '=ilike', expense_type)
                         ], limit=1)
                         if not account:
                             account = env['havanoposdesk.account'].create({
@@ -9177,20 +9181,29 @@ class HavanoPOSDeskAPI(http.Controller):
 
                     # Resolve Payment Account
                     payment_account_obj = False
-                    payment_acc_ref = item.get('account') or item.get('payment_account') or item.get('payment_account_id') or data.get('account')
+                    payment_acc_ref = (
+                        item.get('account') or item.get('payment_account') or item.get('payment_account_id') or item.get('payable_account') or
+                        data.get('account') or data.get('payable_account') or data.get('payment_account') or data.get('payment_account_id')
+                    )
                     if payment_acc_ref:
-                        if isinstance(payment_acc_ref, int) or (isinstance(payment_acc_ref, str) and payment_acc_ref.isdigit()):
+                        if isinstance(payment_acc_ref, int) or (isinstance(payment_acc_ref, str) and str(payment_acc_ref).isdigit()):
                             payment_account_obj = env['havanoposdesk.account'].browse(int(payment_acc_ref))
                         else:
-                            payment_account_obj = env['havanoposdesk.account'].search([
-                                ('name', '=', str(payment_acc_ref))
-                            ], limit=1)
+                            p_dom = [('name', '=ilike', str(payment_acc_ref).strip()), ('type', 'in', ['Cash', 'Bank'])]
+                            if tenant_id:
+                                p_dom.append(('tenant_id', '=', tenant_id))
+                            payment_account_obj = env['havanoposdesk.account'].search(p_dom, limit=1)
+                            if not payment_account_obj:
+                                payment_account_obj = env['havanoposdesk.account'].search([
+                                    ('name', '=ilike', str(payment_acc_ref).strip())
+                                ], limit=1)
 
                     if is_paid and not payment_account_obj:
                         # Default to first Cash or Bank account for tenant if not provided
-                        payment_account_obj = env['havanoposdesk.account'].search([
-                            ('type', 'in', ['Cash', 'Bank'])
-                        ], limit=1)
+                        fallback_dom = [('type', 'in', ['Cash', 'Bank'])]
+                        if tenant_id:
+                            fallback_dom.append(('tenant_id', '=', tenant_id))
+                        payment_account_obj = env['havanoposdesk.account'].search(fallback_dom, limit=1)
                     
                     # Check tenant approval setting
                     tenant = user.tenant_id

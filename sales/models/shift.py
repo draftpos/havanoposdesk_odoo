@@ -26,7 +26,7 @@ class Shift(models.Model):
     expected_cash = fields.Monetary(string='Expected Cash', currency_field='currency_id', compute='_compute_expected_cash', store=True)
     cash_difference = fields.Monetary(string='Difference', currency_field='currency_id', compute='_compute_cash_difference', store=True)
     
-    total_expenses = fields.Monetary(string='Total Expenses', currency_field='currency_id', default=0.0)
+    total_expenses = fields.Monetary(string='Total Expenses', currency_field='currency_id', compute='_compute_total_expenses', store=True, readonly=False, default=0.0)
     total_credit_notes = fields.Monetary(string='Total Credit Notes', currency_field='currency_id', default=0.0)
 
     # Payment Breakdown
@@ -41,6 +41,15 @@ class Shift(models.Model):
     cash_transfer_ids = fields.One2many('havanoposdesk.cash.transfer', 'shift_id', string='Cash Transfers / Cash Up')
     cash_transferred_amount = fields.Monetary(string='Total Cashed Up / Transferred', compute='_compute_cash_transferred', currency_field='currency_id')
     cash_transfer_count = fields.Integer(string='Cash Transfers Count', compute='_compute_cash_transferred')
+
+    @api.depends('expense_ids.amount', 'expense_ids.state', 'expense_ids.is_paid')
+    def _compute_total_expenses(self):
+        for shift in self:
+            paid_posted_expenses = shift.expense_ids.filtered(lambda e: e.state == 'Posted' and e.is_paid)
+            if paid_posted_expenses:
+                shift.total_expenses = sum(paid_posted_expenses.mapped('amount'))
+            elif not shift.total_expenses:
+                shift.total_expenses = 0.0
 
     @api.depends('cash_transfer_ids.amount', 'cash_transfer_ids.state')
     def _compute_cash_transferred(self):

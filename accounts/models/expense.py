@@ -51,7 +51,12 @@ class Expense(models.Model):
         return store.id if store else False
 
     store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
-    currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
+    @api.depends('store_id.currency_id', 'tenant_id.currency_id')
+    def _compute_currency_id(self):
+        for record in self:
+            record.currency_id = (record.store_id and record.store_id.currency_id) or (record.tenant_id and record.tenant_id.currency_id) or self.env.company.currency_id
+
+    currency_id = fields.Many2one('res.currency', string='Currency', compute='_compute_currency_id', store=True, readonly=False)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -114,32 +119,68 @@ class Expense(models.Model):
     def action_post(self):
         for record in self:
             if record.state in ('Draft', 'Pending'):
+                if record.amount <= 0:
+                    raise ValidationError(_("Expense amount must be greater than zero."))
+
+                exp_curr = record.currency_id or record.tenant_id.currency_id or self.env.company.currency_id
+                
+                # 1. Update Expense Account Balance
+                if record.account_id:
+                    expense_acc = record.account_id.sudo()
+                    expense_acc_curr = expense_acc.currency_id or record.tenant_id.currency_id or exp_curr
+                    exp_amount = record.amount
+                    if exp_curr and expense_acc_curr and exp_curr != expense_acc_curr:
+                        date = record.date or fields.Date.context_today(record)
+                        rate = exp_curr._get_conversion_rate(exp_curr, expense_acc_curr, record.env.company, date)
+                        exp_amount = record.amount * rate
+                    expense_acc.write({'balance': expense_acc.balance + exp_amount})
+
+                # 2. Subtract from Payment Account Balance (Cash / Bank)
                 if record.is_paid:
                     if not record.payment_account_id:
-                        from odoo.exceptions import ValidationError
-                        raise ValidationError("Please select a Payment Account for paid expenses.")
-                    # Subtract from payment account (cash/bank) using sudo()
-                    record.payment_account_id.sudo().balance -= record.amount
-                    # Add to expense account using sudo()
-                    record.account_id.sudo().balance += record.amount
-                else:
-                    # Just add to expense account if not paid using sudo()
-                    record.account_id.sudo().balance += record.amount
-                record.state = 'Posted'
+                        raise ValidationError(_("Please select a Payment Account for paid expenses."))
+                    
+                    pay_acc = record.payment_account_id.sudo()
+                    pay_acc_curr = pay_acc.currency_id or record.tenant_id.currency_id or exp_curr
+                    pay_amount = record.amount
+                    if exp_curr and pay_acc_curr and exp_curr != pay_acc_curr:
+                        date = record.date or fields.Date.context_today(record)
+                        rate = exp_curr._get_conversion_rate(exp_curr, pay_acc_curr, record.env.company, date)
+                        pay_amount = record.amount * rate
+                    pay_acc.write({'balance': pay_acc.balance - pay_amount})
+
+                record.write({'state': 'Posted'})
 
     def action_cancel(self):
         for record in self:
             if record.state not in ('Posted',):
                 continue
+            
+            exp_curr = record.currency_id or record.tenant_id.currency_id or self.env.company.currency_id
+
+            # 1. Reverse Expense Account Balance
+            if record.account_id:
+                expense_acc = record.account_id.sudo()
+                expense_acc_curr = expense_acc.currency_id or record.tenant_id.currency_id or exp_curr
+                exp_amount = record.amount
+                if exp_curr and expense_acc_curr and exp_curr != expense_acc_curr:
+                    date = record.date or fields.Date.context_today(record)
+                    rate = exp_curr._get_conversion_rate(exp_curr, expense_acc_curr, record.env.company, date)
+                    exp_amount = record.amount * rate
+                expense_acc.write({'balance': expense_acc.balance - exp_amount})
+
+            # 2. Reverse Payment Account Balance (Cash / Bank)
             if record.is_paid and record.payment_account_id:
-                # Reverse subtraction using sudo()
-                record.payment_account_id.sudo().balance += record.amount
-                # Reverse addition using sudo()
-                record.account_id.sudo().balance -= record.amount
-            else:
-                # Reverse addition using sudo()
-                record.account_id.sudo().balance -= record.amount
-            record.state = 'Cancelled'
+                pay_acc = record.payment_account_id.sudo()
+                pay_acc_curr = pay_acc.currency_id or record.tenant_id.currency_id or exp_curr
+                pay_amount = record.amount
+                if exp_curr and pay_acc_curr and exp_curr != pay_acc_curr:
+                    date = record.date or fields.Date.context_today(record)
+                    rate = exp_curr._get_conversion_rate(exp_curr, pay_acc_curr, record.env.company, date)
+                    pay_amount = record.amount * rate
+                pay_acc.write({'balance': pay_acc.balance + pay_amount})
+
+            record.write({'state': 'Cancelled'})
 
     def action_draft(self):
         for record in self:
