@@ -2062,7 +2062,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     track_qty = int(data.get('is_stock_item')) > 0
                 except Exception:
                     pass
-            product = request.env['havanoposdesk.product'].sudo().create({
+            product_vals = {
                 'name': data.get('item_name'),
                 'item_code': item_code,
                 'buying_price': float(data.get('valuation_rate') or 0.0),
@@ -2073,7 +2073,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 'tenant_id': tenant.id,
                 'all_stores': True,
                 'track_qty': track_qty,
-            })
+            }
+            if 'sellbyprice' in data or 'sell_by_price' in data:
+                product_vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
+            product = request.env['havanoposdesk.product'].sudo().create(product_vals)
 
         store_prices = data.get('store_prices') or data.get('advanced_prices') or data.get('prices')
         if store_prices and isinstance(store_prices, list):
@@ -2515,7 +2518,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 "food_and_tourism_tax": food_and_tourism_tax,
                 "food_tax": food_tax,
                 "tourism_tax": tourism_tax,
-                "cumulative": cumulative
+                "cumulative": cumulative,
+                "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
+                "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0
             })
             
         import math
@@ -3011,6 +3016,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 else:
                     track_inv = bool(track_inv_raw)
                 vals['track_qty'] = track_inv
+
+            if 'sellbyprice' in params or 'sell_by_price' in params:
+                sbp_raw = params.get('sellbyprice') if 'sellbyprice' in params else params.get('sell_by_price')
+                if isinstance(sbp_raw, str):
+                    vals['sellbyprice'] = sbp_raw.lower() in ['yes', 'true', '1']
+                else:
+                    vals['sellbyprice'] = bool(sbp_raw)
 
             product.write(vals)
 
@@ -5804,6 +5816,8 @@ class HavanoPOSDeskAPI(http.Controller):
                         "itemname": product.name,
                         "groupname": product.category_id.name or "Basics",
                         "maintainstock": 1 if product.track_qty else 0,
+                        "sellbyprice": 1 if getattr(product, 'sellbyprice', False) else 0,
+                        "sell_by_price": 1 if getattr(product, 'sellbyprice', False) else 0,
                         "uom": product.uom_id.name or "Nos",
                         "prices": [
                             {"priceName": "Standard Selling", "price": product.selling_price or 0.0, "type": "selling"},
