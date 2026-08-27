@@ -75,16 +75,14 @@
                 <field name="to_account_id"/>
                 <field name="shift_id"/>
                 <field name="reason"/>
-                <filter string="Draft" name="filter_draft" domain="[('state', '=', 'draft')]"/>
-                <filter string="Transferred" name="filter_posted" domain="[('state', '=', 'posted')]"/>
-                <filter string="Cancelled" name="filter_cancelled" domain="[('state', '=', 'cancelled')]"/>
-                <separator/>
-                <filter string="Today" name="filter_today" domain="[('date', '=', context_today())]"/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Transferred" name="posted" domain="[('state', '=', 'posted')]"/>
+                <filter string="Cancelled" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
                 <group expand="0" string="Group By">
                     <filter string="From Branch" name="group_from_branch" context="{'group_by': 'from_branch_id'}"/>
                     <filter string="To Branch" name="group_to_branch" context="{'group_by': 'to_branch_id'}"/>
                     <filter string="Status" name="group_status" context="{'group_by': 'state'}"/>
-                    <filter string="Date" name="group_date" context="{'group_by': 'date:day'}"/>
+                    <filter string="Date" name="group_date" context="{'group_by': 'date'}"/>
                 </group>
             </search>
         </field>
@@ -95,7 +93,6 @@
         <field name="res_model">havanoposdesk.cash.transfer</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_havanoposdesk_cash_transfer_search"/>
-        <field name="context">{'search_default_filter_posted': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Create a new cash transfer!
