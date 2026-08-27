@@ -122,18 +122,10 @@ class Expense(models.Model):
                 if record.amount <= 0:
                     raise ValidationError(_("Expense amount must be greater than zero."))
 
-                exp_curr = record.currency_id or record.tenant_id.currency_id or self.env.company.currency_id
-                
                 # 1. Update Expense Account Balance
                 if record.account_id:
                     expense_acc = record.account_id.sudo()
-                    expense_acc_curr = expense_acc.currency_id or record.tenant_id.currency_id or exp_curr
-                    exp_amount = record.amount
-                    if exp_curr and expense_acc_curr and exp_curr != expense_acc_curr:
-                        date = record.date or fields.Date.context_today(record)
-                        rate = exp_curr._get_conversion_rate(exp_curr, expense_acc_curr, record.env.company, date)
-                        exp_amount = record.amount * rate
-                    expense_acc.write({'balance': expense_acc.balance + exp_amount})
+                    expense_acc.write({'balance': expense_acc.balance + record.amount})
 
                 # 2. Subtract from Payment Account Balance (Cash / Bank)
                 if record.is_paid:
@@ -141,13 +133,7 @@ class Expense(models.Model):
                         raise ValidationError(_("Please select a Payment Account for paid expenses."))
                     
                     pay_acc = record.payment_account_id.sudo()
-                    pay_acc_curr = pay_acc.currency_id or record.tenant_id.currency_id or exp_curr
-                    pay_amount = record.amount
-                    if exp_curr and pay_acc_curr and exp_curr != pay_acc_curr:
-                        date = record.date or fields.Date.context_today(record)
-                        rate = exp_curr._get_conversion_rate(exp_curr, pay_acc_curr, record.env.company, date)
-                        pay_amount = record.amount * rate
-                    pay_acc.write({'balance': pay_acc.balance - pay_amount})
+                    pay_acc.write({'balance': pay_acc.balance - record.amount})
 
                 record.write({'state': 'Posted'})
 
@@ -155,30 +141,16 @@ class Expense(models.Model):
         for record in self:
             if record.state not in ('Posted',):
                 continue
-            
-            exp_curr = record.currency_id or record.tenant_id.currency_id or self.env.company.currency_id
 
             # 1. Reverse Expense Account Balance
             if record.account_id:
                 expense_acc = record.account_id.sudo()
-                expense_acc_curr = expense_acc.currency_id or record.tenant_id.currency_id or exp_curr
-                exp_amount = record.amount
-                if exp_curr and expense_acc_curr and exp_curr != expense_acc_curr:
-                    date = record.date or fields.Date.context_today(record)
-                    rate = exp_curr._get_conversion_rate(exp_curr, expense_acc_curr, record.env.company, date)
-                    exp_amount = record.amount * rate
-                expense_acc.write({'balance': expense_acc.balance - exp_amount})
+                expense_acc.write({'balance': expense_acc.balance - record.amount})
 
             # 2. Reverse Payment Account Balance (Cash / Bank)
             if record.is_paid and record.payment_account_id:
                 pay_acc = record.payment_account_id.sudo()
-                pay_acc_curr = pay_acc.currency_id or record.tenant_id.currency_id or exp_curr
-                pay_amount = record.amount
-                if exp_curr and pay_acc_curr and exp_curr != pay_acc_curr:
-                    date = record.date or fields.Date.context_today(record)
-                    rate = exp_curr._get_conversion_rate(exp_curr, pay_acc_curr, record.env.company, date)
-                    pay_amount = record.amount * rate
-                pay_acc.write({'balance': pay_acc.balance + pay_amount})
+                pay_acc.write({'balance': pay_acc.balance + record.amount})
 
             record.write({'state': 'Cancelled'})
 
