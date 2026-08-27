@@ -74,6 +74,15 @@
                         </setting>
                     </block>
 
+                    <block title="Decimal Precision &amp; Rounding" name="decimal_precision_config">
+                        <setting string="Stock Decimal Places" help="Set number of decimal places for stock quantities (1 or more, default 3)">
+                            <field name="biz_stock_decimal_places"/>
+                        </setting>
+                        <setting string="Do Not Round (Truncate Decimals)" help="If checked, decimal quantities are truncated without rounding (e.g. 1.67 with 1 decimal place becomes 1.6)">
+                            <field name="biz_do_not_round_stock"/>
+                        </setting>
+                    </block>
+
                     <block title="Payroll Integration" name="payroll_integration_config">
                         <setting string="Enable Payroll" help="Enable the Payroll Module">
                             <field name="biz_enable_payroll"/>

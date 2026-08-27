@@ -64,6 +64,8 @@ class ResConfigSettings(models.TransientModel):
                 ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
                 ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
                 ("payroll_url", "VARCHAR"),
+                ("stock_decimal_places", "INTEGER DEFAULT 3"),
+                ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
             ]
             for col_name, col_type in cols:
                 if col_name not in existing_cols:
@@ -118,6 +120,20 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.allow_edit_item_code',
         readonly=False,
         help="If enabled, users will be allowed to edit the product codes (item codes) on products."
+    )
+
+    biz_stock_decimal_places = fields.Integer(
+        string="Stock / Quantity Decimal Places",
+        related='tenant_id.stock_decimal_places',
+        readonly=False,
+        help="Number of decimal places used for quantities and stock (minimum 1)."
+    )
+
+    biz_do_not_round_stock = fields.Boolean(
+        string="Do Not Round Quantities (Truncate)",
+        related='tenant_id.do_not_round_stock',
+        readonly=False,
+        help="If enabled, decimal values will be truncated instead of rounded (e.g. 1.67 with 1 decimal place becomes 1.6)."
     )
 
     def _default_tenant_id(self):

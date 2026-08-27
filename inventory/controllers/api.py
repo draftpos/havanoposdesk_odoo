@@ -5229,6 +5229,8 @@ class HavanoPOSDeskAPI(http.Controller):
             enable_payment_entries = 1 if tenant and tenant.enable_payment_entries else 0
             show_qty_on_hand = 1 if tenant and tenant.show_qty_on_hand else 0
             enable_shift = 1 if tenant and tenant.enable_shift else 0
+            stock_decimal_places = getattr(tenant, 'stock_decimal_places', 3) if tenant else 3
+            do_not_round_stock = 1 if (tenant and getattr(tenant, 'do_not_round_stock', False)) else 0
 
             return self._make_json_response({
                 "message": {
@@ -5240,7 +5242,10 @@ class HavanoPOSDeskAPI(http.Controller):
                         "enable_uom_conversion": enable_uom_conversion,
                         "enable_payment_entries": enable_payment_entries,
                         "show_qty_on_hand": show_qty_on_hand,
-                        "enable_shift": enable_shift
+                        "enable_shift": enable_shift,
+                        "stock_decimal_places": stock_decimal_places,
+                        "do_not_round_stock": do_not_round_stock,
+                        "stock_decimal_places_count": stock_decimal_places
                     }
                 }
             })
@@ -5913,12 +5918,29 @@ class HavanoPOSDeskAPI(http.Controller):
             max_discount_percent = getattr(user_rec, 'max_discount_percent', 100.0)
             require_shift = 1 if getattr(user_rec, 'require_shift', False) else 0
 
+            tenant = user_rec.tenant_id
+            enable_quotations = 1 if tenant and tenant.enable_quotations else 0
+            enable_uom_conversion = 1 if tenant and tenant.enable_uom_conversion else 0
+            enable_payment_entries = 1 if tenant and tenant.enable_payment_entries else 0
+            show_qty_on_hand = 1 if tenant and tenant.show_qty_on_hand else 0
+            enable_shift = 1 if tenant and tenant.enable_shift else 0
+            stock_decimal_places = getattr(tenant, 'stock_decimal_places', 3) if tenant else 3
+            do_not_round_stock = 1 if (tenant and getattr(tenant, 'do_not_round_stock', False)) else 0
+
             return self._make_json_response({
                 "message": {
                     "settings": {
                         "allow_discount": allow_discount,
                         "max_discount_percent": max_discount_percent,
-                        "require_shift": require_shift
+                        "require_shift": require_shift,
+                        "enable_quotations": enable_quotations,
+                        "enable_uom_conversion": enable_uom_conversion,
+                        "enable_payment_entries": enable_payment_entries,
+                        "show_qty_on_hand": show_qty_on_hand,
+                        "enable_shift": enable_shift,
+                        "stock_decimal_places": stock_decimal_places,
+                        "do_not_round_stock": do_not_round_stock,
+                        "stock_decimal_places_count": stock_decimal_places
                     }
                 }
             })

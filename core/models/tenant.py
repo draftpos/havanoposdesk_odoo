@@ -49,6 +49,8 @@ class HavanoposdeskTenant(models.Model):
             ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
             ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
             ("payroll_url", "VARCHAR"),
+            ("stock_decimal_places", "INTEGER DEFAULT 3"),
+            ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
         ]
         for col_name, col_type in columns:
             try:
@@ -395,6 +397,28 @@ class HavanoposdeskTenant(models.Model):
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
     allow_edit_item_code = fields.Boolean(string='Allow Editing Item Code', default=False)
+    stock_decimal_places = fields.Integer(string='Stock Decimal Places', default=3, help='Number of decimal places (minimum 1)')
+    do_not_round_stock = fields.Boolean(string='Do Not Round Stock (Truncate)', default=False, help='If checked, values are truncated without rounding, e.g., 1.67 with 1 decimal place becomes 1.6.')
+
+    @api.constrains('stock_decimal_places')
+    def _check_stock_decimal_places(self):
+        for rec in self:
+            if rec.stock_decimal_places < 1:
+                raise ValidationError(_("Stock Decimal Places must be at least 1."))
+
+    def format_stock_quantity(self, qty):
+        if qty is None:
+            return 0.0
+        import math
+        dp = max(1, int(self.stock_decimal_places or 3))
+        if self.do_not_round_stock:
+            factor = 10 ** dp
+            if qty >= 0:
+                return math.floor(qty * factor) / factor
+            else:
+                return math.ceil(qty * factor) / factor
+        else:
+            return round(qty, dp)
 
     # Global Fiscalization Settings (Defaults for stores)
     enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
