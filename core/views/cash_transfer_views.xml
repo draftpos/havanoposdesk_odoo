@@ -67,7 +67,7 @@
         <field name="name">havanoposdesk.cash.transfer.search</field>
         <field name="model">havanoposdesk.cash.transfer</field>
         <field name="arch" type="xml">
-            <search string="Search Cash Transfers">
+            <search>
                 <field name="name"/>
                 <field name="from_branch_id"/>
                 <field name="to_branch_id"/>
@@ -78,7 +78,7 @@
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Transferred" name="posted" domain="[('state', '=', 'posted')]"/>
                 <filter string="Cancelled" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="From Branch" name="group_from_branch" context="{'group_by': 'from_branch_id'}"/>
                     <filter string="To Branch" name="group_to_branch" context="{'group_by': 'to_branch_id'}"/>
                     <filter string="Status" name="group_status" context="{'group_by': 'state'}"/>
