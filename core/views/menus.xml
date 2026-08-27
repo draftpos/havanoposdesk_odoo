@@ -41,6 +41,7 @@
         <!-- Sales Navigation Tabs -->
         <menuitem id="menu_sales_master" name="Master" parent="menu_sales_root" sequence="10"/>
         <menuitem id="menu_sales_operations" name="Operations" parent="menu_sales_root" sequence="20"/>
+        <menuitem id="menu_sales_cash_transfer" name="Cash Transfers" parent="menu_sales_operations" action="action_havanoposdesk_cash_transfer" sequence="15"/>
         <menuitem id="menu_sales_reports" name="Reports" parent="menu_sales_root" sequence="30"/>
         <menuitem id="menu_shift_report" name="Shift Reconciliation Report" parent="menu_sales_reports" action="action_havanoposdesk_shift" sequence="15"/>
 

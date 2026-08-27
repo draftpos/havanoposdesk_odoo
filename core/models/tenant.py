@@ -384,6 +384,12 @@ class HavanoposdeskTenant(models.Model):
     trn_seq_prefix = fields.Char(string='Stock Transfer Sequence Prefix', default='TRN')
     trn_seq_next = fields.Integer(string='Stock Transfer Sequence Next Number', default=1)
     trn_seq_padding = fields.Integer(string='Stock Transfer Sequence Padding', default=4)
+
+    # Cash Transfer Sequence Config (CTR-10001 format)
+    cash_trn_seq_prefix = fields.Char(string='Cash Transfer Sequence Prefix', default='CTR-')
+    cash_trn_seq_next = fields.Integer(string='Cash Transfer Sequence Next Number', default=10001)
+    cash_trn_seq_padding = fields.Integer(string='Cash Transfer Sequence Padding', default=5)
+
     api_cost_center = fields.Char(string="API Cost Center")
     api_warehouse = fields.Char(string="API Warehouse")
 

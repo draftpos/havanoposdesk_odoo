@@ -58,6 +58,28 @@ class Account(models.Model):
         default=lambda self: [self.env.user.default_store_id.id] if self.env.user.default_store_id else ([self.env.user.store_ids[0].id] if self.env.user.store_ids else [])
     )
 
+    cash_transfer_from_ids = fields.One2many('havanoposdesk.cash.transfer', 'from_account_id', string='Outgoing Transfers')
+    cash_transfer_to_ids = fields.One2many('havanoposdesk.cash.transfer', 'to_account_id', string='Incoming Transfers')
+    cash_transfer_count = fields.Integer(string='Transfers Count', compute='_compute_cash_transfer_count')
+
+    def _compute_cash_transfer_count(self):
+        for account in self:
+            account.cash_transfer_count = len(account.cash_transfer_from_ids) + len(account.cash_transfer_to_ids)
+
+    def action_view_cash_transfers(self):
+        self.ensure_one()
+        return {
+            'name': _('Cash Transfers - %s') % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.cash.transfer',
+            'view_mode': 'list,form',
+            'domain': ['|', ('from_account_id', '=', self.id), ('to_account_id', '=', self.id)],
+            'context': {
+                'default_from_account_id': self.id,
+                'default_tenant_id': self.tenant_id.id,
+            },
+        }
+
     @api.onchange('type')
     def _onchange_type_on_account(self):
         if self.type != 'Cash':

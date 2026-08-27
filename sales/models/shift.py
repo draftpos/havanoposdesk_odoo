@@ -38,6 +38,16 @@ class Shift(models.Model):
 
     sale_ids = fields.One2many('havanoposdesk.sale', 'shift_id', string='Sales')
     expense_ids = fields.One2many('havanoposdesk.expense', 'shift_id', string='Expenses')
+    cash_transfer_ids = fields.One2many('havanoposdesk.cash.transfer', 'shift_id', string='Cash Transfers / Cash Up')
+    cash_transferred_amount = fields.Monetary(string='Total Cashed Up / Transferred', compute='_compute_cash_transferred', currency_field='currency_id')
+    cash_transfer_count = fields.Integer(string='Cash Transfers Count', compute='_compute_cash_transferred')
+
+    @api.depends('cash_transfer_ids.amount', 'cash_transfer_ids.state')
+    def _compute_cash_transferred(self):
+        for shift in self:
+            posted_transfers = shift.cash_transfer_ids.filtered(lambda t: t.state == 'posted')
+            shift.cash_transferred_amount = sum(posted_transfers.mapped('amount'))
+            shift.cash_transfer_count = len(shift.cash_transfer_ids)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -62,3 +72,74 @@ class Shift(models.Model):
                 'state': 'closed',
                 'end_date': fields.Datetime.now()
             })
+
+    def action_cash_up(self):
+        """Open Cash Transfer form pre-filled to transfer closing cash from branch to HQ/Main store."""
+        self.ensure_one()
+        # Find default store / HQ store for this tenant
+        hq_store = self.env['havanoposdesk.store'].search([
+            ('tenant_id', '=', self.tenant_id.id),
+            ('is_default', '=', True),
+        ], limit=1)
+        if not hq_store or hq_store.id == self.store_id.id:
+            hq_store = self.env['havanoposdesk.store'].search([
+                ('tenant_id', '=', self.tenant_id.id),
+                ('id', '!=', self.store_id.id),
+            ], limit=1)
+
+        amount_to_transfer = self.actual_cash if self.actual_cash > 0 else self.expected_cash
+        if amount_to_transfer <= 0:
+            amount_to_transfer = self.amount_cash
+
+        # Auto-find source and target cash accounts
+        from_acc = self.env['havanoposdesk.account'].search([
+            ('tenant_id', '=', self.tenant_id.id),
+            ('type', '=', 'Cash'),
+            ('active', '=', True),
+            '|', ('store_id', '=', self.store_id.id), ('store_ids', 'in', self.store_id.id)
+        ], limit=1)
+        
+        to_acc = False
+        if hq_store:
+            to_acc = self.env['havanoposdesk.account'].search([
+                ('tenant_id', '=', self.tenant_id.id),
+                ('type', '=', 'Cash'),
+                ('active', '=', True),
+                '|', ('store_id', '=', hq_store.id), ('store_ids', 'in', hq_store.id)
+            ], limit=1)
+
+        return {
+            'name': 'Shift Cash Up to HQ',
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.cash.transfer',
+            'view_mode': 'form',
+            'views': [(False, 'form')],
+            'target': 'current',
+            'context': {
+                'default_store_id': self.store_id.id,
+                'default_from_branch_id': self.store_id.id,
+                'default_to_branch_id': hq_store.id if hq_store else False,
+                'default_from_account_id': from_acc.id if from_acc else False,
+                'default_to_account_id': to_acc.id if to_acc else False,
+                'default_amount': amount_to_transfer if amount_to_transfer > 0 else 0.0,
+                'default_shift_id': self.id,
+                'default_tenant_id': self.tenant_id.id,
+                'default_reason': f"Shift Cash Up - {self.name} ({self.user_id.name})",
+            },
+        }
+
+    def action_view_cash_transfers(self):
+        self.ensure_one()
+        return {
+            'name': f"Cash Transfers - Shift {self.name}",
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.cash.transfer',
+            'view_mode': 'list,form',
+            'domain': [('shift_id', '=', self.id)],
+            'context': {
+                'default_shift_id': self.id,
+                'default_store_id': self.store_id.id,
+                'default_from_branch_id': self.store_id.id,
+                'default_tenant_id': self.tenant_id.id,
+            },
+        }

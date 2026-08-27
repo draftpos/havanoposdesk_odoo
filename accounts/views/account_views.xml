@@ -25,6 +25,11 @@
             <field name="arch" type="xml">
                 <form string="Account">
                     <sheet>
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_view_cash_transfers" type="object" class="oe_stat_button" icon="fa-exchange" invisible="type not in ['Cash', 'Bank']">
+                                <field name="cash_transfer_count" widget="statinfo" string="Transfers"/>
+                            </button>
+                        </div>
                         <widget name="web_ribbon" title="Deactivated" bg_color="text-bg-danger" invisible="active"/>
                         <group>
                             <group>
@@ -38,6 +43,38 @@
                                 <field name="balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             </group>
                         </group>
+                        <notebook invisible="type not in ['Cash', 'Bank']">
+                            <page string="Outgoing Cash Transfers" name="outgoing_transfers">
+                                <field name="cash_transfer_from_ids" readonly="1">
+                                    <list string="Outgoing Transfers" default_order="date desc">
+                                        <field name="name"/>
+                                        <field name="date"/>
+                                        <field name="from_branch_id"/>
+                                        <field name="to_branch_id"/>
+                                        <field name="to_account_id"/>
+                                        <field name="amount" widget="monetary"/>
+                                        <field name="shift_id" optional="show"/>
+                                        <field name="reason" optional="show"/>
+                                        <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-muted="state == 'cancelled'"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Incoming Cash Transfers" name="incoming_transfers">
+                                <field name="cash_transfer_to_ids" readonly="1">
+                                    <list string="Incoming Transfers" default_order="date desc">
+                                        <field name="name"/>
+                                        <field name="date"/>
+                                        <field name="from_branch_id"/>
+                                        <field name="to_branch_id"/>
+                                        <field name="from_account_id"/>
+                                        <field name="amount" widget="monetary"/>
+                                        <field name="shift_id" optional="show"/>
+                                        <field name="reason" optional="show"/>
+                                        <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-muted="state == 'cancelled'"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
                     </sheet>
                 </form>
             </field>

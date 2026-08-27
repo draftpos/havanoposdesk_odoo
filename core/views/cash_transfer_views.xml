@@ -4,14 +4,20 @@
         <field name="name">havanoposdesk.cash.transfer.tree</field>
         <field name="model">havanoposdesk.cash.transfer</field>
         <field name="arch" type="xml">
-            <list string="Cash Transfers" default_order="date desc">
+            <list string="Cash Transfers" default_order="date desc, id desc">
+                <field name="name" optional="show"/>
                 <field name="date" optional="show"/>
-                <field name="store_id" optional="show"/>
+                <field name="store_id" optional="hide"/>
                 <field name="from_branch_id" optional="show"/>
                 <field name="to_branch_id" optional="show"/>
+                <field name="from_account_id" optional="show"/>
+                <field name="to_account_id" optional="show"/>
                 <field name="currency_id" column_invisible="True"/>
                 <field name="amount" optional="show" widget="monetary"/>
+                <field name="shift_id" optional="show"/>
+                <field name="user_id" optional="hide"/>
                 <field name="reason" optional="show"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-muted="state == 'cancelled'" optional="show"/>
             </list>
         </field>
     </record>
@@ -21,21 +27,35 @@
         <field name="model">havanoposdesk.cash.transfer</field>
         <field name="arch" type="xml">
             <form string="Cash Transfer">
+                <header>
+                    <button name="action_post" string="Transfer Cash" type="object" class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_cancel" string="Cancel Transfer" type="object" invisible="state != 'posted'"/>
+                    <button name="action_draft" string="Set to Draft" type="object" invisible="state != 'cancelled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
+                </header>
                 <sheet>
                     <div class="oe_title">
-                        <h1>Cash Transfer</h1>
+                        <label for="name" string="Transfer Reference"/>
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
                     </div>
                     <group>
-                        <group>
-                            <field name="store_id"/>
-                            <field name="from_branch_id"/>
-                            <field name="to_branch_id"/>
-                            <field name="currency_id" invisible="1"/>
+                        <group string="Branch &amp; Store Details">
+                            <field name="tenant_id" invisible="1"/>
+                            <field name="store_id" options="{'no_create': True}" readonly="state != 'draft'"/>
+                            <field name="from_branch_id" options="{'no_create': True}" readonly="state != 'draft'"/>
+                            <field name="to_branch_id" options="{'no_create': True}" readonly="state != 'draft'"/>
+                            <field name="from_account_id" options="{'no_create': True}" readonly="state != 'draft'"/>
+                            <field name="to_account_id" options="{'no_create': True}" readonly="state != 'draft'"/>
                         </group>
-                        <group>
-                            <field name="date"/>
-                            <field name="amount" widget="monetary"/>
-                            <field name="reason"/>
+                        <group string="Transfer Details">
+                            <field name="date" readonly="state != 'draft'"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount" widget="monetary" readonly="state != 'draft'"/>
+                            <field name="shift_id" options="{'no_create': True}" readonly="state != 'draft'"/>
+                            <field name="user_id" options="{'no_create': True}" readonly="state != 'draft'"/>
+                            <field name="reason" placeholder="e.g. End of shift cash up from branch to HQ" readonly="state != 'draft'"/>
                         </group>
                     </group>
                 </sheet>
@@ -43,13 +63,45 @@
         </field>
     </record>
 
+    <record id="view_havanoposdesk_cash_transfer_search" model="ir.ui.view">
+        <field name="name">havanoposdesk.cash.transfer.search</field>
+        <field name="model">havanoposdesk.cash.transfer</field>
+        <field name="arch" type="xml">
+            <search string="Search Cash Transfers">
+                <field name="name"/>
+                <field name="from_branch_id"/>
+                <field name="to_branch_id"/>
+                <field name="from_account_id"/>
+                <field name="to_account_id"/>
+                <field name="shift_id"/>
+                <field name="reason"/>
+                <filter string="Draft" name="filter_draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Transferred" name="filter_posted" domain="[('state', '=', 'posted')]"/>
+                <filter string="Cancelled" name="filter_cancelled" domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter string="Today" name="filter_today" domain="[('date', '=', context_today())]"/>
+                <group expand="0" string="Group By">
+                    <filter string="From Branch" name="group_from_branch" context="{'group_by': 'from_branch_id'}"/>
+                    <filter string="To Branch" name="group_to_branch" context="{'group_by': 'to_branch_id'}"/>
+                    <filter string="Status" name="group_status" context="{'group_by': 'state'}"/>
+                    <filter string="Date" name="group_date" context="{'group_by': 'date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
     <record id="action_havanoposdesk_cash_transfer" model="ir.actions.act_window">
         <field name="name">Cash Transfers</field>
         <field name="res_model">havanoposdesk.cash.transfer</field>
         <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_havanoposdesk_cash_transfer_search"/>
+        <field name="context">{'search_default_filter_posted': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Create a new cash transfer!
+            </p>
+            <p>
+                Transfer cash balances between branches and HQ after shifts.
             </p>
         </field>
     </record>

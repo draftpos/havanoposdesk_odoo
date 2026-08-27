@@ -6259,6 +6259,147 @@ class HavanoPOSDeskAPI(http.Controller):
             }
         })
 
+    # CASH TRANSFERS & BRANCH CASH-UP API
+    @http.route('/api/method/saas_api.www.api.create_cash_transfer', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_create_cash_transfer(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
+
+        params = self._get_request_json()
+        env = request.env(user=uid)
+        user = env['res.users'].browse(uid)
+        tenant_id = user.tenant_id.id if user.tenant_id else False
+
+        amount = float(params.get('amount') or 0.0)
+        if amount <= 0:
+            return self._make_json_response({"message": {"status": "error", "message": "Transfer amount must be greater than zero"}}, status=400)
+
+        store_id = params.get('store_id') or (user.default_store_id.id if user.default_store_id else False)
+        from_branch_id = params.get('from_branch_id') or store_id
+        to_branch_id = params.get('to_branch_id')
+
+        if not to_branch_id:
+            # Fallback to default HQ store
+            hq = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant_id), ('is_default', '=', True)], limit=1)
+            if not hq:
+                hq = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant_id), ('id', '!=', from_branch_id)], limit=1)
+            to_branch_id = hq.id if hq else from_branch_id
+
+        from_account_id = params.get('from_account_id')
+        to_account_id = params.get('to_account_id')
+        shift_id = params.get('shift_id')
+        reason = params.get('reason') or f"Cash Transfer from POS / Branch"
+        date = params.get('date') or fields.Date.context_today(env['havanoposdesk.cash.transfer'])
+        auto_post = params.get('auto_post', True)
+
+        transfer_vals = {
+            'tenant_id': tenant_id,
+            'store_id': store_id or from_branch_id,
+            'from_branch_id': from_branch_id,
+            'to_branch_id': to_branch_id,
+            'amount': amount,
+            'date': date,
+            'reason': reason,
+            'user_id': uid,
+        }
+        if from_account_id:
+            transfer_vals['from_account_id'] = int(from_account_id)
+        if to_account_id:
+            transfer_vals['to_account_id'] = int(to_account_id)
+        if shift_id:
+            transfer_vals['shift_id'] = int(shift_id)
+
+        try:
+            transfer = env['havanoposdesk.cash.transfer'].sudo().create(transfer_vals)
+            if auto_post:
+                transfer.action_post()
+
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "transfer": {
+                        "id": transfer.id,
+                        "name": transfer.name,
+                        "amount": transfer.amount,
+                        "date": str(transfer.date),
+                        "status": transfer.state.capitalize(),
+                        "from_branch": transfer.from_branch_id.name if transfer.from_branch_id else "",
+                        "to_branch": transfer.to_branch_id.name if transfer.to_branch_id else "",
+                        "from_account": transfer.from_account_id.name if transfer.from_account_id else "",
+                        "to_account": transfer.to_account_id.name if transfer.to_account_id else "",
+                        "reason": transfer.reason or ""
+                    }
+                }
+            })
+        except Exception as e:
+            return self._make_json_response({"message": {"status": "error", "message": str(e)}}, status=400)
+
+    @http.route('/api/method/saas_api.www.api.get_cash_transfers', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_get_cash_transfers(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
+
+        env = request.env(user=uid)
+        user = env['res.users'].browse(uid)
+        domain = []
+        if user.tenant_id:
+            domain.append(('tenant_id', '=', user.tenant_id.id))
+
+        shift_id = kwargs.get('shift_id')
+        if shift_id:
+            domain.append(('shift_id', '=', int(shift_id)))
+
+        store_id = kwargs.get('store_id')
+        if store_id:
+            domain.append(('|', ('from_branch_id', '=', int(store_id)), ('to_branch_id', '=', int(store_id))))
+
+        limit = int(kwargs.get('limit') or 50)
+        transfers = env['havanoposdesk.cash.transfer'].sudo().search(domain, order='date desc, id desc', limit=limit)
+        
+        transfer_list = []
+        for t in transfers:
+            transfer_list.append({
+                "id": t.id,
+                "name": t.name,
+                "amount": t.amount,
+                "date": str(t.date),
+                "status": t.state.capitalize(),
+                "from_branch_id": t.from_branch_id.id if t.from_branch_id else None,
+                "from_branch": t.from_branch_id.name if t.from_branch_id else "",
+                "to_branch_id": t.to_branch_id.id if t.to_branch_id else None,
+                "to_branch": t.to_branch_id.name if t.to_branch_id else "",
+                "from_account_id": t.from_account_id.id if t.from_account_id else None,
+                "from_account": t.from_account_id.name if t.from_account_id else "",
+                "to_account_id": t.to_account_id.id if t.to_account_id else None,
+                "to_account": t.to_account_id.name if t.to_account_id else "",
+                "reason": t.reason or "",
+                "shift_id": t.shift_id.id if t.shift_id else None,
+            })
+
+        return self._make_json_response({
+            "message": {
+                "status": "success",
+                "transfers": transfer_list,
+                "total_count": len(transfer_list)
+            }
+        })
+
     @http.route('/api/method/saas_api.www.api.fetch_pos_sync_settings', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_fetch_pos_sync_settings(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':

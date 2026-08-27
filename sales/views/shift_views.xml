@@ -39,10 +39,16 @@
             <form string="Shift">
                 <header>
                     <button name="action_close_shift" string="Close Shift" type="object" class="oe_highlight" invisible="state == 'closed'"/>
-                    <button name="%(action_report_shift_document_html)d" string="Print" type="action" class="oe_highlight"/>
+                    <button name="action_cash_up" string="Transfer Cash to HQ / Cash Up" type="object" class="oe_highlight"/>
+                    <button name="%(action_report_shift_document_html)d" string="Print" type="action" class="btn-secondary"/>
                     <field name="state" widget="statusbar" statusbar_visible="open,closed"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_cash_transfers" type="object" class="oe_stat_button" icon="fa-exchange">
+                            <field name="cash_transfer_count" widget="statinfo" string="Cash Transfers"/>
+                        </button>
+                    </div>
                     <div class="oe_title">
                         <h1>
                             <field name="name" readonly="1"/>
@@ -72,6 +78,26 @@
                                     <field name="cash_difference" readonly="1" decoration-danger="cash_difference &lt; 0" decoration-success="cash_difference == 0"/>
                                 </group>
                             </group>
+                        </page>
+                        <page string="Cash Transfers &amp; Cash Up" name="cash_transfers">
+                            <group>
+                                <group>
+                                    <field name="cash_transferred_amount" widget="monetary" readonly="1"/>
+                                </group>
+                            </group>
+                            <field name="cash_transfer_ids" readonly="1">
+                                <list string="Cash Transfers" default_order="date desc">
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="from_branch_id"/>
+                                    <field name="to_branch_id"/>
+                                    <field name="from_account_id"/>
+                                    <field name="to_account_id"/>
+                                    <field name="amount" widget="monetary"/>
+                                    <field name="reason" optional="show"/>
+                                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-muted="state == 'cancelled'"/>
+                                </list>
+                            </field>
                         </page>
                         <page string="Payment Breakdown">
                             <group>
