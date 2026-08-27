@@ -262,6 +262,14 @@ class ResUsers(models.Model):
             return True
         return super().check_access_rights(operation, raise_exception=raise_exception)
 
+    @api.model
+    def has_group(self, group_ext_id):
+        if group_ext_id == 'havanoposdesk_odoo.group_enable_shifts':
+            if self.env.user.tenant_id and self.env.user.tenant_id.enable_shift:
+                return True
+            return False
+        return super().has_group(group_ext_id)
+
     @api.model_create_multi
     def create(self, vals_list):
         import uuid

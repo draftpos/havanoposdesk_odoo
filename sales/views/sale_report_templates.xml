@@ -85,8 +85,8 @@
                                 <!-- Left: Logo & Company Name -->
                                 <td class="w-50 align-middle text-left">
                                     <div style="display: flex; align-items: center;">
-                                        <div t-if="doc.env.company.logo" style="margin-right: 15px;">
-                                            <img t-att-src="image_data_uri(doc.env.company.logo)" style="max-height: 120px; max-width: 180px;" alt="Logo"/>
+                                        <div t-if="doc.tenant_id.logo" style="margin-right: 15px;">
+                                            <img t-att-src="image_data_uri(doc.tenant_id.logo)" style="max-height: 120px; max-width: 180px;" alt="Logo"/>
                                         </div>
                                         <div>
                                             <h1 style="color: #0a2342; font-size: 24px; font-weight: 900; margin: 0; line-height: 1.1;">

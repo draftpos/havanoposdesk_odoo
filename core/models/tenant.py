@@ -83,6 +83,7 @@ class HavanoposdeskTenant(models.Model):
         return res
 
     name = fields.Char(string='Tenant Name', required=True)
+    logo = fields.Image(string="Logo")
     active = fields.Boolean(default=True)
     currency_id = fields.Many2one('res.currency', string='Default Currency', default=lambda self: self.env.ref('base.USD').id)
     allow_multi_currency = fields.Boolean(string='Allow Multi Currency', default=False)
