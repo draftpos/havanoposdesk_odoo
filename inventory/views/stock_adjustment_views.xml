@@ -95,13 +95,13 @@
                     <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
                     <separator/>
                     <filter string="Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" domain="[('posting_date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[(\'posting_date\', \'&gt;=\', context_today().strftime(\'%Y-%m-01 00:00:00\'))]"/>
                     <group>
                         <filter string="Store" name="group_by_store" context="{'group_by': 'store_id'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
                         <filter string="Today" name="group_today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'posting_date:day'}"/>
-                        <filter string="This Month" name="group_month" domain="[('posting_date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'posting_date:month'}"/>
+                        <filter string="This Month" name="group_month" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" context="{'group_by': 'posting_date:month'}"/>
                     </group>
                 </search>
             </field>
