@@ -510,6 +510,9 @@ class ResConfigSettings(models.TransientModel):
                 'email': bot_email,
             })
             
+        # Clear the registry cache so that `has_group` overrides take effect instantly for menu visibility
+        self.env.registry.clear_cache()
+
         new_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
         if old_base != new_base:
             return {
