@@ -68,7 +68,7 @@
             <field name="name">Cashbook</field>
             <field name="tag">havanoposdesk_cashbook</field>
         </record>
-        <menuitem id="menu_accounts_cashbook" name="Cashbook" parent="menu_accounts_reports" action="action_havanoposdesk_cashbook" sequence="5" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_accounts_cashbook" name="Cashbook" parent="menu_accounts_reports" action="action_havanoposdesk_cashbook" sequence="5"/>
         <menuitem id="menu_sales_cashbook" name="Store Cashbook" parent="menu_sales_reports" action="action_havanoposdesk_cashbook" sequence="35"/>
 
         <!-- Actions -->
