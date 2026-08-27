@@ -109,7 +109,7 @@
                     <field name="create_uid"/>
                     <field name="posting_date"/>
                     <filter string="Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" domain="[(\'posting_date\', \'&gt;=\', context_today().strftime(\'%Y-%m-01 00:00:00\'))]"/>
+                    <filter string="This Month" name="this_month" date="posting_date" default_period="this_month" />
                     <filter string="Supplier" name="filter_supplier" domain="[('supplier', '!=', False)]"/>
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
                     <filter string="Created On" name="filter_created_on" date="posting_date"/>
