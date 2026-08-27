@@ -17,12 +17,12 @@ class CashbookReport(models.AbstractModel):
 
     @api.model
     def get_available_accounts(self, store_ids=None):
-        domain = [('type', 'in', ['Cash', 'Bank'])]
+        domain = []
         if self.env.user.tenant_id:
-            domain.append(('tenant_id', '=', self.env.user.tenant_id.id))
+            domain = [('tenant_id', '=', self.env.user.tenant_id.id)]
         accounts = self.env['havanoposdesk.account'].sudo().search_read(domain, ['id', 'name', 'type', 'balance'])
         if not accounts:
-            accounts = self.env['havanoposdesk.account'].sudo().search_read([('type', 'in', ['Cash', 'Bank'])], ['id', 'name', 'type', 'balance'])
+            accounts = self.env['havanoposdesk.account'].sudo().search_read([], ['id', 'name', 'type', 'balance'])
         return accounts
 
     @api.model
@@ -42,14 +42,14 @@ class CashbookReport(models.AbstractModel):
         valid_store_ids = stores.ids if store_ids else []
 
         # Filter accounts
-        acc_domain = [('type', 'in', ['Cash', 'Bank'])]
+        acc_domain = []
         if tenant_id:
             acc_domain.append(('tenant_id', '=', tenant_id))
         if account_ids:
             acc_domain.append(('id', 'in', account_ids))
         accounts = self.env['havanoposdesk.account'].sudo().search(acc_domain)
         if not accounts and not account_ids:
-            accounts = self.env['havanoposdesk.account'].sudo().search([('type', 'in', ['Cash', 'Bank'])])
+            accounts = self.env['havanoposdesk.account'].sudo().search([])
         valid_account_ids = accounts.ids if account_ids else []
 
         # Parse date range
@@ -75,7 +75,7 @@ class CashbookReport(models.AbstractModel):
         all_raw_movements = []
 
         # 1. POS & Invoiced Sales
-        sale_domain = [('state', 'in', ['done', 'confirmed'])]
+        sale_domain = [('state', '!=', 'cancelled')]
         if tenant_id:
             sale_domain.append(('tenant_id', '=', tenant_id))
         if valid_store_ids:
@@ -83,8 +83,7 @@ class CashbookReport(models.AbstractModel):
 
         sales = self.env['havanoposdesk.sale'].sudo().search(sale_domain)
         if not sales and tenant_id:
-            # Fallback search if sales don't have tenant_id set
-            sales = self.env['havanoposdesk.sale'].sudo().search([('state', 'in', ['done', 'confirmed'])])
+            sales = self.env['havanoposdesk.sale'].sudo().search([('state', '!=', 'cancelled')])
 
         for s in sales:
             acc = s.account_id
@@ -122,7 +121,7 @@ class CashbookReport(models.AbstractModel):
                 })
 
         # 2. Payments (Customer Receipts, Supplier Payments, Payment Entries)
-        pay_domain = [('state', 'in', ['posted', 'Posted'])]
+        pay_domain = [('state', '!=', 'cancelled')]
         if tenant_id:
             pay_domain.append(('tenant_id', '=', tenant_id))
         if valid_store_ids:
@@ -132,7 +131,7 @@ class CashbookReport(models.AbstractModel):
 
         payments = self.env['havanoposdesk.payment'].sudo().search(pay_domain)
         if not payments and tenant_id:
-            payments = self.env['havanoposdesk.payment'].sudo().search([('state', 'in', ['posted', 'Posted'])])
+            payments = self.env['havanoposdesk.payment'].sudo().search([('state', '!=', 'cancelled')])
 
         for p in payments:
             if p.pos_sale_ids or (p.sale_id and p.sale_id.state in ['done', 'confirmed']):
@@ -170,7 +169,7 @@ class CashbookReport(models.AbstractModel):
             })
 
         # 3. Expenses (Paid Cash/Bank Outflows)
-        exp_domain = [('state', 'in', ['Posted', 'posted']), ('is_paid', '=', True)]
+        exp_domain = [('state', 'not in', ['cancelled', 'Cancelled']), ('is_paid', '=', True)]
         if tenant_id:
             exp_domain.append(('tenant_id', '=', tenant_id))
         if valid_store_ids:
@@ -178,7 +177,7 @@ class CashbookReport(models.AbstractModel):
 
         expenses = self.env['havanoposdesk.expense'].sudo().search(exp_domain)
         if not expenses and tenant_id:
-            expenses = self.env['havanoposdesk.expense'].sudo().search([('state', 'in', ['Posted', 'posted']), ('is_paid', '=', True)])
+            expenses = self.env['havanoposdesk.expense'].sudo().search([('state', 'not in', ['cancelled', 'Cancelled']), ('is_paid', '=', True)])
 
         for e in expenses:
             pay_acc = e.payment_account_id
@@ -214,13 +213,13 @@ class CashbookReport(models.AbstractModel):
                 })
 
         # 4. Cash Transfers (Outflows from source, Inflows to destination)
-        transfer_domain = [('state', 'in', ['posted', 'Posted'])]
+        transfer_domain = [('state', 'not in', ['cancelled', 'Cancelled'])]
         if tenant_id:
             transfer_domain.append(('tenant_id', '=', tenant_id))
 
         transfers = self.env['havanoposdesk.cash.transfer'].sudo().search(transfer_domain)
         if not transfers and tenant_id:
-            transfers = self.env['havanoposdesk.cash.transfer'].sudo().search([('state', 'in', ['posted', 'Posted'])])
+            transfers = self.env['havanoposdesk.cash.transfer'].sudo().search([('state', 'not in', ['cancelled', 'Cancelled'])])
 
         for t in transfers:
             trans_dt = None
@@ -341,14 +340,14 @@ class CashbookReport(models.AbstractModel):
         # Live Real-time Account Balances
         all_acc_records = self.env['havanoposdesk.account'].sudo().search(acc_domain)
         if not all_acc_records:
-            all_acc_records = self.env['havanoposdesk.account'].sudo().search([('type', 'in', ['Cash', 'Bank'])])
+            all_acc_records = self.env['havanoposdesk.account'].sudo().search([])
 
         live_account_balances = []
         for acc in all_acc_records:
             live_account_balances.append({
                 'id': acc.id,
                 'name': acc.name,
-                'type': acc.type,
+                'type': acc.type or 'Account',
                 'balance': acc.balance,
                 'currency': acc.currency_id.name if acc.currency_id else 'USD'
             })

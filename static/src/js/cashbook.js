@@ -32,7 +32,7 @@ export class CashbookReport extends Component {
             isLoading: true,
             dateFrom: "",
             dateTo: "",
-            datePreset: "this_year",
+            datePreset: "all",
             availableStores: [],
             selectedStoreId: "all",
             availableAccounts: [],
@@ -55,7 +55,7 @@ export class CashbookReport extends Component {
 
         onWillStart(() => {
             this.loadInitialFilters().then(() => {
-                this.setPresetDates('this_year');
+                this.setPresetDates('all');
                 this.loadData();
             }).catch((err) => {
                 console.error("Failed to initialize cashbook:", err);
