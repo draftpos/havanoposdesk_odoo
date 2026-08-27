@@ -265,7 +265,10 @@ class ResUsers(models.Model):
     @api.model
     def has_group(self, group_ext_id):
         if group_ext_id == 'havanoposdesk_odoo.group_enable_shifts':
-            if self.env.user.tenant_id and self.env.user.tenant_id.enable_shift:
+            tenant = self.env.user.tenant_id
+            if not tenant:
+                tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+            if tenant and tenant.enable_shift:
                 return True
             return False
         return super().has_group(group_ext_id)
