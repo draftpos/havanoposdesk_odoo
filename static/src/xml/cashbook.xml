@@ -28,7 +28,7 @@
                                 </button>
                                 <div class="dropdown-menu" style="padding: 5px 0; min-width: 180px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                                     <a class="dropdown-item" href="#" t-on-click="() => this.selectStore('all')" style="padding: 5px 15px; font-size: 13px;">
-                                        <t t-if="this.state.selectedStoreId == 'all'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>All Stores
+                                        <t t-if="this.isStoreSelected('all')"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>All Stores
                                     </a>
                                     <div class="dropdown-divider"></div>
                                     <t t-foreach="this.state.availableStores" t-as="st" t-key="st.id">
@@ -127,7 +127,7 @@
                         <h5>Loading Cashbook data...</h5>
                     </div>
                 </t>
-                <t t-elif="this.state.data">
+                <t t-else="">
                     <!-- SUMMARY KPI CARDS -->
                     <div class="row g-3 mb-4">
                         <!-- Opening Balance Card -->
@@ -155,8 +155,8 @@
                                     +<t t-esc="this.formatCurrency(this.state.data.total_inflows)"/>
                                 </h3>
                                 <div class="small text-muted mt-2">
-                                    <span>Sales: <strong><t t-esc="this.formatCurrency(this.state.data.breakdown.sales)"/></strong></span> | 
-                                    <span>Transfers In: <strong><t t-esc="this.formatCurrency(this.state.data.breakdown.transfers_in)"/></strong></span>
+                                    <span>Sales: <strong><t t-esc="this.formatCurrency(this.getBreakdown('sales'))"/></strong></span> | 
+                                    <span>Transfers In: <strong><t t-esc="this.formatCurrency(this.getBreakdown('transfers_in'))"/></strong></span>
                                 </div>
                             </div>
                         </div>
@@ -172,8 +172,8 @@
                                     -<t t-esc="this.formatCurrency(this.state.data.total_outflows)"/>
                                 </h3>
                                 <div class="small text-muted mt-2">
-                                    <span>Expenses: <strong><t t-esc="this.formatCurrency(this.state.data.breakdown.expenses)"/></strong></span> | 
-                                    <span>Transfers Out: <strong><t t-esc="this.formatCurrency(this.state.data.breakdown.transfers_out)"/></strong></span>
+                                    <span>Expenses: <strong><t t-esc="this.formatCurrency(this.getBreakdown('expenses'))"/></strong></span> | 
+                                    <span>Transfers Out: <strong><t t-esc="this.formatCurrency(this.getBreakdown('transfers_out'))"/></strong></span>
                                 </div>
                             </div>
                         </div>

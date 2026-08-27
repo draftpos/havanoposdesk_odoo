@@ -10,7 +10,25 @@ export class CashbookReport extends Component {
         this.action = useService("action");
         
         this.state = useState({
-            data: null,
+            data: {
+                currency_symbol: '$',
+                opening_balance: 0.0,
+                total_inflows: 0.0,
+                total_outflows: 0.0,
+                closing_balance: 0.0,
+                net_movement: 0.0,
+                breakdown: {
+                    sales: 0.0,
+                    customer_receipts: 0.0,
+                    transfers_in: 0.0,
+                    expenses: 0.0,
+                    supplier_payments: 0.0,
+                    transfers_out: 0.0
+                },
+                accounts: [],
+                movements: [],
+                total_transactions: 0
+            },
             isLoading: true,
             dateFrom: "",
             dateTo: "",
@@ -203,13 +221,21 @@ export class CashbookReport extends Component {
                     date_to: this.state.dateTo || null,
                 }
             );
-            this.state.data = res || {};
+            if (res) {
+                this.state.data = res;
+            }
         } catch (err) {
             console.error("Error loading cashbook data:", err);
-            this.state.data = null;
         } finally {
             this.state.isLoading = false;
         }
+    }
+
+    getBreakdown(key) {
+        if (this.state.data && this.state.data.breakdown && this.state.data.breakdown[key] !== undefined) {
+            return this.state.data.breakdown[key];
+        }
+        return 0.0;
     }
 
     get filteredMovements() {
