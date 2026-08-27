@@ -109,7 +109,7 @@
                     <field name="create_uid"/>
                     <field name="posting_date"/>
                     <filter string="Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" date="posting_date" default_period="this_month" />
+                    <filter string="This Month" name="this_month" date="posting_date" default_period="month" />
                     <filter string="Supplier" name="filter_supplier" domain="[('supplier', '!=', False)]"/>
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
                     <filter string="Created On" name="filter_created_on" date="posting_date"/>
@@ -119,7 +119,7 @@
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'posting_date:day'}"/>
                         <filter string="Currency" name="group_by_currency" context="{'group_by': 'currency_id'}" />
                         <filter string="Today" name="group_today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'posting_date:day'}"/>
-                        <filter string="This Month" name="group_month" date="posting_date" default_period="this_month" context="{'group_by': 'posting_date:month'}" />
+                        <filter string="This Month" name="group_month" date="posting_date" default_period="month" context="{'group_by': 'posting_date:month'}" />
                     </group>
                 </search>
             </field>
