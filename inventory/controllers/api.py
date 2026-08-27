@@ -5334,6 +5334,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
+    
     # SHIFT MANAGEMENT SYSTEM
     @http.route('/api/method/saas_api.www.api.open_shift', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_open_shift(self, **kwargs):
@@ -5345,16 +5346,55 @@ class HavanoPOSDeskAPI(http.Controller):
         if not uid:
             user = self._get_user()
             uid = user.id
+            if not uid:
+                return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
 
-        import time
-        shift_id = f"SHIFT-{uid}-{time.strftime('%Y%m%d%H%M%S')}"
+        params = self._get_request_json()
+        terminal_id = params.get('terminal_id')
+        store_id = params.get('store_id')
+        opening_cash = float(params.get('opening_cash', 0.0))
+
+        env = request.env(user=uid)
+        
+        # Check if already open shift exists
+        existing_shift = env['havanoposdesk.shift'].sudo().search([
+            ('user_id', '=', uid),
+            ('state', '=', 'open')
+        ], limit=1)
+        
+        if existing_shift:
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "shift": {
+                        "id": existing_shift.id,
+                        "name": existing_shift.name,
+                        "status": "Open",
+                        "opening_time": str(existing_shift.start_date)
+                    }
+                }
+            })
+            
+        if not store_id:
+            store = env['havanoposdesk.store'].sudo().search([], limit=1)
+            store_id = store.id if store else False
+            
+        shift = env['havanoposdesk.shift'].sudo().create({
+            'user_id': uid,
+            'store_id': store_id,
+            'terminal_id': terminal_id,
+            'opening_cash': opening_cash,
+            'state': 'open'
+        })
+        
         return self._make_json_response({
             "message": {
                 "status": "success",
                 "shift": {
-                    "name": shift_id,
+                    "id": shift.id,
+                    "name": shift.name,
                     "status": "Open",
-                    "opening_time": time.strftime('%Y-%m-%d %H:%M:%S')
+                    "opening_time": str(shift.start_date)
                 }
             }
         })
@@ -5364,15 +5404,60 @@ class HavanoPOSDeskAPI(http.Controller):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
 
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
+
         params = self._get_request_json()
-        import time
+        env = request.env(user=uid)
+        
+        shift = env['havanoposdesk.shift'].sudo().search([
+            ('user_id', '=', uid),
+            ('state', '=', 'open')
+        ], limit=1)
+        
+        if not shift:
+            return self._make_json_response({"message": {"status": "error", "message": "No open shift found"}}, status=404)
+            
+        # Update shift with closing details from POS
+        update_vals = {
+            'actual_cash': float(params.get('actual_cash', 0.0)),
+        }
+        
+        # If POS sends breakdowns, use them
+        if 'amount_cash' in params:
+            update_vals['amount_cash'] = float(params.get('amount_cash', 0.0))
+        if 'amount_card' in params:
+            update_vals['amount_card'] = float(params.get('amount_card', 0.0))
+        if 'amount_mobile' in params:
+            update_vals['amount_mobile'] = float(params.get('amount_mobile', 0.0))
+        if 'amount_bank' in params:
+            update_vals['amount_bank'] = float(params.get('amount_bank', 0.0))
+        if 'amount_other' in params:
+            update_vals['amount_other'] = float(params.get('amount_other', 0.0))
+        if 'total_expenses' in params:
+            update_vals['total_expenses'] = float(params.get('total_expenses', 0.0))
+        if 'total_credit_notes' in params:
+            update_vals['total_credit_notes'] = float(params.get('total_credit_notes', 0.0))
+            
+        shift.write(update_vals)
+        shift.action_close_shift()
+        
         return self._make_json_response({
             "message": {
                 "status": "success",
                 "shift": {
-                    "name": params.get('name') or "SHIFT-CURRENT",
+                    "id": shift.id,
+                    "name": shift.name,
                     "status": "Closed",
-                    "closing_time": time.strftime('%Y-%m-%d %H:%M:%S')
+                    "closing_time": str(shift.end_date),
+                    "expected_cash": shift.expected_cash,
+                    "actual_cash": shift.actual_cash,
+                    "difference": shift.cash_difference
                 }
             }
         })
@@ -5387,19 +5472,35 @@ class HavanoPOSDeskAPI(http.Controller):
         if not uid:
             user = self._get_user()
             uid = user.id
+            if not uid:
+                return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
 
-        import time
-        shift_id = f"SHIFT-{uid}-ACTIVE"
+        env = request.env(user=uid)
+        shift = env['havanoposdesk.shift'].sudo().search([
+            ('user_id', '=', uid),
+            ('state', '=', 'open')
+        ], limit=1)
+        
+        if not shift:
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "shift": None
+                }
+            })
+            
         return self._make_json_response({
             "message": {
                 "status": "success",
                 "shift": {
-                    "name": shift_id,
+                    "id": shift.id,
+                    "name": shift.name,
                     "status": "Open",
-                    "opening_time": time.strftime('%Y-%m-%d 00:00:00')
+                    "opening_time": str(shift.start_date)
                 }
             }
         })
+
 
     @http.route('/api/method/saas_api.www.api.get_shift_reports', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_shift_reports(self, **kwargs):
@@ -5826,6 +5927,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 custom_cr.close()
 
 
+    
     # SHIFT MANAGEMENT SYSTEM
     @http.route('/api/method/saas_api.www.api.open_shift', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_open_shift(self, **kwargs):
@@ -5837,16 +5939,55 @@ class HavanoPOSDeskAPI(http.Controller):
         if not uid:
             user = self._get_user()
             uid = user.id
+            if not uid:
+                return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
 
-        import time
-        shift_id = f"SHIFT-{uid}-{time.strftime('%Y%m%d%H%M%S')}"
+        params = self._get_request_json()
+        terminal_id = params.get('terminal_id')
+        store_id = params.get('store_id')
+        opening_cash = float(params.get('opening_cash', 0.0))
+
+        env = request.env(user=uid)
+        
+        # Check if already open shift exists
+        existing_shift = env['havanoposdesk.shift'].sudo().search([
+            ('user_id', '=', uid),
+            ('state', '=', 'open')
+        ], limit=1)
+        
+        if existing_shift:
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "shift": {
+                        "id": existing_shift.id,
+                        "name": existing_shift.name,
+                        "status": "Open",
+                        "opening_time": str(existing_shift.start_date)
+                    }
+                }
+            })
+            
+        if not store_id:
+            store = env['havanoposdesk.store'].sudo().search([], limit=1)
+            store_id = store.id if store else False
+            
+        shift = env['havanoposdesk.shift'].sudo().create({
+            'user_id': uid,
+            'store_id': store_id,
+            'terminal_id': terminal_id,
+            'opening_cash': opening_cash,
+            'state': 'open'
+        })
+        
         return self._make_json_response({
             "message": {
                 "status": "success",
                 "shift": {
-                    "name": shift_id,
+                    "id": shift.id,
+                    "name": shift.name,
                     "status": "Open",
-                    "opening_time": time.strftime('%Y-%m-%d %H:%M:%S')
+                    "opening_time": str(shift.start_date)
                 }
             }
         })
@@ -5856,15 +5997,60 @@ class HavanoPOSDeskAPI(http.Controller):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
 
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
+
         params = self._get_request_json()
-        import time
+        env = request.env(user=uid)
+        
+        shift = env['havanoposdesk.shift'].sudo().search([
+            ('user_id', '=', uid),
+            ('state', '=', 'open')
+        ], limit=1)
+        
+        if not shift:
+            return self._make_json_response({"message": {"status": "error", "message": "No open shift found"}}, status=404)
+            
+        # Update shift with closing details from POS
+        update_vals = {
+            'actual_cash': float(params.get('actual_cash', 0.0)),
+        }
+        
+        # If POS sends breakdowns, use them
+        if 'amount_cash' in params:
+            update_vals['amount_cash'] = float(params.get('amount_cash', 0.0))
+        if 'amount_card' in params:
+            update_vals['amount_card'] = float(params.get('amount_card', 0.0))
+        if 'amount_mobile' in params:
+            update_vals['amount_mobile'] = float(params.get('amount_mobile', 0.0))
+        if 'amount_bank' in params:
+            update_vals['amount_bank'] = float(params.get('amount_bank', 0.0))
+        if 'amount_other' in params:
+            update_vals['amount_other'] = float(params.get('amount_other', 0.0))
+        if 'total_expenses' in params:
+            update_vals['total_expenses'] = float(params.get('total_expenses', 0.0))
+        if 'total_credit_notes' in params:
+            update_vals['total_credit_notes'] = float(params.get('total_credit_notes', 0.0))
+            
+        shift.write(update_vals)
+        shift.action_close_shift()
+        
         return self._make_json_response({
             "message": {
                 "status": "success",
                 "shift": {
-                    "name": params.get('name') or "SHIFT-CURRENT",
+                    "id": shift.id,
+                    "name": shift.name,
                     "status": "Closed",
-                    "closing_time": time.strftime('%Y-%m-%d %H:%M:%S')
+                    "closing_time": str(shift.end_date),
+                    "expected_cash": shift.expected_cash,
+                    "actual_cash": shift.actual_cash,
+                    "difference": shift.cash_difference
                 }
             }
         })
@@ -5879,19 +6065,35 @@ class HavanoPOSDeskAPI(http.Controller):
         if not uid:
             user = self._get_user()
             uid = user.id
+            if not uid:
+                return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
 
-        import time
-        shift_id = f"SHIFT-{uid}-ACTIVE"
+        env = request.env(user=uid)
+        shift = env['havanoposdesk.shift'].sudo().search([
+            ('user_id', '=', uid),
+            ('state', '=', 'open')
+        ], limit=1)
+        
+        if not shift:
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "shift": None
+                }
+            })
+            
         return self._make_json_response({
             "message": {
                 "status": "success",
                 "shift": {
-                    "name": shift_id,
+                    "id": shift.id,
+                    "name": shift.name,
                     "status": "Open",
-                    "opening_time": time.strftime('%Y-%m-%d 00:00:00')
+                    "opening_time": str(shift.start_date)
                 }
             }
         })
+
 
     @http.route('/api/method/saas_api.www.api.get_shift_reports', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_shift_reports(self, **kwargs):

@@ -114,7 +114,7 @@
 </record>
 
     <record id="action_havanoposdesk_shift" model="ir.actions.act_window">
-        <field name="name">Shifts</field>
+        <field name="name">Shift Reconciliation Report</field>
         <field name="search_view_id" ref="view_havanoposdesk_shift_search"/>
         <field name="res_model">havanoposdesk.shift</field>
         <field name="view_mode">list,form</field>

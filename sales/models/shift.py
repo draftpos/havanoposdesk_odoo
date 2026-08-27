@@ -36,6 +36,9 @@ class Shift(models.Model):
     amount_bank = fields.Monetary(string='Total Bank Transfers', currency_field='currency_id', default=0.0)
     amount_other = fields.Monetary(string='Total Other Payments', currency_field='currency_id', default=0.0)
 
+    sale_ids = fields.One2many('havanoposdesk.sale', 'shift_id', string='Sales')
+    expense_ids = fields.One2many('havanoposdesk.expense', 'shift_id', string='Expenses')
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:

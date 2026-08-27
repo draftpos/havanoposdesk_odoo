@@ -23,6 +23,8 @@ class Sale(models.Model):
     customer = fields.Many2one('havanoposdesk.customer', string='Customer', required=True)
     customer_balance = fields.Float(related='customer.balance', string='Customer Balance')
 
+    shift_id = fields.Many2one('havanoposdesk.shift', string='Shift', copy=False)
+
     
     store = fields.Char(string='Store Name')
     posting_date = fields.Date(string='Posting Date', default=fields.Date.context_today)
@@ -381,6 +383,15 @@ class Sale(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            if not vals.get('shift_id') and not vals.get('is_quotation'):
+                # Try to find an open shift for the current user
+                open_shift = self.env['havanoposdesk.shift'].search([
+                    ('user_id', '=', self.env.user.id),
+                    ('state', '=', 'open')
+                ], limit=1)
+                if open_shift:
+                    vals['shift_id'] = open_shift.id
+
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             if tenant_id:
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)

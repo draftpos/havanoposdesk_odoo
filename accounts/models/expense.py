@@ -26,6 +26,8 @@ class Expense(models.Model):
         ('Posted', 'Posted'),
         ('Cancelled', 'Cancelled')
     ], string='Status', readonly=True, default='Draft')
+
+    shift_id = fields.Many2one('havanoposdesk.shift', string='Shift', copy=False)
     
     # Store reference
     tenant_id = fields.Many2one(
@@ -46,6 +48,14 @@ class Expense(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            if not vals.get('shift_id'):
+                open_shift = self.env['havanoposdesk.shift'].search([
+                    ('user_id', '=', self.env.user.id),
+                    ('state', '=', 'open')
+                ], limit=1)
+                if open_shift:
+                    vals['shift_id'] = open_shift.id
+
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             if tenant_id:
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
