@@ -120,11 +120,17 @@ class ResConfigSettings(models.TransientModel):
         help="If enabled, users will be allowed to edit the product codes (item codes) on products."
     )
 
+    def _default_tenant_id(self):
+        tenant = self.env.user.tenant_id
+        if not tenant:
+            tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+        return tenant.id if tenant else False
+
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant',
         string="Tenant",
         ondelete='cascade',
-        default=lambda self: self.env.user.tenant_id.id
+        default=_default_tenant_id
     )
 
     biz_currency_id = fields.Many2one(
