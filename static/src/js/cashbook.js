@@ -140,6 +140,14 @@ export class CashbookReport extends Component {
         await this.loadData();
     }
 
+    isStoreSelected(storeId) {
+        return String(this.state.selectedStoreId) === String(storeId);
+    }
+
+    isAccountSelected(accountId) {
+        return String(this.state.selectedAccountId) === String(accountId);
+    }
+
     get selectedStoreLabel() {
         if (!this.state.selectedStoreId || this.state.selectedStoreId === 'all') return 'All Stores';
         const st = this.state.availableStores.find(s => String(s.id) === String(this.state.selectedStoreId));

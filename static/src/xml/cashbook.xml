@@ -33,7 +33,7 @@
                                     <div class="dropdown-divider"></div>
                                     <t t-foreach="this.state.availableStores" t-as="st" t-key="st.id">
                                         <a class="dropdown-item" href="#" t-on-click="() => this.selectStore(st.id)" style="padding: 5px 15px; font-size: 13px;">
-                                            <t t-if="this.state.selectedStoreId == String(st.id)"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="st.name"/>
+                                            <t t-if="this.isStoreSelected(st.id)"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="st.name"/>
                                         </a>
                                     </t>
                                 </div>
@@ -47,12 +47,12 @@
                                 </button>
                                 <div class="dropdown-menu" style="padding: 5px 0; min-width: 200px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                                     <a class="dropdown-item" href="#" t-on-click="() => this.selectAccount('all')" style="padding: 5px 15px; font-size: 13px;">
-                                        <t t-if="this.state.selectedAccountId == 'all'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>All Accounts
+                                        <t t-if="this.isAccountSelected('all')"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>All Accounts
                                     </a>
                                     <div class="dropdown-divider"></div>
                                     <t t-foreach="this.state.availableAccounts" t-as="acc" t-key="acc.id">
                                         <a class="dropdown-item" href="#" t-on-click="() => this.selectAccount(acc.id)" style="padding: 5px 15px; font-size: 13px;">
-                                            <t t-if="this.state.selectedAccountId == String(acc.id)"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="acc.name"/> (<t t-esc="acc.type"/>)
+                                            <t t-if="this.isAccountSelected(acc.id)"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="acc.name"/> (<t t-esc="acc.type"/>)
                                         </a>
                                     </t>
                                 </div>
