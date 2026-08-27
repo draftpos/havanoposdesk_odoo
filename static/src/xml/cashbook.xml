@@ -24,19 +24,16 @@
                             <div class="dropdown">
                                 <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #f8f9fa; border: 1px solid #d3d3d3; color: #4c4c4c; border-radius: 3px; padding: 5px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                     <i class="fa fa-building-o" style="color: #666;"></i>
-                                    <t t-if="this.state.selectedStoreId == 'all'">All Stores</t>
-                                    <t t-else="">
-                                        <t t-esc="this.state.availableStores.find(s => s.id == this.state.selectedStoreId)?.name || 'Store'"/>
-                                    </t>
+                                    <t t-esc="this.selectedStoreLabel"/>
                                 </button>
                                 <div class="dropdown-menu" style="padding: 5px 0; min-width: 180px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                                    <a class="dropdown-item" href="#" t-on-click="() => this.onStoreChange({target: {value: 'all'}})" style="padding: 5px 15px; font-size: 13px;">
+                                    <a class="dropdown-item" href="#" t-on-click="() => this.selectStore('all')" style="padding: 5px 15px; font-size: 13px;">
                                         <t t-if="this.state.selectedStoreId == 'all'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>All Stores
                                     </a>
                                     <div class="dropdown-divider"></div>
                                     <t t-foreach="this.state.availableStores" t-as="st" t-key="st.id">
-                                        <a class="dropdown-item" href="#" t-on-click="() => this.onStoreChange({target: {value: st.id}})" style="padding: 5px 15px; font-size: 13px;">
-                                            <t t-if="this.state.selectedStoreId == st.id"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="st.name"/>
+                                        <a class="dropdown-item" href="#" t-on-click="() => this.selectStore(st.id)" style="padding: 5px 15px; font-size: 13px;">
+                                            <t t-if="this.state.selectedStoreId == String(st.id)"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="st.name"/>
                                         </a>
                                     </t>
                                 </div>
@@ -46,50 +43,26 @@
                             <div class="dropdown">
                                 <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #f8f9fa; border: 1px solid #d3d3d3; color: #4c4c4c; border-radius: 3px; padding: 5px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                     <i class="fa fa-credit-card" style="color: #666;"></i>
-                                    <t t-if="this.state.selectedAccountId == 'all'">All Accounts</t>
-                                    <t t-else="">
-                                        <t t-esc="this.state.availableAccounts.find(a => a.id == this.state.selectedAccountId)?.name || 'Account'"/>
-                                    </t>
+                                    <t t-esc="this.selectedAccountLabel"/>
                                 </button>
                                 <div class="dropdown-menu" style="padding: 5px 0; min-width: 200px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                                    <a class="dropdown-item" href="#" t-on-click="() => this.onAccountChange({target: {value: 'all'}})" style="padding: 5px 15px; font-size: 13px;">
+                                    <a class="dropdown-item" href="#" t-on-click="() => this.selectAccount('all')" style="padding: 5px 15px; font-size: 13px;">
                                         <t t-if="this.state.selectedAccountId == 'all'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>All Accounts
                                     </a>
                                     <div class="dropdown-divider"></div>
                                     <t t-foreach="this.state.availableAccounts" t-as="acc" t-key="acc.id">
-                                        <a class="dropdown-item" href="#" t-on-click="() => this.onAccountChange({target: {value: acc.id}})" style="padding: 5px 15px; font-size: 13px;">
-                                            <t t-if="this.state.selectedAccountId == acc.id"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="acc.name"/> (<t t-esc="acc.type"/>)
+                                        <a class="dropdown-item" href="#" t-on-click="() => this.selectAccount(acc.id)" style="padding: 5px 15px; font-size: 13px;">
+                                            <t t-if="this.state.selectedAccountId == String(acc.id)"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="acc.name"/> (<t t-esc="acc.type"/>)
                                         </a>
                                     </t>
                                 </div>
                             </div>
 
-                            <!-- Standard Date Dropdown Filter (Identical to Profit and Loss) -->
+                            <!-- Date Dropdown Filter -->
                             <div class="dropdown">
                                 <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #f8f9fa; border: 1px solid #d3d3d3; color: #4c4c4c; border-radius: 3px; padding: 5px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                     <i class="fa fa-calendar" style="color: #666;"></i>
-                                    <t t-if="this.state.datePreset == 'this_month'">This Month</t>
-                                    <t t-elif="this.state.datePreset == 'this_quarter'">This Quarter</t>
-                                    <t t-elif="this.state.datePreset == 'this_year'">This Year</t>
-                                    <t t-elif="this.state.datePreset == 'last_month'">Last Month</t>
-                                    <t t-elif="this.state.datePreset == 'last_year'">Last Year</t>
-                                    <t t-elif="this.state.datePreset == 'today'">Today</t>
-                                    <t t-elif="this.state.datePreset == 'yesterday'">Yesterday</t>
-                                    <t t-elif="this.state.datePreset == 'all'">All Time</t>
-                                    <t t-elif="this.state.datePreset.startsWith('month_')">
-                                        <t t-esc="this.state.months.find(m => m.id === this.state.datePreset)?.name"/>
-                                    </t>
-                                    <t t-elif="this.state.datePreset.startsWith('quarter_')">
-                                        <t t-esc="this.state.quarters.find(q => q.id === this.state.datePreset)?.name"/>
-                                    </t>
-                                    <t t-else="">
-                                        <t t-if="this.state.dateFrom and this.state.dateTo">
-                                            <t t-esc="this.state.dateFrom"/> to <t t-esc="this.state.dateTo"/>
-                                        </t>
-                                        <t t-elif="this.state.dateFrom">From <t t-esc="this.state.dateFrom"/></t>
-                                        <t t-elif="this.state.dateTo">To <t t-esc="this.state.dateTo"/></t>
-                                        <t t-else="">All Dates</t>
-                                    </t>
+                                    <t t-esc="this.datePresetLabel"/>
                                 </button>
                                 <div class="dropdown-menu" style="padding: 10px; min-width: 420px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                                     <div style="display: flex;">

@@ -35,22 +35,32 @@ export class CashbookReport extends Component {
             ]
         });
 
-        onWillStart(async () => {
-            await this.loadInitialFilters();
-            this.setPresetDates('this_year');
-            await this.loadData();
+        onWillStart(() => {
+            this.loadInitialFilters().then(() => {
+                this.setPresetDates('this_year');
+                this.loadData();
+            }).catch((err) => {
+                console.error("Failed to initialize cashbook:", err);
+                this.state.isLoading = false;
+            });
         });
     }
 
     async loadInitialFilters() {
         try {
             const stores = await this.orm.call("havanoposdesk.cashbook", "get_available_stores", []);
-            this.state.availableStores = stores || [];
-            
-            const accounts = await this.orm.call("havanoposdesk.cashbook", "get_available_accounts", []);
-            this.state.availableAccounts = accounts || [];
+            this.state.availableStores = Array.isArray(stores) ? stores : [];
         } catch (e) {
-            console.error("Failed to load initial filters:", e);
+            console.error("Failed to load stores:", e);
+            this.state.availableStores = [];
+        }
+
+        try {
+            const accounts = await this.orm.call("havanoposdesk.cashbook", "get_available_accounts", []);
+            this.state.availableAccounts = Array.isArray(accounts) ? accounts : [];
+        } catch (e) {
+            console.error("Failed to load accounts:", e);
+            this.state.availableAccounts = [];
         }
     }
 
@@ -120,14 +130,52 @@ export class CashbookReport extends Component {
         await this.loadData();
     }
 
-    async onStoreChange(ev) {
-        this.state.selectedStoreId = ev.target.value;
+    async selectStore(storeId) {
+        this.state.selectedStoreId = String(storeId);
         await this.loadData();
     }
 
-    async onAccountChange(ev) {
-        this.state.selectedAccountId = ev.target.value;
+    async selectAccount(accountId) {
+        this.state.selectedAccountId = String(accountId);
         await this.loadData();
+    }
+
+    get selectedStoreLabel() {
+        if (!this.state.selectedStoreId || this.state.selectedStoreId === 'all') return 'All Stores';
+        const st = this.state.availableStores.find(s => String(s.id) === String(this.state.selectedStoreId));
+        return st ? st.name : 'All Stores';
+    }
+
+    get selectedAccountLabel() {
+        if (!this.state.selectedAccountId || this.state.selectedAccountId === 'all') return 'All Accounts';
+        const acc = this.state.availableAccounts.find(a => String(a.id) === String(this.state.selectedAccountId));
+        return acc ? acc.name : 'All Accounts';
+    }
+
+    get datePresetLabel() {
+        const p = this.state.datePreset;
+        if (p === 'this_month') return 'This Month';
+        if (p === 'this_quarter') return 'This Quarter';
+        if (p === 'this_year') return 'This Year';
+        if (p === 'last_month') return 'Last Month';
+        if (p === 'last_year') return 'Last Year';
+        if (p === 'today') return 'Today';
+        if (p === 'yesterday') return 'Yesterday';
+        if (p === 'all') return 'All Time';
+        if (p && p.startsWith('month_')) {
+            const m = this.state.months.find(item => item.id === p);
+            return m ? m.name : p;
+        }
+        if (p && p.startsWith('quarter_')) {
+            const q = this.state.quarters.find(item => item.id === p);
+            return q ? q.name : p;
+        }
+        if (this.state.dateFrom && this.state.dateTo) {
+            return `${this.state.dateFrom} to ${this.state.dateTo}`;
+        }
+        if (this.state.dateFrom) return `From ${this.state.dateFrom}`;
+        if (this.state.dateTo) return `To ${this.state.dateTo}`;
+        return 'All Time';
     }
 
     async loadData() {
@@ -147,9 +195,10 @@ export class CashbookReport extends Component {
                     date_to: this.state.dateTo || null,
                 }
             );
-            this.state.data = res;
+            this.state.data = res || {};
         } catch (err) {
             console.error("Error loading cashbook data:", err);
+            this.state.data = null;
         } finally {
             this.state.isLoading = false;
         }
@@ -176,7 +225,7 @@ export class CashbookReport extends Component {
     }
 
     formatCurrency(amount) {
-        const sym = this.state.data ? this.state.data.currency_symbol : '$';
+        const sym = (this.state.data && this.state.data.currency_symbol) ? this.state.data.currency_symbol : '$';
         const val = parseFloat(amount || 0).toFixed(2);
         return `${sym}${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
