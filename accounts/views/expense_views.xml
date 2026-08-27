@@ -6,7 +6,7 @@
             <field name="name">havanoposdesk.expense.list</field>
             <field name="model">havanoposdesk.expense</field>
             <field name="arch" type="xml">
-                <list string="Expense Posting" decoration-info="state == 'Draft'" decoration-success="state == 'Posted'" decoration-danger="state == 'Cancelled'">
+                <list string="Expense Posting" decoration-info="state == 'Draft'" decoration-warning="state == 'Pending'" decoration-success="state == 'Posted'" decoration-danger="state in ('Cancelled', 'Rejected')">
                     <field name="name" />
                     <field name="date" />
                     <field name="currency_id" column_invisible="True" />
@@ -15,7 +15,9 @@
                     <field name="amount" sum="Total Expenses" widget="monetary" />
                     <field name="is_paid" widget="boolean_toggle" />
                     <field name="payment_account_id" optional="show" />
-                    <field name="state" widget="badge" decoration-info="state == 'Draft'" decoration-success="state == 'Posted'" decoration-danger="state == 'Cancelled'" optional="show" />
+                    <field name="submitted_by_cashier" optional="show" widget="boolean" string="From POS"/>
+                    <field name="shift_id" optional="show"/>
+                    <field name="state" widget="badge" decoration-info="state == 'Draft'" decoration-warning="state == 'Pending'" decoration-success="state == 'Posted'" decoration-danger="state in ('Cancelled', 'Rejected')" optional="show" />
                 </list>
             </field>
         </record>
@@ -28,9 +30,18 @@
                 <form string="Expense Posting">
                     <header>
                         <button name="action_post" string="Post" type="object" class="oe_highlight" invisible="state != 'Draft'" />
+                        <button name="action_submit_for_approval" string="Submit for Approval" type="object" class="btn-primary" invisible="state != 'Draft'"
+                            groups="base.group_user"
+                            attrs="{}"/>
+                        <button name="action_approve" string="Approve" type="object" class="oe_highlight"
+                            invisible="state != 'Pending'"
+                            groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+                        <button name="action_reject" string="Reject" type="object" class="btn-danger"
+                            invisible="state != 'Pending'"
+                            groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
                         <button name="action_cancel" string="Cancel" type="object" invisible="state != 'Posted'" />
-                        <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'Cancelled'" />
-                        <field name="state" widget="statusbar" statusbar_visible="Draft,Posted" />
+                        <button name="action_draft" string="Reset to Draft" type="object" invisible="state not in ['Cancelled', 'Rejected']" />
+                        <field name="state" widget="statusbar" statusbar_visible="Draft,Pending,Posted" />
                     </header>
                     <sheet>
                         <div class="oe_title">
@@ -40,16 +51,18 @@
                         </div>
                         <group>
                             <group>
-                                <field name="date" readonly="state != 'Draft'" />
-                                <field name="store_id" readonly="state != 'Draft'" required="1" options="{'no_create': True, 'no_open': True}" />
+                                <field name="date" readonly="state not in ['Draft', 'Pending']" />
+                                <field name="store_id" readonly="state not in ['Draft', 'Pending']" required="1" options="{'no_create': True, 'no_open': True}" />
                                 <field name="currency_id" invisible="1" />
-                                <field name="supplier_id" readonly="state != 'Draft'" />
-                                <field name="account_id" readonly="state != 'Draft'" />
-                                <field name="amount" readonly="state != 'Draft'" widget="monetary" />
+                                <field name="supplier_id" readonly="state not in ['Draft', 'Pending']" />
+                                <field name="account_id" readonly="state not in ['Draft', 'Pending']" />
+                                <field name="amount" readonly="state not in ['Draft', 'Pending']" widget="monetary" />
+                                <field name="shift_id" readonly="1" options="{'no_create': True}" />
                             </group>
                             <group>
-                                <field name="is_paid" readonly="state != 'Draft'" />
-                                <field name="payment_account_id" invisible="not is_paid" required="is_paid" readonly="state != 'Draft'" />
+                                <field name="is_paid" readonly="state not in ['Draft', 'Pending']" />
+                                <field name="payment_account_id" invisible="not is_paid" required="is_paid" readonly="state not in ['Draft', 'Pending']" />
+                                <field name="submitted_by_cashier" readonly="1" string="Submitted from POS" />
                             </group>
                         </group>
                         <notebook>
@@ -76,7 +89,10 @@
                     <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
                     <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
                     <filter string="Draft" name="draft" domain="[('state','=','Draft')]" />
+                    <filter string="Pending Approval" name="pending" domain="[('state','=','Pending')]" />
                     <filter string="Posted" name="posted" domain="[('state','=','Posted')]" />
+                    <filter string="Rejected" name="rejected" domain="[('state','=','Rejected')]" />
+                    <filter string="From POS" name="from_pos" domain="[('submitted_by_cashier','=',True)]" />
                     <filter string="Account" name="filter_account" domain="[('account_id', '!=', False)]" />
                     <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]" />
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]" />

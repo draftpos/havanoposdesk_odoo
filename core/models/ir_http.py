@@ -48,6 +48,7 @@ class IrHttp(models.AbstractModel):
                         ("payroll_url", "VARCHAR"),
                         ("stock_decimal_places", "INTEGER DEFAULT 3"),
                         ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
+                        ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
                     ]
                     # Fetch existing columns to avoid redundant ALTER TABLE calls (which require AccessExclusiveLocks)
                     cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'havanoposdesk_tenant'")

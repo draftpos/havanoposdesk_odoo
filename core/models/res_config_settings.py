@@ -66,6 +66,7 @@ class ResConfigSettings(models.TransientModel):
                 ("payroll_url", "VARCHAR"),
                 ("stock_decimal_places", "INTEGER DEFAULT 3"),
                 ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
+                ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
             ]
             for col_name, col_type in cols:
                 if col_name not in existing_cols:
@@ -134,6 +135,13 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.do_not_round_stock',
         readonly=False,
         help="If enabled, decimal values will be truncated instead of rounded (e.g. 1.67 with 1 decimal place becomes 1.6)."
+    )
+
+    biz_expenses_require_approval = fields.Boolean(
+        string="Expenses Require Approval",
+        related='tenant_id.expenses_require_approval',
+        readonly=False,
+        help="If enabled, expenses submitted by cashiers from the POS will require manager approval before cash is deducted."
     )
 
     def _default_tenant_id(self):

@@ -83,6 +83,12 @@
                         </setting>
                     </block>
 
+                    <block title="Expense Settings" name="expense_settings_config">
+                        <setting string="Expenses Require Approval" help="When enabled, expenses submitted by cashiers from the POS will be put in Pending Approval state and must be approved by a manager before cash is deducted">
+                            <field name="biz_expenses_require_approval"/>
+                        </setting>
+                    </block>
+
                     <block title="Payroll Integration" name="payroll_integration_config">
                         <setting string="Enable Payroll" help="Enable the Payroll Module">
                             <field name="biz_enable_payroll"/>

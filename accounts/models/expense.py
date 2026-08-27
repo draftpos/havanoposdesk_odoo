@@ -23,9 +23,17 @@ class Expense(models.Model):
     )
     state = fields.Selection([
         ('Draft', 'Draft'),
+        ('Pending', 'Pending Approval'),
         ('Posted', 'Posted'),
+        ('Rejected', 'Rejected'),
         ('Cancelled', 'Cancelled')
     ], string='Status', readonly=True, default='Draft')
+
+    submitted_by_cashier = fields.Boolean(
+        string='Submitted by Cashier',
+        default=False,
+        help='If True, this expense was submitted from the POS by a cashier and may require approval.'
+    )
 
     shift_id = fields.Many2one('havanoposdesk.shift', string='Shift', copy=False)
     
@@ -74,20 +82,38 @@ class Expense(models.Model):
     def write(self, vals):
         from odoo.exceptions import ValidationError
         for record in self:
-            if record.state != 'Draft' and any(f not in ['state'] for f in vals.keys()):
+            if record.state not in ('Draft', 'Pending') and any(f not in ['state'] for f in vals.keys()):
                 raise ValidationError("You cannot modify a confirmed/posted expense. Please cancel it first.")
         return super().write(vals)
 
     def unlink(self):
         from odoo.exceptions import ValidationError
         for record in self:
-            if record.state != 'Draft':
+            if record.state not in ('Draft', 'Pending', 'Rejected'):
                 raise ValidationError("You cannot delete a confirmed/posted expense. Please cancel it first.")
         return super().unlink()
 
-    def action_post(self):
+    def action_submit_for_approval(self):
+        """Submit expense for manager approval. Called from POS when approval is required."""
         for record in self:
             if record.state == 'Draft':
+                record.state = 'Pending'
+
+    def action_approve(self):
+        """Approve a pending expense — posts it and deducts cash."""
+        for record in self:
+            if record.state == 'Pending':
+                record.action_post()
+
+    def action_reject(self):
+        """Reject a pending expense — no cash is deducted."""
+        for record in self:
+            if record.state == 'Pending':
+                record.state = 'Rejected'
+
+    def action_post(self):
+        for record in self:
+            if record.state in ('Draft', 'Pending'):
                 if record.is_paid:
                     if not record.payment_account_id:
                         from odoo.exceptions import ValidationError
@@ -103,7 +129,7 @@ class Expense(models.Model):
 
     def action_cancel(self):
         for record in self:
-            if record.state != 'Posted':
+            if record.state not in ('Posted',):
                 continue
             if record.is_paid and record.payment_account_id:
                 # Reverse subtraction using sudo()
@@ -117,6 +143,6 @@ class Expense(models.Model):
 
     def action_draft(self):
         for record in self:
-            if record.state != 'Cancelled':
+            if record.state not in ('Cancelled', 'Rejected'):
                 continue
             record.state = 'Draft'

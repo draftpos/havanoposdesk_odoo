@@ -5231,6 +5231,7 @@ class HavanoPOSDeskAPI(http.Controller):
             enable_shift = 1 if tenant and tenant.enable_shift else 0
             stock_decimal_places = getattr(tenant, 'stock_decimal_places', 3) if tenant else 3
             do_not_round_stock = 1 if (tenant and getattr(tenant, 'do_not_round_stock', False)) else 0
+            expenses_require_approval = 1 if (tenant and getattr(tenant, 'expenses_require_approval', False)) else 0
 
             return self._make_json_response({
                 "message": {
@@ -5245,7 +5246,8 @@ class HavanoPOSDeskAPI(http.Controller):
                         "enable_shift": enable_shift,
                         "stock_decimal_places": stock_decimal_places,
                         "do_not_round_stock": do_not_round_stock,
-                        "stock_decimal_places_count": stock_decimal_places
+                        "stock_decimal_places_count": stock_decimal_places,
+                        "expenses_require_approval": expenses_require_approval
                     }
                 }
             })
@@ -5926,6 +5928,7 @@ class HavanoPOSDeskAPI(http.Controller):
             enable_shift = 1 if tenant and tenant.enable_shift else 0
             stock_decimal_places = getattr(tenant, 'stock_decimal_places', 3) if tenant else 3
             do_not_round_stock = 1 if (tenant and getattr(tenant, 'do_not_round_stock', False)) else 0
+            expenses_require_approval = 1 if (tenant and getattr(tenant, 'expenses_require_approval', False)) else 0
 
             return self._make_json_response({
                 "message": {
@@ -5940,7 +5943,8 @@ class HavanoPOSDeskAPI(http.Controller):
                         "enable_shift": enable_shift,
                         "stock_decimal_places": stock_decimal_places,
                         "do_not_round_stock": do_not_round_stock,
-                        "stock_decimal_places_count": stock_decimal_places
+                        "stock_decimal_places_count": stock_decimal_places,
+                        "expenses_require_approval": expenses_require_approval
                     }
                 }
             })
@@ -8826,6 +8830,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 for e in expenses:
                     result.append({
                         "name": e.name,
+                        "id": e.id,
                         "store": e.store_id.name if e.store_id else "",
                         "expense_type": e.account_id.name if e.account_id else "",
                         "amount": e.amount,
@@ -8835,7 +8840,11 @@ class HavanoPOSDeskAPI(http.Controller):
                         "account": e.payment_account_id.name if e.payment_account_id else "",
                         "employee": e.create_uid.name if e.create_uid else "POS Cashier",
                         "posting_date": str(e.date) if e.date else "",
-                        "status": "Paid" if e.state == "Posted" else ("Rejected" if e.state == "Cancelled" else "Draft"),
+                        "state": e.state,
+                        "status": e.state,
+                        "submitted_by_cashier": e.submitted_by_cashier,
+                        "shift_id": e.shift_id.id if e.shift_id else False,
+                        "shift_name": e.shift_id.name if e.shift_id else "",
                         "company": e.tenant_id.name if e.tenant_id else ""
                     })
                 return self._make_json_response({"data": result})
@@ -8917,6 +8926,20 @@ class HavanoPOSDeskAPI(http.Controller):
                             ('type', 'in', ['Cash', 'Bank'])
                         ], limit=1)
                     
+                    # Check tenant approval setting
+                    tenant = user.tenant_id
+                    requires_approval = tenant and getattr(tenant, 'expenses_require_approval', False)
+
+                    # Resolve shift_id from request or from open shift for user
+                    shift_id_val = item.get('shift_id') or data.get('shift_id')
+                    if not shift_id_val:
+                        open_shift = env['havanoposdesk.shift'].sudo().search([
+                            ('user_id', '=', uid),
+                            ('state', '=', 'open')
+                        ], limit=1)
+                        if open_shift:
+                            shift_id_val = open_shift.id
+
                     # Auto-set posting date in API
                     today_date = fields.Date.context_today(env.user)
 
@@ -8929,18 +8952,108 @@ class HavanoPOSDeskAPI(http.Controller):
                         'payment_account_id': payment_account_obj.id if payment_account_obj else False,
                         'state': 'Draft',
                         'tenant_id': tenant_id,
-                        'store_id': store_obj.id if store_obj else False
+                        'store_id': store_obj.id if store_obj else False,
+                        'submitted_by_cashier': True,
+                        'shift_id': shift_id_val if shift_id_val else False,
                     }
                     new_expense = env['havanoposdesk.expense'].create(expense_vals)
-                    new_expense.action_post()
-                    created_names.append(new_expense.name)
+
+                    if requires_approval:
+                        # Submit for approval — state goes to Pending, cash NOT deducted yet
+                        new_expense.action_submit_for_approval()
+                        expense_status = 'Pending Approval'
+                    else:
+                        # Post immediately — deduct cash now
+                        new_expense.action_post()
+                        expense_status = 'Posted'
+
+                    created_names.append({'name': new_expense.name, 'id': new_expense.id, 'status': expense_status})
                 
                 return self._make_json_response({
                     "data": {
-                        "name": ", ".join(created_names),
-                        "status": "Submitted"
+                        "name": ", ".join([e['name'] for e in created_names]),
+                        "status": created_names[0]['status'] if created_names else 'Submitted',
+                        "expenses": created_names,
+                        "requires_approval": bool(requires_approval)
                     }
                 })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/method/saas_api.www.api.approve_expense', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_approve_expense(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            # Only admins can approve
+            if user.havano_role not in ('admin', 'super_admin') and not user.has_group('base.group_system'):
+                return self._make_json_response({"message": {"status": "error", "message": "You do not have permission to approve expenses."}}, status=403)
+
+            params = self._get_request_json()
+            expense_id = params.get('expense_id')
+            if not expense_id:
+                return self._make_json_response({"message": {"status": "error", "message": "expense_id is required"}}, status=400)
+
+            expense = env['havanoposdesk.expense'].sudo().browse(int(expense_id))
+            if not expense.exists():
+                return self._make_json_response({"message": {"status": "error", "message": "Expense not found"}}, status=404)
+
+            expense.action_approve()
+
+            return self._make_json_response({"message": {
+                "status": "success",
+                "expense": {"id": expense.id, "name": expense.name, "state": expense.state}
+            }})
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/method/saas_api.www.api.reject_expense', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_reject_expense(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            if user.havano_role not in ('admin', 'super_admin') and not user.has_group('base.group_system'):
+                return self._make_json_response({"message": {"status": "error", "message": "You do not have permission to reject expenses."}}, status=403)
+
+            params = self._get_request_json()
+            expense_id = params.get('expense_id')
+            if not expense_id:
+                return self._make_json_response({"message": {"status": "error", "message": "expense_id is required"}}, status=400)
+
+            expense = env['havanoposdesk.expense'].sudo().browse(int(expense_id))
+            if not expense.exists():
+                return self._make_json_response({"message": {"status": "error", "message": "Expense not found"}}, status=404)
+
+            expense.action_reject()
+
+            return self._make_json_response({"message": {
+                "status": "success",
+                "expense": {"id": expense.id, "name": expense.name, "state": expense.state}
+            }})
         except Exception as e:
             return self._make_json_response({"error": str(e)}, status=500)
         finally:

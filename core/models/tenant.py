@@ -51,6 +51,7 @@ class HavanoposdeskTenant(models.Model):
             ("payroll_url", "VARCHAR"),
             ("stock_decimal_places", "INTEGER DEFAULT 3"),
             ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
+            ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
         ]
         for col_name, col_type in columns:
             try:
@@ -399,6 +400,7 @@ class HavanoposdeskTenant(models.Model):
     allow_edit_item_code = fields.Boolean(string='Allow Editing Item Code', default=False)
     stock_decimal_places = fields.Integer(string='Stock Decimal Places', default=3, help='Number of decimal places (minimum 1)')
     do_not_round_stock = fields.Boolean(string='Do Not Round Stock (Truncate)', default=False, help='If checked, values are truncated without rounding, e.g., 1.67 with 1 decimal place becomes 1.6.')
+    expenses_require_approval = fields.Boolean(string='Expenses Require Approval', default=False, help='If enabled, expenses submitted by cashiers will require manager approval before they are posted and deduct cash.')
 
     @api.constrains('stock_decimal_places')
     def _check_stock_decimal_places(self):
