@@ -31,8 +31,7 @@
                     <header>
                         <button name="action_post" string="Post" type="object" class="oe_highlight" invisible="state != 'Draft'" />
                         <button name="action_submit_for_approval" string="Submit for Approval" type="object" class="btn-primary" invisible="state != 'Draft'"
-                            groups="base.group_user"
-                            attrs="{}"/>
+                            groups="base.group_user"/>
                         <button name="action_approve" string="Approve" type="object" class="oe_highlight"
                             invisible="state != 'Pending'"
                             groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
