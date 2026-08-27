@@ -7129,13 +7129,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 
                 product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant_id)], limit=1)
                 if product:
-                    on_hand = product.opening_stock
-                    valuation = env['havanoposdesk.stock.valuation'].search([
-                        ('product_id', '=', product.id),
-                        ('store', '=', store.name if store else '')
-                    ], limit=1)
-                    if valuation:
-                        on_hand = valuation.on_hand_qty
+                    on_hand = env['havanoposdesk.stock.adjustment']._get_product_stock_on_hand(product, store)
 
                     line_ids.append((0, 0, {
                         'product_id': product.id,

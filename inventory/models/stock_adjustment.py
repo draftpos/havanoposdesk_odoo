@@ -31,20 +31,64 @@ class StockAdjustment(models.Model):
     fetch_category_id = fields.Many2one('havanoposdesk.category', string='Fetch Category Items')
 
     @api.model
+    def _get_product_stock_on_hand(self, product, store):
+        """Retrieve the current on-hand quantity for a product in a given store from stock valuation."""
+        if not product:
+            return 0.0
+        
+        store_rec = None
+        store_name = ''
+        if isinstance(store, models.Model) and store:
+            store_rec = store
+            store_name = store.name
+        elif isinstance(store, int) and store:
+            store_rec = self.env['havanoposdesk.store'].browse(store)
+            store_name = store_rec.name if store_rec.exists() else ''
+        elif isinstance(store, str) and store:
+            store_name = store
+            store_rec = self.env['havanoposdesk.store'].search([('name', '=', store)], limit=1)
+
+        domain = [('product_id', '=', product.id)]
+        if store_rec and store_name:
+            domain.extend(['|', ('store_id', '=', store_rec.id), ('store', '=', store_name)])
+        elif store_name:
+            domain.append(('store', '=', store_name))
+        elif store_rec:
+            domain.append(('store_id', '=', store_rec.id))
+
+        if hasattr(product, 'tenant_id') and product.tenant_id:
+            domain.append(('tenant_id', '=', product.tenant_id.id))
+
+        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
+        return valuation.on_hand_qty if valuation else 0.0
+
+    @api.model
     def default_get(self, fields_list):
         res = super().default_get(fields_list)
-        if res.get('fetch_all_data'):
-            store_id = res.get('store_id')
-            domain = [('track_qty', '=', True), ('is_bundle', '=', False)]
-            if store_id:
-                domain.append(('store_ids', 'in', [store_id]))
+        store_id = res.get('store_id') or self._default_store_id()
+        if store_id and 'store_id' not in res:
+            res['store_id'] = store_id
+
+        if res.get('fetch_all_data') and store_id:
+            store = self.env['havanoposdesk.store'].browse(store_id)
+            tenant_id = res.get('tenant_id') or self.env.user.tenant_id.id
+            domain = [
+                ('store_ids', 'in', [store_id]),
+                ('track_qty', '=', True),
+                ('is_bundle', '=', False),
+                ('is_active', '=', True),
+            ]
+            if tenant_id:
+                domain.append(('tenant_id', '=', tenant_id))
+
             products = self.env['havanoposdesk.product'].search(domain)
             lines = []
             for product in products:
+                on_hand = self._get_product_stock_on_hand(product, store)
                 lines.append((0, 0, {
                     'product_id': product.id,
-                    'on_hand': product.opening_stock,
-                    'counted': product.opening_stock,
+                    'on_hand': on_hand,
+                    'counted': on_hand,
                 }))
             res['line_ids'] = lines
         return res
@@ -70,54 +114,93 @@ class StockAdjustment(models.Model):
     @api.onchange('fetch_all_data')
     def _onchange_fetch_all_data(self):
         if self.fetch_all_data:
-            domain = [('track_qty', '=', True), ('is_bundle', '=', False)]
-            if self.store_id:
-                domain.append(('store_ids', 'in', [self.store_id.id]))
+            if not self.store_id:
+                self.line_ids = [(5, 0, 0)]
+                self.fetch_category_id = False
+                return
+            domain = [
+                ('store_ids', 'in', [self.store_id.id]),
+                ('track_qty', '=', True),
+                ('is_bundle', '=', False),
+                ('is_active', '=', True),
+            ]
+            if self.tenant_id:
+                domain.append(('tenant_id', '=', self.tenant_id.id))
             products = self.env['havanoposdesk.product'].search(domain)
             lines = [(5, 0, 0)]
             for product in products:
+                on_hand = self._get_product_stock_on_hand(product, self.store_id)
                 lines.append((0, 0, {
                     'product_id': product.id,
-                    'on_hand': product.opening_stock,
-                    'counted': product.opening_stock,
+                    'on_hand': on_hand,
+                    'counted': on_hand,
                 }))
             self.line_ids = lines
             self.fetch_category_id = False
+        else:
+            self.line_ids = [(5, 0, 0)]
 
     @api.onchange('fetch_category_id')
     def _onchange_fetch_category_id(self):
         if self.fetch_category_id:
-            domain = [('category_id', '=', self.fetch_category_id.id), ('track_qty', '=', True), ('is_bundle', '=', False)]
-            if self.store_id:
-                domain.append(('store_ids', 'in', [self.store_id.id]))
+            if not self.store_id:
+                self.line_ids = [(5, 0, 0)]
+                self.fetch_all_data = False
+                return
+            domain = [
+                ('category_id', '=', self.fetch_category_id.id),
+                ('store_ids', 'in', [self.store_id.id]),
+                ('track_qty', '=', True),
+                ('is_bundle', '=', False),
+                ('is_active', '=', True),
+            ]
+            if self.tenant_id:
+                domain.append(('tenant_id', '=', self.tenant_id.id))
             products = self.env['havanoposdesk.product'].search(domain)
             lines = [(5, 0, 0)]
             for product in products:
+                on_hand = self._get_product_stock_on_hand(product, self.store_id)
                 lines.append((0, 0, {
                     'product_id': product.id,
-                    'on_hand': product.opening_stock,
-                    'counted': product.opening_stock,
+                    'on_hand': on_hand,
+                    'counted': on_hand,
                 }))
             self.line_ids = lines
             self.fetch_all_data = False
 
     @api.onchange('store_id')
     def _onchange_store_id(self):
-        if self.store_id:
-            domain = [('store_ids', 'in', [self.store_id.id]), ('track_qty', '=', True), ('is_bundle', '=', False)]
+        if not self.store_id:
+            self.line_ids = [(5, 0, 0)]
+            return
+
+        if self.fetch_all_data or self.fetch_category_id:
+            domain = [
+                ('store_ids', 'in', [self.store_id.id]),
+                ('track_qty', '=', True),
+                ('is_bundle', '=', False),
+                ('is_active', '=', True),
+            ]
             if self.fetch_category_id:
                 domain.append(('category_id', '=', self.fetch_category_id.id))
+            if self.tenant_id:
+                domain.append(('tenant_id', '=', self.tenant_id.id))
             
-            if self.fetch_all_data or self.fetch_category_id:
-                products = self.env['havanoposdesk.product'].search(domain)
-                lines = [(5, 0, 0)]
-                for product in products:
-                    lines.append((0, 0, {
-                        'product_id': product.id,
-                        'on_hand': product.opening_stock,
-                        'counted': product.opening_stock,
-                    }))
-                self.line_ids = lines
+            products = self.env['havanoposdesk.product'].search(domain)
+            lines = [(5, 0, 0)]
+            for product in products:
+                on_hand = self._get_product_stock_on_hand(product, self.store_id)
+                lines.append((0, 0, {
+                    'product_id': product.id,
+                    'on_hand': on_hand,
+                    'counted': on_hand,
+                }))
+            self.line_ids = lines
+        else:
+            # Update on_hand for existing lines for the new store
+            for line in self.line_ids:
+                if line.product_id:
+                    line.on_hand = self._get_product_stock_on_hand(line.product_id, self.store_id)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -136,16 +219,18 @@ class StockAdjustment(models.Model):
                 else:
                     vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.stock.adjustment') or 'New'
 
-            # Populate on_hand from product opening_stock for manual adjustments
+            # Populate on_hand from stock valuation for manual adjustments
             if 'line_ids' in vals:
+                store_id = vals.get('store_id')
+                store = self.env['havanoposdesk.store'].browse(store_id) if store_id else False
                 for line_cmd in vals['line_ids']:
                     if line_cmd[0] == 0:  # Create command (0, 0, {values})
                         line_vals = line_cmd[2]
                         product_id = line_vals.get('product_id')
-                        if product_id and 'on_hand' not in line_vals:
+                        if product_id and ('on_hand' not in line_vals or line_vals.get('on_hand') is None):
                             product = self.env['havanoposdesk.product'].browse(product_id)
                             if product:
-                                line_vals['on_hand'] = product.opening_stock
+                                line_vals['on_hand'] = self._get_product_stock_on_hand(product, store)
         
         return super().create(vals_list)
 
@@ -188,14 +273,18 @@ class StockAdjustment(models.Model):
                 })
 
                 # Update or Create Valuation Entry using sudo()
-                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
-                    ('product_id', '=', line.product_id.id),
-                    ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
-                ], limit=1)
+                val_domain = [('product_id', '=', line.product_id.id)]
+                if adjustment.store_id:
+                    val_domain.extend(['|', ('store_id', '=', adjustment.store_id.id), ('store', '=', adjustment.store_id.name)])
+                if line.product_id.tenant_id:
+                    val_domain.append(('tenant_id', '=', line.product_id.tenant_id.id))
+
+                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain, limit=1)
                 
                 if valuation:
                     valuation.write({
                         'on_hand_qty': line.counted,
+                        'store': adjustment.store_id.name if adjustment.store_id else valuation.store,
                     })
                 else:
                     self.env['havanoposdesk.stock.valuation'].sudo().create({
@@ -240,10 +329,13 @@ class StockAdjustment(models.Model):
                     })
 
                 # Update Valuation Entry
-                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
-                    ('product_id', '=', line.product_id.id),
-                    ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
-                ], limit=1)
+                val_domain = [('product_id', '=', line.product_id.id)]
+                if adjustment.store_id:
+                    val_domain.extend(['|', ('store_id', '=', adjustment.store_id.id), ('store', '=', adjustment.store_id.name)])
+                if line.product_id.tenant_id:
+                    val_domain.append(('tenant_id', '=', line.product_id.tenant_id.id))
+
+                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain, limit=1)
                 if valuation:
                     valuation.write({
                         'on_hand_qty': 0.0 if is_creation else line.on_hand,
@@ -255,11 +347,7 @@ class StockAdjustment(models.Model):
             if adjustment.state != 'cancelled':
                 continue
             for line in adjustment.line_ids:
-                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
-                    ('product_id', '=', line.product_id.id),
-                    ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
-                ], limit=1)
-                line.on_hand = valuation.on_hand_qty if valuation else 0.0
+                line.on_hand = adjustment._get_product_stock_on_hand(line.product_id, adjustment.store_id)
             adjustment.write({'state': 'draft'})
 
 class StockAdjustmentLine(models.Model):
@@ -273,7 +361,7 @@ class StockAdjustmentLine(models.Model):
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     adjustment_id = fields.Many2one('havanoposdesk.stock.adjustment', string='Stock Adjustment', required=True, ondelete='cascade')
-    store_id = fields.Many2one(related='adjustment_id.store_id', store=True)
+    store_id = fields.Many2one(related='adjustment_id.store_id', store=True, readonly=True)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
@@ -292,5 +380,12 @@ class StockAdjustmentLine(models.Model):
     @api.onchange('product_id')
     def _onchange_product_id(self):
         if self.product_id:
-            self.on_hand = self.product_id.opening_stock
-            self.counted = 0.0
+            store = self.adjustment_id.store_id or self.store_id
+            if not store and self.env.context.get('default_store_id'):
+                store = self.env['havanoposdesk.store'].browse(self.env.context.get('default_store_id'))
+            if not store:
+                store = self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1)
+            
+            on_hand = self.env['havanoposdesk.stock.adjustment']._get_product_stock_on_hand(self.product_id, store)
+            self.on_hand = on_hand
+            self.counted = on_hand
