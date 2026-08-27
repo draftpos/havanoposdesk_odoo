@@ -46,6 +46,7 @@ access_havanoposdesk_support_ticket,havanoposdesk.support.ticket,model_havanopos
 access_wizard_clear_data,wizard.clear.data,model_wizard_clear_data,base.group_system,1,1,1,1
 access_wizard_clear_data_tenant_admin,wizard.clear.data tenant admin,model_wizard_clear_data,havanoposdesk_odoo.group_tenant_admin,1,1,1,1
 access_havanoposdesk_profit_and_loss,havanoposdesk.profit.and.loss,model_havanoposdesk_profit_and_loss,base.group_user,1,1,1,1
+access_havanoposdesk_cashbook,havanoposdesk.cashbook,model_havanoposdesk_cashbook,base.group_user,1,1,1,1
 access_havanoposdesk_user_rights_profile,havanoposdesk.user.rights.profile,model_havanoposdesk_user_rights_profile,base.group_user,1,1,1,1
 access_havanoposdesk_user_rights_permission,havanoposdesk.user.rights.permission,model_havanoposdesk_user_rights_permission,base.group_user,1,1,1,1
 access_havanoposdesk_backoffice_permission,havanoposdesk.backoffice.permission,model_havanoposdesk_backoffice_permission,base.group_user,1,1,1,1

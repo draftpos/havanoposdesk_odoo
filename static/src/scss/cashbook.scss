@@ -1,0 +1,31 @@
+.havanoposdesk_cashbook_container {
+    background-color: #f8fafc;
+    height: 100%;
+
+    .cashbook_header_bar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .card {
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .table {
+        th {
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+        td {
+            font-size: 13px;
+            padding: 10px 12px;
+        }
+    }
+
+    .badge {
+        font-weight: 600;
+        padding: 5px 8px;
+    }
+}

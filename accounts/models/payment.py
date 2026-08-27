@@ -98,6 +98,19 @@ class Payment(models.Model):
     reference = fields.Char(string='Memo / Reference')
     pos_sale_ids = fields.One2many('havanoposdesk.sale', 'pos_payment_id', string='POS Sales Breakdown')
     sale_id = fields.Many2one('havanoposdesk.sale', string='Sale Invoice')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store / Branch')
+    shift_id = fields.Many2one('havanoposdesk.shift', string='Shift')
+    transaction_category = fields.Selection([
+        ('customer_receipt', 'Customer Receipt'),
+        ('supplier_payment', 'Supplier Payment'),
+        ('sale', 'POS Sale'),
+        ('expense', 'Expense Payout'),
+        ('transfer_in', 'Cash Transfer In'),
+        ('transfer_out', 'Cash Transfer Out'),
+        ('other', 'Other')
+    ], string='Transaction Category', default='customer_receipt')
+    expense_id = fields.Many2one('havanoposdesk.expense', string='Related Expense')
+    transfer_id = fields.Many2one('havanoposdesk.cash.transfer', string='Related Cash Transfer')
     
     state = fields.Selection([
         ('draft', 'Draft'),

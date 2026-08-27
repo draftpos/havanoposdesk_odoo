@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="havanoposdesk.CashbookReport" owl="1">
+        <div class="o_action o_view_controller havanoposdesk_cashbook_container">
+            <!-- HEADER TOOLBAR -->
+            <div class="cashbook_header_bar d-flex flex-wrap align-items-center justify-content-between gap-3 p-3 bg-white border-bottom shadow-sm">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="cashbook_icon_box d-flex align-items-center justify-content-center bg-primary text-white rounded-3 shadow-sm" style="width: 42px; height: 42px; font-size: 20px;">
+                        <i class="fa fa-book"></i>
+                    </div>
+                    <div>
+                        <h4 class="m-0 fw-bold text-dark">Store Cashbook</h4>
+                        <small class="text-muted">Real-time Cash &amp; Bank balance movements, inflows and outflows</small>
+                    </div>
+                </div>
+
+                <!-- FILTERS TOOLBAR -->
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <!-- Store Filter -->
+                    <div class="input-group input-group-sm" style="width: 170px;">
+                        <span class="input-group-text bg-light text-muted"><i class="fa fa-building-o"></i></span>
+                        <select class="form-select form-select-sm" t-on-change="(ev) => this.onStoreChange(ev)">
+                            <option value="all">All Stores</option>
+                            <t t-foreach="this.state.availableStores" t-as="st" t-key="st.id">
+                                <option t-att-value="st.id" t-att-selected="this.state.selectedStoreId == st.id">
+                                    <t t-esc="st.name"/>
+                                </option>
+                            </t>
+                        </select>
+                    </div>
+
+                    <!-- Account Filter -->
+                    <div class="input-group input-group-sm" style="width: 170px;">
+                        <span class="input-group-text bg-light text-muted"><i class="fa fa-credit-card"></i></span>
+                        <select class="form-select form-select-sm" t-on-change="(ev) => this.onAccountChange(ev)">
+                            <option value="all">All Accounts</option>
+                            <t t-foreach="this.state.availableAccounts" t-as="acc" t-key="acc.id">
+                                <option t-att-value="acc.id" t-att-selected="this.state.selectedAccountId == acc.id">
+                                    <t t-esc="acc.name"/> (<t t-esc="acc.type"/>)
+                                </option>
+                            </t>
+                        </select>
+                    </div>
+
+                    <!-- Date Presets -->
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'today' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('today')">Today</button>
+                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'yesterday' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('yesterday')">Yesterday</button>
+                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'this_week' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('this_week')">This Week</button>
+                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'this_month' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('this_month')">This Month</button>
+                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'all' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('all')">All</button>
+                    </div>
+
+                    <!-- Custom Date Inputs -->
+                    <div class="d-flex align-items-center gap-1">
+                        <input type="date" class="form-control form-control-sm" style="width: 125px;" t-model="this.state.dateFrom" t-on-change="() => this.onCustomDateChange()"/>
+                        <span class="text-muted small">to</span>
+                        <input type="date" class="form-control form-control-sm" style="width: 125px;" t-model="this.state.dateTo" t-on-change="() => this.onCustomDateChange()"/>
+                    </div>
+
+                    <!-- Actions -->
+                    <button class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1" t-on-click="() => this.printReport()">
+                        <i class="fa fa-print"></i> Print
+                    </button>
+                </div>
+            </div>
+
+            <!-- MAIN BODY -->
+            <div class="p-3 cashbook_body overflow-auto" style="height: calc(100vh - 120px);">
+                <t t-if="this.state.isLoading">
+                    <div class="text-center p-5 text-muted">
+                        <i class="fa fa-spinner fa-spin fa-3x mb-3 text-primary"></i>
+                        <h5>Loading Cashbook data...</h5>
+                    </div>
+                </t>
+                <t t-elif="this.state.data">
+                    <!-- SUMMARY KPI CARDS -->
+                    <div class="row g-3 mb-4">
+                        <!-- Opening Balance Card -->
+                        <div class="col-md-3 col-sm-6">
+                            <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-light-subtle border-start border-4 border-secondary">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="text-muted fw-bold small text-uppercase">Opening Balance</span>
+                                    <i class="fa fa-history text-secondary"></i>
+                                </div>
+                                <h3 class="fw-bold m-0 text-dark">
+                                    <t t-esc="this.formatCurrency(this.state.data.opening_balance)"/>
+                                </h3>
+                                <small class="text-muted mt-2 d-block">Cash on hand before period</small>
+                            </div>
+                        </div>
+
+                        <!-- Inflows Card -->
+                        <div class="col-md-3 col-sm-6">
+                            <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-success-subtle border-start border-4 border-success">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="text-success fw-bold small text-uppercase">Total Inflows (+)</span>
+                                    <i class="fa fa-arrow-down text-success"></i>
+                                </div>
+                                <h3 class="fw-bold m-0 text-success">
+                                    +<t t-esc="this.formatCurrency(this.state.data.total_inflows)"/>
+                                </h3>
+                                <div class="small text-muted mt-2">
+                                    <span>Sales: <strong><t t-esc="this.formatCurrency(this.state.data.breakdown.sales)"/></strong></span> | 
+                                    <span>Transfers In: <strong><t t-esc="this.formatCurrency(this.state.data.breakdown.transfers_in)"/></strong></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Outflows Card -->
+                        <div class="col-md-3 col-sm-6">
+                            <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-danger-subtle border-start border-4 border-danger">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="text-danger fw-bold small text-uppercase">Total Outflows (-)</span>
+                                    <i class="fa fa-arrow-up text-danger"></i>
+                                </div>
+                                <h3 class="fw-bold m-0 text-danger">
+                                    -<t t-esc="this.formatCurrency(this.state.data.total_outflows)"/>
+                                </h3>
+                                <div class="small text-muted mt-2">
+                                    <span>Expenses: <strong><t t-esc="this.formatCurrency(this.state.data.breakdown.expenses)"/></strong></span> | 
+                                    <span>Transfers Out: <strong><t t-esc="this.formatCurrency(this.state.data.breakdown.transfers_out)"/></strong></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Closing Balance Card -->
+                        <div class="col-md-3 col-sm-6">
+                            <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-primary-subtle border-start border-4 border-primary">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="text-primary fw-bold small text-uppercase">Closing Balance</span>
+                                    <i class="fa fa-calculator text-primary"></i>
+                                </div>
+                                <h3 class="fw-bold m-0 text-primary">
+                                    <t t-esc="this.formatCurrency(this.state.data.closing_balance)"/>
+                                </h3>
+                                <div class="small text-muted mt-2">
+                                    Net Movement: 
+                                    <span t-att-class="this.state.data.net_movement >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'">
+                                        <t t-if="this.state.data.net_movement >= 0">+</t><t t-esc="this.formatCurrency(this.state.data.net_movement)"/>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LIVE ACCOUNT & STORE BALANCES ROW -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <h6 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                                    <i class="fa fa-university text-primary"></i> Live Account Balances (Current Real-Time State)
+                                </h6>
+                                <div class="d-flex flex-wrap gap-3">
+                                    <t t-foreach="this.state.data.accounts" t-as="acc" t-key="acc.id">
+                                        <div class="p-2 px-3 border rounded-3 bg-light d-flex align-items-center gap-3">
+                                            <div>
+                                                <small class="text-muted d-block"><t t-esc="acc.type"/> Account</small>
+                                                <strong><t t-esc="acc.name"/></strong>
+                                            </div>
+                                            <div class="ms-auto text-end">
+                                                <span class="badge" t-att-class="acc.balance >= 0 ? 'bg-success-subtle text-success fs-6' : 'bg-danger-subtle text-danger fs-6'">
+                                                    <t t-esc="this.formatCurrency(acc.balance)"/>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MOVEMENT TRACES (AUDIT TRAIL) LEDGER -->
+                    <div class="card border-0 shadow-sm rounded-3 bg-white">
+                        <div class="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <h5 class="fw-bold m-0 text-dark">Transaction Movements Ledger</h5>
+                                <span class="badge bg-secondary rounded-pill"><t t-esc="this.filteredMovements.length"/> records</span>
+                            </div>
+
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <!-- Type filter -->
+                                <select class="form-select form-select-sm" style="width: 170px;" t-model="this.state.typeFilter">
+                                    <option value="all">All Types</option>
+                                    <option value="sale">POS Sales</option>
+                                    <option value="expense">Expense Payouts</option>
+                                    <option value="transfer_in">Transfers In</option>
+                                    <option value="transfer_out">Transfers Out</option>
+                                    <option value="customer_receipt">Customer Receipts</option>
+                                    <option value="supplier_payment">Supplier Payments</option>
+                                </select>
+
+                                <!-- Search -->
+                                <div class="input-group input-group-sm" style="width: 200px;">
+                                    <input type="text" class="form-control" placeholder="Search reference, party..." t-model="this.state.searchQuery"/>
+                                    <span class="input-group-text bg-white"><i class="fa fa-search text-muted"></i></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light text-muted small text-uppercase">
+                                    <tr>
+                                        <th style="width: 150px;">Date &amp; Time</th>
+                                        <th>Store / Branch</th>
+                                        <th>Account</th>
+                                        <th>Type</th>
+                                        <th>Reference #</th>
+                                        <th>Party / Details</th>
+                                        <th class="text-end text-success" style="width: 120px;">Cash In (+)</th>
+                                        <th class="text-end text-danger" style="width: 120px;">Cash Out (-)</th>
+                                        <th class="text-end" style="width: 130px;">Running Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-if="this.filteredMovements.length === 0">
+                                        <tr>
+                                            <td colspan="9" class="text-center text-muted p-4">
+                                                No cashbook movements found for the selected filters.
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <t t-foreach="this.filteredMovements" t-as="m" t-key="m_index">
+                                        <tr>
+                                            <td class="small text-muted"><t t-esc="m.date_str"/></td>
+                                            <td><span class="badge bg-light text-dark border"><t t-esc="m.store_name"/></span></td>
+                                            <td class="fw-semibold"><t t-esc="m.account_name"/></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      t-att-class="m.type == 'sale' ? 'bg-success-subtle text-success border border-success-subtle' : 
+                                                                   (m.type == 'expense' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 
+                                                                   (m.type == 'transfer_in' ? 'bg-info-subtle text-info border border-info-subtle' : 
+                                                                   (m.type == 'transfer_out' ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-primary-subtle text-primary')))">
+                                                    <t t-esc="m.type_label"/>
+                                                </span>
+                                            </td>
+                                            <td><strong><t t-esc="m.reference"/></strong></td>
+                                            <td>
+                                                <div class="text-dark"><t t-esc="m.party"/></div>
+                                                <small class="text-muted"><t t-esc="m.note"/></small>
+                                            </td>
+                                            <td class="text-end fw-bold text-success">
+                                                <t t-if="m.amount_in > 0">+<t t-esc="this.formatCurrency(m.amount_in)"/></t>
+                                                <t t-else="">-</t>
+                                            </td>
+                                            <td class="text-end fw-bold text-danger">
+                                                <t t-if="m.amount_out > 0">-<t t-esc="this.formatCurrency(m.amount_out)"/></t>
+                                                <t t-else="">-</t>
+                                            </td>
+                                            <td class="text-end fw-bold text-dark">
+                                                <t t-esc="this.formatCurrency(m.running_balance)"/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

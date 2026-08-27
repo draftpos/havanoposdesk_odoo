@@ -4019,18 +4019,236 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.close()
 
-    @http.route('/api/resource/Payment Entry', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route('/api/resource/Payment Entry', auth='public', methods=['GET', 'POST', 'PUT', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_payment_entry(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
 
-        import time
-        payment_id = f"ACC-PAY-{time.strftime('%Y%m%d%H%M%S')}"
-        return self._make_json_response({
-            "data": {
-                "name": payment_id
+        token = request.httprequest.headers.get('Authorization')
+        params = self._get_request_json() if request.httprequest.method in ['POST', 'PUT'] else {}
+        if not token:
+            token = params.get('token') or request.params.get('token')
+
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            tenant_id = tenant.id if tenant else False
+
+            if request.httprequest.method == 'GET':
+                domain = []
+                if user.havano_role != 'super_admin' and tenant_id:
+                    domain.append(('tenant_id', '=', tenant_id))
+                
+                payments = env['havanoposdesk.payment'].search(domain, order='date desc, id desc', limit=100)
+                result = []
+                for p in payments:
+                    result.append({
+                        "name": p.name,
+                        "id": p.id,
+                        "payment_type": "Receive" if p.payment_type == 'receipt' else "Pay",
+                        "party_type": "Customer" if p.partner_type == 'customer' else "Supplier",
+                        "party": p.customer_id.name if p.customer_id else (p.supplier_id.name if p.supplier_id else ""),
+                        "paid_amount": p.amount,
+                        "received_amount": p.amount,
+                        "account": p.account_id.name if p.account_id else "",
+                        "posting_date": str(p.date) if p.date else "",
+                        "status": p.state.capitalize(),
+                        "reference_no": p.reference or "",
+                        "store": p.store_id.name if p.store_id else ""
+                    })
+                return self._make_json_response({"data": result})
+
+            # POST / PUT: Create or update Payment Entry
+            pay_type_raw = str(params.get('payment_type') or 'Receive').lower()
+            payment_type = 'payment' if 'pay' in pay_type_raw or 'send' in pay_type_raw else 'receipt'
+            
+            partner_type_raw = str(params.get('party_type') or 'Customer').lower()
+            partner_type = 'supplier' if 'supp' in partner_type_raw else 'customer'
+
+            # Resolve Amount
+            amount = float(
+                params.get('paid_amount') or params.get('received_amount') or
+                params.get('amount') or params.get('paid_amount_after_tax') or 0.0
+            )
+
+            # Resolve Account
+            acc_ref = (
+                params.get('paid_to') if payment_type == 'receipt' else params.get('paid_from')
+            ) or params.get('account') or params.get('account_id') or params.get('paid_to') or params.get('paid_from')
+            
+            account_obj = False
+            if acc_ref:
+                if isinstance(acc_ref, int) or (isinstance(acc_ref, str) and str(acc_ref).isdigit()):
+                    account_obj = env['havanoposdesk.account'].browse(int(acc_ref))
+                else:
+                    a_dom = [('name', '=ilike', str(acc_ref).strip()), ('type', 'in', ['Cash', 'Bank'])]
+                    if tenant_id:
+                        a_dom.append(('tenant_id', '=', tenant_id))
+                    account_obj = env['havanoposdesk.account'].search(a_dom, limit=1)
+                    if not account_obj:
+                        account_obj = env['havanoposdesk.account'].search([('name', '=ilike', str(acc_ref).strip())], limit=1)
+
+            if not account_obj:
+                def_dom = [('type', 'in', ['Cash', 'Bank'])]
+                if tenant_id:
+                    def_dom.append(('tenant_id', '=', tenant_id))
+                account_obj = env['havanoposdesk.account'].search(def_dom, limit=1)
+
+            # Resolve Store
+            store_obj = self._get_current_store(user, tenant, params)
+            if not store_obj:
+                store_obj = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+
+            # Resolve Customer / Supplier
+            customer_obj = False
+            supplier_obj = False
+            party_ref = params.get('party') or params.get('party_name') or params.get('customer') or params.get('supplier')
+            if partner_type == 'customer' and party_ref:
+                if isinstance(party_ref, int) or (isinstance(party_ref, str) and str(party_ref).isdigit()):
+                    customer_obj = env['havanoposdesk.customer'].browse(int(party_ref))
+                else:
+                    c_dom = [('name', '=ilike', str(party_ref).strip())]
+                    if tenant_id:
+                        c_dom.append(('tenant_id', '=', tenant_id))
+                    customer_obj = env['havanoposdesk.customer'].search(c_dom, limit=1)
+                    if not customer_obj:
+                        customer_obj = env['havanoposdesk.customer'].search([('name', '=ilike', str(party_ref).strip())], limit=1)
+            elif partner_type == 'supplier' and party_ref:
+                if isinstance(party_ref, int) or (isinstance(party_ref, str) and str(party_ref).isdigit()):
+                    supplier_obj = env['havanoposdesk.supplier'].browse(int(party_ref))
+                else:
+                    s_dom = [('name', '=ilike', str(party_ref).strip())]
+                    if tenant_id:
+                        s_dom.append(('tenant_id', '=', tenant_id))
+                    supplier_obj = env['havanoposdesk.supplier'].search(s_dom, limit=1)
+                    if not supplier_obj:
+                        supplier_obj = env['havanoposdesk.supplier'].search([('name', '=ilike', str(party_ref).strip())], limit=1)
+
+            # Resolve Shift
+            shift_id_val = params.get('shift_id')
+            if not shift_id_val:
+                open_shift = env['havanoposdesk.shift'].sudo().search([
+                    ('user_id', '=', uid),
+                    ('state', '=', 'open')
+                ], limit=1)
+                if open_shift:
+                    shift_id_val = open_shift.id
+
+            # Resolve Sale / Invoice Reference
+            sale_obj = False
+            refs = params.get('references') or []
+            if refs and isinstance(refs, list):
+                for ref_item in refs:
+                    ref_name = ref_item.get('reference_name')
+                    if ref_name:
+                        sale_obj = env['havanoposdesk.sale'].search([('name', '=', str(ref_name).strip())], limit=1)
+                        if sale_obj:
+                            break
+
+            today_date = fields.Date.context_today(env.user)
+
+            payment_vals = {
+                'payment_type': payment_type,
+                'partner_type': partner_type,
+                'customer_id': customer_obj.id if customer_obj else False,
+                'supplier_id': supplier_obj.id if supplier_obj else False,
+                'account_id': account_obj.id if account_obj else False,
+                'amount': amount,
+                'date': today_date,
+                'reference': params.get('reference_no') or params.get('reference') or params.get('remarks') or 'Payment Entry',
+                'store_id': store_obj.id if store_obj else False,
+                'shift_id': shift_id_val if shift_id_val else False,
+                'sale_id': sale_obj.id if sale_obj else False,
+                'tenant_id': tenant_id,
+                'transaction_category': 'customer_receipt' if payment_type == 'receipt' else 'supplier_payment'
             }
-        })
+
+            payment = env['havanoposdesk.payment'].create(payment_vals)
+            
+            # Post the payment if docstatus is 1 or auto-post
+            docstatus = params.get('docstatus', 1)
+            if docstatus in (1, '1', True) and payment.amount > 0 and payment.account_id:
+                try:
+                    payment.action_post()
+                except Exception as post_err:
+                    pass
+
+            if custom_cr:
+                custom_cr.commit()
+
+            return self._make_json_response({
+                "data": {
+                    "name": payment.name,
+                    "id": payment.id,
+                    "status": payment.state,
+                    "amount": payment.amount,
+                    "account": payment.account_id.name if payment.account_id else ""
+                }
+            })
+        except Exception as e:
+            if custom_cr:
+                custom_cr.rollback()
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/method/saas_api.www.api.get_cashbook', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_get_cashbook(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = self._get_request_json() if request.httprequest.method in ['POST'] else request.params
+        if not token:
+            token = params.get('token')
+
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            store_ids = None
+            raw_stores = params.get('store_ids') or params.get('store_id')
+            if raw_stores:
+                if isinstance(raw_stores, list):
+                    store_ids = [int(s) for s in raw_stores if str(s).isdigit()]
+                elif str(raw_stores).isdigit():
+                    store_ids = [int(raw_stores)]
+
+            account_ids = None
+            raw_accs = params.get('account_ids') or params.get('account_id')
+            if raw_accs:
+                if isinstance(raw_accs, list):
+                    account_ids = [int(a) for a in raw_accs if str(a).isdigit()]
+                elif str(raw_accs).isdigit():
+                    account_ids = [int(raw_accs)]
+
+            date_from = params.get('from_date') or params.get('date_from')
+            date_to = params.get('to_date') or params.get('date_to')
+
+            report_data = env['havanoposdesk.cashbook'].get_report_data(
+                store_ids=store_ids,
+                account_ids=account_ids,
+                date_from=date_from,
+                date_to=date_to
+            )
+
+            return self._make_json_response({"message": {"status": "success", "data": report_data}})
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
 
     @http.route('/api/resource/Customer', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_resource_customer(self, **kwargs):
