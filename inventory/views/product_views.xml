@@ -14,6 +14,7 @@
                     <field name="uom_id" optional="hide" />
                     <field name="buying_price" optional="hide" widget="monetary" />
                     <field name="selling_price" string="Sell price" widget="monetary" />
+                    <field name="sellbyprice" optional="show" widget="boolean" string="Sell by Price" />
                     <field name="track_qty" />
                     <field name="on_hand_qty" string="QTY" />
                     <field name="not_for_sale" optional="hide" />
@@ -75,6 +76,7 @@
                                         <field name="purchase_tax_ids" widget="many2many_tags" invisible="not has_active_taxes" class="border-bottom border-dark" options="{'no_create': True, 'no_create_edit': True, 'no_quick_create': True, 'no_search_more': True}" />
                                         <field name="opening_stock" string="Opening Stock" invisible="id or is_bundle == True" class="border-bottom border-dark" />
                                         <field name="on_hand_qty" string="On hand" invisible="not id or is_bundle == True" readonly="1" class="border-bottom border-dark" />
+                                        <field name="sellbyprice" class="border-bottom border-dark" string="Sell by Price" />
                                         <field name="image_1920" widget="image" class="oe_avatar" options="{'preview_image': 'image_1920'}" />
                                         <field name="not_for_sale" />
                                     </group>

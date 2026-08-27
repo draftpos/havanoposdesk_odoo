@@ -6,6 +6,16 @@ class HavanoposdeskProduct(models.Model):
     _description = 'Product'
     _rec_names_search = ['name', 'item_code']
 
+    def _auto_init(self):
+        res = super()._auto_init()
+        cr = self.env.cr
+        try:
+            with cr.savepoint():
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
+        except Exception:
+            pass
+        return res
+
     _sql_constraints = [
         ('name_tenant_uniq', 'unique (name, tenant_id)', 'The product name must be unique per tenant!'),
         ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
@@ -17,6 +27,11 @@ class HavanoposdeskProduct(models.Model):
     allow_edit_item_code = fields.Boolean(related='tenant_id.allow_edit_item_code', string="Allow Edit Item Code")
     barcode = fields.Char(string='Barcode', copy=False)
     is_barcode_enabled = fields.Boolean(related='tenant_id.enable_barcode', string="Barcode Enabled")
+    sellbyprice = fields.Boolean(
+        string='Sell by Price',
+        default=False,
+        help='If enabled, allows selling this item by entering the total price first, which automatically calculates the quantity.'
+    )
 
     @api.constrains('name', 'tenant_id')
     def _check_unique_name(self):

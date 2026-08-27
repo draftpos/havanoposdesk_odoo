@@ -350,6 +350,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "custom_is_order_item_5": int(p.kitchen_order_5),
                     "custom_is_order_item_6": int(p.kitchen_order_6),
                     "custom_is_order_item_7": int(p.kitchen_order_7),
+                    "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
+                    "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
                 })
                 
             import base64
@@ -577,6 +579,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     'is_bundle': 1 if p.is_bundle else 0,
                     'is_stock_item': 1 if (p.track_qty and not p.is_bundle) else 0,
                     'is_sales_item': 1,
+                    'sellbyprice': 1 if getattr(p, 'sellbyprice', False) else 0,
+                    'sell_by_price': 1 if getattr(p, 'sellbyprice', False) else 0,
                     'category': p.category_id.id if p.category_id else None,
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
@@ -636,6 +640,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'selling_price': data.get('selling_price', 0.0),
                 'color_hex': data.get('color_hex'),
                 'track_qty': data.get('track_qty', True),
+                'sellbyprice': bool(data.get('sellbyprice') or data.get('sell_by_price')),
                 'tenant_id': tenant_id,
                 'store_id': store_id,
             }
@@ -662,6 +667,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 'color_hex': product.color_hex,
                 'image_url': f'/web/image/havanoposdesk.product/{product.id}/image_1920',
                 'track_qty': product.track_qty,
+                'sellbyprice': 1 if getattr(product, 'sellbyprice', False) else 0,
+                'sell_by_price': 1 if getattr(product, 'sellbyprice', False) else 0,
                 'category': product.category_id.id if product.category_id else None,
                 'uom': product.uom_id.id if product.uom_id else None,
                 'tenant_id': product.tenant_id.id,
@@ -4563,7 +4570,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     "valuation_rate": p.buying_price or 0.0,
                     "is_bundle": 1 if p.is_bundle else 0,
                     "is_stock_item": 1 if (p.track_qty and not p.is_bundle) else 0,
-                    "is_sales_item": 1
+                    "is_sales_item": 1,
+                    "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
+                    "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0
                 })
             return self._make_json_response({"data": result})
         finally:
@@ -4628,6 +4637,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 vals['track_qty'] = bool(data['maintain_stock'])
             if 'disabled' in data:
                 vals['is_active'] = not bool(data['disabled'])
+            if 'sellbyprice' in data or 'sell_by_price' in data:
+                vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
 
             # Resolve sale_tax_ids
             tax_ids = []
