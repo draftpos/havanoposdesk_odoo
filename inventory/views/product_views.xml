@@ -179,7 +179,7 @@
                     <filter string="In Stock" name="in_stock" domain="[('opening_stock', '&gt;', 0)]" />
                     <filter string="Out of Stock" name="out_of_stock" domain="[('opening_stock', '&lt;=', 0)]" />
                     <filter string="Today" name="created_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
-                    <filter string="This Month" name="this_month" date="create_date" default_period="month" />
+                    <filter string="This Month" name="this_month" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
                     <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]" />
                     <filter string="Created On" name="filter_created_on" date="create_date" />
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]" />
@@ -194,7 +194,7 @@
                         <filter string="Track QTY" name="group_by_track_qty" context="{'group_by': 'track_qty'}" />
                         <filter string="Product Name" name="group_by_name" context="{'group_by': 'name'}" />
                         <filter string="Today" name="group_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:day'}" />
-                        <filter string="This Month" name="group_month" date="create_date" default_period="month" context="{'group_by': 'create_date:month'}" />
+                        <filter string="This Month" name="group_month" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" context="{'group_by': 'create_date:month'}" />
                     </group>
                 </search>
             </field>

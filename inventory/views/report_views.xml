@@ -30,13 +30,13 @@
                     <filter string="Item Name" name="filter_item_name" domain="[('item_name', '!=', False)]"/>
                     <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
                     <filter string="Created Today" name="today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" date="create_date" default_period="month" />
+                    <filter string="This Month" name="this_month" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
                     
                     <group>
                         <filter string="Item Name" name="group_by_item_name" context="{'group_by': 'item_name'}"/>
                         <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}"/>
                         <filter string="Today" name="group_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:day'}"/>
-                        <filter string="This Month" name="group_month" date="create_date" default_period="month" context="{'group_by': 'create_date:month'}" />
+                        <filter string="This Month" name="group_month" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" context="{'group_by': 'create_date:month'}" />
                     </group>
                 </search>
             </field>
@@ -118,7 +118,7 @@
                     <field name="create_uid"/>
                     <field name="create_date"/>
                     <filter string="Today" name="today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" date="create_date" default_period="month" />
+                    <filter string="This Month" name="this_month" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
                     <filter string="Item Name" name="filter_item_name" domain="[('item_name', '!=', False)]"/>
                     <filter string="Item Code" name="filter_item_code" domain="[('item_code', '!=', False)]"/>
                     <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
@@ -131,7 +131,7 @@
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
                         <filter string="Today" name="group_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:day'}"/>
-                        <filter string="This Month" name="group_month" date="create_date" default_period="month" context="{'group_by': 'create_date:month'}" />
+                        <filter string="This Month" name="group_month" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" context="{'group_by': 'create_date:month'}" />
                     </group>
                 </search>
             </field>
