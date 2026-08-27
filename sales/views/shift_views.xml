@@ -39,6 +39,7 @@
             <form string="Shift">
                 <header>
                     <button name="action_close_shift" string="Close Shift" type="object" class="oe_highlight" invisible="state == 'closed'"/>
+                    <button name="%(action_report_shift_document_html)d" string="Print" type="action" class="oe_highlight"/>
                     <field name="state" widget="statusbar" statusbar_visible="open,closed"/>
                 </header>
                 <sheet>
@@ -98,9 +99,23 @@
             </form>
         </field>
     </record>
+<record id="view_havanoposdesk_shift_search" model="ir.ui.view">
+    <field name="name">havanoposdesk.shift.search</field>
+    <field name="model">havanoposdesk.shift</field>
+    <field name="arch" type="xml">
+        <search>
+            <field name="name"/>
+            <field name="user_id"/>
+            <field name="store_id"/>
+            <field name="start_date"/>
+            <field name="state"/>
+        </search>
+    </field>
+</record>
 
     <record id="action_havanoposdesk_shift" model="ir.actions.act_window">
         <field name="name">Shifts</field>
+        <field name="search_view_id" ref="view_havanoposdesk_shift_search"/>
         <field name="res_model">havanoposdesk.shift</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
