@@ -1,67 +1,148 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="havanoposdesk.CashbookReport" owl="1">
-        <div class="o_action o_view_controller havanoposdesk_cashbook_container">
-            <!-- HEADER TOOLBAR -->
-            <div class="cashbook_header_bar d-flex flex-wrap align-items-center justify-content-between gap-3 p-3 bg-white border-bottom shadow-sm">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="cashbook_icon_box d-flex align-items-center justify-content-center bg-primary text-white rounded-3 shadow-sm" style="width: 42px; height: 42px; font-size: 20px;">
-                        <i class="fa fa-book"></i>
-                    </div>
-                    <div>
-                        <h4 class="m-0 fw-bold text-dark">Store Cashbook</h4>
-                        <small class="text-muted">Real-time Cash &amp; Bank balance movements, inflows and outflows</small>
-                    </div>
-                </div>
+        <div class="o_action o_view_controller o_account_reports_page havanoposdesk_cashbook_container">
+            <!-- CONTROL PANEL -->
+            <div class="o_cp_controller">
+                <div class="o_control_panel" style="background-color: #ffffff; padding: 10px 16px; border-bottom: 1px solid #e0e0e0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;">
+                        
+                        <!-- LEFT (EXPORT + TITLE) -->
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button type="button" class="btn btn-primary" style="background-color: #714B67; border-color: #714B67; color: white; border-radius: 3px; padding: 4px 12px; font-size: 13px; font-weight: 500;" t-on-click="() => this.printReport()">
+                                <i class="fa fa-print me-1"></i> Print / PDF
+                            </button>
+                            <h1 style="margin: 0; padding-left: 10px; font-size: 20px; font-weight: 600; color: #4c4c4c; font-family: 'Segoe UI', sans-serif;">
+                                Store Cashbook
+                            </h1>
+                        </div>
 
-                <!-- FILTERS TOOLBAR -->
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    <!-- Store Filter -->
-                    <div class="input-group input-group-sm" style="width: 170px;">
-                        <span class="input-group-text bg-light text-muted"><i class="fa fa-building-o"></i></span>
-                        <select class="form-select form-select-sm" t-on-change="(ev) => this.onStoreChange(ev)">
-                            <option value="all">All Stores</option>
-                            <t t-foreach="this.state.availableStores" t-as="st" t-key="st.id">
-                                <option t-att-value="st.id" t-att-selected="this.state.selectedStoreId == st.id">
-                                    <t t-esc="st.name"/>
-                                </option>
-                            </t>
-                        </select>
-                    </div>
+                        <!-- RIGHT (FILTERS) -->
+                        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            
+                            <!-- Store Selector Dropdown -->
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #f8f9fa; border: 1px solid #d3d3d3; color: #4c4c4c; border-radius: 3px; padding: 5px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa fa-building-o" style="color: #666;"></i>
+                                    <t t-if="this.state.selectedStoreId == 'all'">All Stores</t>
+                                    <t t-else="">
+                                        <t t-esc="this.state.availableStores.find(s => s.id == this.state.selectedStoreId)?.name || 'Store'"/>
+                                    </t>
+                                </button>
+                                <div class="dropdown-menu" style="padding: 5px 0; min-width: 180px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                    <a class="dropdown-item" href="#" t-on-click="() => this.onStoreChange({target: {value: 'all'}})" style="padding: 5px 15px; font-size: 13px;">
+                                        <t t-if="this.state.selectedStoreId == 'all'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>All Stores
+                                    </a>
+                                    <div class="dropdown-divider"></div>
+                                    <t t-foreach="this.state.availableStores" t-as="st" t-key="st.id">
+                                        <a class="dropdown-item" href="#" t-on-click="() => this.onStoreChange({target: {value: st.id}})" style="padding: 5px 15px; font-size: 13px;">
+                                            <t t-if="this.state.selectedStoreId == st.id"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="st.name"/>
+                                        </a>
+                                    </t>
+                                </div>
+                            </div>
 
-                    <!-- Account Filter -->
-                    <div class="input-group input-group-sm" style="width: 170px;">
-                        <span class="input-group-text bg-light text-muted"><i class="fa fa-credit-card"></i></span>
-                        <select class="form-select form-select-sm" t-on-change="(ev) => this.onAccountChange(ev)">
-                            <option value="all">All Accounts</option>
-                            <t t-foreach="this.state.availableAccounts" t-as="acc" t-key="acc.id">
-                                <option t-att-value="acc.id" t-att-selected="this.state.selectedAccountId == acc.id">
-                                    <t t-esc="acc.name"/> (<t t-esc="acc.type"/>)
-                                </option>
-                            </t>
-                        </select>
-                    </div>
+                            <!-- Account Selector Dropdown -->
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #f8f9fa; border: 1px solid #d3d3d3; color: #4c4c4c; border-radius: 3px; padding: 5px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa fa-credit-card" style="color: #666;"></i>
+                                    <t t-if="this.state.selectedAccountId == 'all'">All Accounts</t>
+                                    <t t-else="">
+                                        <t t-esc="this.state.availableAccounts.find(a => a.id == this.state.selectedAccountId)?.name || 'Account'"/>
+                                    </t>
+                                </button>
+                                <div class="dropdown-menu" style="padding: 5px 0; min-width: 200px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                    <a class="dropdown-item" href="#" t-on-click="() => this.onAccountChange({target: {value: 'all'}})" style="padding: 5px 15px; font-size: 13px;">
+                                        <t t-if="this.state.selectedAccountId == 'all'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>All Accounts
+                                    </a>
+                                    <div class="dropdown-divider"></div>
+                                    <t t-foreach="this.state.availableAccounts" t-as="acc" t-key="acc.id">
+                                        <a class="dropdown-item" href="#" t-on-click="() => this.onAccountChange({target: {value: acc.id}})" style="padding: 5px 15px; font-size: 13px;">
+                                            <t t-if="this.state.selectedAccountId == acc.id"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="acc.name"/> (<t t-esc="acc.type"/>)
+                                        </a>
+                                    </t>
+                                </div>
+                            </div>
 
-                    <!-- Date Presets -->
-                    <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'today' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('today')">Today</button>
-                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'yesterday' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('yesterday')">Yesterday</button>
-                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'this_week' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('this_week')">This Week</button>
-                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'this_month' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('this_month')">This Month</button>
-                        <button type="button" class="btn" t-att-class="this.state.datePreset == 'all' ? 'btn-primary' : 'btn-outline-secondary'" t-on-click="() => this.applyPreset('all')">All</button>
-                    </div>
+                            <!-- Standard Date Dropdown Filter (Identical to Profit and Loss) -->
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #f8f9fa; border: 1px solid #d3d3d3; color: #4c4c4c; border-radius: 3px; padding: 5px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa fa-calendar" style="color: #666;"></i>
+                                    <t t-if="this.state.datePreset == 'this_month'">This Month</t>
+                                    <t t-elif="this.state.datePreset == 'this_quarter'">This Quarter</t>
+                                    <t t-elif="this.state.datePreset == 'this_year'">This Year</t>
+                                    <t t-elif="this.state.datePreset == 'last_month'">Last Month</t>
+                                    <t t-elif="this.state.datePreset == 'last_year'">Last Year</t>
+                                    <t t-elif="this.state.datePreset == 'today'">Today</t>
+                                    <t t-elif="this.state.datePreset == 'yesterday'">Yesterday</t>
+                                    <t t-elif="this.state.datePreset == 'all'">All Time</t>
+                                    <t t-elif="this.state.datePreset.startsWith('month_')">
+                                        <t t-esc="this.state.months.find(m => m.id === this.state.datePreset)?.name"/>
+                                    </t>
+                                    <t t-elif="this.state.datePreset.startsWith('quarter_')">
+                                        <t t-esc="this.state.quarters.find(q => q.id === this.state.datePreset)?.name"/>
+                                    </t>
+                                    <t t-else="">
+                                        <t t-if="this.state.dateFrom and this.state.dateTo">
+                                            <t t-esc="this.state.dateFrom"/> to <t t-esc="this.state.dateTo"/>
+                                        </t>
+                                        <t t-elif="this.state.dateFrom">From <t t-esc="this.state.dateFrom"/></t>
+                                        <t t-elif="this.state.dateTo">To <t t-esc="this.state.dateTo"/></t>
+                                        <t t-else="">All Dates</t>
+                                    </t>
+                                </button>
+                                <div class="dropdown-menu" style="padding: 10px; min-width: 420px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                    <div style="display: flex;">
+                                        <!-- Periods Column -->
+                                        <div style="flex: 1; border-right: 1px solid #eee; padding-right: 15px;">
+                                            <div style="font-size: 11px; font-weight: bold; color: #999; margin-bottom: 5px; text-transform: uppercase;">Periods</div>
+                                            <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset('today')" style="padding: 4px 10px; font-size: 13px;"><t t-if="this.state.datePreset == 'today'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>Today</a>
+                                            <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset('this_month')" style="padding: 4px 10px; font-size: 13px;"><t t-if="this.state.datePreset == 'this_month'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>This Month</a>
+                                            <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset('this_quarter')" style="padding: 4px 10px; font-size: 13px;"><t t-if="this.state.datePreset == 'this_quarter'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>This Quarter</a>
+                                            <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset('this_year')" style="padding: 4px 10px; font-size: 13px;"><t t-if="this.state.datePreset == 'this_year'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>This Year</a>
+                                            <div class="dropdown-divider"></div>
+                                            <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset('yesterday')" style="padding: 4px 10px; font-size: 13px;"><t t-if="this.state.datePreset == 'yesterday'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>Yesterday</a>
+                                            <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset('last_month')" style="padding: 4px 10px; font-size: 13px;"><t t-if="this.state.datePreset == 'last_month'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>Last Month</a>
+                                            <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset('last_year')" style="padding: 4px 10px; font-size: 13px;"><t t-if="this.state.datePreset == 'last_year'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>Last Year</a>
+                                            <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset('all')" style="padding: 4px 10px; font-size: 13px;"><t t-if="this.state.datePreset == 'all'"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t>All Time</a>
+                                        </div>
+                                        
+                                        <!-- Months Column -->
+                                        <div style="flex: 1; border-right: 1px solid #eee; padding-left: 10px; padding-right: 10px;">
+                                            <div style="font-size: 11px; font-weight: bold; color: #999; margin-bottom: 5px; text-transform: uppercase;">Months</div>
+                                            <t t-foreach="this.state.months" t-as="month" t-key="month.id">
+                                                <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset(month.id)" style="padding: 2px 10px; font-size: 13px;">
+                                                    <t t-if="this.state.datePreset == month.id"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="month.name"/>
+                                                </a>
+                                            </t>
+                                        </div>
 
-                    <!-- Custom Date Inputs -->
-                    <div class="d-flex align-items-center gap-1">
-                        <input type="date" class="form-control form-control-sm" style="width: 125px;" t-model="this.state.dateFrom" t-on-change="() => this.onCustomDateChange()"/>
-                        <span class="text-muted small">to</span>
-                        <input type="date" class="form-control form-control-sm" style="width: 125px;" t-model="this.state.dateTo" t-on-change="() => this.onCustomDateChange()"/>
-                    </div>
+                                        <!-- Quarters & Custom Range Column -->
+                                        <div style="flex: 1; padding-left: 10px;">
+                                            <div style="font-size: 11px; font-weight: bold; color: #999; margin-bottom: 5px; text-transform: uppercase;">Quarters</div>
+                                            <t t-foreach="this.state.quarters" t-as="quarter" t-key="quarter.id">
+                                                <a class="dropdown-item" href="#" t-on-click="() => this.applyPreset(quarter.id)" style="padding: 2px 10px; font-size: 13px;">
+                                                    <t t-if="this.state.datePreset == quarter.id"><i class="fa fa-check" style="color: #017e84; margin-right: 5px;"></i></t><t t-else=""><span style="margin-right: 18px;"></span></t><t t-esc="quarter.name"/>
+                                                </a>
+                                            </t>
+                                            <div class="dropdown-divider"></div>
+                                            <div style="font-size: 11px; font-weight: bold; color: #999; margin-bottom: 5px; text-transform: uppercase;">Custom Range</div>
+                                            <input type="date" class="form-control form-control-sm mb-1" style="font-size: 12px; height: 28px;" t-model="this.state.dateFrom"/>
+                                            <input type="date" class="form-control form-control-sm mb-2" style="font-size: 12px; height: 28px;" t-model="this.state.dateTo"/>
+                                            <button class="btn btn-primary btn-sm w-100" style="background-color: #017e84; border-color: #017e84; font-size: 12px;" t-on-click="() => this.onFilterChange()">Apply</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <!-- Actions -->
-                    <button class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1" t-on-click="() => this.printReport()">
-                        <i class="fa fa-print"></i> Print
-                    </button>
+                            <!-- Live Search Input -->
+                            <div class="input-group input-group-sm" style="width: 200px;">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="fa fa-search"></i></span>
+                                <input type="text" class="form-control border-start-0" placeholder="Search movements..." t-model="this.state.searchQuery"/>
+                            </div>
+
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -81,7 +162,7 @@
                             <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-light-subtle border-start border-4 border-secondary">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <span class="text-muted fw-bold small text-uppercase">Opening Balance</span>
-                                    <i class="fa fa-history text-secondary"></i>
+                                    <i class="fa fa-history text-secondary fs-5"></i>
                                 </div>
                                 <h3 class="fw-bold m-0 text-dark">
                                     <t t-esc="this.formatCurrency(this.state.data.opening_balance)"/>
@@ -95,7 +176,7 @@
                             <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-success-subtle border-start border-4 border-success">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <span class="text-success fw-bold small text-uppercase">Total Inflows (+)</span>
-                                    <i class="fa fa-arrow-down text-success"></i>
+                                    <i class="fa fa-arrow-down text-success fs-5"></i>
                                 </div>
                                 <h3 class="fw-bold m-0 text-success">
                                     +<t t-esc="this.formatCurrency(this.state.data.total_inflows)"/>
@@ -112,7 +193,7 @@
                             <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-danger-subtle border-start border-4 border-danger">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <span class="text-danger fw-bold small text-uppercase">Total Outflows (-)</span>
-                                    <i class="fa fa-arrow-up text-danger"></i>
+                                    <i class="fa fa-arrow-up text-danger fs-5"></i>
                                 </div>
                                 <h3 class="fw-bold m-0 text-danger">
                                     -<t t-esc="this.formatCurrency(this.state.data.total_outflows)"/>
@@ -129,7 +210,7 @@
                             <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-primary-subtle border-start border-4 border-primary">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <span class="text-primary fw-bold small text-uppercase">Closing Balance</span>
-                                    <i class="fa fa-calculator text-primary"></i>
+                                    <i class="fa fa-calculator text-primary fs-5"></i>
                                 </div>
                                 <h3 class="fw-bold m-0 text-primary">
                                     <t t-esc="this.formatCurrency(this.state.data.closing_balance)"/>
@@ -144,29 +225,28 @@
                         </div>
                     </div>
 
-                    <!-- LIVE ACCOUNT & STORE BALANCES ROW -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-12">
-                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
-                                <h6 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
-                                    <i class="fa fa-university text-primary"></i> Live Account Balances (Current Real-Time State)
-                                </h6>
-                                <div class="d-flex flex-wrap gap-3">
-                                    <t t-foreach="this.state.data.accounts" t-as="acc" t-key="acc.id">
-                                        <div class="p-2 px-3 border rounded-3 bg-light d-flex align-items-center gap-3">
-                                            <div>
-                                                <small class="text-muted d-block"><t t-esc="acc.type"/> Account</small>
-                                                <strong><t t-esc="acc.name"/></strong>
-                                            </div>
-                                            <div class="ms-auto text-end">
-                                                <span class="badge" t-att-class="acc.balance >= 0 ? 'bg-success-subtle text-success fs-6' : 'bg-danger-subtle text-danger fs-6'">
-                                                    <t t-esc="this.formatCurrency(acc.balance)"/>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </t>
+                    <!-- LIVE ACCOUNT BALANCES (REAL-TIME STATE) -->
+                    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white mb-4">
+                        <h6 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                            <i class="fa fa-university text-primary"></i> Live Account Balances (Current Real-Time State)
+                        </h6>
+                        <div class="d-flex flex-wrap gap-3">
+                            <t t-if="!this.state.data.accounts or this.state.data.accounts.length === 0">
+                                <span class="text-muted small">No active Cash or Bank accounts found.</span>
+                            </t>
+                            <t t-foreach="this.state.data.accounts" t-as="acc" t-key="acc.id">
+                                <div class="p-2 px-3 border rounded-3 bg-light d-flex align-items-center gap-3">
+                                    <div>
+                                        <small class="text-muted d-block"><t t-esc="acc.type"/> Account</small>
+                                        <strong><t t-esc="acc.name"/></strong>
+                                    </div>
+                                    <div class="ms-auto text-end">
+                                        <span class="badge" t-att-class="acc.balance >= 0 ? 'bg-success-subtle text-success fs-6' : 'bg-danger-subtle text-danger fs-6'">
+                                            <t t-esc="this.formatCurrency(acc.balance)"/>
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
+                            </t>
                         </div>
                     </div>
 
@@ -181,7 +261,7 @@
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <!-- Type filter -->
                                 <select class="form-select form-select-sm" style="width: 170px;" t-model="this.state.typeFilter">
-                                    <option value="all">All Types</option>
+                                    <option value="all">All Movement Types</option>
                                     <option value="sale">POS Sales</option>
                                     <option value="expense">Expense Payouts</option>
                                     <option value="transfer_in">Transfers In</option>
@@ -189,12 +269,6 @@
                                     <option value="customer_receipt">Customer Receipts</option>
                                     <option value="supplier_payment">Supplier Payments</option>
                                 </select>
-
-                                <!-- Search -->
-                                <div class="input-group input-group-sm" style="width: 200px;">
-                                    <input type="text" class="form-control" placeholder="Search reference, party..." t-model="this.state.searchQuery"/>
-                                    <span class="input-group-text bg-white"><i class="fa fa-search text-muted"></i></span>
-                                </div>
                             </div>
                         </div>
 
@@ -208,16 +282,17 @@
                                         <th>Type</th>
                                         <th>Reference #</th>
                                         <th>Party / Details</th>
-                                        <th class="text-end text-success" style="width: 120px;">Cash In (+)</th>
-                                        <th class="text-end text-danger" style="width: 120px;">Cash Out (-)</th>
-                                        <th class="text-end" style="width: 130px;">Running Balance</th>
+                                        <th class="text-end text-success" style="width: 130px;">Cash In (+)</th>
+                                        <th class="text-end text-danger" style="width: 130px;">Cash Out (-)</th>
+                                        <th class="text-end" style="width: 140px;">Running Balance</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <t t-if="this.filteredMovements.length === 0">
                                         <tr>
-                                            <td colspan="9" class="text-center text-muted p-4">
-                                                No cashbook movements found for the selected filters.
+                                            <td colspan="9" class="text-center text-muted p-5">
+                                                <i class="fa fa-info-circle fa-2x mb-2 d-block text-secondary"></i>
+                                                No cashbook movements found for the selected period or filters.
                                             </td>
                                         </tr>
                                     </t>

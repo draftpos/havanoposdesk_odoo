@@ -14,18 +14,30 @@ export class CashbookReport extends Component {
             isLoading: true,
             dateFrom: "",
             dateTo: "",
-            datePreset: "today",
+            datePreset: "this_year",
             availableStores: [],
             selectedStoreId: "all",
             availableAccounts: [],
             selectedAccountId: "all",
             searchQuery: "",
-            typeFilter: "all"
+            typeFilter: "all",
+            months: [
+                { id: 'month_0', name: 'January' }, { id: 'month_1', name: 'February' },
+                { id: 'month_2', name: 'March' }, { id: 'month_3', name: 'April' },
+                { id: 'month_4', name: 'May' }, { id: 'month_5', name: 'June' },
+                { id: 'month_6', name: 'July' }, { id: 'month_7', name: 'August' },
+                { id: 'month_8', name: 'September' }, { id: 'month_9', name: 'October' },
+                { id: 'month_10', name: 'November' }, { id: 'month_11', name: 'December' }
+            ],
+            quarters: [
+                { id: 'quarter_0', name: 'Q1' }, { id: 'quarter_1', name: 'Q2' },
+                { id: 'quarter_2', name: 'Q3' }, { id: 'quarter_3', name: 'Q4' }
+            ]
         });
 
         onWillStart(async () => {
             await this.loadInitialFilters();
-            this.setPresetDates('today');
+            this.setPresetDates('this_year');
             await this.loadData();
         });
     }
@@ -45,11 +57,33 @@ export class CashbookReport extends Component {
     setPresetDates(preset) {
         this.state.datePreset = preset;
         const now = new Date();
-        const year = now.getFullYear();
+        const currentYear = now.getFullYear();
         const pad = (n) => String(n).padStart(2, '0');
-        const todayStr = `${year}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
-        if (preset === 'today') {
+        if (preset === 'this_year') {
+            this.state.dateFrom = `${currentYear}-01-01`;
+            this.state.dateTo = `${currentYear}-12-31`;
+        } else if (preset === 'this_month') {
+            const firstDay = new Date(currentYear, now.getMonth(), 1);
+            const lastDay = new Date(currentYear, now.getMonth() + 1, 0);
+            this.state.dateFrom = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`;
+            this.state.dateTo = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
+        } else if (preset === 'last_month') {
+            const firstDay = new Date(currentYear, now.getMonth() - 1, 1);
+            const lastDay = new Date(currentYear, now.getMonth(), 0);
+            this.state.dateFrom = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`;
+            this.state.dateTo = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
+        } else if (preset === 'this_quarter') {
+            const quarter = Math.floor(now.getMonth() / 3);
+            const firstDay = new Date(currentYear, quarter * 3, 1);
+            const lastDay = new Date(currentYear, quarter * 3 + 3, 0);
+            this.state.dateFrom = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`;
+            this.state.dateTo = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
+        } else if (preset === 'last_year') {
+            this.state.dateFrom = `${currentYear - 1}-01-01`;
+            this.state.dateTo = `${currentYear - 1}-12-31`;
+        } else if (preset === 'today') {
+            const todayStr = `${currentYear}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
             this.state.dateFrom = todayStr;
             this.state.dateTo = todayStr;
         } else if (preset === 'yesterday') {
@@ -58,20 +92,16 @@ export class CashbookReport extends Component {
             const yestStr = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
             this.state.dateFrom = yestStr;
             this.state.dateTo = yestStr;
-        } else if (preset === 'this_week') {
-            const first = now.getDate() - now.getDay();
-            const firstDay = new Date(now.setDate(first));
-            const lastDay = new Date(now.setDate(first + 6));
+        } else if (preset.startsWith('month_')) {
+            const m = parseInt(preset.split('_')[1]);
+            const firstDay = new Date(currentYear, m, 1);
+            const lastDay = new Date(currentYear, m + 1, 0);
             this.state.dateFrom = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`;
             this.state.dateTo = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
-        } else if (preset === 'this_month') {
-            const firstDay = new Date(year, now.getMonth(), 1);
-            const lastDay = new Date(year, now.getMonth() + 1, 0);
-            this.state.dateFrom = `${year}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`;
-            this.state.dateTo = `${year}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
-        } else if (preset === 'last_month') {
-            const firstDay = new Date(year, now.getMonth() - 1, 1);
-            const lastDay = new Date(year, now.getMonth(), 0);
+        } else if (preset.startsWith('quarter_')) {
+            const q = parseInt(preset.split('_')[1]);
+            const firstDay = new Date(currentYear, q * 3, 1);
+            const lastDay = new Date(currentYear, q * 3 + 3, 0);
             this.state.dateFrom = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`;
             this.state.dateTo = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
         } else if (preset === 'all') {
@@ -85,6 +115,11 @@ export class CashbookReport extends Component {
         await this.loadData();
     }
 
+    async onFilterChange() {
+        this.state.datePreset = 'custom';
+        await this.loadData();
+    }
+
     async onStoreChange(ev) {
         this.state.selectedStoreId = ev.target.value;
         await this.loadData();
@@ -92,11 +127,6 @@ export class CashbookReport extends Component {
 
     async onAccountChange(ev) {
         this.state.selectedAccountId = ev.target.value;
-        await this.loadData();
-    }
-
-    async onCustomDateChange() {
-        this.state.datePreset = 'custom';
         await this.loadData();
     }
 
@@ -131,14 +161,15 @@ export class CashbookReport extends Component {
         if (this.state.typeFilter !== 'all') {
             items = items.filter(m => m.type === this.state.typeFilter);
         }
-        if (this.state.searchQuery.trim()) {
+        if (this.state.searchQuery && this.state.searchQuery.trim()) {
             const q = this.state.searchQuery.toLowerCase().trim();
             items = items.filter(m => 
                 (m.reference && m.reference.toLowerCase().includes(q)) ||
                 (m.party && m.party.toLowerCase().includes(q)) ||
                 (m.account_name && m.account_name.toLowerCase().includes(q)) ||
                 (m.store_name && m.store_name.toLowerCase().includes(q)) ||
-                (m.note && m.note.toLowerCase().includes(q))
+                (m.note && m.note.toLowerCase().includes(q)) ||
+                (m.type_label && m.type_label.toLowerCase().includes(q))
             );
         }
         return items;

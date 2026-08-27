@@ -34,7 +34,7 @@ class CashbookReport(models.AbstractModel):
         if store_ids:
             store_domain.append(('id', 'in', store_ids))
         stores = self.env['havanoposdesk.store'].sudo().search(store_domain)
-        valid_store_ids = stores.ids
+        valid_store_ids = stores.ids if store_ids else []
 
         # Filter accounts
         acc_domain = [('type', 'in', ['Cash', 'Bank']), ('active', '=', True)]
@@ -43,7 +43,7 @@ class CashbookReport(models.AbstractModel):
         if account_ids:
             acc_domain.append(('id', 'in', account_ids))
         accounts = self.env['havanoposdesk.account'].sudo().search(acc_domain)
-        valid_account_ids = accounts.ids
+        valid_account_ids = accounts.ids if account_ids else []
 
         # Parse date range
         dt_from = None
@@ -52,42 +52,56 @@ class CashbookReport(models.AbstractModel):
             try:
                 dt_from = datetime.strptime(f"{date_from} 00:00:00", "%Y-%m-%d %H:%M:%S")
             except Exception:
-                pass
+                try:
+                    dt_from = datetime.strptime(date_from[:10], "%Y-%m-%d")
+                except Exception:
+                    pass
         if date_to:
             try:
                 dt_to = datetime.strptime(f"{date_to} 23:59:59", "%Y-%m-%d %H:%M:%S")
             except Exception:
-                pass
+                try:
+                    dt_to = datetime.strptime(f"{date_to[:10]} 23:59:59", "%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    pass
 
-        # -------------------------------------------------------------
-        # Gather all movements across Sales, Payments, Expenses, Transfers
-        # -------------------------------------------------------------
         all_raw_movements = []
 
-        # 1. POS Sales (Inflows from sales)
-        sale_domain = [('state', '=', 'done')]
+        # 1. POS & Invoiced Sales
+        sale_domain = [('state', 'in', ['done', 'confirmed'])]
         if tenant_id:
             sale_domain.append(('tenant_id', '=', tenant_id))
         if valid_store_ids:
             sale_domain.append(('store_id', 'in', valid_store_ids))
+
         sales = self.env['havanoposdesk.sale'].sudo().search(sale_domain)
         for s in sales:
-            sale_date = s.create_date or (datetime.combine(s.date, time.min) if s.date else fields.Datetime.now())
-            amount = s.amount_total or 0.0
             acc = s.account_id
             if valid_account_ids and acc and acc.id not in valid_account_ids:
                 continue
+
+            sale_dt = None
+            if s.date:
+                sale_dt = s.date if isinstance(s.date, datetime) else datetime.combine(s.date, time.min)
+            elif s.posting_date:
+                sale_dt = datetime.combine(s.posting_date, time.min)
+            elif s.create_date:
+                sale_dt = s.create_date
+            else:
+                sale_dt = fields.Datetime.now()
+
+            amount = s.amount_total or 0.0
             if amount > 0:
                 all_raw_movements.append({
-                    'timestamp': sale_date,
-                    'date_str': sale_date.strftime('%Y-%m-%d %H:%M'),
+                    'timestamp': sale_dt,
+                    'date_str': sale_dt.strftime('%Y-%m-%d %H:%M'),
                     'type': 'sale',
                     'type_label': 'POS Sale',
                     'category': 'inflow',
                     'reference': s.name or 'Sale',
                     'party': s.customer.name if s.customer else 'Walk-in Customer',
                     'store_id': s.store_id.id if s.store_id else False,
-                    'store_name': s.store_id.name if s.store_id else 'Default Store',
+                    'store_name': s.store_id.name if s.store_id else 'Store',
                     'account_id': acc.id if acc else False,
                     'account_name': acc.name if acc else 'Cash Account',
                     'amount_in': amount,
@@ -97,34 +111,42 @@ class CashbookReport(models.AbstractModel):
                 })
 
         # 2. Payments (Direct Customer Receipts, Supplier Payments, Payment Entries)
-        pay_domain = [('state', '=', 'posted')]
+        pay_domain = [('state', 'in', ['posted', 'Posted'])]
         if tenant_id:
             pay_domain.append(('tenant_id', '=', tenant_id))
         if valid_store_ids:
             pay_domain.append('|')
             pay_domain.append(('store_id', 'in', valid_store_ids))
             pay_domain.append(('store_id', '=', False))
+
         payments = self.env['havanoposdesk.payment'].sudo().search(pay_domain)
         for p in payments:
-            # Skip if already counted in sales breakdown
-            if p.pos_sale_ids or (p.sale_id and p.sale_id.state == 'done'):
+            if p.pos_sale_ids or (p.sale_id and p.sale_id.state in ['done', 'confirmed']):
                 continue
-            pay_date = p.create_date or (datetime.combine(p.date, time.min) if p.date else fields.Datetime.now())
             acc = p.account_id
             if valid_account_ids and acc and acc.id not in valid_account_ids:
                 continue
+
+            pay_dt = None
+            if p.date:
+                pay_dt = datetime.combine(p.date, time.min)
+            elif p.create_date:
+                pay_dt = p.create_date
+            else:
+                pay_dt = fields.Datetime.now()
+
             amount = p.amount or 0.0
             is_inflow = (p.payment_type == 'receipt')
             all_raw_movements.append({
-                'timestamp': pay_date,
-                'date_str': pay_date.strftime('%Y-%m-%d %H:%M'),
+                'timestamp': pay_dt,
+                'date_str': pay_dt.strftime('%Y-%m-%d %H:%M'),
                 'type': 'customer_receipt' if is_inflow else 'supplier_payment',
                 'type_label': 'Customer Receipt' if is_inflow else 'Supplier Payment',
                 'category': 'inflow' if is_inflow else 'outflow',
                 'reference': p.name or 'Payment',
                 'party': (p.customer_id.name if p.customer_id else (p.supplier_id.name if p.supplier_id else (p.reference or 'Direct Payment'))),
-                'store_id': p.store_id.id if p.store_id else (stores[0].id if stores else False),
-                'store_name': p.store_id.name if p.store_id else (stores[0].name if stores else 'HQ Store'),
+                'store_id': p.store_id.id if p.store_id else False,
+                'store_name': p.store_id.name if p.store_id else 'HQ Store',
                 'account_id': acc.id if acc else False,
                 'account_name': acc.name if acc else 'Cash/Bank',
                 'amount_in': amount if is_inflow else 0.0,
@@ -134,22 +156,31 @@ class CashbookReport(models.AbstractModel):
             })
 
         # 3. Expenses (Paid Cash/Bank Outflows)
-        exp_domain = [('state', '=', 'Posted'), ('is_paid', '=', True)]
+        exp_domain = [('state', 'in', ['Posted', 'posted']), ('is_paid', '=', True)]
         if tenant_id:
             exp_domain.append(('tenant_id', '=', tenant_id))
         if valid_store_ids:
             exp_domain.append(('store_id', 'in', valid_store_ids))
+
         expenses = self.env['havanoposdesk.expense'].sudo().search(exp_domain)
         for e in expenses:
-            exp_date = e.create_date or (datetime.combine(e.date, time.min) if e.date else fields.Datetime.now())
             pay_acc = e.payment_account_id
             if valid_account_ids and pay_acc and pay_acc.id not in valid_account_ids:
                 continue
+
+            exp_dt = None
+            if e.date:
+                exp_dt = datetime.combine(e.date, time.min)
+            elif e.create_date:
+                exp_dt = e.create_date
+            else:
+                exp_dt = fields.Datetime.now()
+
             amount = e.amount or 0.0
             if amount > 0:
                 all_raw_movements.append({
-                    'timestamp': exp_date,
-                    'date_str': exp_date.strftime('%Y-%m-%d %H:%M'),
+                    'timestamp': exp_dt,
+                    'date_str': exp_dt.strftime('%Y-%m-%d %H:%M'),
                     'type': 'expense',
                     'type_label': 'Expense Payout',
                     'category': 'outflow',
@@ -166,12 +197,20 @@ class CashbookReport(models.AbstractModel):
                 })
 
         # 4. Cash Transfers (Outflows from source, Inflows to destination)
-        transfer_domain = [('state', '=', 'posted')]
+        transfer_domain = [('state', 'in', ['posted', 'Posted'])]
         if tenant_id:
             transfer_domain.append(('tenant_id', '=', tenant_id))
+
         transfers = self.env['havanoposdesk.cash.transfer'].sudo().search(transfer_domain)
         for t in transfers:
-            trans_date = t.create_date or (datetime.combine(t.date, time.min) if t.date else fields.Datetime.now())
+            trans_dt = None
+            if t.date:
+                trans_dt = datetime.combine(t.date, time.min)
+            elif t.create_date:
+                trans_dt = t.create_date
+            else:
+                trans_dt = fields.Datetime.now()
+
             amount = t.amount or 0.0
             if amount <= 0:
                 continue
@@ -185,8 +224,8 @@ class CashbookReport(models.AbstractModel):
 
             if include_outflow:
                 all_raw_movements.append({
-                    'timestamp': trans_date,
-                    'date_str': trans_date.strftime('%Y-%m-%d %H:%M'),
+                    'timestamp': trans_dt,
+                    'date_str': trans_dt.strftime('%Y-%m-%d %H:%M'),
                     'type': 'transfer_out',
                     'type_label': 'Transfer Out / Cash Up',
                     'category': 'outflow',
@@ -211,8 +250,8 @@ class CashbookReport(models.AbstractModel):
 
             if include_inflow:
                 all_raw_movements.append({
-                    'timestamp': trans_date,
-                    'date_str': trans_date.strftime('%Y-%m-%d %H:%M'),
+                    'timestamp': trans_dt,
+                    'date_str': trans_dt.strftime('%Y-%m-%d %H:%M'),
                     'type': 'transfer_in',
                     'type_label': 'Transfer In',
                     'category': 'inflow',
@@ -228,12 +267,10 @@ class CashbookReport(models.AbstractModel):
                     'note': t.reason or 'Cash Transfer In'
                 })
 
-        # Sort all movements chronologically (oldest to newest)
+        # Sort all movements chronologically
         all_raw_movements.sort(key=lambda m: m['timestamp'])
 
-        # -------------------------------------------------------------
-        # Split into Prior (for Opening Balance) and In-Period (Ledger)
-        # -------------------------------------------------------------
+        # Split into Opening Balance (before dt_from) and Period Movements
         opening_balance = 0.0
         period_sales = 0.0
         period_customer_receipts = 0.0
@@ -275,7 +312,6 @@ class CashbookReport(models.AbstractModel):
                 movement_copy['running_balance'] = round(running_bal, 2)
                 period_movements.append(movement_copy)
 
-        # Invert movements order for display (newest first on top)
         display_movements = list(reversed(period_movements))
 
         total_inflows = period_sales + period_customer_receipts + period_transfers_in
@@ -283,28 +319,15 @@ class CashbookReport(models.AbstractModel):
         closing_balance = opening_balance + total_inflows - total_outflows
 
         # Live Real-time Account Balances
+        all_accounts = self.env['havanoposdesk.account'].sudo().search(acc_domain)
         live_account_balances = []
-        for acc in accounts:
+        for acc in all_accounts:
             live_account_balances.append({
                 'id': acc.id,
                 'name': acc.name,
                 'type': acc.type,
                 'balance': acc.balance,
                 'currency': acc.currency_id.name if acc.currency_id else 'USD'
-            })
-
-        # Store Summaries
-        store_summaries = []
-        for st in stores:
-            st_movements = [m for m in period_movements if m.get('store_id') == st.id]
-            st_in = sum(m['amount_in'] for m in st_movements)
-            st_out = sum(m['amount_out'] for m in st_movements)
-            store_summaries.append({
-                'id': st.id,
-                'name': st.name,
-                'total_in': round(st_in, 2),
-                'total_out': round(st_out, 2),
-                'net_flow': round(st_in - st_out, 2)
             })
 
         currency_symbol = self.env.user.tenant_id.currency_id.symbol or '$' if self.env.user.tenant_id and self.env.user.tenant_id.currency_id else '$'
@@ -327,7 +350,6 @@ class CashbookReport(models.AbstractModel):
                 'transfers_out': round(period_transfers_out, 2)
             },
             'accounts': live_account_balances,
-            'stores': store_summaries,
             'movements': display_movements,
             'total_transactions': len(display_movements)
         }
