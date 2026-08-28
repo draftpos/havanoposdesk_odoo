@@ -473,7 +473,7 @@ class PurchaseLine(models.Model):
     amount = fields.Float(string='Total', compute='_compute_amount', store=True)
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM')
     uom_qty_multiplier = fields.Float(string='UOM Multiplier', default=1.0)
-    available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
+    available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', compute_sudo=True, store=False)
 
     @api.depends('accepted_qty', 'rate', 'tax_ids')
     def _compute_amount(self):

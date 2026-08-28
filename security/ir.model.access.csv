@@ -62,4 +62,8 @@ access_havanoposdesk_stock_valuation_date_report,havanoposdesk.stock.valuation.d
 access_havanoposdesk_payment_line,havanoposdesk.payment.line,model_havanoposdesk_payment_line,base.group_user,1,1,1,1
 access_havanoposdesk_store_bank,havanoposdesk.store.bank,model_havanoposdesk_store_bank,base.group_user,1,1,1,1
 access_havanoposdesk_cash_transfer,havanoposdesk.cash.transfer,model_havanoposdesk_cash_transfer,base.group_user,1,1,1,1
-
+access_havanoposdesk_uom_all_read,havanoposdesk.uom all read,model_havanoposdesk_uom,,1,0,0,0
+access_havanoposdesk_category_all_read,havanoposdesk.category all read,model_havanoposdesk_category,,1,0,0,0
+access_havanoposdesk_pricelist_all_read,havanoposdesk.pricelist all read,model_havanoposdesk_pricelist,,1,0,0,0
+access_havanoposdesk_product_uom_price_all_read,havanoposdesk.product.uom.price all read,model_havanoposdesk_product_uom_price,,1,0,0,0
+access_havanoposdesk_product_all_read,havanoposdesk.product all read,model_havanoposdesk_product,,1,0,0,0

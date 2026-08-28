@@ -163,7 +163,7 @@ class StockTransferLine(models.Model):
     tenant_id = fields.Many2one(related='transfer_id.tenant_id', store=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, domain="[('tenant_id', '=', tenant_id)]")
     uom_id = fields.Many2one('havanoposdesk.uom', string='Unit of Measure')
-    available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
+    available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', compute_sudo=True, store=False)
     qty = fields.Float(string='Quantity', default=1.0, required=True)
     on_hand_qty = fields.Float(
         string='On Hand (From Store)',
