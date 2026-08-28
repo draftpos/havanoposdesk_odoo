@@ -22,7 +22,7 @@ class HavanoposdeskUom(models.Model):
                     ('tenant_id', '=', record.tenant_id.id),
                     ('name', '=ilike', record.name.strip())
                 ]
-                if self.search_count(domain) > 0:
+                if self.sudo().search_count(domain) > 0:
                     raise ValidationError(f"A UOM with the name '{record.name}' already exists in your workspace. Please choose a different name.")
 
     @api.model

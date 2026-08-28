@@ -292,8 +292,32 @@ class HavanoposdeskProduct(models.Model):
     kitchen_order_6 = fields.Boolean(string='Order 6', default=False)
     kitchen_order_7 = fields.Boolean(string='Order 7', default=False)
     
-    category_id = fields.Many2one('havanoposdesk.category', string='Category', default=lambda self: (self.env['havanoposdesk.category'].search([('name', '=', 'Basic')], limit=1) or self.env['havanoposdesk.category'].create({'name': 'Basic'})).id)
-    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=lambda self: (self.env['havanoposdesk.uom'].search([('name', '=', 'Each')], limit=1) or self.env['havanoposdesk.uom'].create({'name': 'Each'})).id)
+    def _default_category_id(self):
+        if not self.env.registry.ready:
+            return False
+        tenant_id = self.env.user.tenant_id.id if self.env.user.tenant_id else False
+        domain = [('tenant_id', '=', tenant_id)] if tenant_id else []
+        cat = self.env['havanoposdesk.category'].sudo().search(domain + [('name', '=ilike', 'Basic')], limit=1)
+        if not cat and tenant_id:
+            cat = self.env['havanoposdesk.category'].sudo().search(domain, limit=1)
+        if not cat:
+            cat = self.env['havanoposdesk.category'].sudo().search([('name', '=ilike', 'Basic')], limit=1)
+        return cat.id if cat else False
+
+    def _default_uom_id(self):
+        if not self.env.registry.ready:
+            return False
+        tenant_id = self.env.user.tenant_id.id if self.env.user.tenant_id else False
+        domain = [('tenant_id', '=', tenant_id)] if tenant_id else []
+        uom = self.env['havanoposdesk.uom'].sudo().search(domain + [('name', '=ilike', 'Each')], limit=1)
+        if not uom and tenant_id:
+            uom = self.env['havanoposdesk.uom'].sudo().search(domain, limit=1)
+        if not uom:
+            uom = self.env['havanoposdesk.uom'].sudo().search([('name', '=ilike', 'Each')], limit=1)
+        return uom.id if uom else False
+
+    category_id = fields.Many2one('havanoposdesk.category', string='Category', default=_default_category_id)
+    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=_default_uom_id)
     
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
     currency_id = fields.Many2one(related='tenant_id.currency_id', string='Currency', store=False)
