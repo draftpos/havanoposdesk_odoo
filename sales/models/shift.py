@@ -7,9 +7,9 @@ class Shift(models.Model):
 
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default='New')
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', default=lambda self: self.env.user.tenant_id.id, index=True, readonly=True)
-    user_id = fields.Many2one('res.users', string='Cashier', default=lambda self: self.env.user.id, required=True)
-    store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True)
-    terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string='Terminal')
+    user_id = fields.Many2one('res.users', string='Cashier', default=lambda self: self.env.user.id, required=True, domain="[('tenant_id', '=', tenant_id)]")
+    store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True, domain="[('tenant_id', '=', tenant_id)]")
+    terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string='Terminal', domain="[('store_id', '=', store_id)]")
     
     start_date = fields.Datetime(string='Opened At', default=fields.Datetime.now, required=True)
     end_date = fields.Datetime(string='Closed At')
@@ -63,6 +63,12 @@ class Shift(models.Model):
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
                 vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.shift') or 'New'
+            if not vals.get('tenant_id') and self.env.user.tenant_id:
+                vals['tenant_id'] = self.env.user.tenant_id.id
+            if vals.get('store_id') and not vals.get('tenant_id'):
+                store = self.env['havanoposdesk.store'].sudo().browse(vals['store_id'])
+                if store and store.tenant_id:
+                    vals['tenant_id'] = store.tenant_id.id
         return super(Shift, self).create(vals_list)
 
     @api.depends('opening_cash', 'amount_cash', 'total_expenses', 'total_credit_notes')

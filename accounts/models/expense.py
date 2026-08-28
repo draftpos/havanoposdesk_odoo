@@ -62,10 +62,13 @@ class Expense(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             if not vals.get('shift_id'):
-                open_shift = self.env['havanoposdesk.shift'].search([
+                shift_domain = [
                     ('user_id', '=', self.env.user.id),
                     ('state', '=', 'open')
-                ], limit=1)
+                ]
+                if self.env.user.tenant_id:
+                    shift_domain.append(('tenant_id', '=', self.env.user.tenant_id.id))
+                open_shift = self.env['havanoposdesk.shift'].search(shift_domain, limit=1)
                 if open_shift:
                     vals['shift_id'] = open_shift.id
 

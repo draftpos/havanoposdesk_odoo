@@ -261,6 +261,14 @@
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
+        <!-- Shift Model Isolation Rule -->
+        <record id="rule_havano_shift_isolation" model="ir.rule">
+            <field name="name">Havano Shift Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_shift"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
         <!-- Daily Sales Report Model Isolation Rule -->
         <record id="rule_havano_daily_sales_report_isolation" model="ir.rule">
             <field name="name">Havano Daily Sales Report Isolation</field>

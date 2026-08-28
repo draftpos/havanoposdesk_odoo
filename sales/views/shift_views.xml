@@ -56,9 +56,10 @@
                     </div>
                     <group>
                         <group>
-                            <field name="user_id" readonly="state == 'closed'"/>
-                            <field name="store_id" readonly="state == 'closed'"/>
-                            <field name="terminal_id" readonly="state == 'closed'"/>
+                            <field name="tenant_id" invisible="1"/>
+                            <field name="user_id" domain="[('tenant_id', '=', tenant_id)]" readonly="state == 'closed'"/>
+                            <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" readonly="state == 'closed'"/>
+                            <field name="terminal_id" domain="[('store_id', '=', store_id)]" readonly="state == 'closed'"/>
                             <field name="currency_id" invisible="1"/>
                         </group>
                         <group>
