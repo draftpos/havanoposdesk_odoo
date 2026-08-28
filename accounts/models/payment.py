@@ -141,6 +141,19 @@ class Payment(models.Model):
                 if supp.tenant_id:
                     tenant_id = supp.tenant_id.id
 
+            if not vals.get('shift_id'):
+                if vals.get('sale_id'):
+                    sale = self.env['havanoposdesk.sale'].browse(vals.get('sale_id'))
+                    if sale.shift_id:
+                        vals['shift_id'] = sale.shift_id.id
+                if not vals.get('shift_id'):
+                    shift_domain = [('user_id', '=', self.env.user.id), ('state', '=', 'open')]
+                    if tenant_id:
+                        shift_domain.append(('tenant_id', '=', tenant_id))
+                    open_shift = self.env['havanoposdesk.shift'].search(shift_domain, limit=1)
+                    if open_shift:
+                        vals['shift_id'] = open_shift.id
+
             if tenant_id:
                 vals['tenant_id'] = tenant_id
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
