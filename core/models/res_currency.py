@@ -5,6 +5,19 @@ class ResCurrency(models.Model):
     _inherit = 'res.currency'
 
     @api.model
+    def _get_conversion_rate(self, from_currency, to_currency, company=None, date=None):
+        if not from_currency or not to_currency or from_currency == to_currency:
+            return 1.0
+        if from_currency.name and to_currency.name and from_currency.name.strip().upper() == to_currency.name.strip().upper():
+            return 1.0
+        tenant = self.env.user.tenant_id if hasattr(self.env, 'user') and self.env.user else False
+        if tenant and tenant.currency_id:
+            base_name = tenant.currency_id.name.strip().upper() if tenant.currency_id.name else ''
+            if from_currency.name and to_currency.name and from_currency.name.strip().upper() == base_name and to_currency.name.strip().upper() == base_name:
+                return 1.0
+        return super()._get_conversion_rate(from_currency, to_currency, company=company, date=date)
+
+    @api.model
     def _validate_tenant_currency(self, currency, tenant):
         currency = self.browse(currency) if isinstance(currency, int) else currency
         if currency and tenant and currency.tenant_id and currency.tenant_id != tenant:

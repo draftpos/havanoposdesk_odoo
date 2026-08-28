@@ -9,6 +9,19 @@ class ResCurrencyRate(models.Model):
     tenant_id = fields.Many2one(related='currency_id.tenant_id', store=True, readonly=True, index=True)
 
     _unique_name_per_day = models.Constraint('CHECK (TRUE)')
+ 
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            curr_id = vals.get('currency_id')
+            if curr_id:
+                curr = self.env['res.currency'].browse(curr_id)
+                tenant = self.env.user.tenant_id if hasattr(self.env, 'user') and self.env.user else False
+                if tenant and tenant.currency_id and (curr == tenant.currency_id or (curr.name and curr.name.strip().upper() == tenant.currency_id.name.strip().upper())):
+                    vals['rate'] = 1.0
+                    vals['company_rate'] = 1.0
+                    vals['inverse_company_rate'] = 1.0
+        return super().create(vals_list)
 
     def _check_access(self, operation: str):
         if operation == 'read':
