@@ -315,9 +315,13 @@ class Sale(models.Model):
     def _compute_amount_paid_base(self):
         for record in self:
             valid_states = ('posted',) if record.state in ('confirmed', 'done') else ('draft', 'posted')
+            expected_type = 'payment' if record.is_return else 'receipt'
             valid_payments = record.payment_ids.filtered(
-                lambda p: p.state in valid_states and p.payment_type == 'receipt'
+                lambda p: p.state in valid_states and p.payment_type == expected_type
             )
+
+            target_total = abs(record.amount_total)
+            target_total_base = abs(record.amount_total_base)
 
             if record.payment_policy == 'multi':
                 record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
@@ -351,28 +355,30 @@ class Sale(models.Model):
                             paid_doc += payment.amount_base * rate
                     record.amount_paid = paid_doc
                 else:
-                    payment_amount = record.single_payment_amount if record.single_payment_amount > 0 else record.amount_total
+                    raw_amount = record.single_payment_amount if record.single_payment_amount > 0 else target_total
+                    payment_amount = abs(raw_amount)
                     record.amount_paid = payment_amount
                     rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
                     record.amount_paid_base = payment_amount / rate
 
-            record.amount_balance_base = max(record.amount_total_base - record.amount_paid_base, 0.0)
-            record.amount_balance = max(record.amount_total - record.amount_paid, 0.0)
+            record.amount_balance_base = max(target_total_base - record.amount_paid_base, 0.0)
+            record.amount_balance = max(target_total - record.amount_paid, 0.0)
 
-    @api.depends('amount_total', 'payment_policy', 'payment_status')
+    @api.depends('amount_total', 'payment_policy', 'payment_status', 'is_return')
     def _compute_single_payment_amount(self):
         for record in self:
+            target_total = abs(record.amount_total)
             if record.payment_policy == 'single' and record.payment_status != 'account':
                 if not record.single_payment_amount or record.single_payment_amount <= 0.0:
-                    record.single_payment_amount = record.amount_total
+                    record.single_payment_amount = target_total
             else:
-                record.single_payment_amount = record.amount_total
+                record.single_payment_amount = target_total
 
-    @api.onchange('amount_total', 'line_ids')
+    @api.onchange('amount_total', 'line_ids', 'is_return')
     def _onchange_amount_total_sync_single_payment(self):
         for record in self:
             if record.state == 'draft' and record.payment_policy == 'single' and record.payment_status != 'account':
-                record.single_payment_amount = record.amount_total
+                record.single_payment_amount = abs(record.amount_total)
 
     @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
     def _compute_total_cost(self):
@@ -551,11 +557,16 @@ class Sale(models.Model):
         return amount / rate
 
     def _post_sale_payments(self):
-        """Post real receipts only. Cap at the invoice total. Skip on-account modes."""
+        """Post real receipts (for normal sales) or refund payments (for credit notes).
+        Cap at invoice total. Skip on-account modes."""
         self.ensure_one()
         sale = self
-        remaining_base = sale.amount_total_base
+        target_amount_base = abs(sale.amount_total_base)
+        target_amount = abs(sale.amount_total)
+        remaining_base = target_amount_base
         used_on_account = sale._is_on_account_account(sale.account_id)
+        is_return = sale.is_return
+        expected_payment_type = 'payment' if is_return else 'receipt'
 
         def _cap_and_post(payment):
             nonlocal remaining_base
@@ -563,6 +574,10 @@ class Sale(models.Model):
                 if payment.state == 'draft':
                     payment.unlink()
                 return 0.0
+
+            if payment.state == 'draft' and payment.payment_type != expected_payment_type:
+                payment.payment_type = expected_payment_type
+
             if payment.amount_base > remaining_base + 0.0001:
                 rate = payment.exchange_rate if payment.exchange_rate and payment.exchange_rate != 0 else 1.0
                 payment.amount = remaining_base * rate
@@ -589,19 +604,20 @@ class Sale(models.Model):
             for payment in real:
                 _cap_and_post(payment)
         elif sale.payment_policy == 'multi' and not used_on_account:
-            raise ValidationError("You must add at least one payment entry for cash sales in the Payment Breakdown tab.")
+            raise ValidationError("You must add at least one payment entry for cash sales/returns in the Payment Breakdown tab.")
         elif not used_on_account:
             if not sale.account_id:
-                raise ValidationError("You must select a Deposit Account for Single Payment cash sales.")
-            payment_amount = sale.single_payment_amount if sale.single_payment_amount > 0 else sale.amount_total
+                raise ValidationError("You must select a Deposit Account for Single Payment cash sales/returns.")
+            raw_payment_amount = sale.single_payment_amount if sale.single_payment_amount > 0 else target_amount
+            payment_amount = abs(raw_payment_amount)
             requested_base = sale._payment_amount_base(payment_amount, sale.exchange_rate)
             if requested_base > remaining_base + 0.0001:
                 payment_amount = remaining_base * (sale.exchange_rate if sale.exchange_rate and sale.exchange_rate != 0 else 1.0)
             elif requested_base + 0.0001 >= remaining_base:
-                payment_amount = sale.amount_total
+                payment_amount = target_amount
             if payment_amount > 0:
                 payment = self.env['havanoposdesk.payment'].create([{
-                    'payment_type': 'receipt',
+                    'payment_type': expected_payment_type,
                     'partner_type': 'customer',
                     'customer_id': sale.customer.id,
                     'account_id': sale.account_id.id,
@@ -615,11 +631,11 @@ class Sale(models.Model):
                 _cap_and_post(payment)
 
         paid_base = sum(
-            sale.payment_ids.filtered(lambda p: p.state == 'posted' and p.payment_type == 'receipt').mapped('amount_base')
+            sale.payment_ids.filtered(lambda p: p.state == 'posted' and p.payment_type == expected_payment_type).mapped('amount_base')
         )
         if used_on_account:
             new_status = 'partial'
-        elif paid_base + 0.0001 >= sale.amount_total_base:
+        elif paid_base + 0.0001 >= target_amount_base:
             new_status = 'cash'
         elif paid_base > 0:
             new_status = 'partial'
