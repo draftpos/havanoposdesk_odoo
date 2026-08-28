@@ -13,14 +13,15 @@ class Account(models.Model):
     def _check_unique_account_name(self):
         for record in self:
             if record.name and record.tenant_id:
-                # Case-insensitive search for duplicates
-                duplicate = self.search([
+                # Case-insensitive search for duplicates across active and archived records
+                duplicate = self.with_context(active_test=False).sudo().search([
                     ('tenant_id', '=', record.tenant_id.id),
-                    ('name', '=ilike', record.name),
+                    ('name', '=ilike', record.name.strip()),
                     ('id', '!=', record.id)
                 ], limit=1)
                 if duplicate:
-                    raise ValidationError("An account with the name '%s' already exists for this tenant!" % record.name)
+                    status_note = " (Deactivated / Archived)" if not duplicate.active else ""
+                    raise ValidationError(_("An account with the name '%s' already exists for this tenant%s!") % (record.name, status_note))
 
     name = fields.Char(string='Account Name', required=True)
     active = fields.Boolean(string='Active', default=True)
@@ -65,7 +66,7 @@ class Account(models.Model):
     store_ids = fields.Many2many(
         'havanoposdesk.store',
         string='Stores',
-        default=lambda self: [self.env.user.default_store_id.id] if self.env.user.default_store_id else ([self.env.user.store_ids[0].id] if self.env.user.store_ids else [])
+        default=lambda self: []
     )
 
     cash_transfer_from_ids = fields.One2many('havanoposdesk.cash.transfer', 'from_account_id', string='Outgoing Transfers')
@@ -124,12 +125,6 @@ class Account(models.Model):
                 vals['tenant_id'] = self.env.user.tenant_id.id
             if vals.get('type') in ('Cash', 'Bank') and not vals.get('currency_id'):
                 vals['currency_id'] = self._default_currency_id()
-            tenant_id = vals.get('tenant_id')
-            currency_id = vals.get('currency_id')
-            if tenant_id and currency_id:
-                curr = self.env['res.currency'].browse(currency_id)
-                if curr and not getattr(curr, 'tenant_id', False):
-                    curr.sudo().write({'tenant_id': tenant_id})
         return super().create(vals_list)
 
     @api.model

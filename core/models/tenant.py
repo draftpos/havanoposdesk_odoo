@@ -597,7 +597,7 @@ class HavanoposdeskTenant(models.Model):
                     'tenant_id': tenant_id,
                     'currency_id': currency_id,
                     'store_id': store_id,
-                    'store_ids': [(6, 0, [store_id])] if store_id else False,
+                    'store_ids': False,
                 })
 
         # 7. Default Expenses Accounts
@@ -628,7 +628,7 @@ class HavanoposdeskTenant(models.Model):
                     'tenant_id': tenant_id,
                     'currency_id': currency_id,
                     'store_id': store_id,
-                    'store_ids': [(6, 0, [store_id])] if store_id else False,
+                    'store_ids': False,
                 })
 
         # 8. Default Customer

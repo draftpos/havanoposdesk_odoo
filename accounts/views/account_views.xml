@@ -39,7 +39,7 @@
                                 <field name="active" widget="boolean_toggle" />
                                 <field name="store_ids" widget="many2many_tags" />
                                 <field name="tenant_id" invisible="1" />
-                                <field name="currency_id" domain="[('tenant_id', '=', tenant_id)]" invisible="type not in ['Cash', 'Bank']" required="type in ['Cash', 'Bank']" />
+                                <field name="currency_id" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]" invisible="type not in ['Cash', 'Bank']" required="type in ['Cash', 'Bank']" />
                                 <field name="balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             </group>
                         </group>

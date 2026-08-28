@@ -279,10 +279,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 ('active', '=', True)
             ]
             if user.tenant_id:
-                pm_domain.extend([
-                    ('tenant_id', '=', user.tenant_id.id),
-                    ('currency_id.tenant_id', '=', user.tenant_id.id),
-                ])
+                pm_domain.append(('tenant_id', '=', user.tenant_id.id))
             payment_methods_records = user_env['havanoposdesk.account'].sudo().search(pm_domain)
             payment_methods_data = []
             for pm in payment_methods_records:
@@ -3654,14 +3651,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     ('tenant_id', '=', tenant.id),
                     ('type', 'in', ['Cash', 'Bank']),
                     ('active', '=', True),
-                    ('currency_id.tenant_id', '=', tenant.id),
                 ], limit=1)
             else:
                 account = Account.search([
                     ('tenant_id', '=', tenant.id),
                     ('type', 'in', ['Cash', 'Bank']),
                     ('active', '=', True),
-                    ('currency_id.tenant_id', '=', tenant.id),
                     ('name', '=ilike', str(account_ref).strip()),
                 ], limit=1)
                 if not account:
@@ -3669,7 +3664,6 @@ class HavanoPOSDeskAPI(http.Controller):
                         ('tenant_id', '=', tenant.id),
                         ('type', 'in', ['Cash', 'Bank']),
                         ('active', '=', True),
-                        ('currency_id.tenant_id', '=', tenant.id),
                         ('name', 'ilike', str(account_ref).strip()),
                     ], limit=1)
                 if not account and isinstance(payment_data, dict):
@@ -3688,7 +3682,6 @@ class HavanoPOSDeskAPI(http.Controller):
                             ('type', '=', account_type),
                             ('active', '=', True),
                             ('is_on_account', '=', False),
-                            ('currency_id.tenant_id', '=', tenant.id),
                         ], limit=1)
             if account:
                 return account
@@ -3699,7 +3692,6 @@ class HavanoPOSDeskAPI(http.Controller):
                 ('tenant_id', '=', tenant.id),
                 ('type', 'in', ['Cash', 'Bank']),
                 ('active', '=', True),
-                ('currency_id.tenant_id', '=', tenant.id),
             ], limit=1)
             if account:
                 return account

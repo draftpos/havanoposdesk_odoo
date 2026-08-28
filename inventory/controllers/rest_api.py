@@ -74,10 +74,6 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
                         domain.append(('tenant_id', '=', user.tenant_id.id))
                     if model_name == 'currency' and user.tenant_id:
                         domain.extend(['|', ('tenant_id', '=', False), ('tenant_id', '=', user.tenant_id.id)])
-                    elif model_name == 'account' and user.tenant_id:
-                        domain.extend([
-                            ('currency_id.tenant_id', '=', user.tenant_id.id),
-                        ])
                     if model_name == 'category':
                         domain.append(('not_for_pos', '=', False))
                     
