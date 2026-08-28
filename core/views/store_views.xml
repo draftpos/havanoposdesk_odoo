@@ -106,11 +106,26 @@
             </field>
         </record>
 
+        <!-- Store Search View -->
+        <record id="view_havanoposdesk_store_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.store.search</field>
+            <field name="model">havanoposdesk.store</field>
+            <field name="arch" type="xml">
+                <search string="Stores">
+                    <field name="name"/>
+                    <filter string="Active" name="filter_active" domain="[('active','=',True)]"/>
+                    <filter string="Archived / Inactive" name="filter_inactive" domain="[('active','=',False)]"/>
+                </search>
+            </field>
+        </record>
+
         <!-- Store Action -->
         <record id="action_havanoposdesk_store" model="ir.actions.act_window">
             <field name="name">Stores</field>
             <field name="res_model">havanoposdesk.store</field>
             <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_store_search"/>
+            <field name="context">{'active_test': False}</field>
         </record>
     </data>
 </odoo>
