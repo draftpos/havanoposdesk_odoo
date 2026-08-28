@@ -312,6 +312,8 @@ original_check_access = BaseModel._check_access
 
 HAVANO_MODELS = frozenset(MODEL_FEATURE_MAP.keys())
 
+from odoo.models import BaseModel, Model, AbstractModel, TransientModel
+
 def custom_check_access(self, operation: str):
     if operation == 'read':
         if self._name in ('res.currency', 'res.currency.rate') or self.env.context.get('bypass_backoffice_read'):
@@ -320,7 +322,7 @@ def custom_check_access(self, operation: str):
             user = self.env.user
             if self.env.su or user.id == 1 or getattr(user, 'havano_role', None) == 'super_admin':
                 return None
-            if not self._ids or not hasattr(self, 'tenant_id') or not user.tenant_id:
+            if not self._ids or 'tenant_id' not in self._fields or not user.tenant_id:
                 return None
             try:
                 records_tenant_ids = set(self.sudo().mapped('tenant_id.id'))
@@ -331,6 +333,18 @@ def custom_check_access(self, operation: str):
     return original_check_access(self, operation)
 
 BaseModel._check_access = custom_check_access
+Model._check_access = custom_check_access
+AbstractModel._check_access = custom_check_access
+TransientModel._check_access = custom_check_access
+
+class IrRule(models.Model):
+    _inherit = 'ir.rule'
+
+    @api.model
+    def _compute_domain(self, model_name, mode='read'):
+        if mode == 'read' and self.env.context.get('bypass_backoffice_read'):
+            return []
+        return super()._compute_domain(model_name, mode=mode)
 
 class IrModelAccess(models.Model):
     _inherit = 'ir.model.access'
@@ -339,7 +353,7 @@ class IrModelAccess(models.Model):
     def check(self, model, mode='read', raise_exception=True):
         if self.env.su or self.env.uid == 1:
             return True
-        if mode == 'read' and model in ('res.currency', 'res.currency.rate'):
+        if mode == 'read' and (model in ('res.currency', 'res.currency.rate') or self.env.context.get('bypass_backoffice_read')):
             return True
         if isinstance(model, str) and (model.startswith('havanoposdesk.') or model in HAVANO_MODELS):
             if bool(self.env.uid):

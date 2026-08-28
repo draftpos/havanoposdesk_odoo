@@ -144,11 +144,11 @@ def post_migrate(env):
             );
         """, [model_name, model_name])
 
-    # Update Category Isolation Rule so all users in the tenant can read categories
+    # Update Category, UOM, and Pricelist Isolation Rules so all users in the tenant can read catalog records
     env.cr.execute("""
         UPDATE ir_rule
-        SET domain_force = '[] if user.havano_role == ''super_admin'' or not user.tenant_id else [(''tenant_id'', ''='', user.tenant_id.id)]'
-        WHERE name = 'Havano Category Isolation';
+        SET domain_force = '[] if user.havano_role == ''super_admin'' or not user.tenant_id else [''|'', (''tenant_id'', ''='', False), (''tenant_id'', ''='', user.tenant_id.id)]'
+        WHERE name IN ('Havano Category Isolation', 'Havano UOM Isolation', 'Havano Pricelist Isolation', 'Havano Product UOM Price Isolation');
     """)
 
     env.registry.clear_cache()
