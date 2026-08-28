@@ -310,14 +310,27 @@ from odoo.models import BaseModel
 original_check_access_rights = BaseModel.check_access_rights
 original_check_access = BaseModel._check_access
 
+HAVANO_MODELS = frozenset(MODEL_FEATURE_MAP.keys())
+
 def custom_check_access(self, operation: str):
-    if operation == 'read' and (self._name in ('res.currency', 'res.currency.rate') or self.env.context.get('bypass_backoffice_read')):
-        return None
+    if operation == 'read':
+        if self._name in ('res.currency', 'res.currency.rate') or self.env.context.get('bypass_backoffice_read'):
+            return None
+        if self._name.startswith('havanoposdesk.') or self._name in HAVANO_MODELS:
+            user = self.env.user
+            if self.env.su or user.id == 1 or getattr(user, 'havano_role', None) == 'super_admin':
+                return None
+            if not self._ids or not hasattr(self, 'tenant_id') or not user.tenant_id:
+                return None
+            try:
+                records_tenant_ids = set(self.sudo().mapped('tenant_id.id'))
+                if records_tenant_ids.issubset({False, user.tenant_id.id}):
+                    return None
+            except Exception:
+                pass
     return original_check_access(self, operation)
 
 BaseModel._check_access = custom_check_access
-
-HAVANO_MODELS = frozenset(MODEL_FEATURE_MAP.keys())
 
 class IrModelAccess(models.Model):
     _inherit = 'ir.model.access'
@@ -329,7 +342,7 @@ class IrModelAccess(models.Model):
         if mode == 'read' and model in ('res.currency', 'res.currency.rate'):
             return True
         if isinstance(model, str) and (model.startswith('havanoposdesk.') or model in HAVANO_MODELS):
-            if self.env.uid and self.env.uid > 2:
+            if bool(self.env.uid):
                 return True
         return super().check(model, mode=mode, raise_exception=raise_exception)
 
@@ -337,7 +350,7 @@ class IrModelAccess(models.Model):
     @tools.ormcache('self.env.uid', 'mode')
     def _get_allowed_models(self, mode='read'):
         res = super()._get_allowed_models(mode=mode)
-        if self.env.uid and self.env.uid > 2:
+        if bool(self.env.uid):
             return res | HAVANO_MODELS | {'res.currency', 'res.currency.rate'}
         if mode == 'read':
             return res | {'res.currency', 'res.currency.rate'}

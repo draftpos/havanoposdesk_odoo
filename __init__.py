@@ -110,6 +110,13 @@ def post_migrate(env):
         )
     """)
 
+    # Update Category Isolation Rule so all users in the tenant can read categories
+    env.cr.execute("""
+        UPDATE ir_rule
+        SET domain_force = '[] if user.havano_role == ''super_admin'' or not user.tenant_id else [(''tenant_id'', ''='', user.tenant_id.id)]'
+        WHERE name = 'Havano Category Isolation';
+    """)
+
     env.registry.clear_cache()
 
 
