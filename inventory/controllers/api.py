@@ -249,13 +249,18 @@ class HavanoPOSDeskAPI(http.Controller):
             currencies_data = []
             today_date = fields.Date.context_today(user)
             for cur in currencies_records:
-                rate_val = 1.0
-                if tenant_curr and tenant_curr != cur:
+                is_base = (
+                    (tenant_curr and (cur == tenant_curr or cur.id == tenant_curr.id or (cur.name and tenant_curr.name and cur.name.strip().upper() == tenant_curr.name.strip().upper())))
+                    or (tenant and tenant.currency_id and cur.name and cur.name.strip().upper() == tenant.currency_id.name.strip().upper())
+                )
+                if is_base:
+                    rate_val = 1.0
+                elif tenant_curr:
                     try:
                         rate_val = cur._get_conversion_rate(tenant_curr, cur, user.company_id or user_env.company, today_date)
                     except Exception:
                         rate_val = cur.rate or 1.0
-                elif not tenant_curr:
+                else:
                     rate_val = cur.rate or 1.0
 
                 currencies_data.append({
@@ -822,13 +827,18 @@ class HavanoPOSDeskAPI(http.Controller):
             today_date = fields.Date.context_today(user)
             data = []
             for cur in currencies:
-                rate_val = 1.0
-                if base_curr and base_curr != cur:
+                is_base = (
+                    (base_curr and (cur == base_curr or cur.id == base_curr.id or (cur.name and base_curr.name and cur.name.strip().upper() == base_curr.name.strip().upper())))
+                    or (tenant and tenant.currency_id and cur.name and cur.name.strip().upper() == tenant.currency_id.name.strip().upper())
+                )
+                if is_base:
+                    rate_val = 1.0
+                elif base_curr:
                     try:
                         rate_val = cur._get_conversion_rate(base_curr, cur, user.company_id or env.company, today_date)
                     except Exception:
                         rate_val = cur.rate or 1.0
-                elif not base_curr:
+                else:
                     rate_val = cur.rate or 1.0
 
                 data.append({
@@ -887,13 +897,18 @@ class HavanoPOSDeskAPI(http.Controller):
             today_date = fields.Date.context_today(user)
             data = []
             for cur in currencies:
-                rate_val = 1.0
-                if base_curr and base_curr != cur:
+                is_base = (
+                    (base_curr and (cur == base_curr or cur.id == base_curr.id or (cur.name and base_curr.name and cur.name.strip().upper() == base_curr.name.strip().upper())))
+                    or (tenant and tenant.currency_id and cur.name and cur.name.strip().upper() == tenant.currency_id.name.strip().upper())
+                )
+                if is_base:
+                    rate_val = 1.0
+                elif base_curr:
                     try:
                         rate_val = cur._get_conversion_rate(base_curr, cur, user.company_id or env.company, today_date)
                     except Exception:
                         rate_val = cur.rate or 1.0
-                elif not base_curr:
+                else:
                     rate_val = cur.rate or 1.0
 
                 data.append({
@@ -944,13 +959,18 @@ class HavanoPOSDeskAPI(http.Controller):
             today_date = fields.Date.context_today(user)
             data = []
             for cur in currencies:
-                rate_val = 1.0
-                if base_curr and base_curr != cur:
+                is_base = (
+                    (base_curr and (cur == base_curr or cur.id == base_curr.id or (cur.name and base_curr.name and cur.name.strip().upper() == base_curr.name.strip().upper())))
+                    or (tenant and tenant.currency_id and cur.name and cur.name.strip().upper() == tenant.currency_id.name.strip().upper())
+                )
+                if is_base:
+                    rate_val = 1.0
+                elif base_curr:
                     try:
                         rate_val = cur._get_conversion_rate(base_curr, cur, user.company_id or env.company, today_date)
                     except Exception:
                         rate_val = cur.rate or 1.0
-                elif not base_curr:
+                else:
                     rate_val = cur.rate or 1.0
 
                 data.append({

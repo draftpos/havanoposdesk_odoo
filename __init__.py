@@ -114,6 +114,28 @@ def post_migrate(env):
           AND (r.tenant_id IS DISTINCT FROM c.tenant_id);
     """)
 
+    # Auto-correct existing base currency exchange rates to 1.0
+    env.cr.execute("""
+        UPDATE res_currency_rate r
+        SET rate = 1.0,
+            company_rate = 1.0,
+            inverse_company_rate = 1.0
+        FROM havanoposdesk_tenant t, res_currency c
+        WHERE r.currency_id = c.id
+          AND (c.id = t.currency_id OR (c.name IS NOT NULL AND t.currency_id IS NOT NULL AND c.name = (SELECT name FROM res_currency WHERE id = t.currency_id)))
+          AND (r.rate != 1.0 OR r.company_rate != 1.0 OR r.inverse_company_rate != 1.0);
+    """)
+    env.cr.execute("""
+        UPDATE res_currency_rate r
+        SET rate = 1.0,
+            company_rate = 1.0,
+            inverse_company_rate = 1.0
+        FROM res_currency c
+        WHERE r.currency_id = c.id
+          AND c.name = 'USD'
+          AND (r.rate != 1.0 OR r.company_rate != 1.0 OR r.inverse_company_rate != 1.0);
+    """)
+
     # Backfill tenant_id on payments with related sale/account/customer/user
     env.cr.execute("""
         UPDATE havanoposdesk_payment p

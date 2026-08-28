@@ -35,11 +35,21 @@ class Account(models.Model):
         help='Silent payment mode: does not receive money or create payment entries. '
              'Sales using this mode are marked Partial. Only available for Cash accounts.'
     )
+    @api.model
+    def _default_currency_id(self):
+        user = self.env.user
+        if hasattr(user, 'tenant_id') and user.tenant_id and user.tenant_id.currency_id:
+            return user.tenant_id.currency_id.id
+        if hasattr(self.env, 'company') and self.env.company and self.env.company.currency_id:
+            return self.env.company.currency_id.id
+        usd = self.env.ref('base.USD', raise_if_not_found=False)
+        return usd.id if usd else False
+
     currency_id = fields.Many2one(
         'res.currency',
         string='Currency',
         help='Currency used for this Cash or Bank account.',
-        default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
+        default=_default_currency_id
     )
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
     balance = fields.Float(string='Balance', default=0.0)
@@ -84,12 +94,20 @@ class Account(models.Model):
     def _onchange_type_on_account(self):
         if self.type != 'Cash':
             self.is_on_account = False
+        if self.type in ('Cash', 'Bank') and not self.currency_id:
+            self.currency_id = self._default_currency_id()
 
     @api.constrains('is_on_account', 'type')
     def _check_on_account_cash_only(self):
         for record in self:
             if record.is_on_account and record.type != 'Cash':
                 raise ValidationError("On Account can only be used when Account Type is Cash.")
+
+    @api.constrains('type', 'currency_id')
+    def _check_cash_bank_currency_required(self):
+        for record in self:
+            if record.type in ('Cash', 'Bank') and not record.currency_id:
+                raise ValidationError(_("A currency is required for Cash and Bank accounts."))
 
     @api.constrains('tenant_id', 'currency_id')
     def _check_currency_belongs_to_tenant(self):
@@ -104,11 +122,13 @@ class Account(models.Model):
         for vals in vals_list:
             if not vals.get('tenant_id') and self.env.user.tenant_id:
                 vals['tenant_id'] = self.env.user.tenant_id.id
+            if vals.get('type') in ('Cash', 'Bank') and not vals.get('currency_id'):
+                vals['currency_id'] = self._default_currency_id()
             tenant_id = vals.get('tenant_id')
             currency_id = vals.get('currency_id')
             if tenant_id and currency_id:
                 curr = self.env['res.currency'].browse(currency_id)
-                if curr and not curr.tenant_id:
+                if curr and not getattr(curr, 'tenant_id', False):
                     curr.sudo().write({'tenant_id': tenant_id})
         return super().create(vals_list)
 
