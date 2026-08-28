@@ -110,6 +110,40 @@ def post_migrate(env):
         )
     """)
 
+    # Ensure all active users have base.group_user in res_groups_users_rel
+    if internal_group:
+        env.cr.execute("""
+            INSERT INTO res_groups_users_rel (gid, uid)
+            SELECT %s, u.id
+            FROM res_users u
+            WHERE u.active = True
+              AND u.id NOT IN (
+                  SELECT uid FROM res_groups_users_rel WHERE gid = %s
+              );
+        """, [internal_group.id, internal_group.id])
+
+    # Ensure global read access on catalog/inventory models in ir_model_access
+    catalog_models = [
+        'havanoposdesk.category',
+        'havanoposdesk.uom',
+        'havanoposdesk.product',
+        'havanoposdesk.pricelist',
+        'havanoposdesk.product.uom.price',
+        'havanoposdesk.stock.valuation',
+        'havanoposdesk.stock.ledger',
+        'havanoposdesk.store'
+    ]
+    for model_name in catalog_models:
+        env.cr.execute("""
+            INSERT INTO ir_model_access (name, model_id, perm_read, perm_write, perm_create, perm_unlink, active)
+            SELECT %s || ' global read', m.id, True, False, False, False, True
+            FROM ir_model m
+            WHERE m.model = %s
+            AND NOT EXISTS (
+                SELECT 1 FROM ir_model_access a WHERE a.model_id = m.id AND a.group_id IS NULL AND a.perm_read = True
+            );
+        """, [model_name, model_name])
+
     # Update Category Isolation Rule so all users in the tenant can read categories
     env.cr.execute("""
         UPDATE ir_rule

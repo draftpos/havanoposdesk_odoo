@@ -207,6 +207,70 @@
             <field name="perm_create" eval="False"/>
             <field name="perm_unlink" eval="False"/>
         </record>
+
+        <!-- Global read on catalog and inventory models so exports and related lookups never fail ACL -->
+        <record id="access_havanoposdesk_category_global_read" model="ir.model.access">
+            <field name="name">havanoposdesk.category global read</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.category')]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_havanoposdesk_uom_global_read" model="ir.model.access">
+            <field name="name">havanoposdesk.uom global read</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.uom')]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_havanoposdesk_product_global_read" model="ir.model.access">
+            <field name="name">havanoposdesk.product global read</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.product')]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_havanoposdesk_pricelist_global_read" model="ir.model.access">
+            <field name="name">havanoposdesk.pricelist global read</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.pricelist')]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_havanoposdesk_product_uom_price_global_read" model="ir.model.access">
+            <field name="name">havanoposdesk.product.uom.price global read</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.product.uom.price')]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_havanoposdesk_stock_valuation_global_read" model="ir.model.access">
+            <field name="name">havanoposdesk.stock.valuation global read</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.stock.valuation')]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_havanoposdesk_store_global_read" model="ir.model.access">
+            <field name="name">havanoposdesk.store global read</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.store')]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
     </data>
 </odoo>
 
