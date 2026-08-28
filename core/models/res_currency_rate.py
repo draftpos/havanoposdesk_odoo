@@ -17,7 +17,9 @@ class ResCurrencyRate(models.Model):
             if curr_id:
                 curr = self.env['res.currency'].browse(curr_id)
                 tenant = self.env.user.tenant_id if hasattr(self.env, 'user') and self.env.user else False
-                if tenant and tenant.currency_id and (curr == tenant.currency_id or (curr.name and curr.name.strip().upper() == tenant.currency_id.name.strip().upper())):
+                curr_name = getattr(curr, 'name', '') or ''
+                tenant_curr_name = getattr(tenant.currency_id, 'name', '') if (tenant and tenant.currency_id) else ''
+                if tenant and tenant.currency_id and (curr == tenant.currency_id or (curr_name and curr_name.strip().upper() == tenant_curr_name.strip().upper())):
                     vals['rate'] = 1.0
                     vals['company_rate'] = 1.0
                     vals['inverse_company_rate'] = 1.0
