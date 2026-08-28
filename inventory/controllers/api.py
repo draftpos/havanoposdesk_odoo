@@ -4418,11 +4418,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 ('active', '=', True),
             ]
             if user.havano_role != 'super_admin' and tenant:
-                domain.extend([
-                    
-                    ('tenant_id', '=', tenant.id),
-                    ('currency_id.tenant_id', '=', tenant.id),
-                ])
+                domain.append(('tenant_id', '=', tenant.id))
 
             accounts = env['havanoposdesk.account'].sudo().search(domain)
             today_date = fields.Date.context_today(user)
@@ -6718,7 +6714,6 @@ class HavanoPOSDeskAPI(http.Controller):
                 ('tenant_id', '=', tenant.id),
                 ('type', 'in', ['Cash', 'Bank']),
                 ('active', '=', True),
-                ('currency_id.tenant_id', '=', tenant.id),
             ])
             for acc in accounts:
                 acc_curr = acc.currency_id or base_curr
@@ -9137,10 +9132,7 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             domain = []
             if user.havano_role != 'super_admin' and user.tenant_id:
-                domain.extend([
-                    ('tenant_id', '=', user.tenant_id.id),
-                    ('currency_id.tenant_id', '=', user.tenant_id.id),
-                ])
+                domain.append(('tenant_id', '=', user.tenant_id.id))
             
             users = env['res.users'].search(domain)
             result = []
