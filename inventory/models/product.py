@@ -444,6 +444,7 @@ class HavanoposdeskProductCosting(models.Model):
 
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, ondelete='cascade')
     purchase_line_id = fields.Many2one('havanoposdesk.purchase.line', string='Purchase Line', ondelete='cascade')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', related='product_id.tenant_id', store=True, index=True)
     date = fields.Date(string='Date', default=fields.Date.context_today)
     qty = fields.Float(string='Quantity')
     price = fields.Float(string='Price/Rate')

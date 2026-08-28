@@ -94,10 +94,23 @@ class Account(models.Model):
     @api.constrains('tenant_id', 'currency_id')
     def _check_currency_belongs_to_tenant(self):
         for account in self:
-            if account.tenant_id and account.currency_id and account.currency_id != account.tenant_currency_id and account.currency_id.tenant_id != account.tenant_id:
+            if account.tenant_id and account.currency_id and account.currency_id != account.tenant_currency_id and account.currency_id.tenant_id and account.currency_id.tenant_id != account.tenant_id:
                 raise ValidationError(_(
                     "Account '%s' must use a currency belonging to the same tenant."
                 ) % account.name)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('tenant_id') and self.env.user.tenant_id:
+                vals['tenant_id'] = self.env.user.tenant_id.id
+            tenant_id = vals.get('tenant_id')
+            currency_id = vals.get('currency_id')
+            if tenant_id and currency_id:
+                curr = self.env['res.currency'].browse(currency_id)
+                if curr and not curr.tenant_id:
+                    curr.sudo().write({'tenant_id': tenant_id})
+        return super().create(vals_list)
 
     @api.model
     def is_on_account_method(self, account=None, payment_method_name=None):

@@ -11,6 +11,13 @@ class HavanoposdeskUom(models.Model):
     name = fields.Char(string='UOM Name', required=True)
     
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
+ 
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('tenant_id') and self.env.user.tenant_id:
+                vals['tenant_id'] = self.env.user.tenant_id.id
+        return super().create(vals_list)
 
     @api.constrains('name', 'tenant_id')
     def _check_unique_name(self):

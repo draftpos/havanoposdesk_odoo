@@ -86,9 +86,59 @@ def post_migrate(env):
            OR model_id IN (SELECT id FROM ir_model WHERE model IN ('res.currency', 'res.currency.rate'));
     """)
 
-    # Reset tenant_id to NULL on global currencies and rates so all users/tenants can access standard currencies
-    env.cr.execute("UPDATE res_currency SET tenant_id = NULL WHERE tenant_id IS NOT NULL;")
-    env.cr.execute("UPDATE res_currency_rate SET tenant_id = NULL WHERE tenant_id IS NOT NULL;")
+    # Backfill tenant_id on currencies used by tenants as base or secondary currency
+    env.cr.execute("""
+        UPDATE res_currency c
+        SET tenant_id = t.id
+        FROM havanoposdesk_tenant t
+        WHERE (t.currency_id = c.id OR t.global_secondary_currency_id = c.id)
+          AND (c.tenant_id IS NULL OR c.tenant_id != t.id);
+    """)
+
+    # Backfill tenant_id on currencies used by tenant accounts
+    env.cr.execute("""
+        UPDATE res_currency c
+        SET tenant_id = a.tenant_id
+        FROM havanoposdesk_account a
+        WHERE a.currency_id = c.id
+          AND c.tenant_id IS NULL
+          AND a.tenant_id IS NOT NULL;
+    """)
+
+    # Ensure rate tenant_id matches currency tenant_id
+    env.cr.execute("""
+        UPDATE res_currency_rate r
+        SET tenant_id = c.tenant_id
+        FROM res_currency c
+        WHERE r.currency_id = c.id
+          AND (r.tenant_id IS DISTINCT FROM c.tenant_id);
+    """)
+
+    # Backfill tenant_id on payments with related sale/account/customer/user
+    env.cr.execute("""
+        UPDATE havanoposdesk_payment p
+        SET tenant_id = s.tenant_id
+        FROM havanoposdesk_sale s
+        WHERE p.sale_id = s.id AND p.tenant_id IS NULL AND s.tenant_id IS NOT NULL;
+    """)
+    env.cr.execute("""
+        UPDATE havanoposdesk_payment p
+        SET tenant_id = a.tenant_id
+        FROM havanoposdesk_account a
+        WHERE p.account_id = a.id AND p.tenant_id IS NULL AND a.tenant_id IS NOT NULL;
+    """)
+    env.cr.execute("""
+        UPDATE havanoposdesk_payment p
+        SET tenant_id = u.tenant_id
+        FROM res_users u
+        WHERE p.create_uid = u.id AND p.tenant_id IS NULL AND u.tenant_id IS NOT NULL;
+    """)
+    env.cr.execute("""
+        UPDATE havanoposdesk_account a
+        SET tenant_id = u.tenant_id
+        FROM res_users u
+        WHERE a.create_uid = u.id AND a.tenant_id IS NULL AND u.tenant_id IS NOT NULL;
+    """)
 
     # Ensure global read access on res.currency and res.currency.rate in ir_model_access
     env.cr.execute("""

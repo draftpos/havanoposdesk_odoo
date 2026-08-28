@@ -151,9 +151,19 @@ class ClearDataWizard(models.TransientModel):
             if model_name not in self.env:
                 return  # not installed here — skip without logging noise
 
-            domain = list(base_domain)
+            model_fields = self.env[model_name]._fields
+            domain = []
+            if base_domain:
+                if 'tenant_id' in model_fields:
+                    domain = list(base_domain)
+                elif 'product_id' in model_fields:
+                    domain = [('product_id.tenant_id', '=', tenant.id)]
+                elif 'sale_id' in model_fields:
+                    domain = [('sale_id.tenant_id', '=', tenant.id)]
+                elif 'purchase_id' in model_fields:
+                    domain = [('purchase_id.tenant_id', '=', tenant.id)]
+
             if self.store_id:
-                model_fields = self.env[model_name]._fields
                 if 'store_id' in model_fields:
                     domain.append(('store_id', '=', self.store_id.id))
                 elif 'store' in model_fields:

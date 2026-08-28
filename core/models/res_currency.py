@@ -20,6 +20,13 @@ class ResCurrency(models.Model):
         index=True
     )
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('tenant_id') and self.env.user.tenant_id:
+                vals['tenant_id'] = self.env.user.tenant_id.id
+        return super().create(vals_list)
+
     is_base_currency = fields.Boolean(
         string='Base Currency',
         compute='_compute_is_base_currency',

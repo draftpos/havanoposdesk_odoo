@@ -121,7 +121,28 @@ class Payment(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            tenant_id = vals.get('tenant_id')
+            if not tenant_id and self.env.user.tenant_id:
+                tenant_id = self.env.user.tenant_id.id
+            if not tenant_id and vals.get('account_id'):
+                account = self.env['havanoposdesk.account'].browse(vals.get('account_id'))
+                if account.tenant_id:
+                    tenant_id = account.tenant_id.id
+            if not tenant_id and vals.get('sale_id'):
+                sale = self.env['havanoposdesk.sale'].browse(vals.get('sale_id'))
+                if sale.tenant_id:
+                    tenant_id = sale.tenant_id.id
+            if not tenant_id and vals.get('customer_id'):
+                cust = self.env['havanoposdesk.customer'].browse(vals.get('customer_id'))
+                if cust.tenant_id:
+                    tenant_id = cust.tenant_id.id
+            if not tenant_id and vals.get('supplier_id'):
+                supp = self.env['havanoposdesk.supplier'].browse(vals.get('supplier_id'))
+                if supp.tenant_id:
+                    tenant_id = supp.tenant_id.id
+
+            if tenant_id:
+                vals['tenant_id'] = tenant_id
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
             if tenant.currency_id and not vals.get('currency_id'):
                 vals['currency_id'] = tenant.currency_id.id

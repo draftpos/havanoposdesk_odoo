@@ -13,6 +13,13 @@ class HavanoposdeskCategory(models.Model):
     store_ids = fields.Many2many('havanoposdesk.store', string='Stores', required=False, default=lambda self: self._default_store_ids())
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self._default_tenant_id())
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('tenant_id') and self.env.user.tenant_id:
+                vals['tenant_id'] = self.env.user.tenant_id.id
+        return super().create(vals_list)
+
     def _default_store_ids(self):
         # Prevent accessing env.user during registry load
         if self.env.registry.ready and self.env.user.default_store_id:
