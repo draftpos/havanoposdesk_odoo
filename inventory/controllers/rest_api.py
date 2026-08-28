@@ -197,6 +197,8 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
         params['is_return'] = True
         
         request.httprequest.data = json.dumps(params).encode('utf-8')
+        if 'items' in params or 'sales' in params:
+            return self.api_sales_invoice(**kwargs)
         return self.generic_rest_api('sale_invoice', **kwargs)
 
     @http.route('/api/debit_note', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')

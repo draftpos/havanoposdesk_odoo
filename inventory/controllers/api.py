@@ -1931,6 +1931,20 @@ class HavanoPOSDeskAPI(http.Controller):
                 headers=[('Content-Type', 'application/json')],
                 status=400,
             )
+        is_return_val = bool(data.get('is_return', False))
+        return_id_val = False
+        orig_ref = data.get('return_against') or data.get('return_id')
+        if orig_ref:
+            if isinstance(orig_ref, int) or (isinstance(orig_ref, str) and str(orig_ref).isdigit()):
+                return_id_val = int(orig_ref)
+            else:
+                orig_sale = request.env['havanoposdesk.sale'].sudo().search([
+                    ('name', '=', str(orig_ref).strip()),
+                    ('tenant_id', '=', tenant.id)
+                ], limit=1)
+                if orig_sale:
+                    return_id_val = orig_sale.id
+
         sale_vals = {
             'customer': customer.id,
             'store': store.name,
@@ -1945,6 +1959,8 @@ class HavanoPOSDeskAPI(http.Controller):
             'payment_policy': payment_vals['payment_policy'],
             'local_invoice_id': local_invoice_id,
             'app_version': data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version'),
+            'is_return': is_return_val,
+            'return_id': return_id_val if return_id_val else False,
         }
         if payment_vals.get('account_id'):
             sale_vals['account_id'] = payment_vals['account_id']
@@ -3539,6 +3555,20 @@ class HavanoPOSDeskAPI(http.Controller):
                             else:
                                 doc_exchange_rate = 1.0
 
+                        is_return_val = bool(sale_data.get('is_return', False))
+                        return_id_val = False
+                        orig_ref = sale_data.get('return_against') or sale_data.get('return_id')
+                        if orig_ref:
+                            if isinstance(orig_ref, int) or (isinstance(orig_ref, str) and str(orig_ref).isdigit()):
+                                return_id_val = int(orig_ref)
+                            else:
+                                orig_sale = env['havanoposdesk.sale'].search([
+                                    ('name', '=', str(orig_ref).strip()),
+                                    ('tenant_id', '=', tenant.id)
+                                ], limit=1)
+                                if orig_sale:
+                                    return_id_val = orig_sale.id
+
                         sale_vals = {
                             'customer': customer.id,
                             'store': store.name,
@@ -3556,6 +3586,8 @@ class HavanoPOSDeskAPI(http.Controller):
                             'local_invoice_id': local_invoice_id,
                             'app_version': sale_data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version'),
                             'is_quotation': is_quotation,
+                            'is_return': is_return_val,
+                            'return_id': return_id_val if return_id_val else False,
                         }
                         if pricelist_id:
                             sale_vals['pricelist_id'] = pricelist_id
