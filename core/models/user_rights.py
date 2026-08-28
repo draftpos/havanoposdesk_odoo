@@ -343,8 +343,11 @@ class IrRule(models.Model):
     @api.model
     def _compute_domain(self, model_name, mode='read'):
         if mode == 'read' and self.env.context.get('bypass_backoffice_read'):
-            from odoo.osv.expression import Domain
-            return Domain.TRUE
+            try:
+                from odoo.orm.domains import Domain
+                return Domain.TRUE
+            except ImportError:
+                return []
         return super()._compute_domain(model_name, mode=mode)
 
 class IrModelAccess(models.Model):
