@@ -98,10 +98,13 @@ class ResCurrency(models.Model):
         return res
 
     @api.model
-    def _search(self, domain, offset=0, limit=None, order=None):
+    def _search(self, domain, offset=0, limit=None, order=None, **kwargs):
         if not self.env.su and self.env.user and getattr(self.env.user, 'tenant_id', None) and self.env.user.havano_role != 'super_admin':
-            domain = [('tenant_id', '=', self.env.user.tenant_id.id)] + list(domain)
-        return super()._search(domain, offset=offset, limit=limit, order=order)
+            has_id_filter = any(isinstance(leaf, (list, tuple)) and len(leaf) > 0 and leaf[0] == 'id' for leaf in domain)
+            has_tenant_filter = any(isinstance(leaf, (list, tuple)) and len(leaf) > 0 and leaf[0] == 'tenant_id' for leaf in domain)
+            if not has_id_filter and not has_tenant_filter:
+                domain = [('tenant_id', '=', self.env.user.tenant_id.id)] + list(domain)
+        return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
 
     @api.constrains('name', 'tenant_id')
     def _check_unique_currency_name_per_tenant(self):
