@@ -7,6 +7,7 @@ _logger = logging.getLogger(__name__)
 
 class Sale(models.Model):
     _name = 'havanoposdesk.sale'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Sale'
     _order = 'date desc, id desc'
 

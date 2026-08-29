@@ -3,6 +3,7 @@ from odoo.exceptions import ValidationError, UserError
 
 class CashTransfer(models.Model):
     _name = "havanoposdesk.cash.transfer"
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = "Cash Transfer between branches"
     _order = "date desc, id desc"
 

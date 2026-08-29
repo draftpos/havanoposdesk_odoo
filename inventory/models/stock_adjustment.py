@@ -4,6 +4,7 @@ from odoo.exceptions import ValidationError
 
 class StockAdjustment(models.Model):
     _name = 'havanoposdesk.stock.adjustment'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Stock Adjustment'
 
     def _default_store_id(self):

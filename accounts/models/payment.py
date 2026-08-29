@@ -3,6 +3,7 @@ from odoo.exceptions import UserError, ValidationError
 
 class Payment(models.Model):
     _name = 'havanoposdesk.payment'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Payment'
     _order = 'date desc, id desc'
 

@@ -34,6 +34,7 @@
         'core/views/whitelabel_templates.xml',
         'core/views/auth_templates.xml',
         'core/views/error_log_views.xml',
+        'core/views/audit_log_views.xml',
         'core/views/support_ticket_views.xml',
 
         'accounts/views/account_views.xml',

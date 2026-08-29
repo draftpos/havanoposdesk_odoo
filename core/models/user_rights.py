@@ -6,6 +6,7 @@ _logger = logging.getLogger(__name__)
 
 class HavanoposdeskUserRightsProfile(models.Model):
     _name = 'havanoposdesk.user.rights.profile'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'User Rights Profile'
     _order = 'name'
 

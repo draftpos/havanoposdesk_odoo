@@ -3,6 +3,7 @@ from odoo.exceptions import ValidationError
 
 class Account(models.Model):
     _name = 'havanoposdesk.account'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Account'
     
     _sql_constraints = [

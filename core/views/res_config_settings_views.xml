@@ -151,6 +151,15 @@
                         </setting>
                     </block>
 
+                    <block title="Activity &amp; Audit Trail" name="audit_trail_config">
+                        <setting string="Activity Logs" help="Track all record creations, edits, deletions, user actions, and IP addresses across your workspace.">
+                            <div class="mt16">
+                                <button name="%(action_havanoposdesk_audit_logs)d" type="action" string="View Activity Logs" icon="fa-history" class="btn btn-primary me-2"/>
+                                <button name="%(action_havanoposdesk_audit_log_clear_wizard)d" type="action" string="Clear / Archive Logs" icon="fa-archive" class="btn btn-secondary"/>
+                            </div>
+                        </setting>
+                    </block>
+
                     <block title="Mobile POS Configuration" name="mobile_pos_config">
                         <setting string="Enable Quotations" help="Allow quotations management in POS app">
                             <field name="biz_enable_quotations"/>

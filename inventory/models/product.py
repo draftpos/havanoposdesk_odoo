@@ -3,6 +3,7 @@ from odoo.exceptions import ValidationError
 
 class HavanoposdeskProduct(models.Model):
     _name = 'havanoposdesk.product'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Product'
     _rec_names_search = ['name', 'item_code']
 

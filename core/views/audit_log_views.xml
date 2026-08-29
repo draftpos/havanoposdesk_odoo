@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Activity Log Search View -->
+        <record id="view_havano_audit_log_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.audit.log.search</field>
+            <field name="model">havanoposdesk.audit.log</field>
+            <field name="arch" type="xml">
+                <search string="Search Activity Logs">
+                    <field name="record_name" string="Record / Code / Name" filter_domain="['|', ('record_name', 'ilike', self), ('name', 'ilike', self)]"/>
+                    <field name="user_name" string="User / Cashier"/>
+                    <field name="ip_address" string="IP Address"/>
+                    <field name="model_description" string="Entity / Module"/>
+                    <field name="changes_summary" string="Changes Content"/>
+
+                    <filter string="Today" name="filter_today" domain="[('timestamp', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('timestamp', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="filter_this_month" domain="[('timestamp', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]"/>
+                    
+                    <separator/>
+                    <filter string="Creations" name="filter_create" domain="[('action_type', '=', 'create')]"/>
+                    <filter string="Edits / Updates" name="filter_write" domain="[('action_type', '=', 'write')]"/>
+                    <filter string="Deletions" name="filter_unlink" domain="[('action_type', '=', 'unlink')]"/>
+                    <filter string="Custom Actions" name="filter_action" domain="[('action_type', '=', 'action')]"/>
+
+                    <separator/>
+                    <filter string="Archived" name="filter_archived" domain="[('active', '=', False)]"/>
+
+                    <group expand="0" string="Group By">
+                        <filter string="User" name="group_user" domain="[]" context="{'group_by': 'user_name'}"/>
+                        <filter string="Entity / Module" name="group_model" domain="[]" context="{'group_by': 'model_description'}"/>
+                        <filter string="Action Type" name="group_action" domain="[]" context="{'group_by': 'action_type'}"/>
+                        <filter string="Date (Day)" name="group_date_day" domain="[]" context="{'group_by': 'timestamp:day'}"/>
+                        <filter string="Date (Month)" name="group_date_month" domain="[]" context="{'group_by': 'timestamp:month'}"/>
+                        <filter string="IP Address" name="group_ip" domain="[]" context="{'group_by': 'ip_address'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Activity Log Tree View -->
+        <record id="view_havano_audit_log_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.audit.log.list</field>
+            <field name="model">havanoposdesk.audit.log</field>
+            <field name="arch" type="xml">
+                <list string="Activity &amp; Audit Logs" create="false" edit="false" delete="false" default_order="timestamp desc">
+                    <field name="timestamp" string="Time"/>
+                    <field name="user_name" string="User" widget="badge"/>
+                    <field name="user_role" string="Role" optional="hide"/>
+                    <field name="action_type" string="Action" widget="badge" 
+                           decoration-success="action_type == 'create'" 
+                           decoration-info="action_type == 'write'" 
+                           decoration-danger="action_type == 'unlink'" 
+                           decoration-warning="action_type == 'action'"/>
+                    <field name="model_description" string="Entity / Type"/>
+                    <field name="record_name" string="Record / Reference" class="fw-bold"/>
+                    <field name="ip_address" string="Client IP" widget="badge"/>
+                    <field name="changes_summary" string="Changes Summary"/>
+                    <field name="store_id" string="Store / Branch" optional="show"/>
+                    <field name="tenant_id" string="Tenant" optional="hide" groups="base.group_system"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Activity Log Form View -->
+        <record id="view_havano_audit_log_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.audit.log.form</field>
+            <field name="model">havanoposdesk.audit.log</field>
+            <field name="arch" type="xml">
+                <form string="Activity Log Entry" create="false" edit="false" delete="false">
+                    <header>
+                        <button name="action_archive_log" string="Archive" type="object" invisible="not active" class="btn-secondary"/>
+                        <button name="action_unarchive_log" string="Unarchive" type="object" invisible="active" class="btn-secondary"/>
+                    </header>
+                    <sheet>
+                        <widget name="web_ribbon" title="Archived" bg_color="text-bg-warning" invisible="active"/>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group string="User &amp; Session">
+                                <field name="timestamp" readonly="1"/>
+                                <field name="user_name" string="User" readonly="1"/>
+                                <field name="user_role" string="Role" readonly="1"/>
+                                <field name="ip_address" string="IP Address" readonly="1"/>
+                                <field name="user_agent" string="Device / Browser" readonly="1"/>
+                            </group>
+                            <group string="Target Record &amp; Location">
+                                <field name="action_type" readonly="1" widget="badge" 
+                                       decoration-success="action_type == 'create'" 
+                                       decoration-info="action_type == 'write'" 
+                                       decoration-danger="action_type == 'unlink'" 
+                                       decoration-warning="action_type == 'action'"/>
+                                <field name="model_description" string="Entity Type" readonly="1"/>
+                                <field name="record_name" string="Record Name / Code" readonly="1"/>
+                                <field name="res_id" string="Record ID" readonly="1"/>
+                                <field name="store_id" string="Store / Branch" readonly="1"/>
+                                <field name="tenant_id" string="Tenant" readonly="1" groups="base.group_system"/>
+                            </group>
+                        </group>
+
+                        <notebook>
+                            <page string="Changes Summary" name="changes_summary_page">
+                                <field name="changes_summary" readonly="1" widget="text" class="w-100 font-monospace bg-light p-3 border rounded"/>
+                            </page>
+                            <page string="Raw Data (JSON)" name="raw_json_page" groups="base.group_system,havanoposdesk_odoo.group_tenant_admin">
+                                <field name="changes_json" readonly="1" widget="text" class="w-100 font-monospace bg-dark text-light p-3 border rounded"/>
+                            </page>
+                            <page string="Technical Details" name="tech_details_page" groups="base.group_system">
+                                <group>
+                                    <field name="model_name" readonly="1"/>
+                                    <field name="http_method" readonly="1"/>
+                                    <field name="http_path" readonly="1"/>
+                                    <field name="active" readonly="1"/>
+                                    <field name="is_archived" readonly="1"/>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Clear / Archive Wizard Form View -->
+        <record id="view_havano_audit_log_clear_wizard_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.audit.log.clear.wizard.form</field>
+            <field name="model">havanoposdesk.audit.log.clear.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Clear or Archive Activity Logs">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fa fa-info-circle me-1"></i> Use this tool to archive or permanently delete older activity logs for your business to keep your database lean.
+                    </div>
+                    <group>
+                        <field name="tenant_id" invisible="1"/>
+                        <field name="clear_mode" widget="radio"/>
+                        <field name="action_mode" widget="radio"/>
+                    </group>
+                    <footer>
+                        <button name="action_process" string="Apply Changes" type="object" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <!-- Actions -->
+        <record id="action_havanoposdesk_audit_logs" model="ir.actions.act_window">
+            <field name="name">Activity &amp; Audit Logs</field>
+            <field name="res_model">havanoposdesk.audit.log</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havano_audit_log_search"/>
+            <field name="context">{'active_test': True}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No activity logs recorded yet.
+                </p>
+                <p>
+                    All creates, updates, and deletes performed on records across your workspace will be tracked here with user, time, and IP address.
+                </p>
+            </field>
+        </record>
+
+        <record id="action_havanoposdesk_audit_log_clear_wizard" model="ir.actions.act_window">
+            <field name="name">Clear / Archive Activity Logs</field>
+            <field name="res_model">havanoposdesk.audit.log.clear.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+
+        <!-- Menuitem in Configurations -->
+        <menuitem id="menu_my_business_audit_logs" 
+                  name="Activity Logs" 
+                  parent="menu_tenant_admin_settings_root" 
+                  action="action_havanoposdesk_audit_logs" 
+                  sequence="60" 
+                  groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+    </data>
+</odoo>

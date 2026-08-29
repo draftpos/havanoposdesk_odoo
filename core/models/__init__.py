@@ -1,3 +1,5 @@
+from . import audit_log
+from . import audit_mixin
 from . import tenant
 from . import res_users
 from . import store

@@ -271,6 +271,36 @@
             <field name="perm_create" eval="False"/>
             <field name="perm_unlink" eval="False"/>
         </record>
+
+        <!-- Audit Log Access Rights -->
+        <record id="access_havanoposdesk_audit_log_tenant_admin" model="ir.model.access">
+            <field name="name">havanoposdesk.audit.log tenant admin</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.audit.log')]"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="access_havanoposdesk_audit_log_global" model="ir.model.access">
+            <field name="name">havanoposdesk.audit.log global</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.audit.log')]"/>
+            <field name="perm_read" eval="False"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="access_havanoposdesk_audit_log_wizard_tenant_admin" model="ir.model.access">
+            <field name="name">havanoposdesk.audit.log.clear.wizard tenant admin</field>
+            <field name="model_id" search="[('model', '=', 'havanoposdesk.audit.log.clear.wizard')]"/>
+            <field name="group_id" ref="havanoposdesk_odoo.group_tenant_admin"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
     </data>
 </odoo>
 

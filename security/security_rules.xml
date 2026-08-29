@@ -355,5 +355,13 @@
             <field name="global" eval="True"/>
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
+
+        <!-- Audit Log Isolation Rule -->
+        <record id="rule_havano_audit_log_isolation" model="ir.rule">
+            <field name="name">Havano Activity Log Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_audit_log"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
     </data>
 </odoo>

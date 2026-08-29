@@ -4,6 +4,7 @@ from datetime import datetime
 
 class StockTransfer(models.Model):
     _name = 'havanoposdesk.stock.transfer'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Stock Transfer'
     _order = 'date desc, id desc'
 

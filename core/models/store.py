@@ -4,6 +4,7 @@ from odoo.addons.base.models.res_partner import _tz_get
 
 class HavanoposdeskStore(models.Model):
     _name = 'havanoposdesk.store'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Store'
 
     _sql_constraints = [

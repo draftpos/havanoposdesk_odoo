@@ -4,6 +4,7 @@ from odoo.exceptions import ValidationError, RedirectWarning
 
 class HavanoposdeskPosTerminal(models.Model):
     _name = 'havanoposdesk.pos.terminal'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'POS Terminal'
 
     name = fields.Char(string='Terminal Name', required=True, readonly=True, default=lambda self: self._get_default_name())

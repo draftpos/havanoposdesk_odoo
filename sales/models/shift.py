@@ -2,6 +2,7 @@ from odoo import models, fields, api
 
 class Shift(models.Model):
     _name = 'havanoposdesk.shift'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Shift Operations'
     _order = 'start_date desc'
 
