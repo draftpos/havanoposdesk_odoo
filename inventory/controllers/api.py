@@ -146,13 +146,7 @@ class HavanoPOSDeskAPI(http.Controller):
             user = user_env['res.users'].sudo().browse(uid)
             if timezone:
                 timezone_str = str(timezone).strip()
-                if user.tz:
-                    user_tz_str = str(user.tz).strip()
-                    if user_tz_str != timezone_str:
-                        return request.make_response(json.dumps({
-                            'error': f"Incorrect date and time settings. Your account was registered under timezone '{user_tz_str}'. Please correct your device date and time settings to log in."
-                        }), headers=[('Content-Type', 'application/json')], status=400)
-                else:
+                if not user.tz:
                     try:
                         user.sudo().write({'tz': timezone_str})
                     except Exception:
@@ -402,7 +396,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     shop_domain = [('tenant_id', '=', user.tenant_id.id)]
                     if user.havano_role == 'user' and user.store_ids:
                         shop_domain.append(('id', 'in', user.store_ids.ids))
-                    shops = user_env['havanoposdesk.store'].sudo().search_read(shop_domain, ['id', 'name'])
+                    shops = user_env['havanoposdesk.store'].sudo().search_read(shop_domain, ['id', 'name', 'tz'])
                     if shops:
                         shop_ids = [s['id'] for s in shops]
                         terminals_domain = [
@@ -430,6 +424,8 @@ class HavanoPOSDeskAPI(http.Controller):
                             shops_data.append({
                                 "id": s['id'],
                                 "name": s['name'],
+                                "tz": s.get('tz') or 'UTC',
+                                "timezone": s.get('tz') or 'UTC',
                                 "terminals": terms_by_shop.get(s['id'], [])
                             })
 
@@ -446,6 +442,11 @@ class HavanoPOSDeskAPI(http.Controller):
                     "shops": shops_data,
                     # Return the validated effective shop id (corrected above if it was stale)
                     "selected_shop_id": store.id if store else None,
+                    "store_id": store.id if store else None,
+                    "store_name": store.name if store else "",
+                    "store_tz": (store.tz if store else False) or user.tz or 'UTC',
+                    "tz": user.tz or (store.tz if store else False) or 'UTC',
+                    "timezone": (store.tz if store else False) or user.tz or 'UTC',
                 })
 
                 # Hardware based terminal assignment — strictly scoped to the user's assigned stores.
@@ -1535,6 +1536,40 @@ class HavanoPOSDeskAPI(http.Controller):
             
         return False
 
+    def _validate_store_timezone(self, store, data_or_params=None, user=None):
+        """
+        Validates client device timezone against the store timezone before allowing a sale.
+        Returns (is_valid: bool, error_message: str or None).
+        """
+        if not store:
+            return True, None
+        
+        store_tz = getattr(store, 'tz', False) or (user.tz if user else None) or 'UTC'
+        store_tz_str = str(store_tz).strip()
+
+        data_or_params = data_or_params or {}
+        client_tz = (
+            data_or_params.get('timezone') or 
+            data_or_params.get('tz') or 
+            data_or_params.get('device_timezone') or 
+            data_or_params.get('device_tz') or 
+            data_or_params.get('client_timezone') or 
+            data_or_params.get('client_tz') or 
+            request.httprequest.headers.get('timezone') or 
+            request.httprequest.headers.get('Timezone') or 
+            request.httprequest.headers.get('X-Timezone') or 
+            request.httprequest.headers.get('tz') or 
+            request.httprequest.headers.get('device-timezone') or 
+            request.httprequest.headers.get('device_timezone')
+        )
+
+        if client_tz:
+            client_tz_str = str(client_tz).strip()
+            if client_tz_str and client_tz_str.lower() != store_tz_str.lower():
+                return False, f"Incorrect date and time settings. Store '{store.name}' operates under timezone '{store_tz_str}', but your device is set to '{client_tz_str}'. Please correct your device date and time settings before making a sale."
+
+        return True, None
+
 
     # 1. CREATE CUSTOMER
     @http.route('/api/method/saas_api.www.api.create_customer', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
@@ -1834,6 +1869,10 @@ class HavanoPOSDeskAPI(http.Controller):
         if not store:
             return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
                 
+        tz_valid, tz_err = self._validate_store_timezone(store, data, user)
+        if not tz_valid:
+            return request.make_response(json.dumps({'error': tz_err}), headers=[('Content-Type', 'application/json')], status=400)
+
         local_invoice_id = data.get('reference_number') or data.get('local_invoice_id')
         if not local_invoice_id:
             return request.make_response(json.dumps({'error': 'reference_number is required when making a sale'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -2833,6 +2872,10 @@ class HavanoPOSDeskAPI(http.Controller):
             if not store:
                 return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
 
+            tz_valid, tz_err = self._validate_store_timezone(store, params, user)
+            if not tz_valid:
+                return self._make_json_response({"error": tz_err}, status=400)
+
             customer = env['havanoposdesk.customer'].search([
                 ('name', '=', customer_name),
                 ('store_ids', 'in', [store.id])
@@ -3416,6 +3459,11 @@ class HavanoPOSDeskAPI(http.Controller):
                         store = self._get_current_store(user, tenant, sale_data)
                         if not store:
                             responses.append({"error": "Store/Warehouse is required", "local_invoice_id": local_invoice_id})
+                            continue
+
+                        tz_valid, tz_err = self._validate_store_timezone(store, sale_data, user)
+                        if not tz_valid:
+                            responses.append({"error": tz_err, "local_invoice_id": local_invoice_id})
                             continue
 
                         customer_name = sale_data.get('customer')
@@ -8273,6 +8321,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 shops_data.append({
                     "id": s.id,
                     "name": s.name,
+                    "tz": s.tz or user.tz or 'UTC',
+                    "timezone": s.tz or user.tz or 'UTC',
                     "terminals": terminals_data,
                     "pricelist_ids": s.pricelist_ids.ids,
                     "pricelist_names": s.pricelist_ids.mapped('name'),
@@ -8301,6 +8351,8 @@ class HavanoPOSDeskAPI(http.Controller):
             "selected_shop_id": user.selected_shop_id.id if user.selected_shop_id else None,
             "selected_terminal_id": hardware_terminal_id,
             "store_ids": user.store_ids.ids if hasattr(user, 'store_ids') and user.store_ids else [],
+            "tz": user.tz or 'UTC',
+            "timezone": user.tz or 'UTC',
             "user_rights": self._get_user_rights_dict(user)
         }
 

@@ -447,6 +447,16 @@ class Sale(models.Model):
                 store = self.env['havanoposdesk.store'].browse(vals['store_id'])
                 if store:
                     vals['store'] = store.name
+
+            # Store timezone validation safeguard
+            client_tz = vals.get('timezone') or vals.get('tz') or vals.get('device_tz') or self.env.context.get('client_tz')
+            if client_tz and vals.get('store_id'):
+                store_rec = self.env['havanoposdesk.store'].browse(vals['store_id'])
+                if store_rec.exists() and store_rec.tz:
+                    if str(client_tz).strip().lower() != str(store_rec.tz).strip().lower():
+                        raise ValidationError(_(
+                            "Incorrect date and time settings. Store '%s' operates under timezone '%s', but device is set to '%s'. Please correct date and time settings before saving a sale."
+                        ) % (store_rec.name, store_rec.tz, client_tz))
                     
             # Sync date and posting_date / posting_time
             if 'date' in vals and not vals.get('posting_date'):

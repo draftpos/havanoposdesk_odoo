@@ -1,5 +1,6 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError, RedirectWarning
+from odoo.addons.base.models.res_partner import _tz_get
 
 class HavanoposdeskStore(models.Model):
     _name = 'havanoposdesk.store'
@@ -20,6 +21,13 @@ class HavanoposdeskStore(models.Model):
         'res.currency', 
         string='Store Currency', 
         default=lambda self: self.env.user.tenant_id.currency_id.id if self.env.user.tenant_id else self.env.ref('base.USD').id
+    )
+    tz = fields.Selection(
+        _tz_get,
+        string='Timezone',
+        default=lambda self: self.env.user.tz or 'UTC',
+        required=True,
+        help="Store timezone for local transaction recording and validation."
     )
     pricelist_ids = fields.Many2many(
         'havanoposdesk.pricelist',
