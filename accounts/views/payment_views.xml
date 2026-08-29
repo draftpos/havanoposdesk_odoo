@@ -51,7 +51,7 @@
                             <group>
                                 <field name="is_multi_currency" class="border-bottom border-dark" readonly="state != 'draft'" />
                                 <field name="account_id" domain="[('tenant_id', '=', tenant_id), ('type', 'in', ['Bank', 'Cash']), ('active', '=', True), ('is_on_account', '=', False)]" options="{'no_create': True}" class="border-bottom border-dark" readonly="state != 'draft'" invisible="is_multi_currency == True" help="Selecting an account will auto-fill the currency and exchange rate below." />
-                                <field name="currency_id" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <field name="currency_id" domain="[('tenant_id', '=', tenant_id)]" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="exchange_rate" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="amount" class="border-bottom border-dark" readonly="state != 'draft'" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                 <field name="date" class="border-bottom border-dark" readonly="state != 'draft'" />
@@ -63,7 +63,7 @@
                                 <field name="payment_line_ids" readonly="state != 'draft'">
                                     <list editable="bottom">
                                         <field name="account_id" domain="[('tenant_id', '=', parent.tenant_id), ('type', 'in', ['Bank', 'Cash']), ('active', '=', True), ('is_on_account', '=', False)]" options="{'no_create': True}" help="Selecting an account auto-fills the currency and exchange rate." />
-                                        <field name="currency_id" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', parent.tenant_id)]" />
+                                        <field name="currency_id" domain="[('tenant_id', '=', parent.tenant_id)]" />
                                         <field name="exchange_rate" />
                                         <field name="amount" sum="Total Amounts" />
                                         <field name="amount_base" sum="Total Base Amounts" readonly="1" force_save="1"/>

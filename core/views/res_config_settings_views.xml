@@ -60,7 +60,7 @@
                         <setting string="Business Currency" help="Main currency of your business">
                             <div class="content-group mt8">
                                 <field name="has_transactions" invisible="1"/>
-                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions" domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]"/>
+                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions" domain="[('tenant_id', '=', tenant_id)]"/>
                             </div>
                             <div class="mt16">
                                 <button name="%(action_havanoposdesk_currencies)d" type="action" string="Manage Currencies" icon="fa-arrow-right" class="btn-link"/>

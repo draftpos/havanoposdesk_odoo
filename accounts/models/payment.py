@@ -17,8 +17,8 @@ class Payment(models.Model):
         'res.currency', 
         string='Currency', 
         required=True,
-        domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]",
-        default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
+        domain="[('tenant_id', '=', tenant_id)]",
+        default=lambda self: self.env.user.tenant_id.currency_id.id if self.env.user.tenant_id else False
     )
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
@@ -331,8 +331,8 @@ class PaymentLine(models.Model):
         'res.currency', 
         string='Currency', 
         required=True,
-        domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]",
-        default=lambda self: self.env.user.tenant_id.currency_id.id or self.env.ref('base.USD', raise_if_not_found=False).id
+        domain="[('tenant_id', '=', tenant_id)]",
+        default=lambda self: self.env.user.tenant_id.currency_id.id if self.env.user.tenant_id else False
     )
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
     amount = fields.Float(string='Amount', required=True, default=0.0)

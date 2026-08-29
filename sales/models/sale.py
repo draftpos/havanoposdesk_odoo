@@ -106,7 +106,7 @@ class Sale(models.Model):
         'res.currency',
         string='Currency',
         required=True,
-        domain="['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant_id)]",
+        domain="[('tenant_id', '=', tenant_id)]",
     )
     exchange_rate = fields.Float(string='Exchange Rate', default=1.0, digits=(12, 6))
 

@@ -23,15 +23,15 @@ class ResCurrency(models.Model):
         if not currency or not tenant:
             return currency
             
-        # If the currency already belongs to this tenant or is global (tenant_id is False), it is valid
-        if not currency.tenant_id or currency.tenant_id == tenant:
+        # If the currency already belongs to this tenant, it is valid
+        if currency.tenant_id and currency.tenant_id == tenant:
             return currency
 
         clean_name = (currency.name or '').strip()
         if not clean_name:
             return currency
 
-        # Look for an existing currency for this tenant
+        # Look for an existing currency strictly for this tenant
         tenant_curr = self.sudo().search([
             ('tenant_id', '=', tenant.id),
             ('name', '=ilike', clean_name)
@@ -39,15 +39,7 @@ class ResCurrency(models.Model):
         if tenant_curr:
             return tenant_curr
 
-        # Look for a global currency with the same name
-        global_curr = self.sudo().search([
-            ('tenant_id', '=', False),
-            ('name', '=ilike', clean_name)
-        ], limit=1)
-        if global_curr:
-            return global_curr
-
-        # Auto-create the currency for this tenant
+        # Auto-create the currency strictly for this tenant
         try:
             return self.sudo().create({
                 'name': currency.name,

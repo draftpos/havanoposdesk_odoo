@@ -345,7 +345,7 @@
             <field name="name">Havano Currency Isolation</field>
             <field name="model_id" ref="base.model_res_currency"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else ['|', ('tenant_id', '=', False), ('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Currency Rate Isolation Rule -->
@@ -353,7 +353,7 @@
             <field name="name">Havano Currency Rate Isolation</field>
             <field name="model_id" ref="base.model_res_currency_rate"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else ['|', ('tenant_id', '=', False), ('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
     </data>
 </odoo>

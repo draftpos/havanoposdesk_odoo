@@ -783,20 +783,17 @@ class HavanoPOSDeskAPI(http.Controller):
     def _tenant_currency_domain(self, tenant):
         domain = [('active', '=', True)]
         if tenant:
-            domain.extend(['|', ('tenant_id', '=', False), ('tenant_id', '=', tenant.id)])
+            domain.append(('tenant_id', '=', tenant.id))
+        else:
+            domain.append(('tenant_id', '!=', False))
         return domain
 
     def _tenant_currencies(self, env, tenant):
-        currencies = env['res.currency'].sudo().search(
-            self._tenant_currency_domain(tenant), order='tenant_id desc, name, id'
+        if not tenant:
+            return env['res.currency'].browse()
+        return env['res.currency'].sudo().search(
+            [('active', '=', True), ('tenant_id', '=', tenant.id)], order='name, id'
         )
-        seen_names = set()
-        selected = env['res.currency'].browse()
-        for currency in currencies:
-            if currency.name not in seen_names:
-                seen_names.add(currency.name)
-                selected |= currency
-        return selected
 
     # CURRENCIES
     @http.route(['/api/currencies', '/api/currencies/'], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
