@@ -25,6 +25,12 @@ class ResCurrencyRate(models.Model):
                     vals['inverse_company_rate'] = 1.0
         return super().create(vals_list)
 
+    @api.model
+    def _search(self, domain, offset=0, limit=None, order=None):
+        if not self.env.su and self.env.user and getattr(self.env.user, 'tenant_id', None) and self.env.user.havano_role != 'super_admin':
+            domain = [('tenant_id', '=', self.env.user.tenant_id.id)] + list(domain)
+        return super()._search(domain, offset=offset, limit=limit, order=order)
+
     def _check_access(self, operation: str):
         if operation == 'read':
             return None

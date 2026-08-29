@@ -90,19 +90,29 @@ class ResCurrency(models.Model):
         "The currency code must be unique per tenant!",
     )
 
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        if 'tenant_id' in fields_list and not res.get('tenant_id') and self.env.user.tenant_id:
+            res['tenant_id'] = self.env.user.tenant_id.id
+        return res
+
+    @api.model
+    def _search(self, domain, offset=0, limit=None, order=None):
+        if not self.env.su and self.env.user and getattr(self.env.user, 'tenant_id', None) and self.env.user.havano_role != 'super_admin':
+            domain = [('tenant_id', '=', self.env.user.tenant_id.id)] + list(domain)
+        return super()._search(domain, offset=offset, limit=limit, order=order)
+
     @api.constrains('name', 'tenant_id')
     def _check_unique_currency_name_per_tenant(self):
         for record in self:
-            if record.name:
+            if record.name and record.tenant_id:
                 clean_name = record.name.strip()
                 domain = [
                     ('id', '!=', record.id),
                     ('name', '=ilike', clean_name),
+                    ('tenant_id', '=', record.tenant_id.id),
                 ]
-                if record.tenant_id:
-                    domain.append(('tenant_id', '=', record.tenant_id.id))
-                else:
-                    domain.append(('tenant_id', '=', False))
                 if self.search_count(domain) > 0:
                     raise ValidationError(_("A currency with the code '%s' already exists for this tenant.") % clean_name)
 
