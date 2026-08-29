@@ -29,12 +29,12 @@
         'core/views/tenant_views.xml',
         'core/views/cash_transfer_views.xml',
         'core/views/menus.xml',
+        'core/views/audit_log_views.xml',
         'core/views/tenant_admin_views.xml',
         'core/views/res_config_settings_views.xml',
         'core/views/whitelabel_templates.xml',
         'core/views/auth_templates.xml',
         'core/views/error_log_views.xml',
-        'core/views/audit_log_views.xml',
         'core/views/support_ticket_views.xml',
 
         'accounts/views/account_views.xml',

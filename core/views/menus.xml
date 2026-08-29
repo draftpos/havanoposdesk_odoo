@@ -24,6 +24,7 @@
         <menuitem id="menu_sales_root" name="Sales" sequence="20" web_icon="havanoposdesk_odoo,static/description/sales.png"/>
         <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="havanoposdesk_odoo,static/description/purchases.png"/>
         <menuitem id="menu_accounts_root" name="Accounts" sequence="40" web_icon="havanoposdesk_odoo,static/description/accounts.png"/>
+        <menuitem id="menu_tenant_admin_settings_root" name="Configurations" sequence="550" web_icon="havanoposdesk_odoo,static/description/configs.png" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
         
         <record id="action_payroll_external_redirect" model="ir.actions.act_url">
             <field name="name">Payroll External Link</field>
