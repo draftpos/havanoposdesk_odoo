@@ -477,7 +477,12 @@ class HavanoposdeskTenant(models.Model):
         tenants = super().create(vals_list)
         for tenant in tenants:
             usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
-            store_currency_id = tenant.currency_id.id if tenant.currency_id else (usd_currency.id if usd_currency else False)
+            target_curr = tenant.currency_id or usd_currency
+            if target_curr:
+                target_curr = self.env['res.currency']._validate_tenant_currency(target_curr, tenant)
+                if tenant.currency_id != target_curr:
+                    tenant.sudo().write({'currency_id': target_curr.id})
+            store_currency_id = target_curr.id if target_curr else False
             
             store = self.env['havanoposdesk.store'].sudo().create({
                 'name': tenant.name,
@@ -521,7 +526,12 @@ class HavanoposdeskTenant(models.Model):
         tenant_id = self.id
         
         usd = self.env.ref('base.USD', raise_if_not_found=False)
-        currency_id = self.currency_id.id if self.currency_id else (usd.id if usd else False)
+        target_curr = self.currency_id or usd
+        if target_curr:
+            target_curr = self.env['res.currency']._validate_tenant_currency(target_curr, self)
+            if self.currency_id != target_curr:
+                self.sudo().write({'currency_id': target_curr.id})
+        currency_id = target_curr.id if target_curr else False
         
         # 1. Default Store
         store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
@@ -891,13 +901,46 @@ class HavanoposdeskTenant(models.Model):
         prefix = getattr(self, prefix_field) or ''
         next_val = getattr(self, next_field) or 1
         padding = getattr(self, padding_field) or 0
-        
-        # Format the sequence number
-        seq_str = str(next_val)
-        if padding > 0:
-            seq_str = seq_str.zfill(padding)
+
+        # Mapping of sequence types to model and field to guarantee uniqueness
+        seq_target_map = {
+            'prod': ('havanoposdesk.product', 'item_code'),
+            'sale': ('havanoposdesk.sale', 'name'),
+            'quotation': ('havanoposdesk.sale', 'name'),
+            'sale_ret': ('havanoposdesk.sale', 'name'),
+            'pay_in': ('havanoposdesk.payment', 'name'),
+            'pay_out': ('havanoposdesk.payment', 'name'),
+            'stock_adj': ('havanoposdesk.stock.adjustment', 'name'),
+            'trn': ('havanoposdesk.stock.transfer', 'name'),
+            'exp': ('havanoposdesk.expense', 'name'),
+            'cash_trn': ('havanoposdesk.cash.transfer', 'name'),
+            'purchase': ('havanoposdesk.purchase', 'name'),
+            'po': ('havanoposdesk.purchase', 'name'),
+            'bill': ('havanoposdesk.purchase', 'name'),
+            'pur_ret': ('havanoposdesk.purchase', 'name'),
+        }
+
+        target_info = seq_target_map.get(seq_type)
+        formatted_seq = ''
+
+        # Auto-advance to the next available unused ID
+        while True:
+            seq_str = str(next_val)
+            if padding > 0:
+                seq_str = seq_str.zfill(padding)
+            formatted_seq = f"{prefix}{seq_str}"
             
-        formatted_seq = f"{prefix}{seq_str}"
+            if target_info and target_info[0] in self.env:
+                model_name, field_name = target_info
+                exists = self.env[model_name].sudo().search_count([
+                    ('tenant_id', '=', self.id),
+                    (field_name, '=', formatted_seq)
+                ]) > 0
+                if not exists:
+                    break
+                next_val += 1
+            else:
+                break
         
         # Increment and update
         self.write({next_field: next_val + 1})

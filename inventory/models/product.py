@@ -45,6 +45,20 @@ class HavanoposdeskProduct(models.Model):
                 if self.search_count(domain) > 0:
                     raise ValidationError(f"A Product with the name '{record.name}' already exists in your workspace. Please choose a different name.")
 
+    @api.constrains('item_code', 'tenant_id')
+    def _check_unique_item_code(self):
+        for record in self:
+            if record.item_code and record.item_code != 'New' and record.tenant_id:
+                domain = [
+                    ('id', '!=', record.id),
+                    ('tenant_id', '=', record.tenant_id.id),
+                    ('item_code', '=', record.item_code.strip())
+                ]
+                if self.search_count(domain) > 0:
+                    raise ValidationError(
+                        f"A Product with the code '{record.item_code}' already exists in your workspace. Please choose a different code."
+                    )
+
     @api.depends('name', 'item_code', 'tenant_id')
     def _compute_display_name(self):
         is_super_admin = self.env.user.has_group('base.group_system')
@@ -176,7 +190,7 @@ class HavanoposdeskProduct(models.Model):
                 elif tenant.product_name_format == 'title':
                     vals['name'] = vals['name'].title()
                     
-            if vals.get('item_code', 'New') == 'New':
+            if not vals.get('item_code') or vals.get('item_code') == 'New':
                 if tenant:
                     vals['item_code'] = tenant._get_next_sequence('prod')
                 else:

@@ -20,11 +20,50 @@ class ResCurrency(models.Model):
     @api.model
     def _validate_tenant_currency(self, currency, tenant):
         currency = self.browse(currency) if isinstance(currency, int) else currency
-        if currency and tenant and currency.tenant_id and currency.tenant_id != tenant:
-            raise ValidationError(_(
-                "Currency '%s' belongs to another tenant and cannot be used here."
-            ) % currency.display_name)
-        return currency
+        if not currency or not tenant:
+            return currency
+            
+        # If the currency already belongs to this tenant or is global (tenant_id is False), it is valid
+        if not currency.tenant_id or currency.tenant_id == tenant:
+            return currency
+
+        clean_name = (currency.name or '').strip()
+        if not clean_name:
+            return currency
+
+        # Look for an existing currency for this tenant
+        tenant_curr = self.sudo().search([
+            ('tenant_id', '=', tenant.id),
+            ('name', '=ilike', clean_name)
+        ], limit=1)
+        if tenant_curr:
+            return tenant_curr
+
+        # Look for a global currency with the same name
+        global_curr = self.sudo().search([
+            ('tenant_id', '=', False),
+            ('name', '=ilike', clean_name)
+        ], limit=1)
+        if global_curr:
+            return global_curr
+
+        # Auto-create the currency for this tenant
+        try:
+            return self.sudo().create({
+                'name': currency.name,
+                'symbol': currency.symbol or currency.name,
+                'full_name': getattr(currency, 'full_name', currency.name) or currency.name,
+                'rounding': currency.rounding or 0.01,
+                'decimal_places': currency.decimal_places or 2,
+                'active': True,
+                'tenant_id': tenant.id,
+            })
+        except Exception:
+            fallback = self.sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('name', '=ilike', clean_name)
+            ], limit=1)
+            return fallback or currency
 
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant',

@@ -113,18 +113,28 @@ class Account(models.Model):
     @api.constrains('tenant_id', 'currency_id')
     def _check_currency_belongs_to_tenant(self):
         for account in self:
-            if account.tenant_id and account.currency_id and account.currency_id != account.tenant_currency_id and account.currency_id.tenant_id and account.currency_id.tenant_id != account.tenant_id:
-                raise ValidationError(_(
-                    "Account '%s' must use a currency belonging to the same tenant."
-                ) % account.name)
+            if account.tenant_id and account.currency_id and account.currency_id.tenant_id and account.currency_id.tenant_id != account.tenant_id:
+                tenant_curr = self.env['res.currency']._validate_tenant_currency(account.currency_id, account.tenant_id)
+                if tenant_curr and tenant_curr != account.currency_id:
+                    account.sudo().write({'currency_id': tenant_curr.id})
+                elif account.currency_id.tenant_id != account.tenant_id:
+                    raise ValidationError(_(
+                        "Account '%s' must use a currency belonging to the same tenant."
+                    ) % account.name)
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            if not vals.get('tenant_id') and self.env.user.tenant_id:
-                vals['tenant_id'] = self.env.user.tenant_id.id
+            tenant_id = vals.get('tenant_id') or (self.env.user.tenant_id.id if self.env.user.tenant_id else False)
+            if not vals.get('tenant_id') and tenant_id:
+                vals['tenant_id'] = tenant_id
+            tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else False
             if vals.get('type') in ('Cash', 'Bank') and not vals.get('currency_id'):
                 vals['currency_id'] = self._default_currency_id()
+            if vals.get('currency_id') and tenant:
+                curr = self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
+                if curr:
+                    vals['currency_id'] = curr.id
         return super().create(vals_list)
 
     @api.model
