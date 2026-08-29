@@ -197,6 +197,38 @@ class HavanoposdeskProduct(models.Model):
                 else:
                     vals['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
 
+            # Auto-map purchase_tax_ids from sale_tax_ids if not provided
+            if 'sale_tax_ids' in vals and 'purchase_tax_ids' not in vals:
+                raw_ids = []
+                if isinstance(vals['sale_tax_ids'], list):
+                    for item in vals['sale_tax_ids']:
+                        if isinstance(item, (list, tuple)) and len(item) == 3 and item[0] == 6:
+                            raw_ids.extend(item[2])
+                        elif isinstance(item, int):
+                            raw_ids.append(item)
+                if raw_ids:
+                    sale_taxes = self.env['havanoposdesk.tax'].sudo().browse(raw_ids)
+                    purchase_tax_ids = []
+                    for sale_tax in sale_taxes:
+                        matching_ptax = self.env['havanoposdesk.tax'].sudo().search([
+                            ('tax_type', '=', 'Purchases'),
+                            ('active', '=', True),
+                            ('name', '=', sale_tax.name),
+                            ('tenant_id', '=', tenant_id)
+                        ], limit=1)
+                        if not matching_ptax:
+                            matching_ptax = self.env['havanoposdesk.tax'].sudo().search([
+                                ('tax_type', '=', 'Purchases'),
+                                ('active', '=', True),
+                                ('rate', '=', sale_tax.rate),
+                                ('is_inclusive', '=', sale_tax.is_inclusive),
+                                ('tenant_id', '=', tenant_id)
+                            ], limit=1)
+                        if matching_ptax:
+                            purchase_tax_ids.append(matching_ptax.id)
+                    if purchase_tax_ids:
+                        vals['purchase_tax_ids'] = [(6, 0, purchase_tax_ids)]
+
             # Set store_ids to all stores if all_stores is True (either by default or explicitly)
             if (vals.get('all_stores', True) and 'store_ids' not in vals) or vals.get('all_stores') is True:
                 if tenant_id:
