@@ -10,6 +10,7 @@
             <field name="max_terminals">10</field>
             <field name="max_users">10</field>
             <field name="is_custom">False</field>
+            <field name="is_trial">True</field>
         </record>
 
         <!-- Plan 2: 2 Terminals, 6 Stores -->

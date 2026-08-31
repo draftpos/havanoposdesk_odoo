@@ -41,8 +41,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
         return False
 
-    def _get_sale_date(self, sale_data):
-        """Return the client-supplied date for the sale document."""
+    def _get_sale_date(self, sale_data, user=None, store=None):
+        """Return the UTC datetime for the sale document based on client-supplied local date/time."""
         sale_date = (
             sale_data.get('date')
             or sale_data.get('sale_date')
@@ -51,13 +51,13 @@ class HavanoPOSDeskAPI(http.Controller):
         )
         parsed_date = None
         if isinstance(sale_date, str):
-            for date_format in ('%Y-%m-%d', '%Y-%d-%m'):
+            for date_format in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%Y-%d-%m'):
                 try:
                     parsed_date = datetime.strptime(sale_date, date_format)
                     break
                 except ValueError:
                     continue
-        else:
+        elif isinstance(sale_date, datetime):
             parsed_date = sale_date
 
         posting_time = sale_data.get('posting_time')
@@ -70,7 +70,24 @@ class HavanoPOSDeskAPI(http.Controller):
                     except ValueError:
                         continue
             if isinstance(posting_time, time):
-                return datetime.combine(parsed_date.date(), posting_time)
+                parsed_date = datetime.combine(parsed_date.date(), posting_time)
+
+        if parsed_date and isinstance(parsed_date, datetime):
+            tz_name = (
+                (store.tz if store and hasattr(store, 'tz') and store.tz else None)
+                or (user.tz if user and hasattr(user, 'tz') and user.tz else None)
+                or sale_data.get('timezone')
+                or sale_data.get('tz')
+                or 'Africa/Harare'
+            )
+            try:
+                import pytz
+                tz = pytz.timezone(tz_name)
+                local_dt = tz.localize(parsed_date, is_dst=None)
+                utc_dt = local_dt.astimezone(pytz.utc)
+                return utc_dt.replace(tzinfo=None)
+            except Exception:
+                return parsed_date
 
         return parsed_date or sale_date
 
@@ -2002,7 +2019,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'tenant_id': tenant.id,
             'terminal_id': terminal.id if terminal else False,
             'line_ids': lines,
-            'date': self._get_sale_date(data),
+            'date': self._get_sale_date(data, user, store),
             'state': 'done',
             'salesperson_id': user.id,
             'payment_status': payment_vals['payment_status'],
@@ -3066,7 +3083,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'currency_id': doc_currency.id if doc_currency else False,
                 'exchange_rate': doc_exchange_rate,
                 'line_ids': sale_lines,
-                'date': self._get_sale_date(params),
+                'date': self._get_sale_date(params, sale_user, store),
                 'state': 'done',
                 'salesperson_id': sale_user.id,
                 'payment_status': payment_vals['payment_status'],
@@ -3693,7 +3710,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             'currency_id': doc_currency.id if doc_currency else False,
                             'exchange_rate': doc_exchange_rate,
                             'line_ids': lines,
-                            'date': self._get_sale_date(sale_data),
+                            'date': self._get_sale_date(sale_data, sale_user, store),
                             'state': 'done',
                             'salesperson_id': sale_user.id,
                             'payment_status': payment_status,

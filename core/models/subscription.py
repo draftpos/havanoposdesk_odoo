@@ -15,6 +15,7 @@ class HavanoposdeskSubscriptionPlan(models.Model):
     extra_store_price = fields.Float(string='Price per Additional Store ($)', default=0.0)
     extra_terminal_price = fields.Float(string='Price per Additional Terminal ($)', default=12.0)
     stores_per_terminal = fields.Integer(string='Stores per Terminal', default=3)
+    is_trial = fields.Boolean(string='Is Trial/Demo Plan', default=False)
 
     @api.model_create_multi
     def create(self, vals_list):

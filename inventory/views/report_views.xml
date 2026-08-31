@@ -24,19 +24,22 @@
             <field name="model">havanoposdesk.stock.valuation</field>
             <field name="arch" type="xml">
                 <search string="Search Stock Valuation">
+                    <field name="product_id" string="Product"/>
                     <field name="item_name" string="Item Name"/>
+                    <field name="item_code" string="Product Code"/>
+                    <field name="store" string="Store Name"/>
+                    <field name="store_id" string="Store"/>
                     <field name="category_id" string="Category"/>
                     
+                    <filter string="In Stock" name="filter_in_stock" domain="[('on_hand_qty', '&gt;', 0)]"/>
                     <filter string="Item Name" name="filter_item_name" domain="[('item_name', '!=', False)]"/>
                     <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
-                    <filter string="Created Today" name="today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
+                    <filter string="Store" name="filter_store" domain="[('store', '!=', False)]"/>
                     
                     <group>
+                        <filter string="Store" name="group_by_store" context="{'group_by': 'store'}"/>
                         <filter string="Item Name" name="group_by_item_name" context="{'group_by': 'item_name'}"/>
                         <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}"/>
-                        <filter string="Today" name="group_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'create_date:day'}"/>
-                        <filter string="This Month" name="group_month" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" context="{'group_by': 'create_date:month'}" />
                     </group>
                 </search>
             </field>
@@ -143,7 +146,7 @@
             <field name="res_model">havanoposdesk.stock.valuation</field>
             <field name="view_mode">list</field>
             <field name="search_view_id" ref="view_havanoposdesk_stock_valuation_search"/>
-            <field name="context">{'search_default_today': 1}</field>
+            <field name="context">{'search_default_group_by_store': 1}</field>
         </record>
 
         <record id="action_havanoposdesk_stock_ledger" model="ir.actions.act_window">

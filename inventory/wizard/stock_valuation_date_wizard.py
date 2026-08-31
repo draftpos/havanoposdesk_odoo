@@ -13,6 +13,13 @@ class StockValuationDateWizard(models.TransientModel):
         default=lambda self: self.env.user.tenant_id.id
     )
     date_to = fields.Date(string='Date To', required=True, default=fields.Date.context_today)
+    store_id = fields.Many2one(
+        'havanoposdesk.store', 
+        string='Store', 
+        required=False,
+        domain="[('tenant_id', '=', tenant_id)] if tenant_id else []",
+        help="Leave empty to calculate for all stores."
+    )
 
     def action_compute(self):
         self.ensure_one()
@@ -25,6 +32,8 @@ class StockValuationDateWizard(models.TransientModel):
             ('tenant_id', '=', self.tenant_id.id),
             ('create_date', '<=', date_to_dt)
         ]
+        if self.store_id:
+            domain.append(('store_id', '=', self.store_id.id))
         
         ledgers = self.env['havanoposdesk.stock.ledger'].search(domain)
         

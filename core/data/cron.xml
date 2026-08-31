@@ -47,5 +47,17 @@
             <field name="interval_type">minutes</field>
             <field name="active" eval="True"/>
         </record>
+
+        <!-- Cron job for automatic cleanup of expired trial tenants (after 1 month post-trial) -->
+        <record id="ir_cron_cleanup_expired_trial_tenants" model="ir.cron">
+            <field name="name">Havano POS Desk: Cleanup Expired Trial Stores and Data</field>
+            <field name="model_id" ref="model_havanoposdesk_tenant"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_cleanup_expired_trial_tenants()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

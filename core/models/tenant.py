@@ -145,6 +145,18 @@ class HavanoposdeskTenant(models.Model):
     ], string='Subscription State', default='active')
     subscription_start_date = fields.Date(string='Subscription Start Date')
     subscription_end_date = fields.Date(string='Subscription End Date')
+    is_trial = fields.Boolean(string='Is Trial Tenant', compute='_compute_is_trial', store=True)
+
+    @api.depends('subscription_plan_id', 'subscription_plan_id.is_trial', 'subscription_plan_id.price')
+    def _compute_is_trial(self):
+        for tenant in self:
+            plan = tenant.subscription_plan_id
+            if not plan:
+                tenant.is_trial = True
+            elif plan.is_trial or plan.price == 0.0 or 'demo' in (plan.name or '').lower():
+                tenant.is_trial = True
+            else:
+                tenant.is_trial = False
 
     pending_subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Pending Subscription Plan', help='New plan requested that is pending approval or payment.')
     pending_additional_terminals = fields.Integer(string='Pending Additional Terminals', default=0)
@@ -960,6 +972,150 @@ class HavanoposdeskTenant(models.Model):
                 if not self.env.context.get('bypass_subscription_check'):
                     raise ValidationError('You cannot modify subscription details or payment status directly. Please use the "Change/Upgrade Plan" or "Pay & Activate Plan" buttons.')
         return super().write(vals)
+
+    def action_hard_delete_tenant_data(self):
+        """
+        Permanently deletes all data, stores, users and settings associated with the tenant.
+        """
+        for tenant in self:
+            t_id = tenant.id
+            _logger.info("Starting hard deletion for tenant ID %s (%s)", t_id, tenant.name)
+
+            # 1. Sales
+            sales = self.env['havanoposdesk.sale'].sudo().search([('tenant_id', '=', t_id)])
+            if sales:
+                self.env['havanoposdesk.sale.line'].sudo().search([('sale_id', 'in', sales.ids)]).unlink()
+                sales.unlink()
+
+            # 2. Purchases
+            purchases = self.env['havanoposdesk.purchase'].sudo().search([('tenant_id', '=', t_id)])
+            if purchases:
+                self.env['havanoposdesk.purchase.line'].sudo().search([('purchase_id', 'in', purchases.ids)]).unlink()
+                purchases.unlink()
+
+            # 3. Payments & Payment Methods
+            self.env['havanoposdesk.payment'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.payment.method'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+
+            # 4. Expenses
+            self.env['havanoposdesk.expense'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+
+            # 5. Cash Transfers & Shifts
+            self.env['havanoposdesk.cash.transfer'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            shifts = self.env['havanoposdesk.pos.shift'].sudo().search([('tenant_id', '=', t_id)])
+            if shifts:
+                self.env['havanoposdesk.pos.shift.payment'].sudo().search([('shift_id', 'in', shifts.ids)]).unlink()
+                shifts.unlink()
+
+            # 6. POS Terminals
+            self.env['havanoposdesk.pos.terminal'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+
+            # 7. Stock Records (Ledgers, Valuations, Adjustments, Transfers, Entries)
+            self.env['havanoposdesk.stock.ledger'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.stock.valuation'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            
+            adjustments = self.env['havanoposdesk.stock.adjustment'].sudo().search([('tenant_id', '=', t_id)])
+            if adjustments:
+                self.env['havanoposdesk.stock.adjustment.line'].sudo().search([('adjustment_id', 'in', adjustments.ids)]).unlink()
+                adjustments.unlink()
+
+            transfers = self.env['havanoposdesk.stock.transfer'].sudo().search([('tenant_id', '=', t_id)])
+            if transfers:
+                self.env['havanoposdesk.stock.transfer.line'].sudo().search([('transfer_id', 'in', transfers.ids)]).unlink()
+                transfers.unlink()
+
+            entries = self.env['havanoposdesk.stock.entry'].sudo().search([('tenant_id', '=', t_id)])
+            if entries:
+                self.env['havanoposdesk.stock.entry.line'].sudo().search([('entry_id', 'in', entries.ids)]).unlink()
+                entries.unlink()
+
+            # 8. Product Data (Prices, Bundles, Products, Categories, UOMs, Taxes, Pricelists)
+            self.env['havanoposdesk.product.uom.price'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.product.bundle.item'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.product'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.category'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.uom'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.tax'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+
+            # 9. Partners / Customers / Suppliers / Accounts
+            self.env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.supplier'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.account'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+
+            # 10. Audit, Logs, Issues, Tickets
+            self.env['havanoposdesk.audit.log'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havano.error.issue'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havano.error.log'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            self.env['havanoposdesk.support.ticket'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+
+            # 11. Subscription Payments
+            self.env['havanoposdesk.subscription.payment'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+
+            # 12. Stores
+            self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+
+            # 13. Tenant Users (excluding system and super admin users)
+            tenant_users = self.env['res.users'].sudo().search([
+                ('tenant_id', '=', t_id),
+                ('id', 'not in', [1, 2]),
+                ('havano_role', '!=', 'super_admin')
+            ])
+            if tenant_users:
+                _logger.info("Unlinking %s users for tenant ID %s", len(tenant_users), t_id)
+                tenant_users.unlink()
+
+            # 14. Unlink tenant
+            super(HavanoposdeskTenant, tenant).unlink()
+        return True
+
+    def unlink(self):
+        # Automatically cascade-delete child records cleanly to prevent FK constraint failures
+        return self.action_hard_delete_tenant_data()
+
+    @api.model
+    def cron_cleanup_expired_trial_tenants(self):
+        """
+        Automated cleanup cron job:
+        Deletes stores, users, and all transactional/inventory data for trial tenants
+        whose trial expired more than 1 month (30 days) ago without an upgraded/paid subscription.
+        (Month 1 = Trial period; Month 2 = Grace/retention period before permanent deletion).
+        """
+        today = fields.Date.context_today(self)
+        cutoff_date = today - relativedelta(days=30)
+        _logger.info("Running cron_cleanup_expired_trial_tenants with cutoff date: %s", cutoff_date)
+
+        trial_tenants = self.sudo().search([
+            ('subscription_end_date', '<=', cutoff_date),
+            ('subscription_state', 'in', ['expired', 'cancelled', 'pending']),
+        ])
+
+        deleted_count = 0
+        for tenant in trial_tenants:
+            # Check if tenant ever had an approved paid subscription
+            has_paid_subscription = bool(tenant.subscription_payment_ids.filtered(
+                lambda p: p.payment_type != 'topup' and p.status == 'approved'
+            ))
+            is_trial_plan = (
+                not tenant.subscription_plan_id 
+                or tenant.subscription_plan_id.price == 0.0 
+                or 'demo' in (tenant.subscription_plan_id.name or '').lower()
+                or getattr(tenant.subscription_plan_id, 'is_trial', False)
+                or getattr(tenant, 'is_trial', False)
+            )
+
+            if is_trial_plan and not has_paid_subscription:
+                tenant_name = tenant.name
+                tenant_id = tenant.id
+                _logger.info("Cleaning up expired trial tenant %s (ID: %s, Expired: %s)", tenant_name, tenant_id, tenant.subscription_end_date)
+                try:
+                    tenant.action_hard_delete_tenant_data()
+                    deleted_count += 1
+                except Exception as e:
+                    _logger.exception("Error deleting expired trial tenant %s (ID: %s): %s", tenant_name, tenant_id, e)
+
+        _logger.info("Finished cron_cleanup_expired_trial_tenants. Deleted %s expired trial tenants.", deleted_count)
+        return True
 
 
 class HavanoposdeskTenantUpgradeWizard(models.TransientModel):

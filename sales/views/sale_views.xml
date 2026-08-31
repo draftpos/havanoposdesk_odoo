@@ -20,6 +20,7 @@
                     <field name="date" string="Date" optional="show" />
                     <field name="store_id" optional="show" />
                     <field name="terminal_id" optional="hide" />
+                    <field name="app_version" string="App Version" optional="hide" />
                     <field name="salesperson_id" optional="show" />
                     <field name="amount_untaxed" string="Total Exclu" widget="monetary" optional="hide" />
                     <field name="amount_tax" string="Total Tax" widget="monetary" optional="hide" />
@@ -183,6 +184,15 @@
                                     <field name="fiscal_error" readonly="1" class="text-danger"/>
                                 </group>
                             </page>
+                            <page string="Other Info" name="other_info">
+                                <group>
+                                    <group string="POS / Application Info">
+                                        <field name="terminal_id" readonly="1" />
+                                        <field name="app_version" readonly="1" />
+                                        <field name="salesperson_id" readonly="state != 'draft'" />
+                                    </group>
+                                </group>
+                            </page>
                         </notebook>
                     </sheet>
                 </form>
@@ -223,6 +233,8 @@
                     <field name="name" string="Reference Number" filter_domain="['|', ('name', 'ilike', self), ('customer', 'ilike', self)]" />
                     <field name="customer" />
                     <field name="store_id" />
+                    <field name="terminal_id" />
+                    <field name="app_version" string="App Version" />
                     <field name="payment_status_display" />
                     <field name="create_uid" />
                     <field name="date" />
@@ -242,6 +254,7 @@
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}" />
                         <filter string="Customer" name="group_by_customer" context="{'group_by': 'customer'}" />
                         <filter string="Store" name="group_by_store" context="{'group_by': 'store_id'}" />
+                        <filter string="App Version" name="group_by_app_version" context="{'group_by': 'app_version'}" />
                         <filter string="Currency" name="group_by_currency" context="{'group_by': 'currency_id'}" />
                         <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}" />
                         <filter string="This Month" name="group_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" context="{'group_by': 'date:month'}" />
