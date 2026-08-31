@@ -33,10 +33,10 @@
                                 <field name="verification_sent_at" readonly="1"/>
                             </group>
                             <group string="Store Access" invisible="havano_role == 'super_admin'">
-                                <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
-                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
+                                <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" required="havano_role != 'super_admin'" options="{'no_create': True}"/>
+                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="havano_role != 'super_admin'" options="{'no_create': True}"/>
                                 <field name="allowed_pricelist_ids" invisible="1"/>
-                                <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" required="1" options="{'no_create': True}" readonly="not default_store_id"/>
+                                <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" required="havano_role != 'super_admin'" options="{'no_create': True}" readonly="not default_store_id"/>
                             </group>
                             <group string="API &amp; Integration Settings">
                                 <field name="api_company_name"/>
@@ -72,10 +72,10 @@
                                 <field name="tenant_id" readonly="1" invisible="havano_role == 'super_admin'"/>
                             </group>
                             <group string="Store Access" invisible="havano_role == 'super_admin'">
-                                <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
-                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="1" options="{'no_create': True}"/>
+                                <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" required="havano_role != 'super_admin'" options="{'no_create': True}"/>
+                                <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="havano_role != 'super_admin'" options="{'no_create': True}"/>
                                 <field name="allowed_pricelist_ids" invisible="1"/>
-                                <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" required="1" options="{'no_create': True}" readonly="not default_store_id"/>
+                                <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" required="havano_role != 'super_admin'" options="{'no_create': True}" readonly="not default_store_id"/>
                             </group>
                             <group string="API &amp; Integration Settings">
                                 <field name="api_company_name"/>
