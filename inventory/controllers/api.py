@@ -441,8 +441,8 @@ class HavanoPOSDeskAPI(http.Controller):
                             shops_data.append({
                                 "id": s['id'],
                                 "name": s['name'],
-                                "tz": s.get('tz') or 'UTC',
-                                "timezone": s.get('tz') or 'UTC',
+                                "tz": s.get('tz') or 'Africa/Harare',
+                                "timezone": s.get('tz') or 'Africa/Harare',
                                 "terminals": terms_by_shop.get(s['id'], [])
                             })
 
@@ -461,9 +461,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     "selected_shop_id": store.id if store else None,
                     "store_id": store.id if store else None,
                     "store_name": store.name if store else "",
-                    "store_tz": (store.tz if store else False) or user.tz or 'UTC',
-                    "tz": user.tz or (store.tz if store else False) or 'UTC',
-                    "timezone": (store.tz if store else False) or user.tz or 'UTC',
+                    "store_tz": (store.tz if store else False) or user.tz or 'Africa/Harare',
+                    "tz": user.tz or (store.tz if store else False) or 'Africa/Harare',
+                    "timezone": (store.tz if store else False) or user.tz or 'Africa/Harare',
                 })
 
                 # Hardware based terminal assignment — strictly scoped to the user's assigned stores.
