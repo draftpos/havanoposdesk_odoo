@@ -350,10 +350,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 qty = valuation_map.get(p.id, p.opening_stock)
                         
                 warehouse_items.append({
-                    "item_code": p.item_code,
-                    "item_name": p.name,
-                    "description": p.name,
-                    "stock_uom": p.uom_id.name or "Pieces",
+                    "item_code": str(p.item_code) if p.item_code else "",
+                    "item_name": str(p.name) if p.name else "",
+                    "description": str(p.name) if p.name else "",
+                    "stock_uom": str(p.uom_id.name) if p.uom_id and p.uom_id.name else "Pieces",
                     "actual_qty": qty,
                     "projected_qty": qty,
                     "custom_is_order_item_1": int(p.kitchen_order_1),
