@@ -51,6 +51,17 @@ class HavanoPOSDeskAPI(http.Controller):
         )
         parsed_date = None
         if isinstance(sale_date, str):
+            # First try ISO 8601 format which may include timezone info
+            try:
+                iso_dt = datetime.fromisoformat(sale_date)
+                # If the parsed datetime is timezone‑aware, convert to UTC and return
+                if iso_dt.tzinfo is not None:
+                    import pytz
+                    utc_dt = iso_dt.astimezone(pytz.utc)
+                    return utc_dt.replace(tzinfo=None)
+            except Exception:
+                pass
+            # Fallback to custom formats without timezone
             for date_format in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%Y-%d-%m'):
                 try:
                     parsed_date = datetime.strptime(sale_date, date_format)
