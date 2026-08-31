@@ -354,6 +354,10 @@ class HavanoposdeskTenant(models.Model):
 
     # Sales Sequence Config
     allow_credit_sales = fields.Boolean(string='Allow Sales on Credit', default=False)
+    default_payment_status = fields.Selection([
+        ('cash', 'Paid (Cash/Bank)'),
+        ('account', 'On Account')
+    ], string='Default Payment Mode', default='cash')
     sale_seq_prefix = fields.Char(string='Sale Sequence Prefix', default='S')
     sale_seq_next = fields.Integer(string='Sale Sequence Next Number', default=1)
     sale_seq_padding = fields.Integer(string='Sale Sequence Padding', default=4)

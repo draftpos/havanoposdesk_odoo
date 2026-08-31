@@ -383,6 +383,11 @@ class ResConfigSettings(models.TransientModel):
 
     # Sales Sequence
     biz_allow_credit_sales = fields.Boolean(string="Allow Sales on Credit", related='tenant_id.allow_credit_sales', readonly=False)
+    biz_default_payment_status = fields.Selection(
+        related='tenant_id.default_payment_status',
+        readonly=False,
+        string="Default Payment Mode"
+    )
     biz_sale_seq_prefix = fields.Char(string="Sale Sequence Prefix", related='tenant_id.sale_seq_prefix', readonly=False)
     biz_sale_seq_next = fields.Integer(string="Sale Sequence Next Number", related='tenant_id.sale_seq_next', readonly=False)
     biz_sale_seq_padding = fields.Integer(string="Sale Sequence Padding", related='tenant_id.sale_seq_padding', readonly=False)

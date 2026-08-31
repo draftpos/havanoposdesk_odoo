@@ -68,11 +68,19 @@ class Sale(models.Model):
             ('is_on_account', '=', False),
         ], limit=1).id
 
+    def _default_payment_status(self):
+        tenant = self.env.user.tenant_id
+        if not tenant:
+            tenant = self.env['havanoposdesk.tenant'].search([], limit=1)
+        if tenant and tenant.default_payment_status:
+            return tenant.default_payment_status
+        return 'cash'
+
     payment_status = fields.Selection([
         ('cash', 'Paid'),
         ('partial', 'Partial'),
         ('account', 'On Account')
-    ], string='Payment Status', default='cash', required=True)
+    ], string='Payment Status', default=_default_payment_status, required=True)
     payment_status_display = fields.Selection([
         ('cash', 'Paid'),
         ('account', 'On Account')
@@ -142,11 +150,15 @@ class Sale(models.Model):
         if self.currency_id and self.tenant_id and self.tenant_id.currency_id:
             if self.currency_id == self.tenant_id.currency_id:
                 self.exchange_rate = 1.0
+                if not self.payment_status:
+                    self.payment_status = self.tenant_id.default_payment_status or 'cash'
             else:
                 # Odoo's res.currency stores rate as: 1 base = X foreign
                 date = self.date or fields.Date.context_today(self)
                 rate = self.currency_id._get_conversion_rate(self.tenant_id.currency_id, self.currency_id, self.env.company, date)
                 self.exchange_rate = rate or 1.0
+                # Force user to choose payment mode for foreign currency
+                self.payment_status = False
             if self.line_ids:
                 self.line_ids._recompute_prices_for_currency()
     terminal_id = fields.Many2one(
@@ -299,13 +311,19 @@ class Sale(models.Model):
     @api.depends('payment_status')
     def _compute_payment_status_display(self):
         for record in self:
-            record.payment_status_display = 'cash' if record.payment_status == 'cash' else 'account'
+            if not record.payment_status:
+                record.payment_status_display = False
+            else:
+                record.payment_status_display = 'cash' if record.payment_status == 'cash' else 'account'
 
     def _inverse_payment_status_display(self):
         for record in self:
-            if record.payment_status == 'partial' and record.payment_status_display == 'account':
+            if not record.payment_status_display:
+                record.payment_status = False
+            elif record.payment_status == 'partial' and record.payment_status_display == 'account':
                 continue
-            record.payment_status = record.payment_status_display or 'cash'
+            else:
+                record.payment_status = record.payment_status_display
 
     @api.depends(
         'payment_ids.amount', 'payment_ids.amount_base', 'payment_ids.state',

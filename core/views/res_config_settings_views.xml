@@ -357,6 +357,9 @@
                         <setting string="Allow Credit Sales" help="Allow creating sales invoices on credit (e.g. from POS terminals or API).">
                             <field name="biz_allow_credit_sales"/>
                         </setting>
+                        <setting string="Default Payment Mode" help="Default payment mode when creating a sale in base currency.">
+                            <field name="biz_default_payment_status" widget="radio"/>
+                        </setting>
                         <setting string="Enable Barcode Scanning" help="Activate barcode scanning for products in POS.">
                             <field name="biz_enable_barcode"/>
                         </setting>
