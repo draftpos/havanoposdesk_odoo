@@ -132,10 +132,10 @@
                             </group>
                             <group>
                                 <!-- RIGHT COLUMN -->
-                                <field name="store_ids" string="Allowed Stores" widget="many2many_tags" required="1" options="{'no_create': True}" />
-                                <field name="default_store_id" string="Default Store" required="1" options="{'no_create': True}" />
+                                <field name="store_ids" string="Allowed Stores" widget="many2many_tags" required="havano_role != 'super_admin'" options="{'no_create': True}" />
+                                <field name="default_store_id" string="Default Store" required="havano_role != 'super_admin'" options="{'no_create': True}" />
                                 <field name="allowed_pricelist_ids" invisible="1" />
-                                <field name="pricelist_id" string="Default Pricelist" domain="[('id', 'in', allowed_pricelist_ids)]" required="1" options="{'no_create': True}" readonly="not default_store_id" />
+                                <field name="pricelist_id" string="Default Pricelist" domain="[('id', 'in', allowed_pricelist_ids)]" required="havano_role != 'super_admin'" options="{'no_create': True}" readonly="not default_store_id" />
                                 <field name="allow_discount" string="Discount Enable" widget="boolean_toggle" />
                                 <field name="max_discount_percent" invisible="allow_discount == False" />
                                 <field name="require_shift" string="Require Shift" widget="boolean_toggle" />
