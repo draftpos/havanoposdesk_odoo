@@ -26,7 +26,7 @@ class HavanoposdeskStore(models.Model):
     tz = fields.Selection(
         _tz_get,
         string='Timezone',
-        default=lambda self: self.env.user.tz or 'UTC',
+        default=lambda self: self.env.user.tz or 'Africa/Harare',
         required=True,
         help="Store timezone for local transaction recording and validation."
     )
