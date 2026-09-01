@@ -449,7 +449,6 @@ class HavanoposdeskTenant(models.Model):
 
     # Global Fiscalization Settings (Defaults for stores)
     enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
-    restaurant_mode_enabled = fields.Boolean(string='Enable Restaurant Mode', default=False)
     fiscal_provider = fields.Selection([
         ('havano_zimra', 'Havano ZIMRA Cloud'),
         ('axis', 'Axis Virtual API'),
