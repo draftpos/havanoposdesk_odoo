@@ -5688,6 +5688,48 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
+    @http.route('/api/method/saas_api.www.api.update_mobile_settings', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_update_mobile_settings(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user_rec = env['res.users'].browse(uid)
+            tenant = user_rec.tenant_id
+            if not tenant:
+                return self._make_json_response({"error": "No tenant found for user"}, status=400)
+            
+            # The flutter app sends data under kwargs directly (and optionally nested in 'settings')
+            settings_data = kwargs.get('settings') if isinstance(kwargs.get('settings'), dict) else kwargs
+            
+            # Update settings on the tenant
+            if 'enable_shift' in settings_data:
+                tenant.enable_shift = bool(int(settings_data['enable_shift']))
+            if 'require_shift' in settings_data:
+                user_rec.require_shift = bool(int(settings_data['require_shift']))
+            if 'allow_discount' in settings_data:
+                user_rec.allow_discount = bool(int(settings_data['allow_discount']))
+            if 'max_discount_percent' in settings_data:
+                user_rec.max_discount_percent = float(settings_data['max_discount_percent'])
+            if 'expenses_require_approval' in settings_data:
+                tenant.expenses_require_approval = bool(int(settings_data['expenses_require_approval']))
+                
+            env.cr.commit()
+            return self._make_json_response({"message": "Settings updated successfully"}, status=200)
+        except Exception as e:
+            env.cr.rollback()
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
     @http.route('/api/method/saas_api.www.api.get_item_profitability', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_item_profitability(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':

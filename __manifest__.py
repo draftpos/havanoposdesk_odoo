@@ -27,6 +27,7 @@
         'core/views/subscription_views.xml',
         'core/views/terminal_views.xml',
         'core/views/tenant_views.xml',
+        'core/views/restaurant_views.xml',
         'core/views/cash_transfer_views.xml',
         'core/views/menus.xml',
         'core/views/audit_log_views.xml',

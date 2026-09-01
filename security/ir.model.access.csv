@@ -69,3 +69,6 @@ access_havanoposdesk_category_all_read,havanoposdesk.category all read,model_hav
 access_havanoposdesk_pricelist_all_read,havanoposdesk.pricelist all read,model_havanoposdesk_pricelist,,1,0,0,0
 access_havanoposdesk_product_uom_price_all_read,havanoposdesk.product.uom.price all read,model_havanoposdesk_product_uom_price,,1,0,0,0
 access_havanoposdesk_product_all_read,havanoposdesk.product all read,model_havanoposdesk_product,,1,0,0,0
+access_restaurant_floor,access.restaurant.floor,model_havanoposdesk_restaurant_floor,base.group_user,1,1,1,1
+access_restaurant_table,access.restaurant.table,model_havanoposdesk_restaurant_table,base.group_user,1,1,1,1
+access_restaurant_waiter,access.restaurant.waiter,model_havanoposdesk_restaurant_waiter,base.group_user,1,1,1,1
