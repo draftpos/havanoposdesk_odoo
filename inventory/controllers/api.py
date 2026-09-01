@@ -2549,6 +2549,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "store": None,
                     "warehouse": None,
                     "qty_to_be_sold": 1.0,
+                    "qtyOnHand": p.on_hand_qty,
                 })
             if p.selling_price > 0.0:
                 prices_data.append({
@@ -2559,6 +2560,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "store": None,
                     "warehouse": None,
                     "qty_to_be_sold": 1.0,
+                    "qtyOnHand": p.on_hand_qty,
                 })
                 
             uom_name = p.uom_id.name or "Nos"
@@ -2581,6 +2583,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             "store": ap_store_name,
                             "warehouse": ap_store_name,
                             "qty_to_be_sold": getattr(ap, 'qty_to_be_sold', 1.0) or 1.0,
+                            "qtyOnHand": ap.on_hand_qty,
                         })
                     if ap_uom_name not in added_uoms:
                         uom_conversions.append({
