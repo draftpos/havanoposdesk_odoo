@@ -7,11 +7,11 @@
             <field name="name">havanoposdesk.restaurant.floor.tree</field>
             <field name="model">havanoposdesk.restaurant.floor</field>
             <field name="arch" type="xml">
-                <tree>
+                <list>
                     <field name="sequence" widget="handle"/>
                     <field name="name"/>
                     <field name="active" widget="boolean_toggle"/>
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -29,11 +29,11 @@
                         <notebook>
                             <page string="Tables">
                                 <field name="table_ids">
-                                    <tree editable="bottom">
+                                    <list editable="bottom">
                                         <field name="name"/>
                                         <field name="seats"/>
                                         <field name="active" widget="boolean_toggle"/>
-                                    </tree>
+                                    </list>
                                 </field>
                             </page>
                         </notebook>
@@ -45,7 +45,7 @@
         <record id="havanoposdesk_restaurant_floor_action" model="ir.actions.act_window">
             <field name="name">Floors</field>
             <field name="res_model">havanoposdesk.restaurant.floor</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <!-- Tables -->
@@ -53,12 +53,12 @@
             <field name="name">havanoposdesk.restaurant.table.tree</field>
             <field name="model">havanoposdesk.restaurant.table</field>
             <field name="arch" type="xml">
-                <tree>
+                <list>
                     <field name="name"/>
                     <field name="floor_id"/>
                     <field name="seats"/>
                     <field name="active" widget="boolean_toggle"/>
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -82,7 +82,7 @@
         <record id="havanoposdesk_restaurant_table_action" model="ir.actions.act_window">
             <field name="name">Tables</field>
             <field name="res_model">havanoposdesk.restaurant.table</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <!-- Waiters -->
@@ -90,11 +90,11 @@
             <field name="name">havanoposdesk.restaurant.waiter.tree</field>
             <field name="model">havanoposdesk.restaurant.waiter</field>
             <field name="arch" type="xml">
-                <tree>
+                <list>
                     <field name="name"/>
                     <field name="pin"/>
                     <field name="active" widget="boolean_toggle"/>
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -117,7 +117,7 @@
         <record id="havanoposdesk_restaurant_waiter_action" model="ir.actions.act_window">
             <field name="name">Waiters</field>
             <field name="res_model">havanoposdesk.restaurant.waiter</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <!-- Menus -->
