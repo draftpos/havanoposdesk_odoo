@@ -482,8 +482,108 @@ class HavanoposdeskProduct(models.Model):
     def get_import_templates(self):
         return [{
             'label': _('Import Template for Products'),
-            'template': '/havanoposdesk_odoo/product_template.csv'
+            'template': '/havanoposdesk_odoo/static/src/data/product_import_template.csv'
         }]
+
+    def action_export_with_inventory(self):
+        """Export selected products with per-store inventory breakdown."""
+        import io
+        import csv
+        import base64
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header
+        writer.writerow([
+            'name', 'item_code', 'barcode', 'buying_price',
+            'category_id/name', 'uom_id/name', 'is_active', 'store_ids/name',
+            'advanced_price_ids/store_id/name', 'advanced_price_ids/pricelist_id/name',
+            'advanced_price_ids/uom_id/name', 'advanced_price_ids/qty_to_be_sold',
+            'advanced_price_ids/initial_stock', 'advanced_price_ids/price',
+            'on_hand_qty_in_store'
+        ])
+
+        products = self if self else self.search([('tenant_id', '=', self.env.user.tenant_id.id)])
+
+        for product in products:
+            store_names = ','.join(product.store_ids.mapped('name'))
+            price_lines = product.advanced_price_ids
+
+            if price_lines:
+                first = True
+                for line in price_lines:
+                    # Get per-store on hand
+                    valuations = self.env['havanoposdesk.stock.valuation'].search([
+                        ('product_id', '=', product.id),
+                        ('store_id', '=', line.store_id.id)
+                    ])
+                    on_hand = sum(valuations.mapped('on_hand_qty'))
+
+                    if first:
+                        writer.writerow([
+                            product.name, product.item_code or '', product.barcode or '',
+                            product.buying_price, product.category_id.name or '',
+                            product.uom_id.name or '', 1 if product.is_active else 0,
+                            store_names,
+                            line.store_id.name or '', line.pricelist_id.name or '',
+                            line.uom_id.name or '', line.qty_to_be_sold,
+                            on_hand, line.price
+                        ])
+                        first = False
+                    else:
+                        writer.writerow([
+                            '', '', '', '', '', '', '', '',
+                            line.store_id.name or '', line.pricelist_id.name or '',
+                            line.uom_id.name or '', line.qty_to_be_sold,
+                            on_hand, line.price
+                        ])
+            else:
+                # No price lines, just output product with store-level stock
+                if product.store_ids:
+                    first = True
+                    for store in product.store_ids:
+                        valuations = self.env['havanoposdesk.stock.valuation'].search([
+                            ('product_id', '=', product.id),
+                            ('store_id', '=', store.id)
+                        ])
+                        on_hand = sum(valuations.mapped('on_hand_qty'))
+                        if first:
+                            writer.writerow([
+                                product.name, product.item_code or '', product.barcode or '',
+                                product.buying_price, product.category_id.name or '',
+                                product.uom_id.name or '', 1 if product.is_active else 0,
+                                store_names, store.name, '', '', '', on_hand, product.selling_price
+                            ])
+                            first = False
+                        else:
+                            writer.writerow([
+                                '', '', '', '', '', '', '', '',
+                                store.name, '', '', '', on_hand, ''
+                            ])
+                else:
+                    writer.writerow([
+                        product.name, product.item_code or '', product.barcode or '',
+                        product.buying_price, product.category_id.name or '',
+                        product.uom_id.name or '', 1 if product.is_active else 0,
+                        '', '', '', '', '', product.on_hand_qty, product.selling_price
+                    ])
+
+        csv_data = base64.b64encode(output.getvalue().encode('utf-8'))
+        output.close()
+
+        attachment = self.env['ir.attachment'].create({
+            'name': 'products_with_inventory.csv',
+            'type': 'binary',
+            'datas': csv_data,
+            'mimetype': 'text/csv',
+        })
+
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'/web/content/{attachment.id}?download=true',
+            'target': 'new',
+        }
 
 class HavanoposdeskProductCosting(models.Model):
     _name = 'havanoposdesk.product.costing'

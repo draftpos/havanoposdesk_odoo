@@ -211,7 +211,16 @@
             <field name="context">{'search_default_filter_active': 1}</field>
         </record>
 
-        
+        <!-- Export Products with Inventory Server Action -->
+        <record id="action_export_products_with_inventory" model="ir.actions.server">
+            <field name="name">Export with Inventory</field>
+            <field name="model_id" ref="havanoposdesk_odoo.model_havanoposdesk_product"/>
+            <field name="binding_model_id" ref="havanoposdesk_odoo.model_havanoposdesk_product"/>
+            <field name="binding_view_types">list</field>
+            <field name="state">code</field>
+            <field name="code">action = records.action_export_with_inventory()</field>
+        </record>
+
         <menuitem id="menu_product_inventory" name="Products" parent="menu_inventory_master" action="action_havanoposdesk_product" sequence="10" />
     </data>
 </odoo>
