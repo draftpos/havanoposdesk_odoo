@@ -496,78 +496,89 @@ class HavanoposdeskProduct(models.Model):
 
         # Header
         writer.writerow([
-            'name', 'item_code', 'barcode', 'buying_price',
-            'category_id/name', 'uom_id/name', 'is_active', 'store_ids/name',
-            'advanced_price_ids/store_id/name', 'advanced_price_ids/pricelist_id/name',
-            'advanced_price_ids/uom_id/name', 'advanced_price_ids/qty_to_be_sold',
-            'advanced_price_ids/initial_stock', 'advanced_price_ids/price',
-            'on_hand_qty_in_store'
+            'name', 'item_code', 'barcode', 'buying_price', 'selling_price',
+            'category_id/name', 'uom_id/name', 'is_active',
+            'store', 'pricelist', 'uom', 'qty_to_be_sold', 'price',
+            'on_hand_qty'
         ])
 
         products = self if self else self.search([('tenant_id', '=', self.env.user.tenant_id.id)])
 
         for product in products:
-            store_names = ','.join(product.store_ids.mapped('name'))
-            price_lines = product.advanced_price_ids
+            # Collect all stores: from store_ids + any stores in valuations
+            all_store_ids = set(product.store_ids.ids)
+            valuations = self.env['havanoposdesk.stock.valuation'].search([
+                ('product_id', '=', product.id)
+            ])
+            for v in valuations:
+                if v.store_id:
+                    all_store_ids.add(v.store_id.id)
 
-            if price_lines:
-                first = True
-                for line in price_lines:
-                    # Get per-store on hand
-                    valuations = self.env['havanoposdesk.stock.valuation'].search([
-                        ('product_id', '=', product.id),
-                        ('store_id', '=', line.store_id.id)
-                    ])
-                    on_hand = sum(valuations.mapped('on_hand_qty'))
+            stores = self.env['havanoposdesk.store'].browse(list(all_store_ids))
 
-                    if first:
-                        writer.writerow([
-                            product.name, product.item_code or '', product.barcode or '',
-                            product.buying_price, product.category_id.name or '',
-                            product.uom_id.name or '', 1 if product.is_active else 0,
-                            store_names,
-                            line.store_id.name or '', line.pricelist_id.name or '',
-                            line.uom_id.name or '', line.qty_to_be_sold,
-                            on_hand, line.price
-                        ])
-                        first = False
-                    else:
-                        writer.writerow([
-                            '', '', '', '', '', '', '', '',
-                            line.store_id.name or '', line.pricelist_id.name or '',
-                            line.uom_id.name or '', line.qty_to_be_sold,
-                            on_hand, line.price
-                        ])
-            else:
-                # No price lines, just output product with store-level stock
-                if product.store_ids:
-                    first = True
-                    for store in product.store_ids:
-                        valuations = self.env['havanoposdesk.stock.valuation'].search([
-                            ('product_id', '=', product.id),
-                            ('store_id', '=', store.id)
-                        ])
-                        on_hand = sum(valuations.mapped('on_hand_qty'))
-                        if first:
+            if not stores:
+                # No stores at all
+                writer.writerow([
+                    product.name, product.item_code or '', product.barcode or '',
+                    product.buying_price, product.selling_price,
+                    product.category_id.name or '', product.uom_id.name or '',
+                    1 if product.is_active else 0,
+                    '', '', '', '', '',
+                    product.on_hand_qty
+                ])
+                continue
+
+            first_product_row = True
+            for store in stores:
+                # Get on-hand for THIS store
+                store_vals = valuations.filtered(lambda v: v.store_id.id == store.id)
+                on_hand = sum(store_vals.mapped('on_hand_qty'))
+
+                # Get price lines for this store
+                store_price_lines = product.advanced_price_ids.filtered(
+                    lambda p: p.store_id.id == store.id
+                )
+
+                if store_price_lines:
+                    for pl in store_price_lines:
+                        if first_product_row:
                             writer.writerow([
                                 product.name, product.item_code or '', product.barcode or '',
-                                product.buying_price, product.category_id.name or '',
-                                product.uom_id.name or '', 1 if product.is_active else 0,
-                                store_names, store.name, '', '', '', on_hand, product.selling_price
+                                product.buying_price, product.selling_price,
+                                product.category_id.name or '', product.uom_id.name or '',
+                                1 if product.is_active else 0,
+                                store.name, pl.pricelist_id.name or '',
+                                pl.uom_id.name or '', pl.qty_to_be_sold, pl.price,
+                                on_hand
                             ])
-                            first = False
+                            first_product_row = False
                         else:
                             writer.writerow([
-                                '', '', '', '', '', '', '', '',
-                                store.name, '', '', '', on_hand, ''
+                                '', '', '', '', '',
+                                '', '', '',
+                                store.name, pl.pricelist_id.name or '',
+                                pl.uom_id.name or '', pl.qty_to_be_sold, pl.price,
+                                on_hand
                             ])
                 else:
-                    writer.writerow([
-                        product.name, product.item_code or '', product.barcode or '',
-                        product.buying_price, product.category_id.name or '',
-                        product.uom_id.name or '', 1 if product.is_active else 0,
-                        '', '', '', '', '', product.on_hand_qty, product.selling_price
-                    ])
+                    # No price lines for this store, just show stock
+                    if first_product_row:
+                        writer.writerow([
+                            product.name, product.item_code or '', product.barcode or '',
+                            product.buying_price, product.selling_price,
+                            product.category_id.name or '', product.uom_id.name or '',
+                            1 if product.is_active else 0,
+                            store.name, '', '', '', product.selling_price,
+                            on_hand
+                        ])
+                        first_product_row = False
+                    else:
+                        writer.writerow([
+                            '', '', '', '', '',
+                            '', '', '',
+                            store.name, '', '', '', '',
+                            on_hand
+                        ])
 
         csv_data = base64.b64encode(output.getvalue().encode('utf-8'))
         output.close()
