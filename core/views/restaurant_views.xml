@@ -120,12 +120,5 @@
             <field name="view_mode">list,form</field>
         </record>
 
-        <!-- Menus -->
-        <menuitem id="menu_restaurant_settings_root" name="Restaurant Settings" parent="menu_tenant_admin_settings_root" sequence="200" groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"/>
-        
-        <menuitem id="menu_restaurant_floors" name="Floors" parent="menu_restaurant_settings_root" action="havanoposdesk_restaurant_floor_action" sequence="10"/>
-        <menuitem id="menu_restaurant_tables" name="Tables" parent="menu_restaurant_settings_root" action="havanoposdesk_restaurant_table_action" sequence="20"/>
-        <menuitem id="menu_restaurant_waiters" name="Waiters" parent="menu_restaurant_settings_root" action="havanoposdesk_restaurant_waiter_action" sequence="30"/>
-
     </data>
 </odoo>

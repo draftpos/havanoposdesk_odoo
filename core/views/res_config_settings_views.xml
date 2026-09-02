@@ -46,6 +46,14 @@
                     </block>
 
                     <block title="My Business" name="my_business_config">
+                        <setting string="Restaurant Mode" help="Enable restaurant features (Floors, Tables, Waiters)">
+                            <field name="biz_restaurant_mode_enabled"/>
+                            <div class="mt16" invisible="not biz_restaurant_mode_enabled">
+                                <button name="%(havanoposdesk_restaurant_floor_action)d" type="action" string="Manage Floors" icon="fa-arrow-right" class="btn-link"/>
+                                <button name="%(havanoposdesk_restaurant_table_action)d" type="action" string="Manage Tables" icon="fa-arrow-right" class="btn-link"/>
+                                <button name="%(havanoposdesk_restaurant_waiter_action)d" type="action" string="Manage Waiters" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
                         <setting string="Global Multi-Currencies" help="Enforce multi-currencies on all customers automatically">
                             <field name="biz_global_multi_currency_customers"/>
                             <div class="mt16" invisible="not biz_global_multi_currency_customers">

@@ -109,6 +109,12 @@ class ResConfigSettings(models.TransientModel):
         string="Restrict Price Modification"
     )
 
+    biz_restaurant_mode_enabled = fields.Boolean(
+        related='tenant_id.restaurant_mode_enabled',
+        readonly=False,
+        string="Enable Restaurant Mode"
+    )
+
     biz_allow_negative_stock = fields.Boolean(
         string="Allow Negative Stock",
         related='tenant_id.allow_negative_stock',
