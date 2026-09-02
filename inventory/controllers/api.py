@@ -9814,15 +9814,18 @@ class HavanoPOSDeskAPI(http.Controller):
                 custom_cr.close()
 
 
-    @http.route('/api/method/saas_api.www.api.get_restaurant_data', type='http', auth='public', methods=['GET', 'POST', 'OPTIONS'], csrf=False)
+    @http.route('/api/method/saas_api.www.api.get_restaurant_data', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_restaurant_data(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
-            
+
         token = request.httprequest.headers.get('Authorization')
         uid, login = self._verify_token(token)
         if not uid:
-            return self._make_json_response({"error": "Unauthorized"}, status=401)
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"error": "Unauthorized"}, status=401)
             
         env, custom_cr = self._get_env(user_id=uid)
         try:
