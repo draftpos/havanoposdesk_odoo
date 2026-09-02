@@ -4,8 +4,8 @@ class HavanoposdeskCategory(models.Model):
     _name = 'havanoposdesk.category'
     _description = 'Category'
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Category name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'Category name must be unique per tenant!')
     ]
 
     name = fields.Char(string='Category Name', required=True)

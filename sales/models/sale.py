@@ -11,8 +11,8 @@ class Sale(models.Model):
     _description = 'Sale'
     _order = 'date desc, id desc'
 
-    _sql_constraints = [
-        ('local_invoice_id_tenant_uniq', 'unique(local_invoice_id, tenant_id)', 'The Local Invoice ID must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique(local_invoice_id, tenant_id)', 'The Local Invoice ID must be unique per tenant!')
     ]
 
     def _default_posting_time(self):

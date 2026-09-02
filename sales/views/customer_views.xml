@@ -27,6 +27,7 @@
                                 <field name="vat" class="border-bottom border-dark" />
                                 <field name="tenant_allow_multi_currency" invisible="1" />
                                 <field name="phone" class="border-bottom border-dark" />
+                                <field name="email" class="border-bottom border-dark" />
                                 <field name="address" class="border-bottom border-dark" />
                                 <field name="balance" readonly="1" class="border-bottom border-dark" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" />
                             </group>

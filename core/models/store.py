@@ -7,8 +7,8 @@ class HavanoposdeskStore(models.Model):
     _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Store'
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Store name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'Store name must be unique per tenant!')
     ]
 
     name = fields.Char(string='Store Name', required=True)

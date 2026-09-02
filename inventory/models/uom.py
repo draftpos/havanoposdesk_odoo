@@ -4,8 +4,8 @@ class HavanoposdeskUom(models.Model):
     _name = 'havanoposdesk.uom'
     _description = 'Uom'
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'UOM name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'UOM name must be unique per tenant!')
     ]
 
     name = fields.Char(string='UOM Name', required=True)

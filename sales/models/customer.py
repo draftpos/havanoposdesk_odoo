@@ -4,8 +4,8 @@ class CustomerGroup(models.Model):
     _name = 'havanoposdesk.customer.group'
     _description = 'Customer'
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Customer name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'Customer name must be unique per tenant!')
     ]
 
     name = fields.Char(string='Group Name', required=True)
@@ -61,6 +61,7 @@ class Customer(models.Model):
         return [(6, 0, [store.id])] if store else []
 
     phone = fields.Char(string='Phone')
+    email = fields.Char(string='Email')
     address = fields.Char(string='Address')
     city = fields.Char(string='City')
     country_id = fields.Many2one('res.country', string='Country', default=_default_country_id)

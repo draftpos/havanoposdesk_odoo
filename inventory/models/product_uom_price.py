@@ -15,10 +15,8 @@ class HavanoposdeskProductUomPrice(models.Model):
             pass
         return res
 
-    _sql_constraints = [
-        ('product_store_pricelist_uom_uniq', 
-         'unique (product_id, store_id, pricelist_id, uom_id)', 
-         'A price line for this combination of Store, Pricelist, and Unit of Measure already exists for this product! At least one must be different.')
+    _constraints = [
+        models.Constraint('unique (product_id, store_id, pricelist_id, uom_id)', 'A price line for this combination of Store, Pricelist, and Unit of Measure already exists for this product! At least one must be different.')
     ]
 
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, ondelete='cascade')
