@@ -9813,3 +9813,62 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
+
+    @http.route('/api/method/saas_api.www.api.get_restaurant_data', type='http', auth='public', methods=['GET', 'POST', 'OPTIONS'], csrf=False)
+    def api_get_restaurant_data(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+            
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            return self._make_json_response({"error": "Unauthorized"}, status=401)
+            
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            if not tenant:
+                return self._make_json_response({"error": "No tenant found for user"}, status=400)
+                
+            floors = env['havanoposdesk.restaurant.floor'].search([('tenant_id', '=', tenant.id), ('active', '=', True)])
+            tables = env['havanoposdesk.restaurant.table'].search([('tenant_id', '=', tenant.id), ('active', '=', True)])
+            waiters = env['havanoposdesk.restaurant.waiter'].search([('tenant_id', '=', tenant.id), ('active', '=', True)])
+            
+            floors_data = []
+            for f in floors:
+                floors_data.append({
+                    "id": str(f.id),
+                    "name": f.name,
+                    "sequence": f.sequence,
+                })
+                
+            tables_data = []
+            for t in tables:
+                tables_data.append({
+                    "id": str(t.id),
+                    "name": t.name,
+                    "seats": t.seats,
+                    "floor_id": str(t.floor_id.id) if t.floor_id else None,
+                })
+                
+            waiters_data = []
+            for w in waiters:
+                waiters_data.append({
+                    "id": str(w.id),
+                    "name": w.name,
+                    "pin": w.pin or "",
+                })
+                
+            return self._make_json_response({
+                "message": {
+                    "floors": floors_data,
+                    "tables": tables_data,
+                    "waiters": waiters_data,
+                }
+            })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
