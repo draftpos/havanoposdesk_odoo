@@ -160,16 +160,28 @@ class HavanoZimraCloudService:
         customer_name = sale.customer.name if sale.customer else "Walk-in Customer"
         customer_tin = (getattr(sale.customer, 'tin', '') or '').strip() if sale.customer else ''
         customer_vat = (getattr(sale.customer, 'vat', '') or '').strip() if sale.customer else ''
+        customer_address = (getattr(sale.customer, 'address', '') or '').strip() if sale.customer else ''
+        customer_phone = (getattr(sale.customer, 'phone', '') or '').strip() if sale.customer else ''
+        customer_city = (getattr(sale.customer, 'city', '') or '').strip() if sale.customer else ''
+        customer_email = (getattr(sale.customer, 'email', '') or '').strip() if sale.customer else ''
 
-        if customer_tin and len(customer_tin) != 10:
-            customer_tin = "111111111"
-        if not customer_tin:
+        if not customer_tin or len(customer_tin) != 10:
             customer_tin = "111111111"
 
-        if customer_vat and len(customer_vat) != 9:
+        if not customer_vat or len(customer_vat) != 9:
             customer_vat = "000000000"
-        if not customer_vat:
-            customer_vat = "000000000"
+            
+        if not customer_address:
+            customer_address = "123 Default Street"
+            
+        if not customer_phone:
+            customer_phone = "0000000000"
+            
+        if not customer_city:
+            customer_city = "Default City"
+
+        if not customer_email:
+            customer_email = "walkin@example.com"
 
         tendered = abs(float(sale.amount_total or 0.0))
         invoice_flag = "1" if sale.is_return else "0"
@@ -197,23 +209,27 @@ class HavanoZimraCloudService:
             "Content-Type": "application/x-www-form-urlencoded",
         }
 
+        # ZIMRA expects add_customer="1" to display buyer details on the fiscal invoice
+        is_walkin = not sale.customer or (sale.customer.name or '').strip().lower() in ('walk-in customer', 'walk in', 'walk-in', 'walkin')
+        add_customer_flag = "0" if is_walkin else "1"
+
         payload = {
             "device_sn": str(device_sn),
-            "add_customer": "0",
+            "add_customer": add_customer_flag,
             "invoice_flag": str(invoice_flag),
             "currency": str(currency),
             "invoice_number": str(invoice_number),
             "customer_name": str(customer_name),
             "trade_name": str(customer_name),
             "customer_vat_number": str(customer_vat),
-            "customer_address": "123 Default Street",
-            "customer_telephone_number": "0000000000",
+            "customer_address": str(customer_address),
+            "customer_telephone_number": str(customer_phone),
             "customer_tin": str(customer_tin),
             "customer_province": "Default Province",
-            "customer_street": "Default Street",
+            "customer_street": str(customer_address),
             "customer_houseNo": "1",
-            "customer_city": "Default City",
-            "customer_email": "walkin@example.com",
+            "customer_city": str(customer_city),
+            "customer_email": str(customer_email),
             "invoice_comment": "",
             "original_invoice_no": str(original_invoice_no),
             "global_invoice_no": str(global_invoice_no),

@@ -6,8 +6,8 @@ class Expense(models.Model):
     _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Expense'
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Expense name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'Expense name must be unique per tenant!')
     ]
 
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default=lambda self: 'New')

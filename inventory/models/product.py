@@ -17,10 +17,10 @@ class HavanoposdeskProduct(models.Model):
             pass
         return res
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'The product name must be unique per tenant!'),
-        ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
-        ('barcode_tenant_uniq', 'unique (barcode, tenant_id)', 'The Product Barcode must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'The product name must be unique per tenant!'),
+        models.Constraint('unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
+        models.Constraint('unique (barcode, tenant_id)', 'The Product Barcode must be unique per tenant!')
     ]
 
     name = fields.Char(string='Product Name', required=True)
