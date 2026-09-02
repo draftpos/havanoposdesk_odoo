@@ -165,8 +165,8 @@ class HavanoposdeskUserRightsPermission(models.Model):
     can_delete = fields.Boolean(string='Delete', default=True)
     can_submit = fields.Boolean(string='Submit', default=True)
 
-    _sql_constraints = [
-        ('profile_feature_uniq', 'unique(profile_id, feature)', 'A feature permission already exists for this profile!')
+    _constraints = [
+        models.Constraint('unique(profile_id, feature)', 'A feature permission already exists for this profile!')
     ]
 
 
@@ -251,8 +251,8 @@ class HavanoposdeskBackofficePermission(models.Model):
     is_read_only = fields.Boolean(string='Read Only', default=False)
     is_full_access = fields.Boolean(string='Full Access', default=True)
 
-    _sql_constraints = [
-        ('bo_profile_feature_uniq', 'unique(profile_id, feature)', 'A feature permission already exists for this profile!')
+    _constraints = [
+        models.Constraint('unique(profile_id, feature)', 'A feature permission already exists for this profile!')
     ]
 
 

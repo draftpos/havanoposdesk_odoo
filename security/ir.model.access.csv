@@ -40,6 +40,8 @@ access_havanoposdesk_category_sales_report,havanoposdesk.category.sales.report u
 access_havanoposdesk_cashier_sales_report,havanoposdesk.cashier.sales.report user,model_havanoposdesk_cashier_sales_report,base.group_user,1,1,1,1
 access_havanoposdesk_terminal_sales_report,havanoposdesk.terminal.sales.report user,model_havanoposdesk_terminal_sales_report,base.group_user,1,1,1,1
 access_havanoposdesk_daily_sales_report,havanoposdesk.daily.sales.report user,model_havanoposdesk_daily_sales_report,base.group_user,1,1,1,1
+access_havanoposdesk_item_detailed_ledger_report,havanoposdesk.item.detailed.ledger.report user,model_havanoposdesk_item_detailed_ledger_report,base.group_user,1,1,1,1
+access_havanoposdesk_item_summary_ledger_report,havanoposdesk.item.summary.ledger.report user,model_havanoposdesk_item_summary_ledger_report,base.group_user,1,1,1,1
 access_havano_error_issue,havano.error.issue,model_havano_error_issue,base.group_system,1,1,1,1
 access_havano_error_event,havano.error.event,model_havano_error_event,base.group_system,1,1,1,1
 access_havanoposdesk_support_ticket,havanoposdesk.support.ticket,model_havanoposdesk_support_ticket,base.group_user,1,1,1,1

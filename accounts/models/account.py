@@ -6,8 +6,8 @@ class Account(models.Model):
     _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Account'
     
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Account name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'Account name must be unique per tenant!')
     ]
 
     @api.constrains('name', 'tenant_id')
