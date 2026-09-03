@@ -10106,7 +10106,7 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id
             table_id = params.get('table_id') or kwargs.get('table_id')
 
-            sale_domain = [('tenant_id', '=', tenant.id), ('is_quotation', '=', True)]
+            sale_domain = [('tenant_id', '=', tenant.id), '|', ('table_id', '!=', False), ('is_quotation', '=', True)]
             if 'order_status' in env['havanoposdesk.sale']._fields:
                 sale_domain.append(('order_status', '=', 'pending'))
             elif 'state' in env['havanoposdesk.sale']._fields:
@@ -10204,14 +10204,14 @@ class HavanoPOSDeskAPI(http.Controller):
 
             sale_domain = [
                 ('tenant_id', '=', tenant.id),
-                ('is_quotation', '=', True),
+                '|', ('table_id', '!=', False), ('is_quotation', '=', True)
             ]
             if 'order_status' in env['havanoposdesk.sale']._fields:
                 sale_domain.append(('order_status', '=', 'pending'))
             elif 'state' in env['havanoposdesk.sale']._fields:
                 sale_domain.append(('state', '=', 'draft'))
 
-            quotations = env['havanoposdesk.sale'].search(sale_domain) if 'is_quotation' in env['havanoposdesk.sale']._fields else []
+            quotations = env['havanoposdesk.sale'].search(sale_domain)
             for q in quotations:
                 cust = getattr(q, 'customer', None) or getattr(q, 'customer_id', None)
                 cust_name = cust.name if cust else "Customer"
@@ -10341,7 +10341,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'salesperson_id': user.id if user else False,
                 'posting_date': fields.Date.context_today(env['havanoposdesk.sale']),
                 'date': fields.Datetime.now(),
-                'is_quotation': True,
+                'is_quotation': False,
                 'tenant_id': tenant.id if tenant else False,
                 'table_id': table_rec.id if table_rec else False,
                 'floor_id': floor_rec.id if floor_rec else (table_rec.floor_id.id if table_rec and table_rec.floor_id else False),
