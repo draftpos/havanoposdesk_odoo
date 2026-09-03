@@ -5214,9 +5214,26 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id
             
             customer_name = params.get('customer') or params.get('customer_name') or 'Standard Customer'
-            partner = env['res.partner'].sudo().search([('name', '=', customer_name)], limit=1)
-            if not partner:
-                partner = env['res.partner'].sudo().create({'name': customer_name})
+            customer_rec = env['havanoposdesk.customer'].sudo().search([('name', '=', customer_name)], limit=1)
+            if not customer_rec and tenant:
+                customer_rec = env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+            if not customer_rec:
+                customer_rec = env['havanoposdesk.customer'].sudo().search([], limit=1)
+            if not customer_rec:
+                customer_rec = env['havanoposdesk.customer'].sudo().create({'name': customer_name, 'tenant_id': tenant.id if tenant else False})
+
+            store_rec = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+            if not store_rec and tenant:
+                store_rec = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+            if not store_rec:
+                store_rec = env['havanoposdesk.store'].sudo().search([], limit=1)
+
+            curr_name = params.get('currency') or 'USD'
+            currency_rec = env['res.currency'].sudo().search([('name', '=', curr_name)], limit=1)
+            if not currency_rec and tenant and tenant.currency_id:
+                currency_rec = tenant.currency_id
+            if not currency_rec:
+                currency_rec = env['res.currency'].sudo().search([], limit=1)
 
             items = params.get('items') or params.get('cartItems') or []
             total_amount = float(params.get('total_amount') or params.get('grand_total') or 0.0)
@@ -5224,7 +5241,11 @@ class HavanoPOSDeskAPI(http.Controller):
             discount_amount = float(params.get('discount_amount') or 0.0)
 
             sale_vals = {
-                'customer_id': partner.id,
+                'customer': customer_rec.id if customer_rec else False,
+                'store_id': store_rec.id if store_rec else False,
+                'currency_id': currency_rec.id if currency_rec else False,
+                'posting_date': fields.Date.context_today(env['havanoposdesk.sale']),
+                'date': fields.Datetime.now(),
                 'total_amount': total_amount,
                 'total_tax_amount': tax_amount,
                 'discount_amount': discount_amount,
@@ -10094,12 +10115,33 @@ class HavanoPOSDeskAPI(http.Controller):
                 floor_rec = env['havanoposdesk.restaurant.floor'].sudo().browse(int(floor_id)) if str(floor_id).isdigit() else None
 
             customer_name = params.get('customer_name') or params.get('customer') or 'Restaurant Guest'
-            partner = env['res.partner'].sudo().search([('name', '=', customer_name)], limit=1)
-            if not partner:
-                partner = env['res.partner'].sudo().create({'name': customer_name})
+            customer_rec = env['havanoposdesk.customer'].sudo().search([('name', '=', customer_name)], limit=1)
+            if not customer_rec and tenant:
+                customer_rec = env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+            if not customer_rec:
+                customer_rec = env['havanoposdesk.customer'].sudo().search([], limit=1)
+            if not customer_rec:
+                customer_rec = env['havanoposdesk.customer'].sudo().create({'name': customer_name, 'tenant_id': tenant.id if tenant else False})
+
+            store_rec = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+            if not store_rec and tenant:
+                store_rec = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+            if not store_rec:
+                store_rec = env['havanoposdesk.store'].sudo().search([], limit=1)
+
+            curr_name = params.get('currency') or 'USD'
+            currency_rec = env['res.currency'].sudo().search([('name', '=', curr_name)], limit=1)
+            if not currency_rec and tenant and tenant.currency_id:
+                currency_rec = tenant.currency_id
+            if not currency_rec:
+                currency_rec = env['res.currency'].sudo().search([], limit=1)
 
             sale_vals = {
-                'customer_id': partner.id,
+                'customer': customer_rec.id if customer_rec else False,
+                'store_id': store_rec.id if store_rec else False,
+                'currency_id': currency_rec.id if currency_rec else False,
+                'posting_date': fields.Date.context_today(env['havanoposdesk.sale']),
+                'date': fields.Datetime.now(),
                 'total_amount': total_amount,
                 'total_tax_amount': tax_amount,
                 'is_quotation': True,
