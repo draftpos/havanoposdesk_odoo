@@ -5235,15 +5235,22 @@ class HavanoPOSDeskAPI(http.Controller):
             if not currency_rec:
                 currency_rec = env['res.currency'].sudo().search([], limit=1)
 
-            items = params.get('items') or params.get('cartItems') or []
-            total_amount = float(params.get('total_amount') or params.get('grand_total') or 0.0)
-            tax_amount = float(params.get('tax_amount') or params.get('total_tax_amount') or 0.0)
-            discount_amount = float(params.get('discount_amount') or 0.0)
+            pricelist_name = params.get('price_list') or params.get('pricelist') or 'Standard Selling'
+            pricelist = env['havanoposdesk.pricelist'].sudo().search([('name', '=', pricelist_name)], limit=1)
+            if not pricelist and tenant:
+                pricelist = env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', tenant.id), ('type', '=', 'selling')], limit=1)
+            if not pricelist and tenant:
+                pricelist = env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+            if not pricelist:
+                pricelist = env['havanoposdesk.pricelist'].sudo().search([], limit=1)
 
             sale_vals = {
                 'customer': customer_rec.id if customer_rec else False,
+                'store': store_rec.name if store_rec else "",
                 'store_id': store_rec.id if store_rec else False,
                 'currency_id': currency_rec.id if currency_rec else False,
+                'pricelist_id': pricelist.id if pricelist else False,
+                'salesperson_id': user.id if user else False,
                 'posting_date': fields.Date.context_today(env['havanoposdesk.sale']),
                 'date': fields.Datetime.now(),
                 'discount_amount': discount_amount,
@@ -5257,20 +5264,39 @@ class HavanoPOSDeskAPI(http.Controller):
             sale = env['havanoposdesk.sale'].create(sale_vals)
 
             for item in items:
-                code = item.get('item_code') or item.get('code') or item.get('item_name')
+                code = item.get('item_code') or item.get('code') or item.get('item_name') or item.get('product_id') or item.get('id')
                 product = None
-                if 'havanoposdesk.product' in env:
-                    product = env['havanoposdesk.product'].sudo().search([('item_code', '=', code)], limit=1)
+                if code and 'havanoposdesk.product' in env:
+                    domain = [('item_code', '=', str(code))]
+                    if tenant:
+                        domain.append(('tenant_id', '=', tenant.id))
+                    product = env['havanoposdesk.product'].sudo().search(domain, limit=1)
+
+                    if not product and str(code).isdigit():
+                        product = env['havanoposdesk.product'].sudo().browse(int(code))
+                        if not product.exists():
+                            product = None
+
                     if not product:
-                        product = env['havanoposdesk.product'].sudo().search([('name', '=', code)], limit=1)
-                if not product and 'product.product' in env:
-                    product = env['product.product'].sudo().search([('default_code', '=', code)], limit=1)
+                        domain = [('name', '=', str(code))]
+                        if tenant:
+                            domain.append(('tenant_id', '=', tenant.id))
+                        product = env['havanoposdesk.product'].sudo().search(domain, limit=1)
+
                     if not product:
-                        product = env['product.product'].sudo().search([('name', '=', code)], limit=1)
+                        domain = [('name', 'ilike', str(code))]
+                        if tenant:
+                            domain.append(('tenant_id', '=', tenant.id))
+                        product = env['havanoposdesk.product'].sudo().search(domain, limit=1)
+
+                if not product and 'product.product' in env and code:
+                    product = env['product.product'].sudo().search([('default_code', '=', str(code))], limit=1)
+                    if not product:
+                        product = env['product.product'].sudo().search([('name', '=', str(code))], limit=1)
 
                 if product:
                     qty = float(item.get('qty') or item.get('quantity') or 1.0)
-                    rate = float(item.get('rate') or item.get('price') or 0.0)
+                    rate = float(item.get('rate') or item.get('price') or getattr(product, 'selling_price', 0.0) or getattr(product, 'lst_price', 0.0) or 0.0)
                     line_vals = {
                         'tenant_id': tenant.id if tenant else False,
                         'sale_id': sale.id,
@@ -5289,11 +5315,16 @@ class HavanoPOSDeskAPI(http.Controller):
                     if 'price_subtotal' in env['havanoposdesk.sale.line']._fields:
                         line_vals['price_subtotal'] = qty * rate
 
-                    uom_name = item.get('uom')
+                    uom_name = item.get('uom') or item.get('stock_uom') or item.get('uom_name')
                     if uom_name and 'uom_id' in env['havanoposdesk.sale.line']._fields:
-                        uom_rec = env['havanoposdesk.uom'].sudo().search([('name', '=', uom_name)], limit=1)
+                        uom_rec = env['havanoposdesk.uom'].sudo().search([
+                            '|', ('name', '=', str(uom_name)), ('name', '=ilike', str(uom_name))
+                        ], limit=1)
                         if uom_rec:
                             line_vals['uom_id'] = uom_rec.id
+
+                    if not line_vals.get('uom_id') and getattr(product, 'uom_id', None):
+                        line_vals['uom_id'] = product.uom_id.id
 
                     env['havanoposdesk.sale.line'].create(line_vals)
 
@@ -10160,10 +10191,22 @@ class HavanoPOSDeskAPI(http.Controller):
             if not currency_rec:
                 currency_rec = env['res.currency'].sudo().search([], limit=1)
 
+            pricelist_name = params.get('price_list') or params.get('pricelist') or 'Standard Selling'
+            pricelist = env['havanoposdesk.pricelist'].sudo().search([('name', '=', pricelist_name)], limit=1)
+            if not pricelist and tenant:
+                pricelist = env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', tenant.id), ('type', '=', 'selling')], limit=1)
+            if not pricelist and tenant:
+                pricelist = env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+            if not pricelist:
+                pricelist = env['havanoposdesk.pricelist'].sudo().search([], limit=1)
+
             sale_vals = {
                 'customer': customer_rec.id if customer_rec else False,
+                'store': store_rec.name if store_rec else "",
                 'store_id': store_rec.id if store_rec else False,
                 'currency_id': currency_rec.id if currency_rec else False,
+                'pricelist_id': pricelist.id if pricelist else False,
+                'salesperson_id': user.id if user else False,
                 'posting_date': fields.Date.context_today(env['havanoposdesk.sale']),
                 'date': fields.Datetime.now(),
                 'is_quotation': True,
@@ -10179,20 +10222,39 @@ class HavanoPOSDeskAPI(http.Controller):
             sale = env['havanoposdesk.sale'].create(sale_vals)
 
             for item in items:
-                code = item.get('item_code') or item.get('code') or item.get('item_name')
+                code = item.get('item_code') or item.get('code') or item.get('item_name') or item.get('product_id') or item.get('id')
                 product = None
-                if 'havanoposdesk.product' in env:
-                    product = env['havanoposdesk.product'].sudo().search([('item_code', '=', code)], limit=1)
+                if code and 'havanoposdesk.product' in env:
+                    domain = [('item_code', '=', str(code))]
+                    if tenant:
+                        domain.append(('tenant_id', '=', tenant.id))
+                    product = env['havanoposdesk.product'].sudo().search(domain, limit=1)
+
+                    if not product and str(code).isdigit():
+                        product = env['havanoposdesk.product'].sudo().browse(int(code))
+                        if not product.exists():
+                            product = None
+
                     if not product:
-                        product = env['havanoposdesk.product'].sudo().search([('name', '=', code)], limit=1)
-                if not product and 'product.product' in env:
-                    product = env['product.product'].sudo().search([('default_code', '=', code)], limit=1)
+                        domain = [('name', '=', str(code))]
+                        if tenant:
+                            domain.append(('tenant_id', '=', tenant.id))
+                        product = env['havanoposdesk.product'].sudo().search(domain, limit=1)
+
                     if not product:
-                        product = env['product.product'].sudo().search([('name', '=', code)], limit=1)
+                        domain = [('name', 'ilike', str(code))]
+                        if tenant:
+                            domain.append(('tenant_id', '=', tenant.id))
+                        product = env['havanoposdesk.product'].sudo().search(domain, limit=1)
+
+                if not product and 'product.product' in env and code:
+                    product = env['product.product'].sudo().search([('default_code', '=', str(code))], limit=1)
+                    if not product:
+                        product = env['product.product'].sudo().search([('name', '=', str(code))], limit=1)
 
                 if product:
                     qty = float(item.get('quantity') or item.get('qty') or 1.0)
-                    rate = float(item.get('rate') or item.get('price') or 0.0)
+                    rate = float(item.get('rate') or item.get('price') or getattr(product, 'selling_price', 0.0) or getattr(product, 'lst_price', 0.0) or 0.0)
                     line_vals = {
                         'tenant_id': tenant.id if tenant else False,
                         'sale_id': sale.id,
@@ -10211,11 +10273,16 @@ class HavanoPOSDeskAPI(http.Controller):
                     if 'price_subtotal' in env['havanoposdesk.sale.line']._fields:
                         line_vals['price_subtotal'] = qty * rate
 
-                    uom_name = item.get('uom')
+                    uom_name = item.get('uom') or item.get('stock_uom') or item.get('uom_name')
                     if uom_name and 'uom_id' in env['havanoposdesk.sale.line']._fields:
-                        uom_rec = env['havanoposdesk.uom'].sudo().search([('name', '=', uom_name)], limit=1)
+                        uom_rec = env['havanoposdesk.uom'].sudo().search([
+                            '|', ('name', '=', str(uom_name)), ('name', '=ilike', str(uom_name))
+                        ], limit=1)
                         if uom_rec:
                             line_vals['uom_id'] = uom_rec.id
+
+                    if not line_vals.get('uom_id') and getattr(product, 'uom_id', None):
+                        line_vals['uom_id'] = product.uom_id.id
 
                     env['havanoposdesk.sale.line'].create(line_vals)
 
