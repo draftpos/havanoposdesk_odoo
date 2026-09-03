@@ -10022,6 +10022,138 @@ class HavanoPOSDeskAPI(http.Controller):
                 custom_cr.close()
 
 
+    @http.route(['/api/method/saas_api.www.api.open_table', '/api/method/saas_api.www.api.open_restaurant_table'], auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_open_table(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = self._get_request_json()
+        if not token:
+            token = params.get('token')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"error": "Unauthorized"}, status=401)
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            table_id = params.get('table_id')
+            waiter_id = params.get('waiter_id')
+
+            if not table_id:
+                return self._make_json_response({"error": "table_id is required"}, status=400)
+
+            table_rec = env['havanoposdesk.restaurant.table'].sudo().browse(int(table_id)) if str(table_id).isdigit() else env['havanoposdesk.restaurant.table'].sudo().search([('id', '=', table_id)], limit=1)
+            if not table_rec or not table_rec.exists():
+                return self._make_json_response({"error": f"Table '{table_id}' not found"}, status=404)
+
+            waiter_rec = None
+            if waiter_id:
+                waiter_rec = env['havanoposdesk.restaurant.waiter'].sudo().browse(int(waiter_id)) if str(waiter_id).isdigit() else env['havanoposdesk.restaurant.waiter'].sudo().search([('id', '=', waiter_id)], limit=1)
+
+            now_time = fields.Datetime.now()
+            table_vals = {
+                'is_open': True,
+                'assigned_cashier_id': user.id,
+            }
+            if hasattr(table_rec, 'opened_at') and not table_rec.opened_at:
+                table_vals['opened_at'] = now_time
+            if waiter_rec:
+                table_vals['assigned_waiter_id'] = waiter_rec.id
+
+            table_rec.write(table_vals)
+
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "table_id": str(table_rec.id),
+                    "table_name": table_rec.name,
+                    "is_open": True,
+                    "opened_at": table_rec.opened_at.isoformat() if getattr(table_rec, 'opened_at', None) else now_time.isoformat(),
+                    "assigned_cashier_id": str(user.id),
+                    "assigned_waiter_id": str(waiter_rec.id) if waiter_rec else None,
+                }
+            })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/method/saas_api.www.api.get_table_orders', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_get_table_orders(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = self._get_request_json()
+        if not token:
+            token = params.get('token')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"error": "Unauthorized"}, status=401)
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            table_id = params.get('table_id') or kwargs.get('table_id')
+
+            sale_domain = [('tenant_id', '=', tenant.id), ('is_quotation', '=', True)]
+            if 'order_status' in env['havanoposdesk.sale']._fields:
+                sale_domain.append(('order_status', '=', 'pending'))
+            elif 'state' in env['havanoposdesk.sale']._fields:
+                sale_domain.append(('state', '=', 'draft'))
+
+            if table_id:
+                table_rec = env['havanoposdesk.restaurant.table'].sudo().browse(int(table_id)) if str(table_id).isdigit() else env['havanoposdesk.restaurant.table'].sudo().search([('id', '=', table_id)], limit=1)
+                if table_rec and table_rec.exists():
+                    sale_domain.append(('table_id', '=', table_rec.id))
+                    if getattr(table_rec, 'opened_at', None):
+                        sale_domain.append(('create_date', '>=', table_rec.opened_at))
+
+            quotations = env['havanoposdesk.sale'].search(sale_domain, order='create_date asc')
+            orders_data = []
+            for q in quotations:
+                cust = getattr(q, 'customer', None) or getattr(q, 'customer_id', None)
+                cust_name = cust.name if cust else "Customer"
+                orders_data.append({
+                    "id": str(q.id),
+                    "parent_order_number": q.name or str(q.id),
+                    "table_id": str(q.table_id.id) if getattr(q, 'table_id', None) else None,
+                    "floor_id": str(q.floor_id.id) if getattr(q, 'floor_id', None) else None,
+                    "waiter_id": str(q.waiter_id.id) if getattr(q, 'waiter_id', None) else None,
+                    "customer_id": cust_name,
+                    "customer_name": cust_name,
+                    "total_amount": getattr(q, 'total_amount', 0.0) or 0.0,
+                    "tax_amount": getattr(q, 'total_tax_amount', 0.0) or 0.0,
+                    "discount_amount": getattr(q, 'discount_amount', 0.0) or 0.0,
+                    "currency": q.currency_id.name if q.currency_id else "USD",
+                    "transaction_date": q.create_date.isoformat() if q.create_date else "",
+                    "items": [{
+                        "item_code": getattr(line.product_id, 'item_code', None) or getattr(line.product_id, 'default_code', None) or (line.product_id.name if line.product_id else ""),
+                        "item_name": line.product_id.name if line.product_id else "",
+                        "quantity": getattr(line, 'accepted_qty', getattr(line, 'quantity', 1.0)) or 1.0,
+                        "rate": getattr(line, 'rate', getattr(line, 'price_unit', 0.0)) or 0.0,
+                        "amount": getattr(line, 'amount', getattr(line, 'price_subtotal', 0.0)) or 0.0,
+                        "uom": line.uom_id.name if getattr(line, 'uom_id', None) else "Nos",
+                    } for line in q.line_ids]
+                })
+
+            return self._make_json_response({"data": orders_data, "message": {"orders": orders_data}})
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
     @http.route('/api/method/saas_api.www.api.get_restaurant_data', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_restaurant_data(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
@@ -10340,26 +10472,36 @@ class HavanoPOSDeskAPI(http.Controller):
                         elif 'state' in active_order._fields:
                             active_order.write({'state': 'done'})
 
-                    table_rec.write({
-                        'is_open': False,
-                        'opened_at': False,
-                        'assigned_waiter_id': False,
-                        'assigned_cashier_id': False,
-                        'active_order_id': False,
-                    })
-
                     if 'table_id' in env['havanoposdesk.sale']._fields:
                         domain = [('table_id', '=', table_rec.id)]
                         if 'order_status' in env['havanoposdesk.sale']._fields:
                             domain.append(('order_status', '=', 'pending'))
-                            pending_sales = env['havanoposdesk.sale'].search(domain)
-                            if pending_sales:
-                                pending_sales.write({'order_status': 'completed'})
                         elif 'state' in env['havanoposdesk.sale']._fields:
                             domain.append(('state', '=', 'draft'))
-                            pending_sales = env['havanoposdesk.sale'].search(domain)
-                            if pending_sales:
+
+                        pending_sales = env['havanoposdesk.sale'].search(domain)
+                        if pending_sales:
+                            if 'order_status' in env['havanoposdesk.sale']._fields:
+                                pending_sales.write({'order_status': 'completed'})
+                            elif 'state' in env['havanoposdesk.sale']._fields:
                                 pending_sales.write({'state': 'done'})
+
+                    # Table remains open until all orders under it are settled
+                    remaining_domain = [('table_id', '=', table_rec.id)]
+                    if 'order_status' in env['havanoposdesk.sale']._fields:
+                        remaining_domain.append(('order_status', '=', 'pending'))
+                    elif 'state' in env['havanoposdesk.sale']._fields:
+                        remaining_domain.append(('state', '=', 'draft'))
+
+                    remaining_orders = env['havanoposdesk.sale'].search(remaining_domain, limit=1)
+                    if not remaining_orders:
+                        table_rec.write({
+                            'is_open': False,
+                            'opened_at': False,
+                            'assigned_waiter_id': False,
+                            'assigned_cashier_id': False,
+                            'active_order_id': False,
+                        })
 
             return self._make_json_response({
                 "message": {
