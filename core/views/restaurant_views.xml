@@ -57,6 +57,11 @@
                     <field name="name"/>
                     <field name="floor_id"/>
                     <field name="seats"/>
+                    <field name="is_open" widget="boolean_toggle"/>
+                    <field name="opened_at"/>
+                    <field name="assigned_waiter_id"/>
+                    <field name="assigned_cashier_id"/>
+                    <field name="active_order_id"/>
                     <field name="active" widget="boolean_toggle"/>
                 </list>
             </field>
@@ -69,10 +74,19 @@
                 <form>
                     <sheet>
                         <group>
-                            <field name="name"/>
-                            <field name="floor_id"/>
-                            <field name="seats"/>
-                            <field name="active" widget="boolean_toggle"/>
+                            <group>
+                                <field name="name"/>
+                                <field name="floor_id"/>
+                                <field name="seats"/>
+                                <field name="active" widget="boolean_toggle"/>
+                            </group>
+                            <group string="Live Table Status">
+                                <field name="is_open" widget="boolean_toggle"/>
+                                <field name="opened_at" readonly="1"/>
+                                <field name="assigned_waiter_id"/>
+                                <field name="assigned_cashier_id"/>
+                                <field name="active_order_id" readonly="1"/>
+                            </group>
                         </group>
                     </sheet>
                 </form>

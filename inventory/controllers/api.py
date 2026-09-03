@@ -9981,13 +9981,18 @@ class HavanoPOSDeskAPI(http.Controller):
                 
             tables_data = []
             for t in tables:
+                opened_at_val = getattr(t, 'opened_at', None)
                 tables_data.append({
                     "id": str(t.id),
                     "name": t.name,
                     "seats": t.seats,
                     "floor_id": str(t.floor_id.id) if t.floor_id else None,
                     "is_open": getattr(t, 'is_open', False),
+                    "opened_at": opened_at_val.isoformat() if opened_at_val else None,
                     "assigned_waiter_id": str(t.assigned_waiter_id.id) if getattr(t, 'assigned_waiter_id', None) else None,
+                    "assigned_cashier_id": str(t.assigned_cashier_id.id) if getattr(t, 'assigned_cashier_id', None) else None,
+                    "assigned_cashier_name": t.assigned_cashier_id.name if getattr(t, 'assigned_cashier_id', None) else None,
+                    "active_order_id": str(t.active_order_id.id) if getattr(t, 'active_order_id', None) else None,
                 })
 
             sale_domain = [
