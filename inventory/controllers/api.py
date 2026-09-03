@@ -10051,3 +10051,146 @@ class HavanoPOSDeskAPI(http.Controller):
         finally:
             if custom_cr:
                 custom_cr.close()
+
+
+    @http.route('/api/method/saas_api.www.api.save_kitchen_order', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_save_kitchen_order(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = self._get_request_json()
+        if not token:
+            token = params.get('token')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"error": "Unauthorized"}, status=401)
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+
+            table_id = params.get('table_id')
+            floor_id = params.get('floor_id')
+            waiter_id = params.get('waiter_id')
+            items = params.get('items') or params.get('cartItems') or []
+            total_amount = float(params.get('total_amount') or 0.0)
+            tax_amount = float(params.get('tax_amount') or 0.0)
+
+            table_rec = None
+            if table_id:
+                table_rec = env['havanoposdesk.restaurant.table'].sudo().browse(int(table_id)) if str(table_id).isdigit() else env['havanoposdesk.restaurant.table'].sudo().search([('id', '=', table_id)], limit=1)
+
+            waiter_rec = None
+            if waiter_id:
+                waiter_rec = env['havanoposdesk.restaurant.waiter'].sudo().browse(int(waiter_id)) if str(waiter_id).isdigit() else None
+
+            floor_rec = None
+            if floor_id:
+                floor_rec = env['havanoposdesk.restaurant.floor'].sudo().browse(int(floor_id)) if str(floor_id).isdigit() else None
+
+            customer_name = params.get('customer_name') or params.get('customer') or 'Restaurant Guest'
+            partner = env['res.partner'].sudo().search([('name', '=', customer_name)], limit=1)
+            if not partner:
+                partner = env['res.partner'].sudo().create({'name': customer_name})
+
+            sale_vals = {
+                'customer_id': partner.id,
+                'total_amount': total_amount,
+                'total_tax_amount': tax_amount,
+                'is_quotation': True,
+                'order_status': 'pending',
+                'tenant_id': tenant.id if tenant else False,
+                'table_id': table_rec.id if table_rec else False,
+                'floor_id': floor_rec.id if floor_rec else (table_rec.floor_id.id if table_rec and table_rec.floor_id else False),
+                'waiter_id': waiter_rec.id if waiter_rec else False,
+            }
+            sale = env['havanoposdesk.sale'].create(sale_vals)
+
+            for item in items:
+                code = item.get('item_code') or item.get('item_name')
+                product = env['product.product'].sudo().search([('default_code', '=', code)], limit=1)
+                if not product:
+                    product = env['product.product'].sudo().search([('name', '=', code)], limit=1)
+                if product:
+                    qty = float(item.get('quantity') or item.get('qty') or 1.0)
+                    rate = float(item.get('rate') or 0.0)
+                    env['havanoposdesk.sale.line'].create({
+                        'sale_id': sale.id,
+                        'product_id': product.id,
+                        'quantity': qty,
+                        'price_unit': rate,
+                        'price_subtotal': qty * rate,
+                    })
+
+            if table_rec and table_rec.exists():
+                table_vals = {
+                    'is_open': True,
+                    'active_order_id': sale.id,
+                    'assigned_cashier_id': user.id,
+                }
+                if hasattr(table_rec, 'opened_at') and not table_rec.opened_at:
+                    table_vals['opened_at'] = fields.Datetime.now()
+                if waiter_rec:
+                    table_vals['assigned_waiter_id'] = waiter_rec.id
+                table_rec.write(table_vals)
+
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "order_id": str(sale.id),
+                    "name": sale.name or str(sale.id)
+                }
+            })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/method/saas_api.www.api.close_table_order', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_close_table_order(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = self._get_request_json()
+        if not token:
+            token = params.get('token')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"error": "Unauthorized"}, status=401)
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            table_id = params.get('table_id')
+            if table_id:
+                table_rec = env['havanoposdesk.restaurant.table'].sudo().browse(int(table_id)) if str(table_id).isdigit() else env['havanoposdesk.restaurant.table'].sudo().search([('id', '=', table_id)], limit=1)
+                if table_rec and table_rec.exists():
+                    table_rec.write({
+                        'is_open': False,
+                        'opened_at': False,
+                        'assigned_waiter_id': False,
+                        'assigned_cashier_id': False,
+                        'active_order_id': False,
+                    })
+                    pending_sales = env['havanoposdesk.sale'].search([('table_id', '=', table_rec.id), ('order_status', '=', 'pending')])
+                    pending_sales.write({'order_status': 'completed'})
+
+            return self._make_json_response({
+                "message": {
+                    "status": "success"
+                }
+            })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
