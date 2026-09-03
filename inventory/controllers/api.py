@@ -5246,8 +5246,6 @@ class HavanoPOSDeskAPI(http.Controller):
                 'currency_id': currency_rec.id if currency_rec else False,
                 'posting_date': fields.Date.context_today(env['havanoposdesk.sale']),
                 'date': fields.Datetime.now(),
-                'total_amount': total_amount,
-                'total_tax_amount': tax_amount,
                 'discount_amount': discount_amount,
                 'is_quotation': True,
                 'tenant_id': tenant.id if tenant else False,
@@ -10142,8 +10140,6 @@ class HavanoPOSDeskAPI(http.Controller):
                 'currency_id': currency_rec.id if currency_rec else False,
                 'posting_date': fields.Date.context_today(env['havanoposdesk.sale']),
                 'date': fields.Datetime.now(),
-                'total_amount': total_amount,
-                'total_tax_amount': tax_amount,
                 'is_quotation': True,
                 'order_status': 'pending',
                 'tenant_id': tenant.id if tenant else False,
@@ -10216,6 +10212,11 @@ class HavanoPOSDeskAPI(http.Controller):
             if table_id:
                 table_rec = env['havanoposdesk.restaurant.table'].sudo().browse(int(table_id)) if str(table_id).isdigit() else env['havanoposdesk.restaurant.table'].sudo().search([('id', '=', table_id)], limit=1)
                 if table_rec and table_rec.exists():
+                    active_order = getattr(table_rec, 'active_order_id', None)
+                    if active_order and active_order.exists():
+                        if 'order_status' in active_order._fields:
+                            active_order.write({'order_status': 'completed'})
+
                     table_rec.write({
                         'is_open': False,
                         'opened_at': False,
@@ -10223,8 +10224,11 @@ class HavanoPOSDeskAPI(http.Controller):
                         'assigned_cashier_id': False,
                         'active_order_id': False,
                     })
-                    pending_sales = env['havanoposdesk.sale'].search([('table_id', '=', table_rec.id), ('order_status', '=', 'pending')])
-                    pending_sales.write({'order_status': 'completed'})
+
+                    if 'table_id' in env['havanoposdesk.sale']._fields:
+                        pending_sales = env['havanoposdesk.sale'].search([('table_id', '=', table_rec.id), ('order_status', '=', 'pending')])
+                        if pending_sales:
+                            pending_sales.write({'order_status': 'completed'})
 
             return self._make_json_response({
                 "message": {

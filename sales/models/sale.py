@@ -121,6 +121,10 @@ class Sale(models.Model):
 
     allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency')
 
+    table_id = fields.Many2one('havanoposdesk.restaurant.table', string='Restaurant Table', ondelete='set null')
+    floor_id = fields.Many2one('havanoposdesk.restaurant.floor', string='Restaurant Floor', ondelete='set null')
+    waiter_id = fields.Many2one('havanoposdesk.restaurant.waiter', string='Restaurant Waiter', ondelete='set null')
+
     @api.constrains('tenant_id', 'currency_id')
     def _check_currency_belongs_to_tenant(self):
         for sale in self:
