@@ -10141,12 +10141,15 @@ class HavanoPOSDeskAPI(http.Controller):
                 'posting_date': fields.Date.context_today(env['havanoposdesk.sale']),
                 'date': fields.Datetime.now(),
                 'is_quotation': True,
-                'order_status': 'pending',
                 'tenant_id': tenant.id if tenant else False,
                 'table_id': table_rec.id if table_rec else False,
                 'floor_id': floor_rec.id if floor_rec else (table_rec.floor_id.id if table_rec and table_rec.floor_id else False),
                 'waiter_id': waiter_rec.id if waiter_rec else False,
             }
+            if 'order_status' in env['havanoposdesk.sale']._fields:
+                sale_vals['order_status'] = 'pending'
+            elif 'state' in env['havanoposdesk.sale']._fields:
+                sale_vals['state'] = 'draft'
             sale = env['havanoposdesk.sale'].create(sale_vals)
 
             for item in items:
@@ -10216,6 +10219,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     if active_order and active_order.exists():
                         if 'order_status' in active_order._fields:
                             active_order.write({'order_status': 'completed'})
+                        elif 'state' in active_order._fields:
+                            active_order.write({'state': 'done'})
 
                     table_rec.write({
                         'is_open': False,
@@ -10226,9 +10231,17 @@ class HavanoPOSDeskAPI(http.Controller):
                     })
 
                     if 'table_id' in env['havanoposdesk.sale']._fields:
-                        pending_sales = env['havanoposdesk.sale'].search([('table_id', '=', table_rec.id), ('order_status', '=', 'pending')])
-                        if pending_sales:
-                            pending_sales.write({'order_status': 'completed'})
+                        domain = [('table_id', '=', table_rec.id)]
+                        if 'order_status' in env['havanoposdesk.sale']._fields:
+                            domain.append(('order_status', '=', 'pending'))
+                            pending_sales = env['havanoposdesk.sale'].search(domain)
+                            if pending_sales:
+                                pending_sales.write({'order_status': 'completed'})
+                        elif 'state' in env['havanoposdesk.sale']._fields:
+                            domain.append(('state', '=', 'draft'))
+                            pending_sales = env['havanoposdesk.sale'].search(domain)
+                            if pending_sales:
+                                pending_sales.write({'state': 'done'})
 
             return self._make_json_response({
                 "message": {
