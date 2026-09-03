@@ -10097,11 +10097,11 @@ class HavanoPOSDeskAPI(http.Controller):
                     "currency": q.currency_id.name if q.currency_id else "USD",
                     "transaction_date": q.create_date.isoformat() if q.create_date else "",
                     "items": [{
-                        "item_code": line.product_id.default_code or line.product_id.name if line.product_id else "",
+                        "item_code": getattr(line.product_id, 'item_code', None) or getattr(line.product_id, 'default_code', None) or (line.product_id.name if line.product_id else ""),
                         "item_name": line.product_id.name if line.product_id else "",
-                        "quantity": line.quantity or 1.0,
-                        "rate": line.price_unit or 0.0,
-                        "amount": line.price_subtotal or 0.0,
+                        "quantity": getattr(line, 'accepted_qty', getattr(line, 'quantity', 1.0)) or 1.0,
+                        "rate": getattr(line, 'rate', getattr(line, 'price_unit', 0.0)) or 0.0,
+                        "amount": getattr(line, 'amount', getattr(line, 'price_subtotal', 0.0)) or 0.0,
                         "uom": line.uom_id.name if getattr(line, 'uom_id', None) else "Nos",
                     } for line in q.line_ids]
                 })
