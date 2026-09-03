@@ -5229,9 +5229,12 @@ class HavanoPOSDeskAPI(http.Controller):
                 'total_tax_amount': tax_amount,
                 'discount_amount': discount_amount,
                 'is_quotation': True,
-                'order_status': 'pending',
                 'tenant_id': tenant.id if tenant else False,
             }
+            if 'order_status' in env['havanoposdesk.sale']._fields:
+                sale_vals['order_status'] = 'pending'
+            elif 'state' in env['havanoposdesk.sale']._fields:
+                sale_vals['state'] = 'draft'
             sale = env['havanoposdesk.sale'].create(sale_vals)
 
             for item in items:
@@ -9987,11 +9990,16 @@ class HavanoPOSDeskAPI(http.Controller):
                     "assigned_waiter_id": str(t.assigned_waiter_id.id) if getattr(t, 'assigned_waiter_id', None) else None,
                 })
 
-            quotations = env['havanoposdesk.sale'].search([
+            sale_domain = [
                 ('tenant_id', '=', tenant.id),
                 ('is_quotation', '=', True),
-                ('order_status', '=', 'pending')
-            ]) if 'is_quotation' in env['havanoposdesk.sale']._fields else []
+            ]
+            if 'order_status' in env['havanoposdesk.sale']._fields:
+                sale_domain.append(('order_status', '=', 'pending'))
+            elif 'state' in env['havanoposdesk.sale']._fields:
+                sale_domain.append(('state', '=', 'draft'))
+
+            quotations = env['havanoposdesk.sale'].search(sale_domain) if 'is_quotation' in env['havanoposdesk.sale']._fields else []
             orders_data = []
             for q in quotations:
                 orders_data.append({
