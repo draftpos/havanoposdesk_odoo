@@ -5122,17 +5122,147 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
-    @http.route('/api/method/saas_api.www.api.get_quotations', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route('/api/method/saas_api.www.api.get_quotations', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_quotations_list(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
 
-        return self._make_json_response({
-            "message": {
-                "status": "success",
-                "quotations": []
+        token = request.httprequest.headers.get('Authorization')
+        params = request.httprequest.args.to_dict()
+        if not token:
+            token = params.get('token')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"error": "Unauthorized"}, status=401)
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            domain = [('tenant_id', '=', tenant.id)] if tenant else []
+            if 'is_quotation' in env['havanoposdesk.sale']._fields:
+                domain.append(('is_quotation', '=', True))
+
+            date_param = params.get('date') or kwargs.get('date')
+            if date_param:
+                domain.append(('posting_date', '>=', f"{date_param} 00:00:00"))
+                domain.append(('posting_date', '<=', f"{date_param} 23:59:59"))
+
+            quotation_recs = env['havanoposdesk.sale'].search(domain, order='create_date desc', limit=100)
+            quotations_list = []
+            for q in quotation_recs:
+                items_list = []
+                for line in q.line_ids:
+                    items_list.append({
+                        "item_code": line.product_id.default_code or line.product_id.name if line.product_id else "",
+                        "item_name": line.product_id.name if line.product_id else "",
+                        "qty": line.quantity or 1.0,
+                        "quantity": line.quantity or 1.0,
+                        "rate": line.price_unit or 0.0,
+                        "amount": line.price_subtotal or 0.0,
+                        "uom": line.uom_id.name if getattr(line, 'uom_id', None) else "Nos",
+                    })
+
+                quotations_list.append({
+                    "name": q.name or str(q.id),
+                    "customer": q.customer_id.name if q.customer_id else "Customer",
+                    "customer_name": q.customer_id.name if q.customer_id else "Customer",
+                    "transaction_date": q.posting_date.isoformat() if getattr(q, 'posting_date', None) else (q.create_date.isoformat() if q.create_date else ""),
+                    "grand_total": getattr(q, 'total_amount', 0.0) or 0.0,
+                    "total_amount": getattr(q, 'total_amount', 0.0) or 0.0,
+                    "total_tax_amount": getattr(q, 'total_tax_amount', 0.0) or 0.0,
+                    "discount_amount": getattr(q, 'discount_amount', 0.0) or 0.0,
+                    "currency": q.currency_id.name if q.currency_id else "USD",
+                    "status": "Draft",
+                    "items": items_list,
+                })
+
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "quotations": quotations_list
+                }
+            })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route('/api/method/saas_api.www.api.create_quotation', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_create_quotation(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = self._get_request_json()
+        if not token:
+            token = params.get('token')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+            if not uid:
+                return self._make_json_response({"error": "Unauthorized"}, status=401)
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+            
+            customer_name = params.get('customer') or params.get('customer_name') or 'Standard Customer'
+            partner = env['res.partner'].sudo().search([('name', '=', customer_name)], limit=1)
+            if not partner:
+                partner = env['res.partner'].sudo().create({'name': customer_name})
+
+            items = params.get('items') or params.get('cartItems') or []
+            total_amount = float(params.get('total_amount') or params.get('grand_total') or 0.0)
+            tax_amount = float(params.get('tax_amount') or params.get('total_tax_amount') or 0.0)
+            discount_amount = float(params.get('discount_amount') or 0.0)
+
+            sale_vals = {
+                'customer_id': partner.id,
+                'total_amount': total_amount,
+                'total_tax_amount': tax_amount,
+                'discount_amount': discount_amount,
+                'is_quotation': True,
+                'order_status': 'pending',
+                'tenant_id': tenant.id if tenant else False,
             }
-        })
+            sale = env['havanoposdesk.sale'].create(sale_vals)
+
+            for item in items:
+                code = item.get('item_code') or item.get('code') or item.get('item_name')
+                product = env['product.product'].sudo().search([('default_code', '=', code)], limit=1)
+                if not product:
+                    product = env['product.product'].sudo().search([('name', '=', code)], limit=1)
+                if product:
+                    qty = float(item.get('qty') or item.get('quantity') or 1.0)
+                    rate = float(item.get('rate') or item.get('price') or 0.0)
+                    env['havanoposdesk.sale.line'].create({
+                        'sale_id': sale.id,
+                        'product_id': product.id,
+                        'quantity': qty,
+                        'price_unit': rate,
+                        'price_subtotal': qty * rate,
+                    })
+
+            quotation_name = sale.name or f"QUOT-{sale.id:05d}"
+            return self._make_json_response({
+                "message": {
+                    "status": "success",
+                    "quotation": quotation_name,
+                    "name": quotation_name
+                }
+            })
+        except Exception as e:
+            return self._make_json_response({"error": str(e)}, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
 
     @http.route('/api/method/saas_api.www.api.get_pl_cost_center', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_pl_cost_center(self, **kwargs):
