@@ -10024,16 +10024,17 @@ class HavanoPOSDeskAPI(http.Controller):
                 sale_domain.append(('state', '=', 'draft'))
 
             quotations = env['havanoposdesk.sale'].search(sale_domain) if 'is_quotation' in env['havanoposdesk.sale']._fields else []
-            orders_data = []
             for q in quotations:
+                cust = getattr(q, 'customer', None) or getattr(q, 'customer_id', None)
+                cust_name = cust.name if cust else "Customer"
                 orders_data.append({
                     "id": str(q.id),
                     "parent_order_number": q.name or str(q.id),
                     "table_id": str(q.table_id.id) if getattr(q, 'table_id', None) else None,
                     "floor_id": str(q.floor_id.id) if getattr(q, 'floor_id', None) else None,
                     "waiter_id": str(q.waiter_id.id) if getattr(q, 'waiter_id', None) else None,
-                    "customer_id": q.customer_id.name if q.customer_id else "Customer",
-                    "customer_name": q.customer_id.name if q.customer_id else "Customer",
+                    "customer_id": cust_name,
+                    "customer_name": cust_name,
                     "total_amount": getattr(q, 'total_amount', 0.0) or 0.0,
                     "tax_amount": getattr(q, 'total_tax_amount', 0.0) or 0.0,
                     "discount_amount": getattr(q, 'discount_amount', 0.0) or 0.0,
