@@ -9853,6 +9853,38 @@ class HavanoPOSDeskAPI(http.Controller):
                     "name": t.name,
                     "seats": t.seats,
                     "floor_id": str(t.floor_id.id) if t.floor_id else None,
+                    "is_open": getattr(t, 'is_open', False),
+                    "assigned_waiter_id": str(t.assigned_waiter_id.id) if getattr(t, 'assigned_waiter_id', None) else None,
+                })
+
+            quotations = env['havanoposdesk.sale'].search([
+                ('tenant_id', '=', tenant.id),
+                ('is_quotation', '=', True),
+                ('order_status', '=', 'pending')
+            ]) if 'is_quotation' in env['havanoposdesk.sale']._fields else []
+            orders_data = []
+            for q in quotations:
+                orders_data.append({
+                    "id": str(q.id),
+                    "parent_order_number": q.name or str(q.id),
+                    "table_id": str(q.table_id.id) if getattr(q, 'table_id', None) else None,
+                    "floor_id": str(q.floor_id.id) if getattr(q, 'floor_id', None) else None,
+                    "waiter_id": str(q.waiter_id.id) if getattr(q, 'waiter_id', None) else None,
+                    "customer_id": q.customer_id.name if q.customer_id else "Customer",
+                    "customer_name": q.customer_id.name if q.customer_id else "Customer",
+                    "total_amount": getattr(q, 'total_amount', 0.0) or 0.0,
+                    "tax_amount": getattr(q, 'total_tax_amount', 0.0) or 0.0,
+                    "discount_amount": getattr(q, 'discount_amount', 0.0) or 0.0,
+                    "currency": q.currency_id.name if q.currency_id else "USD",
+                    "transaction_date": q.create_date.isoformat() if q.create_date else "",
+                    "items": [{
+                        "item_code": line.product_id.default_code or line.product_id.name if line.product_id else "",
+                        "item_name": line.product_id.name if line.product_id else "",
+                        "quantity": line.quantity or 1.0,
+                        "rate": line.price_unit or 0.0,
+                        "amount": line.price_subtotal or 0.0,
+                        "uom": line.uom_id.name if getattr(line, 'uom_id', None) else "Nos",
+                    } for line in q.line_ids]
                 })
                 
             waiters_data = []
@@ -9868,6 +9900,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "floors": floors_data,
                     "tables": tables_data,
                     "waiters": waiters_data,
+                    "orders": orders_data,
                 }
             })
         except Exception as e:

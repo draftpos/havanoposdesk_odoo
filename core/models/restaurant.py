@@ -27,6 +27,8 @@ class RestaurantTable(models.Model):
     name = fields.Char(string='Table Name', required=True)
     seats = fields.Integer(string='Seats', default=1)
     active = fields.Boolean(default=True)
+    is_open = fields.Boolean(string='Is Open', default=False)
+    assigned_waiter_id = fields.Many2one('havanoposdesk.restaurant.waiter', string='Assigned Waiter', ondelete='set null')
     floor_id = fields.Many2one('havanoposdesk.restaurant.floor', string='Floor', required=True, ondelete='cascade')
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
