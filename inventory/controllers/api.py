@@ -5244,6 +5244,22 @@ class HavanoPOSDeskAPI(http.Controller):
             if not pricelist:
                 pricelist = env['havanoposdesk.pricelist'].sudo().search([], limit=1)
 
+            table_id = params.get('table_id')
+            floor_id = params.get('floor_id')
+            waiter_id = params.get('waiter_id')
+
+            table_rec = None
+            if table_id:
+                table_rec = env['havanoposdesk.restaurant.table'].sudo().browse(int(table_id)) if str(table_id).isdigit() else env['havanoposdesk.restaurant.table'].sudo().search([('id', '=', table_id)], limit=1)
+
+            waiter_rec = None
+            if waiter_id:
+                waiter_rec = env['havanoposdesk.restaurant.waiter'].sudo().browse(int(waiter_id)) if str(waiter_id).isdigit() else env['havanoposdesk.restaurant.waiter'].sudo().search([('id', '=', waiter_id)], limit=1)
+
+            floor_rec = None
+            if floor_id:
+                floor_rec = env['havanoposdesk.restaurant.floor'].sudo().browse(int(floor_id)) if str(floor_id).isdigit() else None
+
             sale_vals = {
                 'customer': customer_rec.id if customer_rec else False,
                 'store': store_rec.name if store_rec else "",
@@ -5256,6 +5272,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 'discount_amount': discount_amount,
                 'is_quotation': True,
                 'tenant_id': tenant.id if tenant else False,
+                'table_id': table_rec.id if table_rec else False,
+                'floor_id': floor_rec.id if floor_rec else (table_rec.floor_id.id if table_rec and table_rec.floor_id else False),
+                'waiter_id': waiter_rec.id if waiter_rec else False,
             }
             if 'order_status' in env['havanoposdesk.sale']._fields:
                 sale_vals['order_status'] = 'pending'
@@ -5327,6 +5346,18 @@ class HavanoPOSDeskAPI(http.Controller):
                         line_vals['uom_id'] = product.uom_id.id
 
                     env['havanoposdesk.sale.line'].create(line_vals)
+
+            if table_rec and table_rec.exists():
+                table_vals = {
+                    'is_open': True,
+                    'active_order_id': sale.id,
+                    'assigned_cashier_id': user.id,
+                }
+                if hasattr(table_rec, 'opened_at') and not table_rec.opened_at:
+                    table_vals['opened_at'] = fields.Datetime.now()
+                if waiter_rec:
+                    table_vals['assigned_waiter_id'] = waiter_rec.id
+                table_rec.write(table_vals)
 
             quotation_name = sale.name or f"QUOT-{sale.id:05d}"
             return self._make_json_response({
@@ -10106,7 +10137,7 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id
             table_id = params.get('table_id') or kwargs.get('table_id')
 
-            sale_domain = [('tenant_id', '=', tenant.id), '|', ('table_id', '!=', False), ('is_quotation', '=', True)]
+            sale_domain = [('tenant_id', '=', tenant.id), ('is_quotation', '=', True)]
             if 'order_status' in env['havanoposdesk.sale']._fields:
                 sale_domain.append(('order_status', '=', 'pending'))
             elif 'state' in env['havanoposdesk.sale']._fields:
@@ -10204,14 +10235,14 @@ class HavanoPOSDeskAPI(http.Controller):
 
             sale_domain = [
                 ('tenant_id', '=', tenant.id),
-                '|', ('table_id', '!=', False), ('is_quotation', '=', True)
+                ('is_quotation', '=', True),
             ]
             if 'order_status' in env['havanoposdesk.sale']._fields:
                 sale_domain.append(('order_status', '=', 'pending'))
             elif 'state' in env['havanoposdesk.sale']._fields:
                 sale_domain.append(('state', '=', 'draft'))
 
-            quotations = env['havanoposdesk.sale'].search(sale_domain)
+            quotations = env['havanoposdesk.sale'].search(sale_domain) if 'is_quotation' in env['havanoposdesk.sale']._fields else []
             for q in quotations:
                 cust = getattr(q, 'customer', None) or getattr(q, 'customer_id', None)
                 cust_name = cust.name if cust else "Customer"
@@ -10341,7 +10372,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'salesperson_id': user.id if user else False,
                 'posting_date': fields.Date.context_today(env['havanoposdesk.sale']),
                 'date': fields.Datetime.now(),
-                'is_quotation': False,
+                'is_quotation': True,
                 'tenant_id': tenant.id if tenant else False,
                 'table_id': table_rec.id if table_rec else False,
                 'floor_id': floor_rec.id if floor_rec else (table_rec.floor_id.id if table_rec and table_rec.floor_id else False),
