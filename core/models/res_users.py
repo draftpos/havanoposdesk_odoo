@@ -51,19 +51,6 @@ class ResUsers(models.Model):
                 if not user.pricelist_id:
                     raise ValidationError(_("Default Pricelist is required for cashier/employee."))
 
-    @api.constrains('store_ids', 'havano_role')
-    def _check_store_access_limit(self):
-        for user in self:
-            if user.havano_role not in ('admin', 'super_admin') and len(user.store_ids) > 1:
-                if user.default_store_id:
-                    user.sudo().write({'store_ids': [(6, 0, [user.default_store_id.id])]})
-                elif user.store_ids:
-                    first_store = user.store_ids[0].id
-                    user.sudo().write({
-                        'default_store_id': first_store,
-                        'store_ids': [(6, 0, [first_store])]
-                    })
-
     @api.constrains('default_store_id', 'pricelist_id')
     def _check_pricelist_belongs_to_store(self):
         for user in self:
@@ -91,26 +78,19 @@ class ResUsers(models.Model):
     @api.onchange('default_store_id')
     def _onchange_default_store_id(self):
         if self.default_store_id:
-            if self.havano_role not in ('admin', 'super_admin'):
-                self.store_ids = self.default_store_id
+            if self.store_ids:
+                self.store_ids = self.store_ids | self.default_store_id
             else:
-                if self.store_ids:
-                    self.store_ids = self.store_ids | self.default_store_id
-                else:
-                    self.store_ids = self.default_store_id
+                self.store_ids = self.default_store_id
 
     @api.onchange('store_ids')
     def _onchange_store_ids(self):
-        if self.havano_role not in ('admin', 'super_admin') and len(self.store_ids) > 1:
-            if self.default_store_id and self.default_store_id in self.store_ids:
-                self.store_ids = self.default_store_id
-            else:
-                self.store_ids = self.store_ids[:1]
-
         if len(self.store_ids) == 1:
             self.default_store_id = self.store_ids[0]
             if self.default_store_id and self.default_store_id.pricelist_id and not self.pricelist_id:
                 self.pricelist_id = self.default_store_id.pricelist_id
+        elif self.default_store_id and self.default_store_id not in self.store_ids:
+            self.default_store_id = self.store_ids[0] if self.store_ids else False
 
     @api.depends('havano_role')
     def _compute_allow_backoffice(self):
@@ -119,14 +99,8 @@ class ResUsers(models.Model):
 
     @api.onchange('havano_role')
     def _onchange_havano_role_profile(self):
-        """Auto-select default profile and trim store_ids to single default store for non-admin roles."""
+        """Auto-select default profile for roles."""
         for user in self:
-            if user.havano_role not in ('admin', 'super_admin'):
-                if user.default_store_id:
-                    user.store_ids = user.default_store_id
-                elif user.store_ids:
-                    user.store_ids = user.store_ids[:1]
-
             if user.havano_role and user.tenant_id:
                 profile_name = ''
                 if user.havano_role == 'super_admin':
