@@ -71,3 +71,4 @@ access_havanoposdesk_category_all_read,havanoposdesk.category all read,model_hav
 access_havanoposdesk_pricelist_all_read,havanoposdesk.pricelist all read,model_havanoposdesk_pricelist,,1,0,0,0
 access_havanoposdesk_product_uom_price_all_read,havanoposdesk.product.uom.price all read,model_havanoposdesk_product_uom_price,,1,0,0,0
 access_havanoposdesk_product_all_read,havanoposdesk.product all read,model_havanoposdesk_product,,1,0,0,0
+access_ir_module_module_group_user_read,ir.module.module read,base.model_ir_module_module,base.group_user,1,0,0,0

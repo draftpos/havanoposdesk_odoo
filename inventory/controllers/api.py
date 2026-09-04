@@ -6953,8 +6953,11 @@ class HavanoPOSDeskAPI(http.Controller):
         store_name = store.name if store else ''
         
         # Warehouse and Cost Center
-        warehouse = user.api_warehouse or (user.tenant_id.api_warehouse if user.tenant_id else False) or store_name
-        cost_center = user.api_cost_center or (user.tenant_id.api_cost_center if user.tenant_id else False) or store_name
+        if user.store_ids:
+            warehouse = ", ".join([s.name for s in user.store_ids])
+        else:
+            warehouse = user.api_warehouse or (user.tenant_id.api_warehouse if user.tenant_id else False) or store_name
+        cost_center = user.api_cost_center or (user.tenant_id.api_cost_center if user.tenant_id else False) or warehouse
         
         # Tenant and Company
         tenant = user.tenant_id
@@ -7970,10 +7973,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 else:
                     role_val = "User"
 
-                store = u.default_store_id or (u.store_ids[0] if u.store_ids else False)
-                store_name = store.name if store else ''
-                warehouse = u.api_warehouse or (tenant.api_warehouse if tenant else False) or store_name
-                cost_center = u.api_cost_center or (tenant.api_cost_center if tenant else False) or store_name
+                if u.store_ids:
+                    warehouse = ", ".join([s.name for s in u.store_ids])
+                else:
+                    store = u.default_store_id or False
+                    store_name = store.name if store else ''
+                    warehouse = u.api_warehouse or (tenant.api_warehouse if tenant else False) or store_name
+                cost_center = u.api_cost_center or (tenant.api_cost_center if tenant else False) or warehouse
                 profile_name = u.user_rights_profile_id.name if u.user_rights_profile_id else "Cashier"
 
                 data_list.append({
@@ -7990,6 +7996,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "mobile_no": u.phone or "",
                     "warehouse": warehouse,
                     "cost_center": cost_center,
+                    "store_ids": u.store_ids.ids if hasattr(u, 'store_ids') and u.store_ids else [],
+                    "shops": [{"id": s.id, "name": s.name} for s in u.store_ids] if hasattr(u, 'store_ids') and u.store_ids else [],
                     "profile_name": profile_name,
                     "enabled": 1 if u.active else 0,
                     "is_active": 1 if u.active else 0,
