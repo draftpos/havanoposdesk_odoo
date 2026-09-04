@@ -18,3 +18,4 @@ from . import dashboard
 from . import support_ticket
 from . import ir_actions_act_window 
 from . import cash_transfer
+from . import restaurant

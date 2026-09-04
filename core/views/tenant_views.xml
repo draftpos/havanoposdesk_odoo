@@ -118,6 +118,9 @@
                                 <field name="active"
                                        readonly="not context.is_super_admin"/>
                             </group>
+                            <group string="Features">
+                                <field name="restaurant_mode_enabled" widget="boolean_toggle"/>
+                            </group>
                         </group>
 
                         <notebook>

@@ -121,6 +121,10 @@ class Sale(models.Model):
 
     allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency')
 
+    table_id = fields.Many2one('havanoposdesk.restaurant.table', string='Restaurant Table', ondelete='set null')
+    floor_id = fields.Many2one('havanoposdesk.restaurant.floor', string='Restaurant Floor', ondelete='set null')
+    waiter_id = fields.Many2one('havanoposdesk.restaurant.waiter', string='Restaurant Waiter', ondelete='set null')
+
     @api.constrains('tenant_id', 'currency_id')
     def _check_currency_belongs_to_tenant(self):
         for sale in self:
@@ -1267,22 +1271,43 @@ class SaleLine(models.Model):
 
     @api.onchange('accepted_qty', 'product_id')
     def _onchange_qty(self):
-        allow_negative = self.env.user.tenant_id.allow_negative_stock
-        if not allow_negative and self.product_id and self.product_id.track_qty and self.accepted_qty > self.product_id.opening_stock:
-            return {
-                'warning': {
-                    'title': 'Insufficient Stock',
-                    'message': f'You only have {self.product_id.opening_stock} of {self.product_id.name} on hand.',
+        if not self.product_id or not self.product_id.track_qty:
+            return
+        tenant = self.sale_id.tenant_id if self.sale_id and self.sale_id.tenant_id else self.env.user.tenant_id
+        allow_negative = tenant.allow_negative_stock if tenant else True
+        if not allow_negative:
+            store_id = self.sale_id.store_id.id if self.sale_id and self.sale_id.store_id else False
+            domain = [('product_id', '=', self.product_id.id)]
+            if store_id:
+                domain.append(('store_id', '=', store_id))
+            valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
+            on_hand = valuation.on_hand_qty if valuation else (self.product_id.on_hand_qty or 0.0)
+            if self.accepted_qty > on_hand:
+                return {
+                    'warning': {
+                        'title': 'Insufficient Stock',
+                        'message': f'You only have {on_hand} of {self.product_id.name} on hand.',
+                    }
                 }
-            }
 
     @api.constrains('accepted_qty')
     def _check_stock(self):
-        allow_negative = self.env.user.tenant_id.allow_negative_stock
         for line in self:
             if line.sale_id and line.sale_id.is_return:
                 continue
-            if line.accepted_qty < 0:
+            if line.accepted_qty <= 0:
                 continue
-            if not allow_negative and line.product_id and line.product_id.track_qty and line.accepted_qty > line.product_id.opening_stock:
-                raise ValidationError(f"You cannot sell {line.accepted_qty} of {line.product_id.name} because you only have {line.product_id.opening_stock} on hand.")
+            if not line.product_id or not line.product_id.track_qty:
+                continue
+
+            tenant = line.sale_id.tenant_id if line.sale_id and line.sale_id.tenant_id else line.env.user.tenant_id
+            allow_negative = tenant.allow_negative_stock if tenant else True
+            if not allow_negative:
+                store_id = line.sale_id.store_id.id if line.sale_id and line.sale_id.store_id else False
+                domain = [('product_id', '=', line.product_id.id)]
+                if store_id:
+                    domain.append(('store_id', '=', store_id))
+                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
+                on_hand = valuation.on_hand_qty if valuation else (line.product_id.on_hand_qty or 0.0)
+                if line.accepted_qty > on_hand:
+                    raise ValidationError(f"You cannot sell {line.accepted_qty} of {line.product_id.name} because you only have {on_hand} on hand.")

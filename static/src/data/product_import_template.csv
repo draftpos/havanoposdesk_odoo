@@ -1,3 +1,8 @@
-name,item_code,barcode,buying_price,category_id/name,uom_id/name,is_active,advanced_price_ids/store_id/name,advanced_price_ids/pricelist_id/name,advanced_price_ids/uom_id/name,advanced_price_ids/qty_to_be_sold,advanced_price_ids/initial_stock,advanced_price_ids/price
-"Coca-Cola 2L","CC-2L","89012345",1.00,"Beverages","Each",1,"Jarvis","Retail","Each",1,50,1.50
-,,,,,,,"Jarvis","Wholesale","Box",12,10,15.00
+name,item_code,barcode,buying_price,category_id/name,uom_id/name,is_active,store_ids/name,advanced_price_ids/store_id/name,advanced_price_ids/pricelist_id/name,advanced_price_ids/uom_id/name,advanced_price_ids/qty_to_be_sold,advanced_price_ids/initial_stock,advanced_price_ids/price
+"Coca-Cola 2L","CC-2L","89012345",1.00,"Beverages","Each",1,"Store A,Store B","Store A","Retail","Each",1,50,1.50
+,,,,,,,"","Store A","Wholesale","Box",12,10,15.00
+,,,,,,,"","Store B","Retail","Each",1,30,1.50
+,,,,,,,"","Store B","Wholesale","Box",12,5,15.00
+"Fanta Orange 500ml","FO-500","89012346",0.50,"Beverages","Each",1,"Store A","Store A","Retail","Each",1,100,0.75
+"Bread White","BW-01","",0.80,"Bakery","Each",1,"Store A,Store B","Store A","Retail","Each",1,20,1.20
+,,,,,,,"","Store B","Retail","Each",1,15,1.20

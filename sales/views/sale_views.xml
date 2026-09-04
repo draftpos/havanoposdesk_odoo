@@ -305,9 +305,24 @@
             </field>
         </record>
 
-        
+        <record id="action_kitchen_orders" model="ir.actions.act_window">
+            <field name="name">Kitchen Orders</field>
+            <field name="res_model">havanoposdesk.sale</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_sale_search" />
+            <field name="domain">['|', ('table_id', '!=', False), ('is_quotation', '=', True)]</field>
+            <field name="context">{'default_is_quotation': True, 'search_default_today': 1}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No active kitchen orders found!
+                </p>
+            </field>
+        </record>
+
+        <!-- Menu Items -->
         <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="5" />
         <menuitem id="menu_quotations" name="Quotations" parent="menu_sales_operations" action="action_quotations" sequence="10" />
+        <menuitem id="menu_kitchen_orders" name="Kitchen Orders" parent="menu_sales_operations" action="action_kitchen_orders" sequence="12" groups="base.group_user" />
         <menuitem id="menu_sales_returns" name="Sales Returns" parent="menu_sales_reports" action="action_sales_returns" sequence="60" />
 
         

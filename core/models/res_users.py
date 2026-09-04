@@ -650,14 +650,28 @@ class ResUsers(models.Model):
             tenant_id = user.tenant_id.id if user.tenant_id else False
             if not tenant_id:
                 continue
+            
+            # If the user already has a profile for their current role, don't auto-overwrite it
+            if user.user_rights_profile_id and user.user_rights_profile_id.havano_role == role:
+                continue
+                
             profile = self.env['havanoposdesk.user.rights.profile'].search([
                 ('tenant_id', '=', tenant_id),
                 ('havano_role', '=', role),
+                ('is_default', '=', True)
             ], limit=1)
+            
+            if not profile:
+                profile = self.env['havanoposdesk.user.rights.profile'].search([
+                    ('tenant_id', '=', tenant_id),
+                    ('havano_role', '=', role),
+                ], limit=1)
+                
             if profile and user.user_rights_profile_id.id != profile.id:
                 user.sudo().with_context(bypass_sync_role_groups=True).write(
                     {'user_rights_profile_id': profile.id}
                 )
+
 
     def action_verify_user(self):
         for user in self:

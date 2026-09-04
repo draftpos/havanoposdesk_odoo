@@ -32,6 +32,7 @@
         'sales/views/shift_report_templates.xml',
         'sales/views/shift_views.xml',
         'core/views/menus.xml',
+        'core/views/restaurant_views.xml',
         'core/views/audit_log_views.xml',
         'core/views/tenant_admin_views.xml',
         'core/views/res_config_settings_views.xml',

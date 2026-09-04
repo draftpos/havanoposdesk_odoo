@@ -20,6 +20,7 @@ class HavanoposdeskUserRightsProfile(models.Model):
     is_additional_tax_enabled = fields.Boolean(string='Is Additional Tax Enabled', default=False)
     food_tax = fields.Float(string='Food Tax %')
     tourism_tax = fields.Float(string='Tourism Tax %')
+    is_default = fields.Boolean(string='Is Default for Role', default=False)
     
     @api.model
     def _get_havano_role_selection(self):
@@ -106,20 +107,14 @@ class HavanoposdeskUserRightsProfile(models.Model):
         records = super().create(vals_list)
         for record in records:
             if record.havano_role and record.tenant_id:
-                users = self.env['res.users'].search([
+                # If this is the very first profile for this role, mark it as default
+                existing = self.env['havanoposdesk.user.rights.profile'].search_count([
                     ('tenant_id', '=', record.tenant_id.id),
                     ('havano_role', '=', record.havano_role),
-                    ('user_rights_profile_id', '!=', record.id)
+                    ('id', '!=', record.id)
                 ])
-                if users:
-                    users.sudo().with_context(bypass_sync_role_groups=True).write({'user_rights_profile_id': record.id})
-        return records
-
-    def write(self, vals):
-        res = super().write(vals)
-        if 'havano_role' in vals:
-            for record in self:
-                if record.havano_role and record.tenant_id:
+                if existing == 0:
+                    record.is_default = True
                     users = self.env['res.users'].search([
                         ('tenant_id', '=', record.tenant_id.id),
                         ('havano_role', '=', record.havano_role),
@@ -127,8 +122,21 @@ class HavanoposdeskUserRightsProfile(models.Model):
                     ])
                     if users:
                         users.sudo().with_context(bypass_sync_role_groups=True).write({'user_rights_profile_id': record.id})
-        return res
+        return records
 
+    def write(self, vals):
+        res = super().write(vals)
+        if 'is_default' in vals:
+            for record in self:
+                if record.is_default and record.havano_role and record.tenant_id:
+                    others = self.env['havanoposdesk.user.rights.profile'].search([
+                        ('tenant_id', '=', record.tenant_id.id),
+                        ('havano_role', '=', record.havano_role),
+                        ('id', '!=', record.id)
+                    ])
+                    if others:
+                        others.write({'is_default': False})
+        return res
 
 class HavanoposdeskUserRightsPermission(models.Model):
     _name = 'havanoposdesk.user.rights.permission'
@@ -414,16 +422,14 @@ def enforce_backoffice_permissions(self, operation, raise_exception=True):
             
         bo_perm = profile.backoffice_permission_ids.filtered(lambda p: p.feature == feature_name)
         if not bo_perm:
-            if user.havano_role in ('admin', 'super_admin') or operation == 'read':
-                return True
+            # If the permission line is completely missing from the profile, deny access
             if raise_exception:
                 raise AccessError(f"Permission Denied: You do not have access to '{feature_name}'.")
             return False
             
         perm = bo_perm[0]
         if not perm.is_full_access and not perm.is_read_only:
-            if operation == 'read' and user.havano_role == 'admin':
-                return True
+            # If both Full Access and Read Only are unchecked, deny all access (hidden)
             if raise_exception:
                 raise AccessError(f"Permission Denied: You do not have access to '{feature_name}'.")
             return False

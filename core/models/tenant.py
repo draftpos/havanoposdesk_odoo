@@ -39,6 +39,7 @@ class HavanoposdeskTenant(models.Model):
             ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
             ("payment_status", "VARCHAR"),
             ("enable_fiscalization", "BOOLEAN DEFAULT FALSE"),
+            ("restaurant_mode_enabled", "BOOLEAN DEFAULT FALSE"),
             ("is_vat_registered", "BOOLEAN DEFAULT FALSE"),
             ("fiscal_provider", "VARCHAR DEFAULT 'havano_zimra'"),
             ("fiscal_base_url", "VARCHAR"),
@@ -97,6 +98,7 @@ class HavanoposdeskTenant(models.Model):
 
     # ZIMRA Fiscalization Settings
     enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
+    restaurant_mode_enabled = fields.Boolean(string='Enable Restaurant Mode', default=False)
     is_vat_registered = fields.Boolean(string='VAT Registered Taxpayer', default=True)
     fiscal_provider = fields.Selection([
         ('havano_zimra', 'Havano ZIMRA Cloud'),
