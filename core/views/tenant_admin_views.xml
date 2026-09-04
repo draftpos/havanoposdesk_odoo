@@ -117,6 +117,7 @@
                             <group>
                                 <!-- LEFT COLUMN -->
                                 <field name="havano_role" string="User Role" />
+                                <field name="user_rights_profile_id" string="Rights Profile" options="{'no_create': True}" domain="[('tenant_id', '=', tenant_id), ('havano_role', '=', havano_role)]"/>
                                 <field name="pin" string="POS Login PIN" widget="pos_pin_boxes" />
                                 <field name="phone" string="Phone number" />
                                 <field name="has_password" invisible="1" />
