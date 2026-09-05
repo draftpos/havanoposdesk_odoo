@@ -7339,6 +7339,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 "default_customer": default_customer_name,
                 "company": company_name,
                 "role": user.havano_role or "admin",
+                "user_rights": self._get_user_rights_dict(user),
                 "company_registration": {
                     "name": tenant.name if tenant else company_name,
                     "organization_name": tenant.name if tenant else company_name,
@@ -8235,9 +8236,6 @@ class HavanoPOSDeskAPI(http.Controller):
         env, custom_cr = self._get_env(user_id=uid)
         try:
             current_user = env['res.users'].browse(uid)
-            if current_user.havano_role not in ('admin', 'super_admin'):
-                return self._make_json_response({"error": "Access denied. Only admins can fetch users."}, status=403)
-
             tenant = current_user.tenant_id
             domain = [('share', '=', False)]
             if current_user.havano_role != 'super_admin' and tenant:
@@ -8288,7 +8286,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "user_type": "System User",
                     "role": u.havano_role or "user",
                     "role_select": role_val,
-                    "is_admin": is_admin_flag
+                    "is_admin": is_admin_flag,
+                    "user_rights": self._get_user_rights_dict(u)
                 })
 
             return self._make_json_response({
@@ -8844,12 +8843,65 @@ class HavanoPOSDeskAPI(http.Controller):
         }
 
     def _get_user_rights_dict(self, user):
-        # Fallback profile if user is a tenant admin (Full Admin rights)
-        if user.havano_role == 'admin':
-            features = [
-                'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
-                'Stock Management', 'Payment Entries', 'Reports', 'Settings', 'Printer'
-            ]
+        all_pos_features = [
+            'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
+            'Categories', 'Brands', 'Taxes', 'Stock Management',
+            'Payment Entries', 'Reports', 'Profit and Loss', 'Settings',
+            'Printer', 'Terminals', 'Stores', 'Suppliers', 'Customers',
+            'Expenses', 'Payroll', 'User Profiles'
+        ]
+
+        profile = user.user_rights_profile_id
+        if not profile and user.tenant_id:
+            # Look up default profile for this role in the tenant
+            profile = request.env['havanoposdesk.user.rights.profile'].sudo().search([
+                ('tenant_id', '=', user.tenant_id.id),
+                ('havano_role', '=', user.havano_role or 'user'),
+                ('is_default', '=', True)
+            ], limit=1)
+            if not profile:
+                profile = request.env['havanoposdesk.user.rights.profile'].sudo().search([
+                    ('tenant_id', '=', user.tenant_id.id),
+                    ('havano_role', '=', user.havano_role or 'user')
+                ], limit=1)
+
+        is_admin_role = user.havano_role in ('admin', 'super_admin')
+
+        if profile:
+            permissions = []
+            for p in profile.permission_ids:
+                permissions.append({
+                    "feature": p.feature,
+                    "can_read": 1 if p.can_read else 0,
+                    "can_create": 1 if p.can_create else 0,
+                    "can_update": 1 if p.can_update else 0,
+                    "can_delete": 1 if p.can_delete else 0,
+                    "can_submit": 1 if p.can_submit else 0
+                })
+
+            existing_features = [p['feature'] for p in permissions]
+            for f in all_pos_features:
+                if f not in existing_features:
+                    permissions.append({
+                        "feature": f,
+                        "can_read": 1 if is_admin_role else 0,
+                        "can_create": 1 if is_admin_role else 0,
+                        "can_update": 1 if is_admin_role else 0,
+                        "can_delete": 1 if is_admin_role else 0,
+                        "can_submit": 1 if is_admin_role else 0
+                    })
+
+            return {
+                "name": profile.name,
+                "profile_name": profile.name,
+                "is_additional_tax_enabled": 1 if profile.is_additional_tax_enabled else 0,
+                "food_tax": str(profile.food_tax) if profile.food_tax is not None else "0",
+                "tourism_tax": str(profile.tourism_tax) if profile.tourism_tax is not None else "0",
+                "permissions": permissions
+            }
+
+        # Safe fallback when no profile is defined in DB
+        if is_admin_role:
             return {
                 "name": "Admin",
                 "profile_name": "Admin",
@@ -8864,17 +8916,12 @@ class HavanoPOSDeskAPI(http.Controller):
                         "can_update": 1,
                         "can_delete": 1,
                         "can_submit": 1
-                    } for f in features
+                    } for f in all_pos_features
                 ]
             }
-
-        profile = user.user_rights_profile_id
-        if not profile:
-            # Safe default fallback for cashier/user with no profile assigned
-            features = [
-                'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
-                'Stock Management', 'Payment Entries', 'Reports', 'Settings', 'Printer'
-            ]
+        else:
+            cashier_read_features = {'POS', 'Quotations', 'Sales', 'Products', 'Customers', 'Reports'}
+            cashier_write_features = {'POS', 'Quotations', 'Sales', 'Customers'}
             return {
                 "name": "Default Cashier",
                 "profile_name": "Default Cashier",
@@ -8884,52 +8931,14 @@ class HavanoPOSDeskAPI(http.Controller):
                 "permissions": [
                     {
                         "feature": f,
-                        "can_read": 1 if f in ('POS', 'Quotations', 'Sales', 'Products') else 0,
-                        "can_create": 1 if f in ('POS', 'Quotations', 'Sales') else 0,
-                        "can_update": 1 if f in ('POS', 'Quotations', 'Sales') else 0,
+                        "can_read": 1 if f in cashier_read_features else 0,
+                        "can_create": 1 if f in cashier_write_features else 0,
+                        "can_update": 1 if f in cashier_write_features else 0,
                         "can_delete": 0,
-                        "can_submit": 1 if f in ('POS', 'Quotations', 'Sales') else 0
-                    } for f in features
+                        "can_submit": 1 if f in cashier_write_features else 0
+                    } for f in all_pos_features
                 ]
             }
-
-        # Build permissions list from DB configuration
-        permissions = []
-        for p in profile.permission_ids:
-            permissions.append({
-                "feature": p.feature,
-                "can_read": 1 if p.can_read else 0,
-                "can_create": 1 if p.can_create else 0,
-                "can_update": 1 if p.can_update else 0,
-                "can_delete": 1 if p.can_delete else 0,
-                "can_submit": 1 if p.can_submit else 0
-            })
-
-        # Ensure all 10 features exist in the permissions list (fallback defaults if missing in DB configuration)
-        existing_features = [p['feature'] for p in permissions]
-        all_features = [
-            'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
-            'Stock Management', 'Payment Entries', 'Reports', 'Settings', 'Printer'
-        ]
-        for f in all_features:
-            if f not in existing_features:
-                permissions.append({
-                    "feature": f,
-                    "can_read": 0,
-                    "can_create": 0,
-                    "can_update": 0,
-                    "can_delete": 0,
-                    "can_submit": 0
-                })
-
-        return {
-            "name": profile.name,
-            "profile_name": profile.name,
-            "is_additional_tax_enabled": 1 if profile.is_additional_tax_enabled else 0,
-            "food_tax": str(profile.food_tax) if profile.food_tax is not None else "0",
-            "tourism_tax": str(profile.tourism_tax) if profile.tourism_tax is not None else "0",
-            "permissions": permissions
-        }
 
     @http.route('/api/support/ticket', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_create_support_ticket(self, **kwargs):
