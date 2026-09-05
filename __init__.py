@@ -223,7 +223,61 @@ def post_migrate(env):
         WHERE name IN ('Havano Category Isolation', 'Havano UOM Isolation', 'Havano Pricelist Isolation', 'Havano Product UOM Price Isolation');
     """)
 
+    # Ensure Cashier profiles have active permissions for POS, Dashboard, Reports, Settings, Sales, Quotations, Customers, Expenses, Printer
+    cashier_full_features = (
+        'POS', 'Dashboard', 'Reports', 'Settings',
+        'Sales', 'Quotations', 'Customers', 'Expenses', 'Printer'
+    )
+    env.cr.execute("""
+        UPDATE havanoposdesk_user_rights_permission p
+        SET can_read = True,
+            can_create = True,
+            can_update = True,
+            can_delete = True,
+            can_submit = True
+        FROM havanoposdesk_user_rights_profile prof
+        WHERE p.profile_id = prof.id
+          AND (prof.havano_role IN ('user', 'cashier') OR prof.name ILIKE '%Cashier%')
+          AND p.feature IN %s
+    """, [cashier_full_features])
+
+    # Ensure any missing POS features are populated for Cashier profiles
+    try:
+        cashier_profiles = env['havanoposdesk.user.rights.profile'].with_context(active_test=False).search([
+            '|', ('havano_role', 'in', ('user', 'cashier')), ('name', 'ilike', 'Cashier')
+        ])
+        all_features = [
+            'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
+            'Categories', 'Brands', 'Taxes', 'Stock Management',
+            'Payment Entries', 'Reports', 'Profit and Loss', 'Settings',
+            'Printer', 'Terminals', 'Stores', 'Suppliers', 'Customers',
+            'Expenses', 'Payroll', 'User Profiles'
+        ]
+        cashier_full_set = set(cashier_full_features)
+        cashier_read_set = {
+            'Products', 'Categories', 'Brands', 'Taxes',
+            'Stock Management', 'Payment Entries', 'Stores', 'Terminals', 'Suppliers'
+        }
+        for prof in cashier_profiles:
+            existing_feats = prof.permission_ids.mapped('feature')
+            for f in all_features:
+                if f not in existing_feats:
+                    is_full = f in cashier_full_set
+                    is_read = is_full or (f in cashier_read_set)
+                    env['havanoposdesk.user.rights.permission'].sudo().create({
+                        'profile_id': prof.id,
+                        'feature': f,
+                        'can_read': is_read,
+                        'can_create': is_full,
+                        'can_update': is_full,
+                        'can_delete': is_full,
+                        'can_submit': is_full,
+                    })
+    except Exception:
+        pass
+
     env.registry.clear_cache()
+
 
 
 

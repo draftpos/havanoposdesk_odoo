@@ -532,7 +532,7 @@ class HavanoposdeskTenant(models.Model):
                 {
                     'name': 'Cashier Profile',
                     'tenant_id': tenant.id,
-                    'havano_role': 'cashier'
+                    'havano_role': 'user'
                 }
             ])
             
@@ -576,12 +576,12 @@ class HavanoposdeskTenant(models.Model):
         profiles = [
             ('Super Admin Profile', 'super_admin'),
             ('Admin Profile', 'admin'),
-            ('Cashier Profile', 'cashier'),
+            ('Cashier Profile', 'user'),
         ]
         for prof_name, role in profiles:
             existing_prof = self.env['havanoposdesk.user.rights.profile'].sudo().search([
                 ('tenant_id', '=', tenant_id),
-                '|', ('name', '=ilike', prof_name), ('havano_role', '=', role)
+                '|', ('name', '=ilike', prof_name), ('havano_role', 'in', (role, 'cashier' if role == 'user' else role))
             ], limit=1)
             if not existing_prof:
                 self.env['havanoposdesk.user.rights.profile'].sudo().create({

@@ -5904,6 +5904,8 @@ class HavanoPOSDeskAPI(http.Controller):
             stock_decimal_places = getattr(tenant, 'stock_decimal_places', 3) if tenant else 3
             do_not_round_stock = 1 if (tenant and getattr(tenant, 'do_not_round_stock', False)) else 0
             expenses_require_approval = 1 if (tenant and getattr(tenant, 'expenses_require_approval', False)) else 0
+            allow_dine_in = 1 if (getattr(tenant, 'allow_dine_in', True) if tenant else True) else 0
+            allow_takeaway = 1 if (getattr(tenant, 'allow_takeaway', True) if tenant else True) else 0
 
             return self._make_json_response({
                 "message": {
@@ -5919,7 +5921,9 @@ class HavanoPOSDeskAPI(http.Controller):
                         "stock_decimal_places": stock_decimal_places,
                         "do_not_round_stock": do_not_round_stock,
                         "stock_decimal_places_count": stock_decimal_places,
-                        "expenses_require_approval": expenses_require_approval
+                        "expenses_require_approval": expenses_require_approval,
+                        "allow_dine_in": allow_dine_in,
+                        "allow_takeaway": allow_takeaway
                     }
                 }
             })
@@ -5959,6 +5963,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 user_rec.max_discount_percent = float(settings_data['max_discount_percent'])
             if 'expenses_require_approval' in settings_data:
                 tenant.expenses_require_approval = bool(int(settings_data['expenses_require_approval']))
+            if 'allow_dine_in' in settings_data and hasattr(tenant, 'allow_dine_in'):
+                tenant.allow_dine_in = bool(int(settings_data['allow_dine_in']))
+            if 'allow_takeaway' in settings_data and hasattr(tenant, 'allow_takeaway'):
+                tenant.allow_takeaway = bool(int(settings_data['allow_takeaway']))
                 
             env.cr.commit()
             return self._make_json_response({"message": "Settings updated successfully"}, status=200)
@@ -8882,6 +8890,15 @@ class HavanoPOSDeskAPI(http.Controller):
 
         is_admin_role = user.havano_role in ('admin', 'super_admin')
 
+        cashier_full_access = {
+            'POS', 'Dashboard', 'Reports', 'Settings',
+            'Sales', 'Quotations', 'Customers', 'Expenses', 'Printer'
+        }
+        cashier_read_only = {
+            'Products', 'Categories', 'Brands', 'Taxes',
+            'Stock Management', 'Payment Entries', 'Stores', 'Terminals', 'Suppliers'
+        }
+
         if profile:
             permissions = []
             for p in profile.permission_ids:
@@ -8897,14 +8914,26 @@ class HavanoPOSDeskAPI(http.Controller):
             existing_features = [p['feature'] for p in permissions]
             for f in all_pos_features:
                 if f not in existing_features:
-                    permissions.append({
-                        "feature": f,
-                        "can_read": 1 if is_admin_role else 0,
-                        "can_create": 1 if is_admin_role else 0,
-                        "can_update": 1 if is_admin_role else 0,
-                        "can_delete": 1 if is_admin_role else 0,
-                        "can_submit": 1 if is_admin_role else 0
-                    })
+                    if is_admin_role:
+                        permissions.append({
+                            "feature": f,
+                            "can_read": 1,
+                            "can_create": 1,
+                            "can_update": 1,
+                            "can_delete": 1,
+                            "can_submit": 1
+                        })
+                    else:
+                        is_full = f in cashier_full_access
+                        is_read = is_full or (f in cashier_read_only)
+                        permissions.append({
+                            "feature": f,
+                            "can_read": 1 if is_read else 0,
+                            "can_create": 1 if is_full else 0,
+                            "can_update": 1 if is_full else 0,
+                            "can_delete": 1 if is_full else 0,
+                            "can_submit": 1 if is_full else 0
+                        })
 
             return {
                 "name": profile.name,
@@ -8935,22 +8964,20 @@ class HavanoPOSDeskAPI(http.Controller):
                 ]
             }
         else:
-            cashier_read_features = {'POS', 'Quotations', 'Sales', 'Products', 'Customers', 'Reports'}
-            cashier_write_features = {'POS', 'Quotations', 'Sales', 'Customers'}
             return {
-                "name": "Default Cashier",
-                "profile_name": "Default Cashier",
+                "name": "Cashier Profile",
+                "profile_name": "Cashier Profile",
                 "is_additional_tax_enabled": 0,
                 "food_tax": "0",
                 "tourism_tax": "0",
                 "permissions": [
                     {
                         "feature": f,
-                        "can_read": 1 if f in cashier_read_features else 0,
-                        "can_create": 1 if f in cashier_write_features else 0,
-                        "can_update": 1 if f in cashier_write_features else 0,
-                        "can_delete": 0,
-                        "can_submit": 1 if f in cashier_write_features else 0
+                        "can_read": 1 if (f in cashier_full_access or f in cashier_read_only) else 0,
+                        "can_create": 1 if f in cashier_full_access else 0,
+                        "can_update": 1 if f in cashier_full_access else 0,
+                        "can_delete": 1 if f in cashier_full_access else 0,
+                        "can_submit": 1 if f in cashier_full_access else 0
                     } for f in all_pos_features
                 ]
             }
@@ -10283,6 +10310,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 orders_data.append({
                     "id": str(q.id),
                     "parent_order_number": parent_order_no,
+                    "order_type": getattr(q, 'order_type', None) or ('dine_in' if getattr(q, 'table_id', None) else 'takeaway'),
                     "table_id": str(q.table_id.id) if getattr(q, 'table_id', None) else None,
                     "floor_id": str(q.floor_id.id) if getattr(q, 'floor_id', None) else None,
                     "waiter_id": str(q.waiter_id.id) if getattr(q, 'waiter_id', None) else None,
@@ -10317,6 +10345,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "tables": tables_data,
                     "waiters": waiters_data,
                     "orders": orders_data,
+                    "allow_dine_in": bool(getattr(tenant, 'allow_dine_in', True)),
+                    "allow_takeaway": bool(getattr(tenant, 'allow_takeaway', True)),
                 }
             })
         except Exception as e:
@@ -10350,6 +10380,7 @@ class HavanoPOSDeskAPI(http.Controller):
             table_id = params.get('table_id')
             floor_id = params.get('floor_id')
             waiter_id = params.get('waiter_id')
+            order_type = params.get('order_type') or params.get('orderType') or ('dine_in' if table_id else 'takeaway')
             parent_order_number = params.get('parent_order_number') or params.get('parentOrderNumber')
             items = params.get('items') or params.get('cartItems') or []
             total_amount = float(params.get('total_amount') or 0.0)
@@ -10413,6 +10444,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 'floor_id': floor_rec.id if floor_rec else (table_rec.floor_id.id if table_rec and table_rec.floor_id else False),
                 'waiter_id': waiter_rec.id if waiter_rec else False,
             }
+            if 'order_type' in env['havanoposdesk.sale']._fields:
+                sale_vals['order_type'] = order_type
             if parent_order_number:
                 if 'parent_order_number' in env['havanoposdesk.sale']._fields:
                     sale_vals['parent_order_number'] = parent_order_number

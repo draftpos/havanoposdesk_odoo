@@ -65,19 +65,58 @@ class HavanoposdeskUserRightsProfile(models.Model):
                     'Categories', 'Brands', 'Taxes', 'Stock Management',
                     'Payment Entries', 'Reports', 'Profit and Loss', 'Settings',
                     'Printer', 'Terminals', 'Stores', 'Suppliers', 'Customers',
-                    'Expenses', 'User Profiles'
+                    'Expenses', 'Payroll', 'User Profiles'
                 ]
                 permission_lines = []
                 is_cashier = vals.get('havano_role') in ('user', 'cashier')
+                
+                cashier_full_access = {
+                    'POS', 'Dashboard', 'Reports', 'Settings',
+                    'Sales', 'Quotations', 'Customers', 'Expenses', 'Printer'
+                }
+                cashier_read_only = {
+                    'Products', 'Categories', 'Brands', 'Taxes',
+                    'Stock Management', 'Payment Entries', 'Stores', 'Terminals', 'Suppliers'
+                }
+
                 for feature in features:
-                    permission_lines.append((0, 0, {
-                        'feature': feature,
-                        'can_read': True,
-                        'can_create': not is_cashier,
-                        'can_update': not is_cashier,
-                        'can_delete': not is_cashier,
-                        'can_submit': not is_cashier,
-                    }))
+                    if is_cashier:
+                        if feature in cashier_full_access:
+                            permission_lines.append((0, 0, {
+                                'feature': feature,
+                                'can_read': True,
+                                'can_create': True,
+                                'can_update': True,
+                                'can_delete': True,
+                                'can_submit': True,
+                            }))
+                        elif feature in cashier_read_only:
+                            permission_lines.append((0, 0, {
+                                'feature': feature,
+                                'can_read': True,
+                                'can_create': False,
+                                'can_update': False,
+                                'can_delete': False,
+                                'can_submit': False,
+                            }))
+                        else:
+                            permission_lines.append((0, 0, {
+                                'feature': feature,
+                                'can_read': False,
+                                'can_create': False,
+                                'can_update': False,
+                                'can_delete': False,
+                                'can_submit': False,
+                            }))
+                    else:
+                        permission_lines.append((0, 0, {
+                            'feature': feature,
+                            'can_read': True,
+                            'can_create': True,
+                            'can_update': True,
+                            'can_delete': True,
+                            'can_submit': True,
+                        }))
                 vals['permission_ids'] = permission_lines
 
             if 'backoffice_permission_ids' not in vals or not vals['backoffice_permission_ids']:
