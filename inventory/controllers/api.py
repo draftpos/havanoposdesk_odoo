@@ -7169,6 +7169,17 @@ class HavanoPOSDeskAPI(http.Controller):
                     status=404
                 )
 
+            # If a specific user is requested in query params, resolve that user in the tenant
+            requested_user = (kwargs.get('user') or request.params.get('user') or kwargs.get('email') or request.params.get('email') or '').strip()
+            if requested_user and user.login != requested_user:
+                tenant = user.tenant_id
+                target_domain = [('share', '=', False), '|', '|', ('login', '=ilike', requested_user), ('name', '=ilike', requested_user), ('partner_id.email', '=ilike', requested_user)]
+                if user.havano_role != 'super_admin' and tenant:
+                    target_domain.append(('tenant_id', '=', tenant.id))
+                found_user = env['res.users'].sudo().search(target_domain, limit=1)
+                if found_user:
+                    user = found_user
+
             # Get user data with proper error handling
             try:
                 user_data = self._get_user_data(user, env)
@@ -8243,7 +8254,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 
             user_filter = (kwargs.get('user') or kwargs.get('email') or request.params.get('user') or request.params.get('email') or '').strip()
             if user_filter:
-                domain.extend(['|', ('login', '=ilike', user_filter), ('email', '=ilike', user_filter)])
+                domain.extend(['|', '|', ('login', '=ilike', user_filter), ('name', '=ilike', user_filter), ('partner_id.email', '=ilike', user_filter)])
 
             odoo_users = env['res.users'].sudo().search(domain)
             data_list = []
