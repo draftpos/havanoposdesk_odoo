@@ -8899,16 +8899,32 @@ class HavanoPOSDeskAPI(http.Controller):
             'Stock Management', 'Payment Entries', 'Stores', 'Terminals', 'Suppliers'
         }
 
+        role_display_name = "Super Admin" if getattr(user, 'havano_role', None) == 'super_admin' else ("Admin" if is_admin_role else "Cashier")
+
         if profile:
             permissions = []
             for p in profile.permission_ids:
+                can_read = 1 if p.can_read else 0
+                can_create = 1 if p.can_create else 0
+                can_update = 1 if p.can_update else 0
+                can_delete = 1 if p.can_delete else 0
+                can_submit = 1 if p.can_submit else 0
+
+                # Ensure cashier full access features are active by default for cashiers
+                if not is_admin_role and p.feature in cashier_full_access:
+                    can_read = 1
+                    can_create = 1
+                    can_update = 1
+                    can_delete = 1
+                    can_submit = 1
+
                 permissions.append({
                     "feature": p.feature,
-                    "can_read": 1 if p.can_read else 0,
-                    "can_create": 1 if p.can_create else 0,
-                    "can_update": 1 if p.can_update else 0,
-                    "can_delete": 1 if p.can_delete else 0,
-                    "can_submit": 1 if p.can_submit else 0
+                    "can_read": can_read,
+                    "can_create": can_create,
+                    "can_update": can_update,
+                    "can_delete": can_delete,
+                    "can_submit": can_submit
                 })
 
             existing_features = [p['feature'] for p in permissions]
@@ -8936,7 +8952,8 @@ class HavanoPOSDeskAPI(http.Controller):
                         })
 
             return {
-                "name": profile.name,
+                "name": role_display_name,
+                "role": role_display_name.lower(),
                 "profile_name": profile.name,
                 "is_additional_tax_enabled": 1 if profile.is_additional_tax_enabled else 0,
                 "food_tax": str(profile.food_tax) if profile.food_tax is not None else "0",
@@ -8948,6 +8965,7 @@ class HavanoPOSDeskAPI(http.Controller):
         if is_admin_role:
             return {
                 "name": "Admin",
+                "role": "admin",
                 "profile_name": "Admin",
                 "is_additional_tax_enabled": 1,
                 "food_tax": "0",
@@ -8965,7 +8983,8 @@ class HavanoPOSDeskAPI(http.Controller):
             }
         else:
             return {
-                "name": "Cashier Profile",
+                "name": "Cashier",
+                "role": "cashier",
                 "profile_name": "Cashier Profile",
                 "is_additional_tax_enabled": 0,
                 "food_tax": "0",
