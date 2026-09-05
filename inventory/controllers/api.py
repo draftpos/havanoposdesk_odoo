@@ -8241,6 +8241,10 @@ class HavanoPOSDeskAPI(http.Controller):
             if current_user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
                 
+            user_filter = (kwargs.get('user') or kwargs.get('email') or request.params.get('user') or request.params.get('email') or '').strip()
+            if user_filter:
+                domain.extend(['|', ('login', '=ilike', user_filter), ('email', '=ilike', user_filter)])
+
             odoo_users = env['res.users'].sudo().search(domain)
             data_list = []
             for u in odoo_users:
