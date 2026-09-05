@@ -10274,13 +10274,15 @@ class HavanoPOSDeskAPI(http.Controller):
             elif 'state' in env['havanoposdesk.sale']._fields:
                 sale_domain.append(('state', '=', 'draft'))
 
+            orders_data = []
             quotations = env['havanoposdesk.sale'].search(sale_domain) if 'is_quotation' in env['havanoposdesk.sale']._fields else []
             for q in quotations:
                 cust = getattr(q, 'customer', None) or getattr(q, 'customer_id', None)
                 cust_name = cust.name if cust else "Customer"
+                parent_order_no = getattr(q, 'parent_order_number', None) or getattr(q, 'client_order_ref', None) or getattr(q, 'reference_number', None) or q.name or str(q.id)
                 orders_data.append({
                     "id": str(q.id),
-                    "parent_order_number": q.name or str(q.id),
+                    "parent_order_number": parent_order_no,
                     "table_id": str(q.table_id.id) if getattr(q, 'table_id', None) else None,
                     "floor_id": str(q.floor_id.id) if getattr(q, 'floor_id', None) else None,
                     "waiter_id": str(q.waiter_id.id) if getattr(q, 'waiter_id', None) else None,
@@ -10348,6 +10350,7 @@ class HavanoPOSDeskAPI(http.Controller):
             table_id = params.get('table_id')
             floor_id = params.get('floor_id')
             waiter_id = params.get('waiter_id')
+            parent_order_number = params.get('parent_order_number') or params.get('parentOrderNumber')
             items = params.get('items') or params.get('cartItems') or []
             total_amount = float(params.get('total_amount') or 0.0)
             tax_amount = float(params.get('tax_amount') or 0.0)
@@ -10410,6 +10413,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 'floor_id': floor_rec.id if floor_rec else (table_rec.floor_id.id if table_rec and table_rec.floor_id else False),
                 'waiter_id': waiter_rec.id if waiter_rec else False,
             }
+            if parent_order_number:
+                if 'parent_order_number' in env['havanoposdesk.sale']._fields:
+                    sale_vals['parent_order_number'] = parent_order_number
+                elif 'client_order_ref' in env['havanoposdesk.sale']._fields:
+                    sale_vals['client_order_ref'] = parent_order_number
+                elif 'reference_number' in env['havanoposdesk.sale']._fields:
+                    sale_vals['reference_number'] = parent_order_number
             if 'order_status' in env['havanoposdesk.sale']._fields:
                 sale_vals['order_status'] = 'pending'
             elif 'state' in env['havanoposdesk.sale']._fields:
