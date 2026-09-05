@@ -223,6 +223,13 @@ def post_migrate(env):
         WHERE name IN ('Havano Category Isolation', 'Havano UOM Isolation', 'Havano Pricelist Isolation', 'Havano Product UOM Price Isolation');
     """)
 
+    # Normalize any legacy 'cashier' role strings on profiles to 'user'
+    env.cr.execute("""
+        UPDATE havanoposdesk_user_rights_profile
+        SET havano_role = 'user'
+        WHERE havano_role = 'cashier';
+    """)
+
     # Ensure Cashier profiles have active permissions for POS, Dashboard, Reports, Settings, Sales, Quotations, Customers, Expenses, Printer
     cashier_full_features = (
         'POS', 'Dashboard', 'Reports', 'Settings',
@@ -240,6 +247,20 @@ def post_migrate(env):
           AND (prof.havano_role IN ('user', 'cashier') OR prof.name ILIKE '%Cashier%')
           AND p.feature IN %s
     """, [cashier_full_features])
+
+    # Ensure all users with tenant_id have user_rights_profile_id linked
+    env.cr.execute("""
+        UPDATE res_users u
+        SET user_rights_profile_id = (
+            SELECT p.id FROM havanoposdesk_user_rights_profile p
+            WHERE p.tenant_id = u.tenant_id
+              AND (p.havano_role = u.havano_role OR (u.havano_role = 'user' AND p.havano_role IN ('user', 'cashier')))
+            ORDER BY p.is_default DESC, p.id ASC
+            LIMIT 1
+        )
+        WHERE u.tenant_id IS NOT NULL
+          AND u.user_rights_profile_id IS NULL;
+    """)
 
     # Ensure any missing POS features are populated for Cashier profiles
     try:
