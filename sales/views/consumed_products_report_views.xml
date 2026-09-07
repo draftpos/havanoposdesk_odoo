@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Consumed Products Report Tree/List View -->
+        <record id="view_consumed_products_report_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.consumed.products.report.list</field>
+            <field name="model">havanoposdesk.stock.ledger</field>
+            <field name="arch" type="xml">
+                <list string="Consumed Products Report" create="false" edit="false" delete="false">
+                    <field name="create_date" string="Date" />
+                    <field name="doc_no" string="Document Reference"/>
+                    <field name="product_id" string="Ingredient Product"/>
+                    <field name="category_id" string="Category" optional="show"/>
+                    <field name="store_id" string="Store" optional="show"/>
+                    <field name="out_qty" string="Consumed Quantity" sum="Total Consumed"/>
+                    <field name="uom_id" string="UOM" optional="show"/>
+                    <field name="buying_price" string="Cost Price" optional="hide"/>
+                    <field name="out_value" string="Total Cost Value" sum="Total Cost"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Consumed Products Report Pivot View -->
+        <record id="view_consumed_products_report_pivot" model="ir.ui.view">
+            <field name="name">havanoposdesk.consumed.products.report.pivot</field>
+            <field name="model">havanoposdesk.stock.ledger</field>
+            <field name="arch" type="xml">
+                <pivot string="Consumed Products" disable_linking="True">
+                    <field name="create_date" type="row" interval="day"/>
+                    <field name="product_id" type="row"/>
+                    <field name="out_qty" type="measure"/>
+                    <field name="out_value" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- Action for Consumed Products Report -->
+        <record id="action_consumed_products_report" model="ir.actions.act_window">
+            <field name="name">Consumed Products Report</field>
+            <field name="res_model">havanoposdesk.stock.ledger</field>
+            <field name="view_mode">list,pivot</field>
+            <field name="domain">[('type', '=', 'Production (Raw Material)')]</field>
+            <field name="context">{}</field>
+        </record>
+
+        <record id="action_consumed_products_report_view_tree" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="view_consumed_products_report_tree"/>
+            <field name="act_window_id" ref="action_consumed_products_report"/>
+        </record>
+        
+        <record id="action_consumed_products_report_view_pivot" model="ir.actions.act_window.view">
+            <field name="sequence" eval="2"/>
+            <field name="view_mode">pivot</field>
+            <field name="view_id" ref="view_consumed_products_report_pivot"/>
+            <field name="act_window_id" ref="action_consumed_products_report"/>
+        </record>
+
+        <!-- Menu Item under Sales -> Reports -->
+        <menuitem id="menu_consumed_products_report" name="Consumed Products" parent="havanoposdesk_odoo.menu_sales_reports" action="action_consumed_products_report" sequence="80"/>
+    </data>
+</odoo>

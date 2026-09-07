@@ -77,6 +77,7 @@
         'sales/views/sale_views.xml',
         'sales/views/customer_views.xml',
         'sales/views/item_profitability_report_views.xml',
+        'sales/views/consumed_products_report_views.xml',
         'sales/views/category_sales_report_views.xml',
         'sales/views/cashier_sales_report_views.xml',
         'sales/views/terminal_sales_report_views.xml',
