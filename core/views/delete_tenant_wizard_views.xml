@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Super Admin Delete Tenant Wizard Form View -->
+        <record id="view_delete_tenant_wizard_form" model="ir.ui.view">
+            <field name="name">wizard.delete.tenant.form</field>
+            <field name="model">wizard.delete.tenant</field>
+            <field name="arch" type="xml">
+                <form string="Permanently Delete Tenant">
+                    <div class="alert alert-danger" role="alert" style="margin-bottom: 20px;">
+                        <h4 class="alert-heading font-weight-bold">
+                            <i class="fa fa-exclamation-triangle me-2"/> CRITICAL WARNING: Permanent Data Destruction
+                        </h4>
+                        <p class="mb-1">
+                            You are about to permanently delete tenant <strong class="text-dark"><field name="tenant_name" readonly="1"/></strong> and <strong>ALL associated data</strong>.
+                        </p>
+                        <p class="mb-0">
+                            This includes all sales, inventory, stock ledgers, products, stores, user accounts, shifts, accounting logs, restaurant tables, manufacturing BOMs, and reports. <strong>This action is irreversible and cannot be undone.</strong>
+                        </p>
+                    </div>
+
+                    <group string="Impact Assessment (Records to be Purged)">
+                        <group>
+                            <field name="tenant_id" invisible="1"/>
+                            <field name="users_count" readonly="1" string="Non-System Users"/>
+                            <field name="stores_count" readonly="1" string="Stores"/>
+                            <field name="products_count" readonly="1" string="Products Catalog"/>
+                        </group>
+                        <group>
+                            <field name="sales_count" readonly="1" string="Sales Orders"/>
+                            <field name="pos_terminals_count" readonly="1" string="POS Terminals"/>
+                        </group>
+                    </group>
+
+                    <group string="Mandatory Confirmation">
+                        <p class="text-muted small">
+                            To prevent accidental deletion, please type the exact tenant name <strong class="text-danger"><field name="tenant_name" readonly="1"/></strong> below:
+                        </p>
+                        <field name="confirm_tenant_name" placeholder="Type tenant name here..." required="1"/>
+                        <field name="acknowledge_loss" required="1"/>
+                    </group>
+
+                    <footer>
+                        <button string="Permanently Delete Tenant &amp; All Data"
+                                name="action_confirm_delete"
+                                type="object"
+                                class="btn-danger"
+                                icon="fa-trash"
+                                data-hotkey="q"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <!-- Action for Delete Tenant Wizard -->
+        <record id="action_delete_tenant_wizard" model="ir.actions.act_window">
+            <field name="name">Delete Tenant</field>
+            <field name="res_model">wizard.delete.tenant</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+    </data>
+</odoo>

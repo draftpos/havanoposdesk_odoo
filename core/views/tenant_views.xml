@@ -84,6 +84,13 @@
                                 class="oe_highlight"
                                 invisible="subscription_state == 'pending' or pending_subscription_plan_id"/>
 
+                        <button name="action_open_delete_wizard"
+                                type="object"
+                                string="Delete Tenant"
+                                class="btn-danger"
+                                icon="fa-trash"
+                                groups="base.group_system"/>
+
                         <field name="subscription_state"
                                widget="statusbar"
                                statusbar_visible="active,pending,expired,cancelled"/>

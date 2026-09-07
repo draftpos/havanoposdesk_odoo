@@ -85,6 +85,7 @@
         'sales/views/item_summary_ledger_report_views.xml',
         'sales/views/sale_mobile_kanban_views.xml',
         'core/views/clear_data_wizard_views.xml',
+        'core/views/delete_tenant_wizard_views.xml',
         'core/data/clear_data_mail_templates.xml',
     ],
     'installable': True,

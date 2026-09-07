@@ -1,5 +1,5 @@
 from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, AccessError
 import logging
 import traceback
 from dateutil.relativedelta import relativedelta
@@ -980,89 +980,181 @@ class HavanoposdeskTenant(models.Model):
                     raise ValidationError('You cannot modify subscription details or payment status directly. Please use the "Change/Upgrade Plan" or "Pay & Activate Plan" buttons.')
         return super().write(vals)
 
+    def action_open_delete_wizard(self):
+        self.ensure_one()
+        user = self.env.user
+        if not (self.env.su or user.id == 1 or getattr(user, 'havano_role', None) == 'super_admin'):
+            raise AccessError(_("Access Denied: Only Super Admins can delete tenants."))
+        return {
+            'name': _('Delete Tenant: %s') % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'wizard.delete.tenant',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_tenant_id': self.id,
+                'active_id': self.id,
+            }
+        }
+
     def action_hard_delete_tenant_data(self):
         """
-        Permanently deletes all data, stores, users and settings associated with the tenant.
+        Permanently deletes all data, stores, users, catalog, sales, stock, restaurant,
+        manufacturing, permissions and settings associated with the tenant.
+        Only executable by Super Admins.
         """
+        user = self.env.user
+        if not (self.env.su or user.id == 1 or getattr(user, 'havano_role', None) == 'super_admin'):
+            raise AccessError(_("Access Denied: Only Super Admins can delete tenants."))
+
         for tenant in self:
             t_id = tenant.id
-            _logger.info("Starting hard deletion for tenant ID %s (%s)", t_id, tenant.name)
+            _logger.info("Starting cascading hard deletion for tenant ID %s (%s)", t_id, tenant.name)
 
-            # 1. Sales
-            sales = self.env['havanoposdesk.sale'].sudo().search([('tenant_id', '=', t_id)])
+            def safe_delete(model_name, domain):
+                if model_name in self.env:
+                    try:
+                        records = self.env[model_name].sudo().search(domain)
+                        if records:
+                            _logger.info("Deleting %s records from %s for tenant %s", len(records), model_name, t_id)
+                            records.unlink()
+                    except Exception as e:
+                        _logger.warning("Error deleting %s for tenant %s: %s", model_name, t_id, e)
+
+            # 1. Restaurant Orders & Layout
+            safe_delete('havanoposdesk.restaurant.order', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.restaurant.table', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.restaurant.floor', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.restaurant.waiter', [('tenant_id', '=', t_id)])
+
+            # 2. Sales Returns & Lines
+            safe_delete('havanoposdesk.sales.return.line', [('sale_return_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.sales.return', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.sale.return.wizard.line', [('wizard_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.sale.return.wizard', [('tenant_id', '=', t_id)])
+
+            # 3. Sales & Lines
+            sales = self.env['havanoposdesk.sale'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.sale' in self.env else False
             if sales:
-                self.env['havanoposdesk.sale.line'].sudo().search([('sale_id', 'in', sales.ids)]).unlink()
-                sales.unlink()
+                safe_delete('havanoposdesk.sale.line', [('sale_id', 'in', sales.ids)])
+                safe_delete('havanoposdesk.sale', [('id', 'in', sales.ids)])
 
-            # 2. Purchases
-            purchases = self.env['havanoposdesk.purchase'].sudo().search([('tenant_id', '=', t_id)])
+            # 4. Purchases & Lines & Returns
+            safe_delete('havanoposdesk.purchase.return.wizard.line', [('wizard_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.purchase.return.wizard', [('tenant_id', '=', t_id)])
+            purchases = self.env['havanoposdesk.purchase'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.purchase' in self.env else False
             if purchases:
-                self.env['havanoposdesk.purchase.line'].sudo().search([('purchase_id', 'in', purchases.ids)]).unlink()
-                purchases.unlink()
+                safe_delete('havanoposdesk.purchase.line', [('purchase_id', 'in', purchases.ids)])
+                safe_delete('havanoposdesk.purchase', [('id', 'in', purchases.ids)])
 
-            # 3. Payments & Payment Methods
-            self.env['havanoposdesk.payment'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.payment.method'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            # 5. Payments, Payment Lines & Payment Methods
+            safe_delete('havanoposdesk.payment.line', [('payment_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.payment', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.payment.method', [('tenant_id', '=', t_id)])
 
-            # 4. Expenses
-            self.env['havanoposdesk.expense'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-
-            # 5. Cash Transfers & Shifts
-            self.env['havanoposdesk.cash.transfer'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            shifts = self.env['havanoposdesk.pos.shift'].sudo().search([('tenant_id', '=', t_id)])
+            # 6. Expenses & Cash Transfers & Shifts
+            safe_delete('havanoposdesk.expense', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cash.transfer', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cash.balance', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cashbook', [('tenant_id', '=', t_id)])
+            shifts = self.env['havanoposdesk.pos.shift'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.pos.shift' in self.env else False
             if shifts:
-                self.env['havanoposdesk.pos.shift.payment'].sudo().search([('shift_id', 'in', shifts.ids)]).unlink()
-                shifts.unlink()
+                safe_delete('havanoposdesk.pos.shift.payment', [('shift_id', 'in', shifts.ids)])
+                safe_delete('havanoposdesk.pos.shift', [('id', 'in', shifts.ids)])
 
-            # 6. POS Terminals
-            self.env['havanoposdesk.pos.terminal'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            # 7. Manufacturing (Orders, Raw Materials, Outputs, BOMs)
+            safe_delete('havanoposdesk.production.order.raw_material', [('production_order_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.production.order.output', [('production_order_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.production.order', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.manufacturing.bom.line', [('bom_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.manufacturing.bom.output', [('bom_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.manufacturing.bom', [('tenant_id', '=', t_id)])
 
-            # 7. Stock Records (Ledgers, Valuations, Adjustments, Transfers, Entries)
-            self.env['havanoposdesk.stock.ledger'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.stock.valuation'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            # 8. POS Terminals & Store Banks
+            safe_delete('havanoposdesk.pos.terminal', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.store.bank', [('tenant_id', '=', t_id)])
+
+            # 9. Stock Records (Ledgers, Valuations, Adjustments, Transfers, Entries)
+            safe_delete('havanoposdesk.stock.ledger', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.stock.valuation', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.stock.valuation.date.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.stock.valuation.date.wizard', [('tenant_id', '=', t_id)])
             
-            adjustments = self.env['havanoposdesk.stock.adjustment'].sudo().search([('tenant_id', '=', t_id)])
+            adjustments = self.env['havanoposdesk.stock.adjustment'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.stock.adjustment' in self.env else False
             if adjustments:
-                self.env['havanoposdesk.stock.adjustment.line'].sudo().search([('adjustment_id', 'in', adjustments.ids)]).unlink()
-                adjustments.unlink()
+                safe_delete('havanoposdesk.stock.adjustment.line', [('adjustment_id', 'in', adjustments.ids)])
+                safe_delete('havanoposdesk.stock.adjustment', [('id', 'in', adjustments.ids)])
 
-            transfers = self.env['havanoposdesk.stock.transfer'].sudo().search([('tenant_id', '=', t_id)])
+            transfers = self.env['havanoposdesk.stock.transfer'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.stock.transfer' in self.env else False
             if transfers:
-                self.env['havanoposdesk.stock.transfer.line'].sudo().search([('transfer_id', 'in', transfers.ids)]).unlink()
-                transfers.unlink()
+                safe_delete('havanoposdesk.stock.transfer.line', [('transfer_id', 'in', transfers.ids)])
+                safe_delete('havanoposdesk.stock.transfer', [('id', 'in', transfers.ids)])
 
-            entries = self.env['havanoposdesk.stock.entry'].sudo().search([('tenant_id', '=', t_id)])
+            entries = self.env['havanoposdesk.stock.entry'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.stock.entry' in self.env else False
             if entries:
-                self.env['havanoposdesk.stock.entry.line'].sudo().search([('entry_id', 'in', entries.ids)]).unlink()
-                entries.unlink()
+                safe_delete('havanoposdesk.stock.entry.line', [('entry_id', 'in', entries.ids)])
+                safe_delete('havanoposdesk.stock.entry', [('id', 'in', entries.ids)])
 
-            # 8. Product Data (Prices, Bundles, Products, Categories, UOMs, Taxes, Pricelists)
-            self.env['havanoposdesk.product.uom.price'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.product.bundle.item'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.product'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.category'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.uom'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.tax'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            # 10. Product Catalog (Prices, Bundles, Products, Categories, UOMs, Taxes, Pricelists)
+            safe_delete('havanoposdesk.product.uom.price', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.product.bundle.item', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.product.bundle', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.product.costing', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.product', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.category', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.uom', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.tax', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.pricelist', [('tenant_id', '=', t_id)])
 
-            # 9. Partners / Customers / Suppliers / Accounts
-            self.env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.supplier'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.account'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            # 11. Partners / Customers / Suppliers / Accounts
+            safe_delete('havanoposdesk.customer', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.customer.group', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.supplier', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.account', [('tenant_id', '=', t_id)])
 
-            # 10. Audit, Logs, Issues, Tickets
-            self.env['havanoposdesk.audit.log'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havano.error.issue'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havano.error.log'].sudo().search([('tenant_id', '=', t_id)]).unlink()
-            self.env['havanoposdesk.support.ticket'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            # 12. Reports & Snapshots
+            safe_delete('havanoposdesk.daily.sales.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cashier.sales.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.terminal.sales.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.category.sales.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.item.profitability.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cashier.profitability.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.shop.profitability.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.item.detailed.ledger.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.item.summary.ledger.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.profit.loss.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.profit_and_loss', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.profit.and.loss', [('tenant_id', '=', t_id)])
 
-            # 11. Subscription Payments
-            self.env['havanoposdesk.subscription.payment'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            # 13. Audit, Logs, Issues, Tickets
+            safe_delete('havanoposdesk.audit.log', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.audit.log.clear.wizard', [('tenant_id', '=', t_id)])
+            safe_delete('havano.error.issue', [('tenant_id', '=', t_id)])
+            safe_delete('havano.error.event', [('tenant_id', '=', t_id)])
+            safe_delete('havano.error.log', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.system.log', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.sync.issue', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.issue', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.support.ticket', [('tenant_id', '=', t_id)])
 
-            # 12. Stores
-            self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', t_id)]).unlink()
+            # 14. Subscriptions & Subscription Wizards
+            safe_delete('havanoposdesk.tenant.topup.wizard', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.subscription.pay.wizard', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.tenant.upgrade.wizard', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.subscription.payment', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.subscription', [('tenant_id', '=', t_id)])
 
-            # 13. Tenant Users (excluding system and super admin users)
+            # 15. User Rights Profiles & Permissions
+            profiles = self.env['havanoposdesk.user.rights.profile'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.user.rights.profile' in self.env else False
+            if profiles:
+                safe_delete('havanoposdesk.user.rights.permission', [('profile_id', 'in', profiles.ids)])
+                safe_delete('havanoposdesk.backoffice.permission', [('profile_id', 'in', profiles.ids)])
+                safe_delete('havanoposdesk.user.rights.profile', [('id', 'in', profiles.ids)])
+
+            # 16. Stores
+            safe_delete('havanoposdesk.store', [('tenant_id', '=', t_id)])
+
+            # 17. Tenant Users (excluding system id 1, 2 and super admin users)
             tenant_users = self.env['res.users'].sudo().search([
                 ('tenant_id', '=', t_id),
                 ('id', 'not in', [1, 2]),
@@ -1070,9 +1162,20 @@ class HavanoposdeskTenant(models.Model):
             ])
             if tenant_users:
                 _logger.info("Unlinking %s users for tenant ID %s", len(tenant_users), t_id)
+                partner_ids = [u.partner_id.id for u in tenant_users if u.partner_id and u.partner_id.id not in [1, 2]]
                 tenant_users.unlink()
+                if partner_ids:
+                    orphan_partners = self.env['res.partner'].sudo().search([
+                        ('id', 'in', partner_ids),
+                        ('user_ids', '=', False)
+                    ])
+                    if orphan_partners:
+                        try:
+                            orphan_partners.unlink()
+                        except Exception:
+                            pass
 
-            # 14. Unlink tenant
+            # 18. Finally unlink the tenant record itself
             super(HavanoposdeskTenant, tenant).unlink()
         return True
 
