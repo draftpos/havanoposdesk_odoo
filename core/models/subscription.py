@@ -15,6 +15,7 @@ class HavanoposdeskSubscriptionPlan(models.Model):
     extra_store_price = fields.Float(string='Price per Additional Store ($)', default=0.0)
     extra_terminal_price = fields.Float(string='Price per Additional Terminal ($)', default=12.0)
     stores_per_terminal = fields.Integer(string='Stores per Terminal', default=3)
+    annual_discount_percentage = fields.Float(string='Annual Discount (%)', default=0.0, help='Discount percentage applied when subscribing for 1 year (12 months).')
     is_trial = fields.Boolean(string='Is Trial/Demo Plan', default=False)
 
     @api.model_create_multi

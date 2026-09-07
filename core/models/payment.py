@@ -13,6 +13,14 @@ class HavanoposdeskSubscriptionPayment(models.Model):
         ('subscription', 'Subscription Plan Payment'),
         ('topup', 'Account Balance Top-Up')
     ], string='Payment Type', default='subscription', required=True)
+    billing_cycle = fields.Selection([
+        ('1_month', '1 Month (Monthly)'),
+        ('3_months', '3 Months (Quarterly)'),
+        ('6_months', '6 Months (Bi-Annual)'),
+        ('12_months', '1 Year (Annual)'),
+        ('custom_months', 'Custom Months')
+    ], string='Billing Cycle', default='1_month')
+    duration_months = fields.Integer(string='Duration (Months)', default=1)
     amount = fields.Float(string='Amount Paid', required=True)
     payment_method = fields.Char(string='Payment Method')
     transaction_reference = fields.Char(string='Transaction Reference')
@@ -49,12 +57,60 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
 
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan', required=True, ondelete='cascade')
-    amount = fields.Float(string='Amount to Pay', required=True)
+    billing_cycle = fields.Selection([
+        ('1_month', '1 Month (Monthly)'),
+        ('3_months', '3 Months (Quarterly)'),
+        ('6_months', '6 Months (Bi-Annual)'),
+        ('12_months', '1 Year (Annual)'),
+        ('custom_months', 'Custom Months')
+    ], string='Billing Cycle', default='1_month', required=True)
+    duration_months = fields.Integer(string='Duration (Months)', default=1, required=True)
+    monthly_rate = fields.Float(string='Monthly Rate ($)', compute='_compute_amount_and_rate')
+    amount = fields.Float(string='Amount to Pay ($)', compute='_compute_amount_and_rate', store=True, readonly=False)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card (Redirection)'),
         ('ecocash', 'EcoCash Mobile')
     ], string='Payment Method', default='paynow', required=True)
     phone = fields.Char(string='EcoCash Phone Number', help="Enter number starting with 077... or 078...")
+
+    @api.onchange('billing_cycle')
+    def _onchange_billing_cycle(self):
+        if self.billing_cycle == '1_month':
+            self.duration_months = 1
+        elif self.billing_cycle == '3_months':
+            self.duration_months = 3
+        elif self.billing_cycle == '6_months':
+            self.duration_months = 6
+        elif self.billing_cycle == '12_months':
+            self.duration_months = 12
+
+    @api.depends('subscription_plan_id', 'tenant_id', 'duration_months', 'billing_cycle')
+    def _compute_amount_and_rate(self):
+        for wiz in self:
+            tenant = wiz.tenant_id
+            plan = wiz.subscription_plan_id or (tenant.pending_subscription_plan_id or tenant.subscription_plan_id if tenant else False)
+            if not plan:
+                wiz.monthly_rate = 0.0
+                wiz.amount = 0.0
+                continue
+
+            # Monthly base calculation
+            if plan.is_custom and tenant:
+                extra_terms = tenant.pending_additional_terminals if tenant.pending_subscription_plan_id else (tenant.additional_terminals or 0)
+                extra_price = plan.extra_terminal_price or 12.0
+                m_rate = (plan.price or 12.0) + (extra_terms * extra_price)
+            else:
+                m_rate = plan.price or 0.0
+
+            wiz.monthly_rate = m_rate
+            months = max(1, wiz.duration_months or 1)
+            
+            # Annual discount calculation if 12 months
+            if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
+                discount = plan.annual_discount_percentage / 100.0
+                wiz.amount = m_rate * 12.0 * (1.0 - discount)
+            else:
+                wiz.amount = m_rate * months
 
     @api.model
     def default_get(self, fields_list):
@@ -63,11 +119,13 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
         if active_id:
             tenant = self.env['havanoposdesk.tenant'].browse(active_id)
             plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
-            amount = tenant.pending_subscription_total_amount if tenant.pending_subscription_plan_id else (tenant.subscription_total_amount or (plan.price if plan else 0.0))
+            cycle = tenant.pending_billing_cycle or tenant.billing_cycle or '1_month'
+            months = tenant.pending_duration_months or tenant.duration_months or 1
             res.update({
                 'tenant_id': tenant.id,
                 'subscription_plan_id': plan.id if plan else False,
-                'amount': amount,
+                'billing_cycle': cycle,
+                'duration_months': months,
             })
         return res
 
@@ -80,12 +138,20 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
         if not provider:
             raise ValidationError('Havano Payments provider is not configured. Please configure it in SaaS Config.')
 
+        # Update pending duration and cycle on tenant
+        self.tenant_id.with_context(bypass_subscription_check=True).write({
+            'pending_billing_cycle': self.billing_cycle,
+            'pending_duration_months': self.duration_months or 1,
+        })
+
         import time
         reference = f"SUB-{self.tenant_id.id}-{self.subscription_plan_id.id}-{fields.Datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
 
         subscription_payment = self.env['havanoposdesk.subscription.payment'].create({
             'tenant_id': self.tenant_id.id,
             'subscription_plan_id': self.subscription_plan_id.id,
+            'billing_cycle': self.billing_cycle,
+            'duration_months': self.duration_months or 1,
             'amount': self.amount,
             'payment_method': self.payment_method,
             'payment_type': 'subscription',

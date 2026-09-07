@@ -53,6 +53,10 @@ class HavanoposdeskTenant(models.Model):
             ("stock_decimal_places", "INTEGER DEFAULT 3"),
             ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
             ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
+            ("billing_cycle", "VARCHAR DEFAULT '1_month'"),
+            ("duration_months", "INTEGER DEFAULT 1"),
+            ("pending_billing_cycle", "VARCHAR DEFAULT '1_month'"),
+            ("pending_duration_months", "INTEGER DEFAULT 1"),
 
         ]
         for col_name, col_type in columns:
@@ -134,6 +138,14 @@ class HavanoposdeskTenant(models.Model):
             tenant.has_transactions = has_tx
             
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan')
+    billing_cycle = fields.Selection([
+        ('1_month', '1 Month (Monthly)'),
+        ('3_months', '3 Months (Quarterly)'),
+        ('6_months', '6 Months (Bi-Annual)'),
+        ('12_months', '1 Year (Annual)'),
+        ('custom_months', 'Custom Months')
+    ], string='Billing Cycle', default='1_month')
+    duration_months = fields.Integer(string='Duration (Months)', default=1)
     additional_terminals = fields.Integer(string='Additional Terminals', default=0, help='Extra terminals requested under Custom Plan ($12/terminal)')
     additional_stores = fields.Integer(string='Additional Stores', default=0, help='Auto-calculated store allowance (3 stores per terminal)')
     account_balance = fields.Float(string='Account Balance ($)', default=0.0, help='Prepaid balance/wallet for subscription plans and top-ups.')
@@ -162,6 +174,14 @@ class HavanoposdeskTenant(models.Model):
                 tenant.is_trial = False
 
     pending_subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Pending Subscription Plan', help='New plan requested that is pending approval or payment.')
+    pending_billing_cycle = fields.Selection([
+        ('1_month', '1 Month (Monthly)'),
+        ('3_months', '3 Months (Quarterly)'),
+        ('6_months', '6 Months (Bi-Annual)'),
+        ('12_months', '1 Year (Annual)'),
+        ('custom_months', 'Custom Months')
+    ], string='Pending Billing Cycle', default='1_month')
+    pending_duration_months = fields.Integer(string='Pending Duration (Months)', default=1)
     pending_additional_terminals = fields.Integer(string='Pending Additional Terminals', default=0)
     pending_additional_stores = fields.Integer(string='Pending Additional Stores', default=0)
     pending_subscription_total_amount = fields.Float(string='Pending Total Amount ($)', compute='_compute_pending_subscription_total_amount', store=True)
@@ -226,13 +246,14 @@ class HavanoposdeskTenant(models.Model):
                 tenant.effective_max_terminals = plan.max_terminals or 0
                 tenant.effective_max_stores = plan.max_stores or (tenant.effective_max_terminals * 3)
 
-    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'subscription_plan_id.extra_store_price', 'subscription_plan_id.stores_per_terminal', 'additional_terminals', 'additional_stores')
+    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.annual_discount_percentage', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'subscription_plan_id.extra_store_price', 'subscription_plan_id.stores_per_terminal', 'additional_terminals', 'additional_stores', 'duration_months', 'billing_cycle')
     def _compute_subscription_total_amount(self):
         for tenant in self:
             plan = tenant.subscription_plan_id
             if not plan:
                 tenant.subscription_total_amount = 0.0
-            elif plan.is_custom:
+                continue
+            if plan.is_custom:
                 stores_per_term = plan.stores_per_terminal or 3
                 base_term = plan.max_terminals or 1
                 extra_term = max(0, tenant.additional_terminals or 0)
@@ -241,17 +262,25 @@ class HavanoposdeskTenant(models.Model):
                     if calculated_total_terms > base_term:
                         extra_term = calculated_total_terms - base_term
                 extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-                tenant.subscription_total_amount = (plan.price or 12.0) + (extra_term * extra_price)
+                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
             else:
-                tenant.subscription_total_amount = plan.price or 0.0
+                m_rate = plan.price or 0.0
+            
+            months = max(1, tenant.duration_months or 1)
+            if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
+                discount = plan.annual_discount_percentage / 100.0
+                tenant.subscription_total_amount = m_rate * 12.0 * (1.0 - discount)
+            else:
+                tenant.subscription_total_amount = m_rate * months
 
-    @api.depends('pending_subscription_plan_id', 'pending_subscription_plan_id.price', 'pending_subscription_plan_id.is_custom', 'pending_subscription_plan_id.extra_terminal_price', 'pending_subscription_plan_id.extra_store_price', 'pending_subscription_plan_id.stores_per_terminal', 'pending_additional_terminals', 'pending_additional_stores')
+    @api.depends('pending_subscription_plan_id', 'pending_subscription_plan_id.price', 'pending_subscription_plan_id.annual_discount_percentage', 'pending_subscription_plan_id.is_custom', 'pending_subscription_plan_id.extra_terminal_price', 'pending_subscription_plan_id.extra_store_price', 'pending_subscription_plan_id.stores_per_terminal', 'pending_additional_terminals', 'pending_additional_stores', 'pending_duration_months', 'pending_billing_cycle')
     def _compute_pending_subscription_total_amount(self):
         for tenant in self:
             plan = tenant.pending_subscription_plan_id
             if not plan:
                 tenant.pending_subscription_total_amount = 0.0
-            elif plan.is_custom:
+                continue
+            if plan.is_custom:
                 stores_per_term = plan.stores_per_terminal or 3
                 base_term = plan.max_terminals or 1
                 extra_term = max(0, tenant.pending_additional_terminals or 0)
@@ -260,9 +289,16 @@ class HavanoposdeskTenant(models.Model):
                     if calculated_total_terms > base_term:
                         extra_term = calculated_total_terms - base_term
                 extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-                tenant.pending_subscription_total_amount = (plan.price or 12.0) + (extra_term * extra_price)
+                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
             else:
-                tenant.pending_subscription_total_amount = plan.price or 0.0
+                m_rate = plan.price or 0.0
+            
+            months = max(1, tenant.pending_duration_months or 1)
+            if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
+                discount = plan.annual_discount_percentage / 100.0
+                tenant.pending_subscription_total_amount = m_rate * 12.0 * (1.0 - discount)
+            else:
+                tenant.pending_subscription_total_amount = m_rate * months
 
     @api.depends('pending_subscription_plan_id')
     def _compute_has_pending_upgrade(self):
@@ -742,19 +778,29 @@ class HavanoposdeskTenant(models.Model):
                 'active': True
             }
             target_plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
+            months = tenant.pending_duration_months or tenant.duration_months or 1
             if tenant.pending_subscription_plan_id:
                 vals['subscription_plan_id'] = tenant.pending_subscription_plan_id.id
                 vals['additional_terminals'] = tenant.pending_additional_terminals
                 vals['additional_stores'] = tenant.pending_additional_stores
+                vals['billing_cycle'] = tenant.pending_billing_cycle or '1_month'
+                vals['duration_months'] = months
                 vals['pending_subscription_plan_id'] = False
                 vals['pending_additional_terminals'] = 0
                 vals['pending_additional_stores'] = 0
+                vals['pending_billing_cycle'] = '1_month'
+                vals['pending_duration_months'] = 1
 
             if target_plan:
-                duration = target_plan.duration_days or 30
-                start_date = fields.Date.context_today(self)
+                today = fields.Date.context_today(self)
+                if tenant.subscription_state == 'active' and tenant.subscription_end_date and tenant.subscription_end_date >= today:
+                    start_date = tenant.subscription_start_date or today
+                    end_date = tenant.subscription_end_date + relativedelta(months=months)
+                else:
+                    start_date = today
+                    end_date = today + relativedelta(months=months)
                 vals['subscription_start_date'] = start_date
-                vals['subscription_end_date'] = start_date + relativedelta(days=duration)
+                vals['subscription_end_date'] = end_date
 
             tenant.with_context(bypass_subscription_check=True).write(vals)
 
@@ -771,6 +817,8 @@ class HavanoposdeskTenant(models.Model):
                     'pending_subscription_plan_id': False,
                     'pending_additional_terminals': 0,
                     'pending_additional_stores': 0,
+                    'pending_billing_cycle': '1_month',
+                    'pending_duration_months': 1,
                 }
                 if not tenant.subscription_plan_id or tenant.subscription_state != 'active':
                     vals['subscription_state'] = 'cancelled'
@@ -780,7 +828,7 @@ class HavanoposdeskTenant(models.Model):
                     'subscription_state': 'cancelled'
                 })
 
-    def action_select_plan(self, plan_id, additional_stores=0, additional_terminals=0):
+    def action_select_plan(self, plan_id, additional_stores=0, additional_terminals=0, billing_cycle='1_month', duration_months=1):
         plan = self.env['havanoposdesk.subscription.plan'].sudo().browse(plan_id)
         if plan.exists() and plan.is_custom:
             stores_per_term = plan.stores_per_terminal or 3
@@ -795,17 +843,31 @@ class HavanoposdeskTenant(models.Model):
             extra_terminals = 0
             extra_stores = max(0, int(additional_stores or 0))
 
+        months = int(duration_months or 1)
+        if billing_cycle == '3_months':
+            months = 3
+        elif billing_cycle == '6_months':
+            months = 6
+        elif billing_cycle == '12_months':
+            months = 12
+
         if self.check_subscription_active():
             self.with_context(bypass_subscription_check=True).write({
                 'pending_subscription_plan_id': plan_id,
                 'pending_additional_terminals': extra_terminals,
                 'pending_additional_stores': extra_stores,
+                'pending_billing_cycle': billing_cycle,
+                'pending_duration_months': months,
             })
         else:
             self.with_context(bypass_subscription_check=True).write({
                 'subscription_plan_id': plan_id,
                 'additional_terminals': extra_terminals,
                 'additional_stores': extra_stores,
+                'billing_cycle': billing_cycle,
+                'duration_months': months,
+                'pending_billing_cycle': billing_cycle,
+                'pending_duration_months': months,
                 'subscription_state': 'pending',
                 'payment_status': 'unpaid'
             })
@@ -815,9 +877,14 @@ class HavanoposdeskTenant(models.Model):
             plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
             if not plan:
                 raise ValidationError('No subscription plan selected.')
-            duration = plan.duration_days or 30
-            start_date = fields.Date.context_today(self)
-            end_date = start_date + relativedelta(days=duration)
+            months = tenant.pending_duration_months or tenant.duration_months or 1
+            today = fields.Date.context_today(self)
+            if tenant.subscription_state == 'active' and tenant.subscription_end_date and tenant.subscription_end_date >= today:
+                start_date = tenant.subscription_start_date or today
+                end_date = tenant.subscription_end_date + relativedelta(months=months)
+            else:
+                start_date = today
+                end_date = today + relativedelta(months=months)
             vals = {
                 'payment_status': 'paid',
                 'subscription_state': 'active',
@@ -829,9 +896,13 @@ class HavanoposdeskTenant(models.Model):
                 vals['subscription_plan_id'] = tenant.pending_subscription_plan_id.id
                 vals['additional_terminals'] = tenant.pending_additional_terminals
                 vals['additional_stores'] = tenant.pending_additional_stores
+                vals['billing_cycle'] = tenant.pending_billing_cycle or '1_month'
+                vals['duration_months'] = months
                 vals['pending_subscription_plan_id'] = False
                 vals['pending_additional_terminals'] = 0
                 vals['pending_additional_stores'] = 0
+                vals['pending_billing_cycle'] = '1_month'
+                vals['pending_duration_months'] = 1
             tenant.with_context(bypass_subscription_check=True).write(vals)
 
     def action_upgrade_plan(self):
@@ -892,10 +963,14 @@ class HavanoposdeskTenant(models.Model):
 
             # Create completed payment record
             import time
+            cycle = tenant.pending_billing_cycle or tenant.billing_cycle or '1_month'
+            months = tenant.pending_duration_months or tenant.duration_months or 1
             ref = f"BAL-{tenant.id}-{plan.id}-{fields.Datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
             self.env['havanoposdesk.subscription.payment'].create({
                 'tenant_id': tenant.id,
                 'subscription_plan_id': plan.id,
+                'billing_cycle': cycle,
+                'duration_months': months,
                 'amount': amount,
                 'payment_method': 'account_balance',
                 'payment_type': 'subscription',
@@ -905,6 +980,7 @@ class HavanoposdeskTenant(models.Model):
 
             # Activate plan
             tenant.action_pay_and_activate()
+
 
 
     def _get_next_sequence(self, seq_type):
@@ -1234,11 +1310,31 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
 
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='New Subscription Plan', required=True, ondelete='cascade')
+    billing_cycle = fields.Selection([
+        ('1_month', '1 Month (Monthly)'),
+        ('3_months', '3 Months (Quarterly)'),
+        ('6_months', '6 Months (Bi-Annual)'),
+        ('12_months', '1 Year (Annual)'),
+        ('custom_months', 'Custom Months')
+    ], string='Billing Cycle', default='1_month', required=True)
+    duration_months = fields.Integer(string='Duration (Months)', default=1, required=True)
     is_custom = fields.Boolean(string='Is Custom Plan', compute='_compute_plan_details')
     additional_terminals = fields.Integer(string='Additional Terminals Needed', default=0, help='Extra terminals requested ($12 per additional terminal)')
     additional_stores = fields.Integer(string='Included Stores (3 per terminal)', compute='_compute_included_stores')
     extra_terminal_price = fields.Float(string='Extra Price per Terminal ($)', compute='_compute_plan_details')
-    computed_total_price = fields.Float(string='Total Monthly Price ($)', compute='_compute_total_price')
+    monthly_price = fields.Float(string='Monthly Base Rate ($)', compute='_compute_total_price')
+    computed_total_price = fields.Float(string='Total Price ($)', compute='_compute_total_price')
+
+    @api.onchange('billing_cycle')
+    def _onchange_billing_cycle(self):
+        if self.billing_cycle == '1_month':
+            self.duration_months = 1
+        elif self.billing_cycle == '3_months':
+            self.duration_months = 3
+        elif self.billing_cycle == '6_months':
+            self.duration_months = 6
+        elif self.billing_cycle == '12_months':
+            self.duration_months = 12
 
     @api.depends('subscription_plan_id', 'additional_terminals')
     def _compute_included_stores(self):
@@ -1261,18 +1357,28 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
                 wizard.is_custom = False
                 wizard.extra_terminal_price = 12.0
 
-    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'additional_terminals')
+    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.annual_discount_percentage', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'additional_terminals', 'duration_months', 'billing_cycle')
     def _compute_total_price(self):
         for wizard in self:
             plan = wizard.subscription_plan_id
             if not plan:
+                wizard.monthly_price = 0.0
                 wizard.computed_total_price = 0.0
-            elif plan.is_custom:
+                continue
+            if plan.is_custom:
                 extra = max(0, wizard.additional_terminals or 0)
                 extra_price = plan.extra_terminal_price or 12.0
-                wizard.computed_total_price = (plan.price or 12.0) + (extra * extra_price)
+                m_rate = (plan.price or 12.0) + (extra * extra_price)
             else:
-                wizard.computed_total_price = plan.price or 0.0
+                m_rate = plan.price or 0.0
+
+            wizard.monthly_price = m_rate
+            months = max(1, wizard.duration_months or 1)
+            if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
+                discount = plan.annual_discount_percentage / 100.0
+                wizard.computed_total_price = m_rate * 12.0 * (1.0 - discount)
+            else:
+                wizard.computed_total_price = m_rate * months
 
     @api.onchange('tenant_id')
     def _onchange_tenant_id(self):
@@ -1286,23 +1392,35 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
             raise ValidationError('No tenant associated with the user.')
         target_plan = self.subscription_plan_id
         current_plan = self.tenant_id.pending_subscription_plan_id or self.tenant_id.subscription_plan_id
-        if target_plan == current_plan and not target_plan.is_custom:
-            raise ValidationError('You cannot select your current subscription plan without changing terminal options.')
+        current_cycle = self.tenant_id.pending_billing_cycle or self.tenant_id.billing_cycle or '1_month'
+        current_months = self.tenant_id.pending_duration_months or self.tenant_id.duration_months or 1
+        
+        # Check if anything changed
+        if (target_plan == current_plan and not target_plan.is_custom 
+            and self.billing_cycle == current_cycle and (self.duration_months or 1) == current_months):
+            raise ValidationError('You cannot select the identical subscription plan and billing cycle without changes.')
         
         extra_terminals = max(0, self.additional_terminals or 0) if self.subscription_plan_id.is_custom else 0
         extra_stores = ((target_plan.max_terminals or 1) + extra_terminals) * (target_plan.stores_per_terminal or 3) if target_plan.is_custom else 0
+        months = max(1, self.duration_months or 1)
 
         if self.tenant_id.check_subscription_active():
             self.tenant_id.with_context(bypass_subscription_check=True).write({
                 'pending_subscription_plan_id': self.subscription_plan_id.id,
                 'pending_additional_terminals': extra_terminals,
                 'pending_additional_stores': extra_stores,
+                'pending_billing_cycle': self.billing_cycle,
+                'pending_duration_months': months,
             })
         else:
             self.tenant_id.with_context(bypass_subscription_check=True).write({
                 'subscription_plan_id': self.subscription_plan_id.id,
                 'additional_terminals': extra_terminals,
                 'additional_stores': extra_stores,
+                'billing_cycle': self.billing_cycle,
+                'duration_months': months,
+                'pending_billing_cycle': self.billing_cycle,
+                'pending_duration_months': months,
                 'subscription_state': 'pending',
                 'payment_status': 'unpaid'
             })

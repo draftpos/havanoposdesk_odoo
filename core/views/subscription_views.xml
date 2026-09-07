@@ -30,6 +30,7 @@
                             <group>
                                 <field name="name" />
                                 <field name="price" />
+                                <field name="annual_discount_percentage" />
                                 <field name="duration_days" />
                                 <field name="is_custom" />
                                 <field name="extra_terminal_price" invisible="not is_custom" required="is_custom" />
@@ -63,6 +64,8 @@
                     <field name="date"/>
                     <field name="tenant_id"/>
                     <field name="payment_type"/>
+                    <field name="billing_cycle" optional="show"/>
+                    <field name="duration_months" optional="show"/>
                     <field name="amount" sum="Total Amount"/>
                     <field name="payment_method"/>
                     <field name="transaction_reference"/>
@@ -88,6 +91,8 @@
                             <group>
                                 <field name="tenant_id" options="{'no_create': True}"/>
                                 <field name="subscription_plan_id" invisible="payment_type == 'topup'"/>
+                                <field name="billing_cycle" invisible="payment_type == 'topup'"/>
+                                <field name="duration_months" invisible="payment_type == 'topup'"/>
                                 <field name="payment_type"/>
                                 <field name="amount"/>
                             </group>

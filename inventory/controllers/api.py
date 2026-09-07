@@ -1039,10 +1039,12 @@ class HavanoPOSDeskAPI(http.Controller):
         plans = request.env['havanoposdesk.subscription.plan'].sudo().search([])
         data = []
         for p in plans:
+            annual_disc = getattr(p, 'annual_discount_percentage', 0.0) or 0.0
             data.append({
                 'id': p.id,
                 'name': p.name,
                 'price': p.price,
+                'annual_discount_percentage': annual_disc,
                 'duration_days': p.duration_days,
                 'max_stores': p.max_stores,
                 'max_users': p.max_users,
@@ -1051,6 +1053,12 @@ class HavanoPOSDeskAPI(http.Controller):
                 'extra_store_price': p.extra_store_price,
                 'extra_terminal_price': getattr(p, 'extra_terminal_price', 12.0),
                 'stores_per_terminal': getattr(p, 'stores_per_terminal', 3),
+                'billing_options': {
+                    '1_month': p.price,
+                    '3_months': p.price * 3,
+                    '6_months': p.price * 6,
+                    '12_months': p.price * 12 * (1.0 - (annual_disc / 100.0)),
+                }
             })
         return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
 
@@ -1088,6 +1096,10 @@ class HavanoPOSDeskAPI(http.Controller):
             'tenant_name': tenant.name,
             'account_balance': getattr(tenant, 'account_balance', 0.0),
             'subscription_state': tenant.subscription_state,
+            'billing_cycle': getattr(tenant, 'billing_cycle', '1_month') or '1_month',
+            'duration_months': getattr(tenant, 'duration_months', 1) or 1,
+            'pending_billing_cycle': getattr(tenant, 'pending_billing_cycle', '1_month') or '1_month',
+            'pending_duration_months': getattr(tenant, 'pending_duration_months', 1) or 1,
             'subscription_start_date': str(tenant.subscription_start_date) if tenant.subscription_start_date else None,
             'subscription_end_date': str(tenant.subscription_end_date) if tenant.subscription_end_date else None,
             'days_left': days_left,
@@ -1097,10 +1109,12 @@ class HavanoPOSDeskAPI(http.Controller):
             'additional_terminals': getattr(tenant, 'additional_terminals', 0),
             'additional_stores': tenant.additional_stores,
             'subscription_total_amount': tenant.subscription_total_amount,
+            'pending_subscription_total_amount': getattr(tenant, 'pending_subscription_total_amount', 0.0),
             'plan': {
                 'id': plan.id,
                 'name': plan.name,
                 'price': plan.price,
+                'annual_discount_percentage': getattr(plan, 'annual_discount_percentage', 0.0),
                 'duration_days': plan.duration_days,
                 'max_stores': plan.max_stores,
                 'max_users': plan.max_users,
@@ -1151,6 +1165,9 @@ class HavanoPOSDeskAPI(http.Controller):
         if not plan.exists():
             return request.make_response(json.dumps({'error': 'Plan not found'}), headers=[('Content-Type', 'application/json')], status=404)
             
+        billing_cycle = data.get('billing_cycle', '1_month')
+        duration_months = int(data.get('duration_months', 1) or 1)
+
         if plan.is_custom:
             if 'additional_terminals' in data:
                 additional_terminals = int(data.get('additional_terminals') or 0)
@@ -1169,12 +1186,14 @@ class HavanoPOSDeskAPI(http.Controller):
         else:
             additional_terminals = 0
             additional_stores = int(data.get('additional_stores') or 0)
-        tenant.action_select_plan(plan.id, additional_stores=additional_stores, additional_terminals=additional_terminals)
+        tenant.action_select_plan(plan.id, additional_stores=additional_stores, additional_terminals=additional_terminals, billing_cycle=billing_cycle, duration_months=duration_months)
         
         return request.make_response(json.dumps({
             'success': True,
             'message': f'Subscription to plan {plan.name} is pending payment.',
-            'amount': tenant.subscription_total_amount or plan.price,
+            'amount': tenant.pending_subscription_total_amount or tenant.subscription_total_amount or plan.price,
+            'billing_cycle': tenant.pending_billing_cycle,
+            'duration_months': tenant.pending_duration_months,
             'state': tenant.subscription_state,
         }), headers=[('Content-Type', 'application/json')])
 
@@ -1194,11 +1213,20 @@ class HavanoPOSDeskAPI(http.Controller):
         if not tenant:
             return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        plan = tenant.subscription_plan_id
+        plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
         if not plan:
             return request.make_response(json.dumps({'error': 'No plan selected to pay for'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        amount = data.get('amount', tenant.subscription_total_amount or plan.price)
+        billing_cycle = data.get('billing_cycle') or tenant.pending_billing_cycle or tenant.billing_cycle or '1_month'
+        duration_months = int(data.get('duration_months') or tenant.pending_duration_months or tenant.duration_months or 1)
+
+        # Update pending duration if passed
+        tenant.with_context(bypass_subscription_check=True).write({
+            'pending_billing_cycle': billing_cycle,
+            'pending_duration_months': duration_months,
+        })
+
+        amount = data.get('amount', tenant.pending_subscription_total_amount or tenant.subscription_total_amount or plan.price)
         payment_method = data.get('payment_method', 'in_app')
         
         if payment_method not in ['in_app', 'ecocash', 'paynow']:
@@ -1210,6 +1238,8 @@ class HavanoPOSDeskAPI(http.Controller):
             payment = request.env['havanoposdesk.subscription.payment'].sudo().create({
                 'tenant_id': tenant.id,
                 'subscription_plan_id': plan.id,
+                'billing_cycle': billing_cycle,
+                'duration_months': duration_months,
                 'amount': amount,
                 'payment_method': payment_method,
                 'transaction_reference': transaction_reference,
@@ -1238,6 +1268,8 @@ class HavanoPOSDeskAPI(http.Controller):
         payment = request.env['havanoposdesk.subscription.payment'].sudo().create({
             'tenant_id': tenant.id,
             'subscription_plan_id': plan.id,
+            'billing_cycle': billing_cycle,
+            'duration_months': duration_months,
             'amount': amount,
             'payment_method': payment_method,
             'transaction_reference': reference,
@@ -1327,11 +1359,22 @@ class HavanoPOSDeskAPI(http.Controller):
         if not uid:
             return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
             
+        try:
+            data = json.loads(request.httprequest.data) if request.httprequest.data else {}
+        except Exception:
+            data = {}
+
         user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
             return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
             
+        if data.get('billing_cycle') or data.get('duration_months'):
+            tenant.with_context(bypass_subscription_check=True).write({
+                'pending_billing_cycle': data.get('billing_cycle', tenant.pending_billing_cycle or '1_month'),
+                'pending_duration_months': int(data.get('duration_months', tenant.pending_duration_months or 1)),
+            })
+
         try:
             tenant.action_pay_from_balance()
             return request.make_response(json.dumps({
@@ -1339,6 +1382,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 'message': 'Subscription successfully activated using account balance.',
                 'account_balance': tenant.account_balance,
                 'subscription_state': tenant.subscription_state,
+                'billing_cycle': tenant.billing_cycle,
+                'duration_months': tenant.duration_months,
                 'subscription_end_date': str(tenant.subscription_end_date),
             }), headers=[('Content-Type', 'application/json')])
         except Exception as e:
