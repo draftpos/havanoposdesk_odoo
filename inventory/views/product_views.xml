@@ -52,6 +52,7 @@
                                         <field name="tenant_id" invisible="1" />
                                         <field name="track_qty" invisible="is_bundle == True" class="border-bottom border-dark" />
                                         <field name="is_bundle" class="border-bottom border-dark" />
+                                        <field name="use_ingredients" class="border-bottom border-dark" />
                                         <field name="has_multiple_stores" invisible="1" />
                                         <field name="all_stores" invisible="has_multiple_stores == False" class="border-bottom border-dark" />
                                         <field name="store_ids" widget="many2many_tags" invisible="has_multiple_stores == True and all_stores == True" class="border-bottom border-dark" options="{'no_create': True}" />
@@ -148,6 +149,20 @@
                                             <field name="selling_price" string="Sell Price" widget="monetary" />
                                             <field name="subtotal_cost" string="Total Cost" widget="monetary" readonly="1" force_save="1" />
                                             <field name="subtotal_selling" string="Total Sell" widget="monetary" readonly="1" force_save="1" />
+                                        </list>
+                                    </field>
+                                </group>
+                            </page>
+                            <page string="Ingredients" invisible="use_ingredients == False">
+                                <group>
+                                    <field name="bom_id" invisible="1" />
+                                    <field name="ingredient_ids" nolabel="1">
+                                        <list editable="bottom">
+                                            <field name="product_id" string="Ingredient Product" domain="[('id', '!=', parent.id), ('is_bundle', '=', False), ('is_active', '=', True)]" options="{'no_create': True}" />
+                                            <field name="qty" string="Quantity" />
+                                            <field name="uom_id" string="UOM" />
+                                            <field name="price_unit" string="Unit Cost" widget="monetary" />
+                                            <field name="total_price" string="Total Cost" widget="monetary" readonly="1" force_save="1" />
                                         </list>
                                     </field>
                                 </group>

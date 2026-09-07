@@ -238,6 +238,17 @@ class HavanoposdeskProduct(models.Model):
         products = super().create(vals_list)
         
         for product in products:
+            if product.use_ingredients and not product.bom_id:
+                bom = self.env['havanoposdesk.manufacturing.bom'].create({
+                    'name': f"BOM for {product.name}",
+                    'tenant_id': product.tenant_id.id,
+                    'output_ids': [(0, 0, {
+                        'product_id': product.id,
+                        'qty': 1.0
+                    })]
+                })
+                product.bom_id = bom.id
+
             if product.opening_stock > 0:
                 adj = self.env['havanoposdesk.stock.adjustment'].with_context(from_product_creation=True).create({
                     'store_id': product.store_ids[0].id if product.store_ids else False,
@@ -303,6 +314,20 @@ class HavanoposdeskProduct(models.Model):
                 super(HavanoposdeskProduct, product).write({
                     'store_ids': [(6, 0, all_store_records.ids)]
                 })
+
+        if vals.get('use_ingredients'):
+            for product in self:
+                if product.use_ingredients and not product.bom_id:
+                    bom = self.env['havanoposdesk.manufacturing.bom'].create({
+                        'name': f"BOM for {product.name}",
+                        'tenant_id': product.tenant_id.id,
+                        'output_ids': [(0, 0, {
+                            'product_id': product.id,
+                            'qty': 1.0
+                        })]
+                    })
+                    product.bom_id = bom.id
+
         return res
 
     color_hex = fields.Char(string='Color Hex')
@@ -372,6 +397,9 @@ class HavanoposdeskProduct(models.Model):
     allow_advanced_pricing = fields.Boolean(related='tenant_id.allow_advanced_pricing', readonly=True)
     is_bundle = fields.Boolean(string='Is Bundle', default=False)
     bundle_item_ids = fields.One2many('havanoposdesk.product.bundle.item', 'parent_product_id', string='Bundle Items')
+    use_ingredients = fields.Boolean(string='Use Ingredients', default=False)
+    bom_id = fields.Many2one('havanoposdesk.manufacturing.bom', string='Bill of Materials', copy=False)
+    ingredient_ids = fields.One2many(related='bom_id.raw_material_ids', readonly=False, string='Ingredients')
 
     @api.constrains('advanced_price_ids')
     def _check_advanced_price_ids_unique(self):
