@@ -704,6 +704,31 @@ class Sale(models.Model):
                             'buying_price': (base_cost / line.uom_qty_multiplier) if line.uom_qty_multiplier else base_cost,
                         })
 
+                        # Auto-create and complete Production Order if product uses ingredients
+                        if line.product_id.use_ingredients and line.product_id.bom_id:
+                            raw_materials = []
+                            for bom_line in line.product_id.bom_id.raw_material_ids:
+                                raw_materials.append((0, 0, {
+                                    'product_id': bom_line.product_id.id,
+                                    'qty': bom_line.qty,
+                                    'total_qty': bom_line.qty * base_qty,
+                                }))
+                            outputs = []
+                            for bom_out in line.product_id.bom_id.output_ids:
+                                outputs.append((0, 0, {
+                                    'product_id': bom_out.product_id.id,
+                                    'qty': bom_out.qty,
+                                    'total_qty': bom_out.qty * base_qty,
+                                }))
+                            production_order = self.env['havanoposdesk.production.order'].sudo().create({
+                                'bom_id': line.product_id.bom_id.id,
+                                'tenant_id': line.product_id.tenant_id.id,
+                                'qty_to_produce': base_qty,
+                                'raw_material_ids': raw_materials,
+                                'output_ids': outputs,
+                            })
+                            production_order.action_complete()
+
                     # Determine products for inventory changes
                     if line.product_id.is_bundle:
                         products_to_process = [(comp.product_id, base_qty * comp.qty) for comp in line.product_id.bundle_item_ids]
