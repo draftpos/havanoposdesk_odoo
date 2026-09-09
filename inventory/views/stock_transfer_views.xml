@@ -53,6 +53,7 @@
                                             domain="[('tenant_id', '=', parent.tenant_id), ('is_active', '=', True)]"
                                             width="35%"
                                             string="Item" />
+                                        <field name="variant_id" optional="show" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="15%" />
                                         <field name="available_uom_ids" column_invisible="True" />
                                         <field name="uom_id"
                                             domain="[('id', 'in', available_uom_ids)]"

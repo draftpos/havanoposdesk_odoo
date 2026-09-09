@@ -46,6 +46,7 @@
                                     <list  editable="bottom">
                                         <field name="currency_id" column_invisible="True"/>
                                         <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('track_qty', '=', True), ('is_bundle', '=', False), ('is_active', '=', True)]" width="16%" optional="show"/>
+                                        <field name="variant_id" optional="show" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="15%" />
                                         <field name="item_code" width="15%" optional="show"/>
                                         <field name="on_hand" width="16%" optional="show"/>
                                         <field name="counted" width="16%" optional="show"/>

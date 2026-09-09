@@ -47,6 +47,7 @@
         'inventory/views/product_views.xml',
         'inventory/views/stock_adjustment_views.xml',
         'inventory/wizard/stock_valuation_date_wizard_views.xml',
+        'inventory/wizard/variant_selector_wizard_views.xml',
         'inventory/views/stock_transfer_views.xml',
         'inventory/views/stock_entry_views.xml',
         'inventory/views/report_views.xml',

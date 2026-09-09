@@ -404,17 +404,22 @@ class Sale(models.Model):
 
                     # Determine products for inventory changes
                     if line.product_id.is_bundle:
-                        products_to_process = [(comp.product_id, base_qty * comp.qty) for comp in line.product_id.bundle_item_ids]
+                        products_to_process = [(comp.product_id, base_qty * comp.qty, False) for comp in line.product_id.bundle_item_ids]
                     else:
-                        products_to_process = [(line.product_id, base_qty)]
+                        products_to_process = [(line.product_id, base_qty, line.variant_id.id if line.variant_id else False)]
 
-                    for product_id, item_base_qty in products_to_process:
+                    for product_id, item_base_qty, item_variant_id in products_to_process:
                         if not product_id.track_qty:
                             continue
-                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                            
+                        domain = [
                             ('product_id', '=', product_id.id),
                             ('store', '=', sale.store)
-                        ], limit=1)
+                        ]
+                        if item_variant_id:
+                            domain.append(('variant_id', '=', item_variant_id))
+                            
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
                         
                         current_qty = valuation.on_hand_qty if valuation else 0.0
                         if sale.is_return:
@@ -427,6 +432,7 @@ class Sale(models.Model):
                         else:
                             self.env['havanoposdesk.stock.valuation'].sudo().create({
                                 'product_id': product_id.id,
+                                'variant_id': item_variant_id,
                                 'store': sale.store,
                                 'on_hand_qty': new_balance,
                                 'tenant_id': product_id.tenant_id.id,
@@ -436,6 +442,7 @@ class Sale(models.Model):
                             # Add back to stock
                             self.env['havanoposdesk.stock.ledger'].sudo().create({
                                 'product_id': product_id.id,
+                                'variant_id': item_variant_id,
                                 'in_qty': item_base_qty,
                                 'out_qty': 0.0,
                                 'balance_qty': new_balance,
@@ -449,6 +456,7 @@ class Sale(models.Model):
                             # Create Ledger Entry using sudo()
                             self.env['havanoposdesk.stock.ledger'].sudo().create({
                                 'product_id': product_id.id,
+                                'variant_id': item_variant_id,
                                 'in_qty': 0.0,
                                 'out_qty': item_base_qty,
                                 'balance_qty': new_balance,
@@ -514,22 +522,27 @@ class Sale(models.Model):
             for line in sale.line_ids:
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
                 if line.product_id.is_bundle:
-                    products_to_process = [(comp.product_id, base_qty * comp.qty) for comp in line.product_id.bundle_item_ids]
+                    products_to_process = [(comp.product_id, base_qty * comp.qty, False) for comp in line.product_id.bundle_item_ids]
                 else:
-                    products_to_process = [(line.product_id, base_qty)]
+                    products_to_process = [(line.product_id, base_qty, line.variant_id.id if line.variant_id else False)]
 
-                for product_id, item_base_qty in products_to_process:
+                for product_id, item_base_qty, item_variant_id in products_to_process:
                     if not product_id.track_qty:
                         continue
                     # Create reverse ledger entry using sudo()
-                    orig_ledgers = self.env['havanoposdesk.stock.ledger'].sudo().search([
+                    domain = [
                         ('doc_no', '=', sale.name),
                         ('product_id', '=', product_id.id),
                         ('type', 'in', ['Sale', 'Return', 'Credit Note'])
-                    ])
+                    ]
+                    if item_variant_id:
+                        domain.append(('variant_id', '=', item_variant_id))
+                        
+                    orig_ledgers = self.env['havanoposdesk.stock.ledger'].sudo().search(domain)
                     for orig_ledger in orig_ledgers:
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': product_id.id,
+                            'variant_id': item_variant_id,
                             'in_qty': orig_ledger.out_qty,
                             'out_qty': orig_ledger.in_qty,
                             'balance_qty': product_id.opening_stock,
@@ -541,10 +554,14 @@ class Sale(models.Model):
                         })
 
                     # Update Valuation Entry using sudo()
-                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                    val_domain = [
                         ('product_id', '=', product_id.id),
                         ('store', '=', sale.store)
-                    ], limit=1)
+                    ]
+                    if item_variant_id:
+                        val_domain.append(('variant_id', '=', item_variant_id))
+                        
+                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain, limit=1)
                     if valuation:
                         if sale.is_return:
                             valuation.write({'on_hand_qty': valuation.on_hand_qty - item_base_qty})
@@ -589,6 +606,7 @@ class SaleLine(models.Model):
     currency_id = fields.Many2one('res.currency', related='sale_id.currency_id', readonly=True)
     exchange_rate = fields.Float(related='sale_id.exchange_rate', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
     rate = fields.Float(string='Rate')
@@ -598,6 +616,18 @@ class SaleLine(models.Model):
     amount = fields.Float(string='Total', compute='_compute_amount', store=True)
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM')
     uom_qty_multiplier = fields.Float(string='UOM Multiplier', default=1.0)
+    
+    @api.onchange('product_id')
+    def _onchange_product_id_variant(self):
+        if self.product_id and self.product_id.is_variant:
+            # We must clear variant_id when product changes
+            self.variant_id = False
+            return {
+                'warning': {
+                    'title': "Variant Required",
+                    'message': f"Please select a variant for {self.product_id.name} from the Variant column."
+                }
+            }
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
     cost_price = fields.Float(string='Cost Price', compute='_compute_cost_price', store=True, readonly=False)
     gross_profit = fields.Float(string='Gross Profit', compute='_compute_gross_profit', store=True)
@@ -708,6 +738,13 @@ class SaleLine(models.Model):
             uom_ids.extend(prices.mapped('uom_id.id'))
             line.available_uom_ids = [(6, 0, list(set(uom_ids)))]
 
+    @api.onchange('variant_id')
+    def _onchange_variant_id(self):
+        for line in self:
+            if line.variant_id:
+                line.rate = line.variant_id.selling_price * (line.exchange_rate or 1.0)
+                line.cost_price = line.variant_id.cost_price * (line.exchange_rate or 1.0)
+                
     @api.onchange('product_id', 'uom_id')
     def _onchange_product_uom(self):
         for line in self:

@@ -62,14 +62,18 @@ class HavanoposdeskProduct(models.Model):
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
+    is_variant = fields.Boolean(string='Is Variant', default=False)
+    variant_ids = fields.One2many('havanoposdesk.product.variant', 'product_id', string='Variants')
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
 
-    @api.depends('is_bundle')
+    @api.depends('is_bundle', 'is_variant', 'variant_ids.on_hand_qty')
     def _compute_on_hand_qty(self):
         for record in self:
             if record.is_bundle:
                 record.on_hand_qty = 0.0
+            elif record.is_variant:
+                record.on_hand_qty = sum(record.variant_ids.mapped('on_hand_qty'))
             else:
                 valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', '=', record.id)])
                 record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
@@ -373,3 +377,28 @@ class HavanoposdeskProductCosting(models.Model):
     qty = fields.Float(string='Quantity')
     price = fields.Float(string='Price/Rate')
     cost_type = fields.Selection([('last', 'Last Purchase'), ('average', 'Average')], string='Cost Type', default='last')
+
+class HavanoposdeskProductVariant(models.Model):
+    _name = 'havanoposdesk.product.variant'
+    _description = 'Product Variant'
+
+    product_id = fields.Many2one('havanoposdesk.product', string='Parent Product', required=True, ondelete='cascade')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id)
+    name = fields.Char(string='Variant Name', required=True)
+    cost_price = fields.Float(string='Cost Price')
+    selling_price = fields.Float(string='Sell Price')
+    on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
+    
+    @api.depends('product_id')
+    def _compute_on_hand_qty(self):
+        for record in self:
+            valuations = self.env['havanoposdesk.stock.valuation'].search([('variant_id', '=', record.id)])
+            record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
+            
+    @api.onchange('product_id')
+    def _onchange_product_id(self):
+        if self.product_id:
+            if not self.cost_price:
+                self.cost_price = self.product_id.buying_price
+            if not self.selling_price:
+                self.selling_price = self.product_id.selling_price

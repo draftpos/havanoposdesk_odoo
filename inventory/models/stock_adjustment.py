@@ -178,6 +178,7 @@ class StockAdjustment(models.Model):
                 
                 self.env['havanoposdesk.stock.ledger'].sudo().create({
                     'product_id': line.product_id.id,
+                    'variant_id': line.variant_id.id if line.variant_id else False,
                     'in_qty': in_qty,
                     'out_qty': out_qty,
                     'balance_qty': line.counted,
@@ -188,10 +189,14 @@ class StockAdjustment(models.Model):
                 })
 
                 # Update or Create Valuation Entry using sudo()
-                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                domain = [
                     ('product_id', '=', line.product_id.id),
                     ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
-                ], limit=1)
+                ]
+                if line.variant_id:
+                    domain.append(('variant_id', '=', line.variant_id.id))
+                    
+                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
                 
                 if valuation:
                     valuation.write({
@@ -200,6 +205,7 @@ class StockAdjustment(models.Model):
                 else:
                     self.env['havanoposdesk.stock.valuation'].sudo().create({
                         'product_id': line.product_id.id,
+                        'variant_id': line.variant_id.id if line.variant_id else False,
                         'store': adjustment.store_id.name if adjustment.store_id else '',
                         'on_hand_qty': line.counted,
                         'tenant_id': line.product_id.tenant_id.id,
@@ -222,14 +228,19 @@ class StockAdjustment(models.Model):
                     continue
                 # Do not revert opening_stock anymore
                 # Create Reverse Ledger Entry
-                orig_ledger = self.env['havanoposdesk.stock.ledger'].sudo().search([
+                domain = [
                     ('doc_no', '=', adjustment.name),
                     ('product_id', '=', line.product_id.id),
                     ('type', 'in', ['Opening Stock', 'Stock Adjustment'])
-                ], limit=1)
+                ]
+                if line.variant_id:
+                    domain.append(('variant_id', '=', line.variant_id.id))
+                    
+                orig_ledger = self.env['havanoposdesk.stock.ledger'].sudo().search(domain, limit=1)
                 if orig_ledger:
                     self.env['havanoposdesk.stock.ledger'].sudo().create({
                         'product_id': line.product_id.id,
+                        'variant_id': line.variant_id.id if line.variant_id else False,
                         'in_qty': orig_ledger.out_qty,
                         'out_qty': orig_ledger.in_qty,
                         'balance_qty': 0.0 if is_creation else line.on_hand,
@@ -240,10 +251,13 @@ class StockAdjustment(models.Model):
                     })
 
                 # Update Valuation Entry
-                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                val_domain = [
                     ('product_id', '=', line.product_id.id),
                     ('store', '=', adjustment.store_id.name if adjustment.store_id else '')
-                ], limit=1)
+                ]
+                if line.variant_id:
+                    val_domain.append(('variant_id', '=', line.variant_id.id))
+                valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain, limit=1)
                 if valuation:
                     valuation.write({
                         'on_hand_qty': 0.0 if is_creation else line.on_hand,
@@ -276,6 +290,7 @@ class StockAdjustmentLine(models.Model):
     store_id = fields.Many2one(related='adjustment_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     on_hand = fields.Float(string='On Hand', readonly=True)
     counted = fields.Float(string='Counted')
@@ -292,5 +307,20 @@ class StockAdjustmentLine(models.Model):
     @api.onchange('product_id')
     def _onchange_product_id(self):
         if self.product_id:
+            if self.product_id.is_variant:
+                self.variant_id = False
+                return {
+                    'warning': {
+                        'title': "Variant Required",
+                        'message': f"Please select a variant for {self.product_id.name}."
+                    }
+                }
             self.on_hand = self.product_id.opening_stock
+            self.counted = 0.0
+            
+    @api.onchange('variant_id')
+    def _onchange_variant_id(self):
+        if self.variant_id:
+            # Need to get variant on hand qty
+            self.on_hand = self.variant_id.on_hand_qty
             self.counted = 0.0

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_variant_selector_wizard_form" model="ir.ui.view">
+        <field name="name">havanoposdesk.variant.selector.form</field>
+        <field name="model">havanoposdesk.variant.selector</field>
+        <field name="arch" type="xml">
+            <form string="Select Variant">
+                <sheet>
+                    <group>
+                        <field name="product_id" readonly="1" />
+                        <field name="variant_id" options="{'no_create': True}" />
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Confirm" name="action_confirm" type="object" class="btn-primary" />
+                    <button string="Cancel" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <record id="action_variant_selector_wizard" model="ir.actions.act_window">
+        <field name="name">Select Variant</field>
+        <field name="res_model">havanoposdesk.variant.selector</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>
