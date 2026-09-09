@@ -4711,26 +4711,58 @@ class HavanoPOSDeskAPI(http.Controller):
                 _logger.info("[api_get_currency_exchange_rate] Same currency (%s == %s), returning 1.0", from_currency, to_currency)
                 return self._make_json_response({"message": {"exchange_rate": 1.0}})
 
-            from_curr = env['res.currency'].sudo().search([('name', '=ilike', from_currency)], limit=1)
-            to_curr = env['res.currency'].sudo().search([('name', '=ilike', to_currency)], limit=1)
+            from_curr = False
+            to_curr = False
+            if tenant:
+                from_curr = env['res.currency'].sudo().search([('tenant_id', '=', tenant.id), ('name', '=ilike', from_currency)], limit=1)
+                to_curr = env['res.currency'].sudo().search([('tenant_id', '=', tenant.id), ('name', '=ilike', to_currency)], limit=1)
 
-            from_rate = self._get_direct_rate(env, from_curr.id, tenant) if from_curr else 1.0
+            if not from_curr:
+                from_curr = env['res.currency'].sudo().search([('name', '=ilike', from_currency)], limit=1)
+            if not to_curr:
+                to_curr = env['res.currency'].sudo().search([('name', '=ilike', to_currency)], limit=1)
 
-            rate = 1.0
-            if to_curr:
-                to_rate = self._get_direct_rate(env, to_curr.id, tenant)
-                rate = to_rate / from_rate if from_rate else to_rate
+            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
+
+            if base_curr and from_curr and from_curr.id == base_curr.id:
+                from_rate = 1.0
+            elif base_curr and from_currency.upper() == (base_curr.name or 'USD').upper():
+                from_rate = 1.0
             else:
-                acc = env['havanoposdesk.account'].sudo().search([
-                    '|', ('name', '=ilike', to_currency),
-                    ('currency_id.name', '=ilike', to_currency)
-                ], limit=1)
-                if acc and acc.currency_id:
-                    to_rate = self._get_direct_rate(env, acc.currency_id.id, tenant)
-                    rate = to_rate / from_rate if from_rate else to_rate
+                from_rate = self._get_direct_rate(env, from_curr.id, tenant) if from_curr else 1.0
 
+            to_rate = 1.0
+            rate_found = False
+            if base_curr and to_curr and to_curr.id == base_curr.id:
+                to_rate = 1.0
+                rate_found = True
+            elif base_curr and to_currency.upper() == (base_curr.name or 'USD').upper():
+                to_rate = 1.0
+                rate_found = True
+            elif to_curr:
+                tr = self._get_direct_rate(env, to_curr.id, tenant)
+                if tr and tr != 1.0:
+                    to_rate = tr
+                    rate_found = True
+                elif tr == 1.0:
+                    to_rate = 1.0
+
+            # If not found yet or defaulted to 1.0, look up tenant accounts linked to this currency or name
+            if not rate_found:
+                acc_dom = [('tenant_id', '=', tenant.id)] if tenant else []
+                acc = env['havanoposdesk.account'].sudo().search(
+                    acc_dom + ['|', ('currency_id.name', '=ilike', to_currency), ('name', '=ilike', to_currency)],
+                    limit=1
+                )
+                if acc and acc.currency_id:
+                    acc_rate = self._get_direct_rate(env, acc.currency_id.id, tenant)
+                    if acc_rate:
+                        to_rate = acc_rate
+                        rate_found = True
+
+            rate = to_rate / from_rate if from_rate else to_rate
             final_rate = float(rate) if rate else 1.0
-            _logger.info("[api_get_currency_exchange_rate] from=%s, to=%s -> final_rate=%s (from_rate=%s, to_rate=%s)", from_currency, to_currency, final_rate, from_rate, to_rate if 'to_rate' in locals() else None)
+            _logger.info("[api_get_currency_exchange_rate] from=%s, to=%s -> final_rate=%s (from_rate=%s, to_rate=%s)", from_currency, to_currency, final_rate, from_rate, to_rate)
 
             return self._make_json_response({
                 "message": {
