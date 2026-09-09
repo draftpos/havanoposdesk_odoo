@@ -46,6 +46,23 @@ class Shift(models.Model):
     
     payment_breakdown_ids = fields.One2many('havanoposdesk.shift.payment.line', 'shift_id', string='Payment Breakdown (Declared)')
 
+    @staticmethod
+    def _classify_account(account):
+        if not account:
+            return 'cash'
+        name = (account.name or '').lower()
+        if account.type == 'Cash':
+            if any(m in name for m in ('mobile', 'ecocash', 'mpesa', 'airtel', 'omari', 'telecash', 'innbucks')):
+                return 'mobile'
+            return 'cash'
+        elif account.type == 'Bank':
+            if any(c in name for c in ('card', 'pos', 'visa', 'master', 'swipe')):
+                return 'card'
+            elif any(m in name for m in ('mobile', 'ecocash', 'mpesa', 'airtel', 'omari', 'telecash', 'innbucks')):
+                return 'mobile'
+            return 'bank'
+        return 'other'
+
     @api.depends(
         'sale_ids.amount_total',
         'sale_ids.amount_total_base',
