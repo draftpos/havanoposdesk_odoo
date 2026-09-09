@@ -313,28 +313,58 @@ class HavanoPOSDeskAPI(http.Controller):
                 pm_domain.append(('tenant_id', '=', user.tenant_id.id))
             payment_methods_records = user_env['havanoposdesk.account'].sudo().search(pm_domain)
             payment_methods_data = []
+            tenant_curr_id = tenant_curr.id if tenant_curr else None
+            tenant_obj = tenant if 'tenant' in locals() else None
+            tenant_id_val = tenant_obj.id if tenant_obj else None
             for pm in payment_methods_records:
                 pm_curr = pm.currency_id or tenant_curr
+                pm_curr_id = pm_curr.id if pm_curr else None
                 currency_code = pm_curr.name if pm_curr else (currency or 'USD')
                 rate_val = 1.0
-                if tenant_curr and pm_curr and tenant_curr != pm_curr:
-                    from_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, tenant_curr.id, tenant if 'tenant' in locals() else None)
-                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, pm_curr.id, tenant if 'tenant' in locals() else None)
+                debug_info = {
+                    "tenant_curr_id": tenant_curr_id,
+                    "pm_curr_id": pm_curr_id,
+                    "tenant_id": tenant_id_val,
+                    "same_currency": (tenant_curr_id == pm_curr_id) if (tenant_curr_id and pm_curr_id) else None,
+                }
+                if tenant_curr_id and pm_curr_id and tenant_curr_id != pm_curr_id:
+                    # Raw SQL - no ORM at all
+                    user_env.cr.execute(
+                        "SELECT rate FROM res_currency_rate WHERE currency_id = %s AND tenant_id = %s ORDER BY name DESC LIMIT 1",
+                        (pm_curr_id, tenant_id_val)
+                    )
+                    pm_rate_row = user_env.cr.fetchone()
+                    to_rate = pm_rate_row[0] if pm_rate_row and pm_rate_row[0] else 1.0
+
+                    user_env.cr.execute(
+                        "SELECT rate FROM res_currency_rate WHERE currency_id = %s AND tenant_id = %s ORDER BY name DESC LIMIT 1",
+                        (tenant_curr_id, tenant_id_val)
+                    )
+                    base_rate_row = user_env.cr.fetchone()
+                    from_rate = base_rate_row[0] if base_rate_row and base_rate_row[0] else 1.0
+
                     rate_val = to_rate / from_rate if from_rate else 1.0
+                    debug_info["to_rate_raw"] = to_rate
+                    debug_info["from_rate_raw"] = from_rate
+                    debug_info["entered_block"] = True
                 elif pm_curr and not tenant_curr:
                     rate_val = pm_curr.rate or 1.0
+                    debug_info["entered_block"] = "fallback_no_tenant_curr"
 
                 payment_methods_data.append({
                     "id": pm.id,
                     "name": pm.name,
                     "account_name": pm.name,
                     "type": pm.type,
+                    "on_account": getattr(pm, 'on_account', False),
+                    "is_on_account": getattr(pm, 'on_account', False),
                     "currency": currency_code,
                     "currency_id": pm.currency_id.id if pm.currency_id else (tenant_curr.id if tenant_curr else False),
                     "exchange_rate": rate_val,
                     "rate": rate_val,
                     "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
                     "symbol": pm_curr.symbol if pm_curr else "$",
+                    "_debug": debug_info,
                 })
                 
             # Fetch warehouse items/products
