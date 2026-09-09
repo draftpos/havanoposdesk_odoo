@@ -133,3 +133,123 @@
 .o-mail-DiscussSystray-class {
     display: none !important;
 }
+
+/* ─── Minimalistic Variant Selector Modal ─────────────────────────────────────── */
+.havano-variant-modal {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    .variant-card-container {
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .variant-table {
+        margin-bottom: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+
+        thead th {
+            background-color: #f8fafc;
+            color: #64748b;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 10px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            border-top: none;
+        }
+
+        tbody tr {
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+
+            td {
+                padding: 12px 14px;
+                vertical-align: middle;
+                border-bottom: 1px solid #f1f5f9;
+                color: #334155;
+            }
+
+            &:last-child td {
+                border-bottom: none;
+            }
+
+            &:hover {
+                background-color: #f8fbff;
+            }
+
+            &.selected-row {
+                background-color: #eff6ff !important;
+
+                td:first-child {
+                    border-left: 3px solid #0278F3;
+                }
+            }
+        }
+    }
+
+    .variant-name {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.925rem;
+    }
+
+    .variant-stock-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 9px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 20px;
+
+        &.in-stock {
+            background-color: #ecfdf5;
+            color: #059669;
+            border: 1px solid #a7f3d0;
+        }
+
+        &.out-of-stock {
+            background-color: #f8fafc;
+            color: #94a3b8;
+            border: 1px solid #e2e8f0;
+        }
+    }
+
+    .variant-cost-price {
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .variant-sell-price {
+        color: #0278F3;
+        font-size: 0.95rem;
+        font-weight: 700;
+    }
+
+    .btn-select-variant {
+        background-color: #0278F3 !important;
+        border-color: #0278F3 !important;
+        color: #ffffff !important;
+        font-weight: 600;
+        font-size: 0.825rem;
+        padding: 5px 14px;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 3px rgba(2, 120, 243, 0.25);
+
+        &:hover {
+            background-color: #0260c4 !important;
+            border-color: #0260c4 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(2, 120, 243, 0.35);
+        }
+
+        &:active {
+            transform: translateY(0);
+        }
+    }
+}
