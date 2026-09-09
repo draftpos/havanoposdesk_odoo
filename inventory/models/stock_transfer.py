@@ -197,9 +197,13 @@ class StockTransferLine(models.Model):
             if line.product_id.is_variant:
                 line.variant_id = False
                 return {
-                    'warning': {
-                        'title': "Variant Required",
-                        'message': f"Please select a variant for {line.product_id.name}."
+                    'type': 'ir.actions.act_window',
+                    'name': f'Select Variant for {line.product_id.name}',
+                    'res_model': 'havanoposdesk.variant.selector',
+                    'view_mode': 'form',
+                    'target': 'new',
+                    'context': {
+                        'default_product_id': line.product_id.id,
                     }
                 }
             if not line.uom_id or line.uom_id.id not in line.available_uom_ids.ids:

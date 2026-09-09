@@ -623,9 +623,13 @@ class SaleLine(models.Model):
             # We must clear variant_id when product changes
             self.variant_id = False
             return {
-                'warning': {
-                    'title': "Variant Required",
-                    'message': f"Please select a variant for {self.product_id.name} from the Variant column."
+                'type': 'ir.actions.act_window',
+                'name': f'Select Variant for {self.product_id.name}',
+                'res_model': 'havanoposdesk.variant.selector',
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {
+                    'default_product_id': self.product_id.id,
                 }
             }
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)

@@ -310,9 +310,13 @@ class StockAdjustmentLine(models.Model):
             if self.product_id.is_variant:
                 self.variant_id = False
                 return {
-                    'warning': {
-                        'title': "Variant Required",
-                        'message': f"Please select a variant for {self.product_id.name}."
+                    'type': 'ir.actions.act_window',
+                    'name': f'Select Variant for {self.product_id.name}',
+                    'res_model': 'havanoposdesk.variant.selector',
+                    'view_mode': 'form',
+                    'target': 'new',
+                    'context': {
+                        'default_product_id': self.product_id.id,
                     }
                 }
             self.on_hand = self.product_id.opening_stock
