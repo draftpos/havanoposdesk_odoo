@@ -287,21 +287,3 @@ class ShiftPaymentLine(models.Model):
     def _compute_difference(self):
         for record in self:
             record.difference = record.closing_amount - record.expected_amount
-
-    @staticmethod
-    def _classify_account(account):
-        if not account:
-            return 'cash'
-        name = (account.name or '').lower()
-        if account.type == 'Cash':
-            if any(m in name for m in ('mobile', 'ecocash', 'mpesa', 'airtel', 'omari', 'telecash', 'innbucks')):
-                return 'mobile'
-            return 'cash'
-        elif account.type == 'Bank':
-            if any(c in name for c in ('card', 'pos', 'visa', 'master', 'swipe')):
-                return 'card'
-            elif any(m in name for m in ('mobile', 'ecocash', 'mpesa', 'airtel', 'omari', 'telecash', 'innbucks')):
-                return 'mobile'
-            return 'bank'
-        return 'other'
-
