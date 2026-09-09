@@ -4665,6 +4665,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "symbol": acc_curr.symbol if acc_curr else "$",
                 })
 
+            _logger.info("[api_get_accounts] Returning %d accounts. Rates: %s", len(accounts_data), [(a.get('name'), a.get('currency'), a.get('exchange_rate'), a.get('inverse_rate')) for a in accounts_data])
+
             return self._make_json_response({
                 "message": {
                     "accounts": accounts_data,
@@ -4706,6 +4708,7 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id
 
             if not to_currency or from_currency.upper() == to_currency.upper():
+                _logger.info("[api_get_currency_exchange_rate] Same currency (%s == %s), returning 1.0", from_currency, to_currency)
                 return self._make_json_response({"message": {"exchange_rate": 1.0}})
 
             from_curr = env['res.currency'].sudo().search([('name', '=ilike', from_currency)], limit=1)
@@ -4726,9 +4729,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     to_rate = self._get_direct_rate(env, acc.currency_id.id, tenant)
                     rate = to_rate / from_rate if from_rate else to_rate
 
+            final_rate = float(rate) if rate else 1.0
+            _logger.info("[api_get_currency_exchange_rate] from=%s, to=%s -> final_rate=%s (from_rate=%s, to_rate=%s)", from_currency, to_currency, final_rate, from_rate, to_rate if 'to_rate' in locals() else None)
+
             return self._make_json_response({
                 "message": {
-                    "exchange_rate": float(rate) if rate else 1.0
+                    "exchange_rate": final_rate
                 }
             })
         finally:
