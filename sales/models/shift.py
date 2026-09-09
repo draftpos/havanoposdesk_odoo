@@ -46,39 +46,6 @@ class Shift(models.Model):
     
     payment_breakdown_ids = fields.One2many('havanoposdesk.shift.payment.line', 'shift_id', string='Payment Breakdown (Declared)')
 
-class ShiftPaymentLine(models.Model):
-    _name = 'havanoposdesk.shift.payment.line'
-    _description = 'Shift Payment Breakdown'
-
-    shift_id = fields.Many2one('havanoposdesk.shift', string='Shift', required=True, ondelete='cascade')
-    name = fields.Char(string='Payment Method', required=True)
-    expected_amount = fields.Monetary(string='System Expected', currency_field='currency_id', default=0.0)
-    closing_amount = fields.Monetary(string='Declared Amount', currency_field='currency_id', required=True, default=0.0)
-    difference = fields.Monetary(string='Difference', currency_field='currency_id', compute='_compute_difference', store=True)
-    currency_id = fields.Many2one('res.currency', related='shift_id.currency_id', readonly=True)
-
-    @api.depends('expected_amount', 'closing_amount')
-    def _compute_difference(self):
-        for record in self:
-            record.difference = record.closing_amount - record.expected_amount
-
-    @staticmethod
-    def _classify_account(account):
-        if not account:
-            return 'cash'
-        name = (account.name or '').lower()
-        if account.type == 'Cash':
-            if any(m in name for m in ('mobile', 'ecocash', 'mpesa', 'airtel', 'omari', 'telecash', 'innbucks')):
-                return 'mobile'
-            return 'cash'
-        elif account.type == 'Bank':
-            if any(c in name for c in ('card', 'pos', 'visa', 'master', 'swipe')):
-                return 'card'
-            elif any(m in name for m in ('mobile', 'ecocash', 'mpesa', 'airtel', 'omari', 'telecash', 'innbucks')):
-                return 'mobile'
-            return 'bank'
-        return 'other'
-
     @api.depends(
         'sale_ids.amount_total',
         'sale_ids.amount_total_base',
@@ -304,3 +271,37 @@ class ShiftPaymentLine(models.Model):
                 'default_tenant_id': self.tenant_id.id,
             },
         }
+
+class ShiftPaymentLine(models.Model):
+    _name = 'havanoposdesk.shift.payment.line'
+    _description = 'Shift Payment Breakdown'
+
+    shift_id = fields.Many2one('havanoposdesk.shift', string='Shift', required=True, ondelete='cascade')
+    name = fields.Char(string='Payment Method', required=True)
+    expected_amount = fields.Monetary(string='System Expected', currency_field='currency_id', default=0.0)
+    closing_amount = fields.Monetary(string='Declared Amount', currency_field='currency_id', required=True, default=0.0)
+    difference = fields.Monetary(string='Difference', currency_field='currency_id', compute='_compute_difference', store=True)
+    currency_id = fields.Many2one('res.currency', related='shift_id.currency_id', readonly=True)
+
+    @api.depends('expected_amount', 'closing_amount')
+    def _compute_difference(self):
+        for record in self:
+            record.difference = record.closing_amount - record.expected_amount
+
+    @staticmethod
+    def _classify_account(account):
+        if not account:
+            return 'cash'
+        name = (account.name or '').lower()
+        if account.type == 'Cash':
+            if any(m in name for m in ('mobile', 'ecocash', 'mpesa', 'airtel', 'omari', 'telecash', 'innbucks')):
+                return 'mobile'
+            return 'cash'
+        elif account.type == 'Bank':
+            if any(c in name for c in ('card', 'pos', 'visa', 'master', 'swipe')):
+                return 'card'
+            elif any(m in name for m in ('mobile', 'ecocash', 'mpesa', 'airtel', 'omari', 'telecash', 'innbucks')):
+                return 'mobile'
+            return 'bank'
+        return 'other'
+
