@@ -6866,6 +6866,38 @@ class HavanoPOSDeskAPI(http.Controller):
                     'expected_amount': expected,
                     'closing_amount': c_amt
                 }))
+        else:
+            # Backward compatibility for older versions of the app
+            if 'amount_cash' in params:
+                breakdown_lines.append((0, 0, {
+                    'name': 'Cash',
+                    'expected_amount': shift.expected_cash,
+                    'closing_amount': float(params.get('amount_cash', 0.0))
+                }))
+            if 'amount_card' in params:
+                breakdown_lines.append((0, 0, {
+                    'name': 'Card',
+                    'expected_amount': shift.amount_card,
+                    'closing_amount': float(params.get('amount_card', 0.0))
+                }))
+            if 'amount_mobile' in params:
+                breakdown_lines.append((0, 0, {
+                    'name': 'Mobile',
+                    'expected_amount': shift.amount_mobile,
+                    'closing_amount': float(params.get('amount_mobile', 0.0))
+                }))
+            if 'amount_bank' in params:
+                breakdown_lines.append((0, 0, {
+                    'name': 'Bank Transfer',
+                    'expected_amount': shift.amount_bank,
+                    'closing_amount': float(params.get('amount_bank', 0.0))
+                }))
+            if 'amount_other' in params:
+                breakdown_lines.append((0, 0, {
+                    'name': 'Other',
+                    'expected_amount': shift.amount_other,
+                    'closing_amount': float(params.get('amount_other', 0.0))
+                }))
 
         # Update shift with closing details from POS
         update_vals = {
