@@ -6840,37 +6840,41 @@ class HavanoPOSDeskAPI(http.Controller):
 
         # If payment_balances array is passed from Flutter
         payment_balances = params.get('payment_balances') or []
+        breakdown_lines = []
         if payment_balances:
             for pb in payment_balances:
-                m_name = (pb.get('payment_method') or pb.get('name') or '').lower()
+                m_name_raw = pb.get('payment_method') or pb.get('name') or ''
+                m_name = m_name_raw.lower()
                 c_amt = float(pb.get('closing_amount') or pb.get('amount') or 0.0)
+                
+                # Determine expected based on computed fields
+                expected = 0.0
                 if 'cash' in m_name:
                     actual_cash = c_amt
-                    amount_cash = c_amt
+                    expected = shift.expected_cash
                 elif 'card' in m_name or 'pos' in m_name or 'visa' in m_name or 'master' in m_name:
-                    amount_card += c_amt
+                    expected = shift.amount_card
                 elif 'mobile' in m_name or 'ecocash' in m_name or 'mpesa' in m_name or 'airtel' in m_name or 'omari' in m_name:
-                    amount_mobile += c_amt
+                    expected = shift.amount_mobile
                 elif 'bank' in m_name or 'transfer' in m_name:
-                    amount_bank += c_amt
+                    expected = shift.amount_bank
                 else:
-                    amount_other += c_amt
+                    expected = shift.amount_other
+                    
+                breakdown_lines.append((0, 0, {
+                    'name': m_name_raw,
+                    'expected_amount': expected,
+                    'closing_amount': c_amt
+                }))
 
         # Update shift with closing details from POS
         update_vals = {
             'actual_cash': actual_cash,
         }
+        
+        if breakdown_lines:
+            update_vals['payment_breakdown_ids'] = [(5, 0, 0)] + breakdown_lines
 
-        if amount_cash or 'amount_cash' in params:
-            update_vals['amount_cash'] = amount_cash
-        if amount_card or 'amount_card' in params:
-            update_vals['amount_card'] = amount_card
-        if amount_mobile or 'amount_mobile' in params:
-            update_vals['amount_mobile'] = amount_mobile
-        if amount_bank or 'amount_bank' in params:
-            update_vals['amount_bank'] = amount_bank
-        if amount_other or 'amount_other' in params:
-            update_vals['amount_other'] = amount_other
         if 'total_expenses' in params:
             update_vals['total_expenses'] = float(params.get('total_expenses', 0.0))
         if 'total_credit_notes' in params:

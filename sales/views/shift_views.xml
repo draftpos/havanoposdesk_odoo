@@ -101,17 +101,15 @@
                             </field>
                         </page>
                         <page string="Payment Breakdown">
-                            <group>
-                                <group>
-                                    <field name="amount_cash" readonly="state == 'closed'"/>
-                                    <field name="amount_card" readonly="state == 'closed'"/>
-                                    <field name="amount_mobile" readonly="state == 'closed'"/>
-                                </group>
-                                <group>
-                                    <field name="amount_bank" readonly="state == 'closed'"/>
-                                    <field name="amount_other" readonly="state == 'closed'"/>
-                                </group>
-                            </group>
+                            <field name="payment_breakdown_ids" readonly="1">
+                                <list string="Payment Breakdown" editable="bottom">
+                                    <field name="name"/>
+                                    <field name="expected_amount" widget="monetary"/>
+                                    <field name="closing_amount" widget="monetary"/>
+                                    <field name="difference" widget="monetary" decoration-danger="difference &lt; 0" decoration-success="difference == 0"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                </list>
+                            </field>
                         </page>
                         <page string="Other Metrics">
                             <group>

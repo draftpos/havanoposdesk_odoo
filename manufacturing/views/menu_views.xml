@@ -31,6 +31,11 @@
     <menuitem id="menu_havanoposdesk_manufacturing_reports" 
               name="Reports" 
               parent="menu_havanoposdesk_manufacturing_root" 
-              action="action_havanoposdesk_manufacturing_reports" 
               sequence="30"/>
+
+    <menuitem id="menu_havanoposdesk_manufacturing_operations_report" 
+              name="Production Operations" 
+              parent="menu_havanoposdesk_manufacturing_reports" 
+              action="action_havanoposdesk_manufacturing_reports" 
+              sequence="10"/>
 </odoo>

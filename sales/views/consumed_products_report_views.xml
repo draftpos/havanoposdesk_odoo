@@ -57,7 +57,7 @@
             <field name="act_window_id" ref="action_consumed_products_report"/>
         </record>
 
-        <!-- Menu Item under Sales -> Reports -->
-        <menuitem id="menu_consumed_products_report" name="Consumed Products" parent="havanoposdesk_odoo.menu_sales_reports" action="action_consumed_products_report" sequence="80"/>
+        <!-- Menu Item under Manufacturing -> Reports -->
+        <menuitem id="menu_consumed_products_report" name="Consumed Products" parent="havanoposdesk_odoo.menu_havanoposdesk_manufacturing_reports" action="action_consumed_products_report" sequence="80"/>
     </data>
 </odoo>
