@@ -306,34 +306,17 @@ class StockAdjustmentLine(models.Model):
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
-        if self.product_id:
-            if self.product_id.is_variant:
-                self.variant_id = False
-                return {
-                    'warning': {
-                        'title': 'Variant Required',
-                        'message': f"Please click the 'Select Variant' button on the line to choose a variant for {self.product_id.name}."
-                    }
-                }
-            self.on_hand = self.product_id.opening_stock
-            self.counted = 0.0
-            
-    def action_open_variant_selector(self):
-        self.ensure_one()
-        return {
-            'type': 'ir.actions.act_window',
-            'name': f'Select Variant for {self.product_id.name}',
-            'res_model': 'havanoposdesk.variant.selector',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': {
-                'default_product_id': self.product_id.id,
-            }
-        }
-            
+        for record in self:
+            if record.product_id:
+                if record.product_id.is_variant:
+                    record.variant_id = False
+                else:
+                    record.on_hand = record.product_id.opening_stock
+                    record.counted = 0.0
+
     @api.onchange('variant_id')
     def _onchange_variant_id(self):
-        if self.variant_id:
-            # Need to get variant on hand qty
-            self.on_hand = self.variant_id.on_hand_qty
-            self.counted = 0.0
+        for record in self:
+            if record.variant_id:
+                record.on_hand = record.variant_id.on_hand_qty
+                record.counted = 0.0

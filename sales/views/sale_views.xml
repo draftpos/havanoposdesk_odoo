@@ -117,7 +117,6 @@
                                         <field name="currency_id" column_invisible="True" />
                                         <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('is_active', '=', True)]" width="40%" string="Item" />
                                         <field name="variant_id" optional="show" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="15%" />
-                                        <button name="action_open_variant_selector" type="object" icon="fa-list" title="Select Variant" invisible="not product_id" />
                                         <field name="available_uom_ids" column_invisible="True" />
                                         <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{'no_create': True}" width="15%" />
                                         <field name="accepted_qty" string="Qty" width="15%" />

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="havanoposdesk_odoo.VariantSelectorDialog">
+        <Dialog title="'Select Product Variant'" size="'md'">
+            <div class="p-3">
+                <div t-if="props.productName" class="mb-3 d-flex align-items-center">
+                    <span class="text-muted me-2">Product:</span>
+                    <strong class="fs-5 text-primary" t-esc="props.productName"/>
+                </div>
+
+                <div t-if="props.variants.length > 3" class="mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fa fa-search text-muted"/>
+                        </span>
+                        <input
+                            type="text"
+                            class="form-control border-start-0"
+                            placeholder="Filter variants..."
+                            t-model="state.searchTerm"
+                            autoFocus="true"
+                        />
+                    </div>
+                </div>
+
+                <div class="table-responsive border rounded" style="max-height: 380px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width: 40px;"></th>
+                                <th>Variant Name</th>
+                                <th class="text-center">On Hand</th>
+                                <th class="text-end">Cost Price</th>
+                                <th class="text-end">Sell Price</th>
+                                <th class="text-center" style="width: 90px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="filteredVariants" t-as="variant" t-key="variant.id"
+                                t-att-class="state.selectedVariantId === variant.id ? 'table-primary cursor-pointer' : 'cursor-pointer'"
+                                t-on-click="() => this.selectRow(variant)"
+                                t-on-dblclick="() => this.chooseDirectly(variant)">
+                                <td class="text-center">
+                                    <input
+                                        type="radio"
+                                        name="variant_radio"
+                                        t-att-checked="state.selectedVariantId === variant.id"
+                                        t-on-change="() => this.selectRow(variant)"
+                                        class="form-check-input"
+                                    />
+                                </td>
+                                <td>
+                                    <strong class="text-dark" t-esc="variant.name"/>
+                                </td>
+                                <td class="text-center">
+                                    <span t-attf-class="badge rounded-pill #{variant.on_hand_qty > 0 ? 'bg-success-subtle text-success border border-success' : 'bg-light text-muted border'}">
+                                        <t t-esc="variant.on_hand_qty"/>
+                                    </span>
+                                </td>
+                                <td class="text-end font-monospace text-muted">
+                                    <t t-esc="(variant.cost_price || 0.0).toFixed(2)"/>
+                                </td>
+                                <td class="text-end font-monospace fw-semibold text-primary">
+                                    <t t-esc="(variant.selling_price || 0.0).toFixed(2)"/>
+                                </td>
+                                <td class="text-center">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary px-3 py-1"
+                                        t-on-click.stop="() => this.chooseDirectly(variant)">
+                                        Select
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr t-if="filteredVariants.length === 0">
+                                <td colspan="6" class="text-center py-4 text-muted">
+                                    <em>No matching variants found.</em>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <t t-set-slot="footer">
+                <button
+                    class="btn btn-primary px-4"
+                    t-att-disabled="!state.selectedVariantId"
+                    t-on-click="confirm">
+                    Confirm Selection
+                </button>
+                <button class="btn btn-secondary px-3" t-on-click="props.close">
+                    Cancel
+                </button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

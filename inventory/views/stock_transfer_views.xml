@@ -54,7 +54,6 @@
                                             width="35%"
                                             string="Item" />
                                         <field name="variant_id" optional="show" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="15%" />
-                                        <button name="action_open_variant_selector" type="object" icon="fa-list" title="Select Variant" invisible="not product_id" />
                                         <field name="available_uom_ids" column_invisible="True" />
                                         <field name="uom_id"
                                             domain="[('id', 'in', available_uom_ids)]"

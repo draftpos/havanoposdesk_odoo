@@ -114,6 +114,8 @@
             'havanoposdesk_odoo/static/src/js/subscription_banner.js',
             'havanoposdesk_odoo/static/src/xml/subscription_banner.xml',
             'havanoposdesk_odoo/static/src/scss/subscription_banner.scss',
+            'havanoposdesk_odoo/static/src/js/variant_selector_dialog.js',
+            'havanoposdesk_odoo/static/src/xml/variant_selector_dialog.xml',
         ],
     },
 }
