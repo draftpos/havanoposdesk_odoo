@@ -278,10 +278,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 if is_base:
                     rate_val = 1.0
                 elif tenant_curr:
-                    try:
-                        rate_val = cur._get_conversion_rate(tenant_curr, cur, user.company_id or user_env.company, today_date)
-                    except Exception:
-                        rate_val = cur.rate or 1.0
+                    company = user.company_id or user_env.company
+                    from_rate = tenant_curr.with_company(company).rate or 1.0
+                    to_rate = cur.with_company(company).rate or 1.0
+                    rate_val = to_rate / from_rate
                 else:
                     rate_val = cur.rate or 1.0
 
@@ -309,10 +309,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 currency_code = pm_curr.name if pm_curr else (currency or 'USD')
                 rate_val = 1.0
                 if tenant_curr and pm_curr and tenant_curr != pm_curr:
-                    try:
-                        rate_val = pm_curr._get_conversion_rate(tenant_curr, pm_curr, user.company_id or user_env.company, today_date)
-                    except Exception:
-                        rate_val = pm_curr.rate or 1.0
+                    company = user.company_id or user_env.company
+                    from_rate = tenant_curr.with_company(company).rate or 1.0
+                    to_rate = pm_curr.with_company(company).rate or 1.0
+                    rate_val = to_rate / from_rate
                 elif pm_curr and not tenant_curr:
                     rate_val = pm_curr.rate or 1.0
 
@@ -874,10 +874,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 if is_base:
                     rate_val = 1.0
                 elif base_curr:
-                    try:
-                        rate_val = cur._get_conversion_rate(base_curr, cur, user.company_id or env.company, today_date)
-                    except Exception:
-                        rate_val = cur.rate or 1.0
+                    company = user.company_id or env.company
+                    from_rate = base_curr.with_company(company).rate or 1.0
+                    to_rate = cur.with_company(company).rate or 1.0
+                    rate_val = to_rate / from_rate
                 else:
                     rate_val = cur.rate or 1.0
 
@@ -944,10 +944,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 if is_base:
                     rate_val = 1.0
                 elif base_curr:
-                    try:
-                        rate_val = cur._get_conversion_rate(base_curr, cur, user.company_id or env.company, today_date)
-                    except Exception:
-                        rate_val = cur.rate or 1.0
+                    company = user.company_id or env.company
+                    from_rate = base_curr.with_company(company).rate or 1.0
+                    to_rate = cur.with_company(company).rate or 1.0
+                    rate_val = to_rate / from_rate
                 else:
                     rate_val = cur.rate or 1.0
 
@@ -1006,10 +1006,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 if is_base:
                     rate_val = 1.0
                 elif base_curr:
-                    try:
-                        rate_val = cur._get_conversion_rate(base_curr, cur, user.company_id or env.company, today_date)
-                    except Exception:
-                        rate_val = cur.rate or 1.0
+                    company = user.company_id or env.company
+                    from_rate = base_curr.with_company(company).rate or 1.0
+                    to_rate = cur.with_company(company).rate or 1.0
+                    rate_val = to_rate / from_rate
                 else:
                     rate_val = cur.rate or 1.0
 
@@ -4623,10 +4623,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 currency_code = acc_curr.name if acc_curr else default_currency
                 rate_val = 1.0
                 if base_curr and acc_curr and base_curr != acc_curr:
-                    try:
-                        rate_val = acc_curr._get_conversion_rate(base_curr, acc_curr, user.company_id or env.company, today_date)
-                    except Exception:
-                        rate_val = acc_curr.rate or 1.0
+                    company = user.company_id or env.company
+                    from_rate = base_curr.with_company(company).rate or 1.0
+                    to_rate = acc_curr.with_company(company).rate or 1.0
+                    rate_val = to_rate / from_rate
                 elif acc_curr and not base_curr:
                     rate_val = acc_curr.rate or 1.0
 
@@ -7376,10 +7376,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 acc_curr = acc.currency_id or base_curr
                 rate_val = 1.0
                 if base_curr and acc_curr and base_curr != acc_curr:
-                    try:
-                        rate_val = acc_curr._get_conversion_rate(base_curr, acc_curr, user.company_id or env.company, today_date)
-                    except Exception:
-                        rate_val = acc_curr.rate or 1.0
+                    company = user.company_id or env.company
+                    from_rate = base_curr.with_company(company).rate or 1.0
+                    to_rate = acc_curr.with_company(company).rate or 1.0
+                    rate_val = to_rate / from_rate
                 elif acc_curr and not base_curr:
                     rate_val = acc_curr.rate or 1.0
 
