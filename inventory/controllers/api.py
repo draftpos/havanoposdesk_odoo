@@ -18,7 +18,7 @@ class HavanoPOSDeskAPI(http.Controller):
             domain.append(('tenant_id', '=', tenant.id))
         rate_record = env['res.currency.rate'].sudo().search(domain, order='name DESC', limit=1)
         if rate_record:
-            return getattr(rate_record, 'company_rate', rate_record.rate) or 1.0
+            return rate_record.rate or 1.0
         return 1.0
 
 
