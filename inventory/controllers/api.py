@@ -13,11 +13,13 @@ _logger = logging.getLogger(__name__)
 
 class HavanoPOSDeskAPI(http.Controller):
     def _get_direct_rate(self, env, currency_id, tenant=None):
+        res = None
         if tenant:
             env.cr.execute("SELECT rate FROM res_currency_rate WHERE currency_id = %s AND tenant_id = %s ORDER BY name DESC LIMIT 1", (currency_id, tenant.id))
-        else:
+            res = env.cr.fetchone()
+        if not res or not res[0]:
             env.cr.execute("SELECT rate FROM res_currency_rate WHERE currency_id = %s ORDER BY name DESC LIMIT 1", (currency_id,))
-        res = env.cr.fetchone()
+            res = env.cr.fetchone()
         if res and res[0]:
             return res[0]
         return 1.0
@@ -313,53 +315,30 @@ class HavanoPOSDeskAPI(http.Controller):
                 pm_domain.append(('tenant_id', '=', user.tenant_id.id))
             payment_methods_records = user_env['havanoposdesk.account'].sudo().search(pm_domain)
             payment_methods_data = []
-            tenant_curr_id = tenant_curr.id if tenant_curr else None
-            tenant_obj = tenant if 'tenant' in locals() else None
-            tenant_id_val = tenant_obj.id if tenant_obj else None
             for pm in payment_methods_records:
                 pm_curr = pm.currency_id or tenant_curr
-                pm_curr_id = pm_curr.id if pm_curr else None
                 currency_code = pm_curr.name if pm_curr else (currency or 'USD')
                 rate_val = 1.0
-                debug_info = {
-                    "tenant_curr_id": tenant_curr_id,
-                    "pm_curr_id": pm_curr_id,
-                    "tenant_id": tenant_id_val,
-                    "same_currency": (tenant_curr_id == pm_curr_id) if (tenant_curr_id and pm_curr_id) else None,
-                }
-                if tenant_curr_id and pm_curr_id and tenant_curr_id != pm_curr_id:
-                    # Raw SQL - only query the target currency rate
-                    # The base/tenant currency rate is ALWAYS 1.0 by definition
-                    user_env.cr.execute(
-                        "SELECT rate FROM res_currency_rate WHERE currency_id = %s AND tenant_id = %s ORDER BY name DESC LIMIT 1",
-                        (pm_curr_id, tenant_id_val)
-                    )
-                    pm_rate_row = user_env.cr.fetchone()
-                    to_rate = pm_rate_row[0] if pm_rate_row and pm_rate_row[0] else 1.0
+                if tenant_curr and pm_curr and tenant_curr != pm_curr:
                     from_rate = 1.0  # Base currency is always 1.0
-
-                    rate_val = to_rate / from_rate
-                    debug_info["to_rate_raw"] = to_rate
-                    debug_info["from_rate_raw"] = from_rate
-                    debug_info["entered_block"] = True
+                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, pm_curr.id, tenant if 'tenant' in locals() else None)
+                    rate_val = to_rate / from_rate if from_rate else 1.0
                 elif pm_curr and not tenant_curr:
                     rate_val = pm_curr.rate or 1.0
-                    debug_info["entered_block"] = "fallback_no_tenant_curr"
 
                 payment_methods_data.append({
                     "id": pm.id,
                     "name": pm.name,
                     "account_name": pm.name,
                     "type": pm.type,
-                    "on_account": getattr(pm, 'on_account', False),
-                    "is_on_account": getattr(pm, 'on_account', False),
+                    "on_account": bool(pm.is_on_account),
+                    "is_on_account": bool(pm.is_on_account),
                     "currency": currency_code,
                     "currency_id": pm.currency_id.id if pm.currency_id else (tenant_curr.id if tenant_curr else False),
                     "exchange_rate": rate_val,
                     "rate": rate_val,
                     "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
                     "symbol": pm_curr.symbol if pm_curr else "$",
-                    "_debug": debug_info,
                 })
                 
             # Fetch warehouse items/products
@@ -7394,7 +7373,6 @@ class HavanoPOSDeskAPI(http.Controller):
         # Payment Methods
         payment_methods_list = []
         base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (store.currency_id if store and store.currency_id else False)
-        today_date = fields.Date.context_today(user)
         if tenant:
             accounts = env['havanoposdesk.account'].sudo().search([
                 ('tenant_id', '=', tenant.id),
@@ -7406,7 +7384,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 rate_val = 1.0
                 if base_curr and acc_curr and base_curr != acc_curr:
                     from_rate = 1.0  # Base currency is always 1.0
-                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, acc_curr.id, tenant if 'tenant' in locals() else None)
+                    to_rate = self._get_direct_rate(env, acc_curr.id, tenant if 'tenant' in locals() else None)
                     rate_val = to_rate / from_rate if from_rate else 1.0
                 elif acc_curr and not base_curr:
                     rate_val = acc_curr.rate or 1.0
@@ -7414,6 +7392,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 payment_methods_list.append({
                     "id": acc.id,
                     "name": acc.name,
+                    "account_name": acc.name,
                     "type": acc.type,
                     "on_account": bool(acc.is_on_account),
                     "is_on_account": bool(acc.is_on_account),
