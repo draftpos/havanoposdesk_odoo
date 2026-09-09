@@ -101,6 +101,7 @@
                             </field>
                         </page>
                         <page string="Payment Breakdown">
+                            <group string="Cashier Declared Amounts"/>
                             <field name="payment_breakdown_ids" readonly="1">
                                 <list string="Payment Breakdown" editable="bottom">
                                     <field name="name"/>
@@ -110,6 +111,42 @@
                                     <field name="currency_id" column_invisible="True"/>
                                 </list>
                             </field>
+
+                            <group string="System Computed Totals"/>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-bordered table-sm mt-2">
+                                        <thead>
+                                            <tr class="bg-light">
+                                                <th>Payment Method</th>
+                                                <th class="text-end">Computed Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><strong>Total Cash Payments</strong></td>
+                                                <td class="text-end"><field name="amount_cash" widget="monetary" nolabel="1" readonly="1"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Total Card Payments</strong></td>
+                                                <td class="text-end"><field name="amount_card" widget="monetary" nolabel="1" readonly="1"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Total Mobile Payments</strong></td>
+                                                <td class="text-end"><field name="amount_mobile" widget="monetary" nolabel="1" readonly="1"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Total Bank Transfers</strong></td>
+                                                <td class="text-end"><field name="amount_bank" widget="monetary" nolabel="1" readonly="1"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Total Other Payments</strong></td>
+                                                <td class="text-end"><field name="amount_other" widget="monetary" nolabel="1" readonly="1"/></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </page>
                         <page string="Other Metrics">
                             <group>
