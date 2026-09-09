@@ -2,112 +2,91 @@
 <templates xml:space="preserve">
     <t t-name="havanoposdesk_odoo.VariantSelectorDialog">
         <Dialog title="'Select Product Variant'" size="'md'">
-            <div class="havano-variant-modal px-4 py-3">
-                <!-- Product Information Banner -->
-                <div t-if="props.productName" class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                            <i class="fa fa-cubes text-primary fs-6"/>
-                        </div>
-                        <div>
-                            <span class="text-muted small text-uppercase fw-semibold" style="letter-spacing: 0.05em; font-size: 0.72rem;">Selected Product</span>
-                            <div class="fw-bold text-dark fs-6" t-esc="props.productName"/>
-                        </div>
-                    </div>
-                    <span class="badge bg-light text-secondary border px-2 py-1 rounded-pill small">
-                        <t t-esc="props.variants.length"/> <t t-if="props.variants.length === 1">Variant</t><t t-else="">Variants</t>
-                    </span>
+            <div class="havano-variant-modal">
+                <!-- Compact Product Summary -->
+                <div t-if="props.productName" class="variant-product-header">
+                    <div class="variant-section-label">Selected Product</div>
+                    <div class="variant-product-title" t-esc="props.productName"/>
                 </div>
 
-                <!-- Search Box (if more than 3 variants) -->
-                <div t-if="props.variants.length > 3" class="mb-3">
+                <!-- Clean Search Filter (shown if more than 3 variants) -->
+                <div t-if="props.variants.length > 3" class="variant-search-wrap">
                     <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light border-end-0 text-muted">
-                            <i class="fa fa-search"/>
+                        <span class="input-group-text bg-white border-end-0 text-muted ps-2 pe-1">
+                            <i class="fa fa-search" style="font-size: 0.75rem; color: #94a3b8;"/>
                         </span>
                         <input
                             type="text"
-                            class="form-control border-start-0"
-                            placeholder="Filter variant names..."
+                            class="form-control border-start-0 ps-1"
+                            placeholder="Filter variants..."
                             t-model="state.searchTerm"
                             autoFocus="true"
                         />
                     </div>
                 </div>
 
-                <!-- Modern Minimalist Table Container -->
-                <div class="variant-card-container">
-                    <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
-                        <table class="table variant-table align-middle">
-                            <thead class="sticky-top">
-                                <tr>
-                                    <th style="width: 38px;" class="text-center"></th>
-                                    <th>Variant Name</th>
-                                    <th class="text-center" style="width: 100px;">On Hand</th>
-                                    <th class="text-end" style="width: 110px;">Cost Price</th>
-                                    <th class="text-end" style="width: 110px;">Sell Price</th>
-                                    <th class="text-center" style="width: 100px;">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr t-foreach="filteredVariants" t-as="variant" t-key="variant.id"
-                                    t-att-class="state.selectedVariantId === variant.id ? 'selected-row' : ''"
-                                    t-on-click="() => this.selectRow(variant)"
-                                    t-on-dblclick="() => this.chooseDirectly(variant)">
-                                    <td class="text-center">
-                                        <input
-                                            type="radio"
-                                            name="variant_selector_radio"
-                                            t-att-checked="state.selectedVariantId === variant.id"
-                                            t-on-change="() => this.selectRow(variant)"
-                                            class="form-check-input"
-                                            style="cursor: pointer;"
-                                        />
-                                    </td>
-                                    <td>
-                                        <div class="variant-name" t-esc="variant.name"/>
-                                    </td>
-                                    <td class="text-center">
-                                        <span t-attf-class="variant-stock-badge #{variant.on_hand_qty > 0 ? 'in-stock' : 'out-of-stock'}">
-                                            <t t-esc="variant.on_hand_qty || 0"/>
-                                        </span>
-                                    </td>
-                                    <td class="text-end variant-cost-price">
-                                        <t t-esc="formatPrice(variant.cost_price)"/>
-                                    </td>
-                                    <td class="text-end variant-sell-price">
-                                        <t t-esc="formatPrice(variant.selling_price)"/>
-                                    </td>
-                                    <td class="text-center">
-                                        <button
-                                            type="button"
-                                            class="btn btn-select-variant btn-sm"
-                                            t-on-click.stop="() => this.chooseDirectly(variant)">
-                                            Select
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr t-if="filteredVariants.length === 0">
-                                    <td colspan="6" class="text-center py-4 text-muted">
-                                        <i class="fa fa-info-circle me-1"/> No matching variants found.
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <!-- Enterprise Table List -->
+                <div class="variant-table-wrap">
+                    <table class="table variant-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width: 36px;" class="text-center"></th>
+                                <th>Variant</th>
+                                <th class="text-center" style="width: 90px;">On hand</th>
+                                <th class="text-end" style="width: 105px;">Cost price</th>
+                                <th class="text-end" style="width: 105px;">Sell price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="filteredVariants" t-as="variant" t-key="variant.id"
+                                t-att-class="state.selectedVariantId === variant.id ? 'is-selected' : ''"
+                                t-on-click="() => this.selectRow(variant)"
+                                t-on-dblclick="() => this.chooseDirectly(variant)">
+                                <td class="text-center radio-cell">
+                                    <input
+                                        type="radio"
+                                        name="variant_selector_radio"
+                                        t-att-checked="state.selectedVariantId === variant.id"
+                                        t-on-change="() => this.selectRow(variant)"
+                                        class="form-check-input variant-radio"
+                                    />
+                                </td>
+                                <td class="name-cell">
+                                    <span class="variant-item-name" t-esc="variant.name"/>
+                                </td>
+                                <td class="text-center stock-cell">
+                                    <span t-att-class="variant.on_hand_qty &lt;= 0 ? 'stock-low' : 'stock-normal'">
+                                        <t t-esc="variant.on_hand_qty || 0"/>
+                                    </span>
+                                </td>
+                                <td class="text-end cost-cell">
+                                    <t t-esc="formatPrice(variant.cost_price)"/>
+                                </td>
+                                <td class="text-end sell-cell">
+                                    <t t-esc="formatPrice(variant.selling_price)"/>
+                                </td>
+                            </tr>
+                            <tr t-if="filteredVariants.length === 0">
+                                <td colspan="5" class="empty-state">
+                                    No matching variants found.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
             <t t-set-slot="footer">
-                <div class="d-flex justify-content-end gap-2 w-100 px-3 pb-2">
-                    <button class="btn btn-light border px-4 py-2 text-secondary fw-medium rounded-2" t-on-click="props.close">
+                <div class="d-flex justify-content-end align-items-center gap-2 w-100">
+                    <button type="button" class="btn btn-variant-cancel" t-on-click="props.close">
                         Cancel
                     </button>
                     <button
-                        class="btn btn-primary px-4 py-2 fw-semibold rounded-2 shadow-sm d-flex align-items-center"
+                        type="button"
+                        class="btn btn-variant-confirm"
                         t-att-disabled="!state.selectedVariantId"
                         t-on-click="confirm">
-                        <i class="fa fa-check me-2"/> Confirm Selection
+                        Confirm
                     </button>
                 </div>
             </t>
