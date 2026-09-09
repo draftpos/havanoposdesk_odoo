@@ -54,14 +54,14 @@
                                 </td>
                                 <td class="text-center">
                                     <span t-attf-class="badge rounded-pill #{variant.on_hand_qty > 0 ? 'bg-success-subtle text-success border border-success' : 'bg-light text-muted border'}">
-                                        <t t-esc="variant.on_hand_qty"/>
+                                        <t t-esc="variant.on_hand_qty || 0"/>
                                     </span>
                                 </td>
                                 <td class="text-end font-monospace text-muted">
-                                    <t t-esc="(variant.cost_price || 0.0).toFixed(2)"/>
+                                    <t t-esc="formatPrice(variant.cost_price)"/>
                                 </td>
                                 <td class="text-end font-monospace fw-semibold text-primary">
-                                    <t t-esc="(variant.selling_price || 0.0).toFixed(2)"/>
+                                    <t t-esc="formatPrice(variant.selling_price)"/>
                                 </td>
                                 <td class="text-center">
                                     <button

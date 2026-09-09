@@ -33,6 +33,11 @@ export class VariantSelectorDialog extends Component {
         );
     }
 
+    formatPrice(val) {
+        const num = parseFloat(val);
+        return isNaN(num) ? "0.00" : num.toFixed(2);
+    }
+
     selectRow(variant) {
         this.state.selectedVariantId = variant.id;
     }
@@ -86,11 +91,17 @@ patch(Many2OneField.prototype, {
 
     async openVariantSelectorIfAvailable(productId) {
         try {
-            const variants = await this.orm.search_read(
-                "havanoposdesk.product.variant",
-                [["product_id", "=", productId]],
-                ["id", "name", "cost_price", "selling_price", "on_hand_qty"]
-            );
+            const variants = this.orm.searchRead
+                ? await this.orm.searchRead(
+                    "havanoposdesk.product.variant",
+                    [["product_id", "=", productId]],
+                    ["id", "name", "cost_price", "selling_price", "on_hand_qty"]
+                )
+                : await this.orm.call(
+                    "havanoposdesk.product.variant",
+                    "search_read",
+                    [[["product_id", "=", productId]], ["id", "name", "cost_price", "selling_price", "on_hand_qty"]]
+                );
 
             if (variants && variants.length > 0) {
                 const prodData = this.props.record.data[this.props.name];

@@ -52,7 +52,7 @@
                         </group>
                         <notebook>
                             <page string="Order Lines">
-                                <field name="line_ids" readonly="state != 'draft'" widget="section_and_note_one2many" mode="list,kanban">
+                                <field name="line_ids" readonly="state != 'draft'" mode="list,kanban">
                                     <list  editable="bottom">
                                           <field name="currency_id" column_invisible="True"/>
                                           <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('track_qty', '=', True), ('is_bundle', '=', False), ('is_active', '=', True)]" width="35%" string="Item"/>
