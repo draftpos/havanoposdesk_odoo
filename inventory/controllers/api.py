@@ -336,11 +336,14 @@ class HavanoPOSDeskAPI(http.Controller):
                     "id": acc.id,
                     "name": acc.name,
                     "account_name": acc.name,
+                    "account": acc.name,
                     "type": acc.type,
                     "on_account": bool(acc.is_on_account),
                     "is_on_account": bool(acc.is_on_account),
                     "currency": currency_code,
+                    "account_currency": currency_code,
                     "currency_id": acc.currency_id.id if acc.currency_id else (base_curr.id if base_curr else False),
+                    "company": company_name if 'company_name' in locals() else (user.company_id.name if hasattr(user, 'company_id') and user.company_id else (tenant.name if tenant else "")),
                     "exchange_rate": rate_val,
                     "rate": rate_val,
                     "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
@@ -4648,11 +4651,14 @@ class HavanoPOSDeskAPI(http.Controller):
                     "id": acc.id,
                     "name": acc.name,
                     "account_name": acc.name,
+                    "account": acc.name,
                     "type": acc.type,
                     "on_account": bool(acc.is_on_account),
                     "is_on_account": bool(acc.is_on_account),
                     "currency": currency_code,
+                    "account_currency": currency_code,
                     "currency_id": acc.currency_id.id if acc.currency_id else (base_curr.id if base_curr else False),
+                    "company": user.api_company_name or (tenant.api_company_name if tenant else False) or (tenant.name if tenant else False) or (user.company_id.name if hasattr(user, 'company_id') and user.company_id else False) or 'Havano Co',
                     "exchange_rate": rate_val,
                     "rate": rate_val,
                     "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
@@ -4660,7 +4666,70 @@ class HavanoPOSDeskAPI(http.Controller):
                 })
 
             return self._make_json_response({
-                "message": accounts_data
+                "message": {
+                    "accounts": accounts_data,
+                    "status": 200,
+                },
+                "data": accounts_data
+            })
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route([
+        '/api/method/havano_pos_integration.api.get_currency_exchange_rate',
+        '/api/method/erpnext.setup.utils.get_exchange_rate',
+    ], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_get_currency_exchange_rate(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = self._get_request_json() or {}
+        if not params and hasattr(request, 'params'):
+            params = dict(request.params)
+        params.update(kwargs or {})
+
+        from_currency = (params.get('from_currency') or params.get('from_currency_code') or 'USD').strip()
+        to_currency = (params.get('to_currency') or params.get('to_currency_code') or '').strip()
+
+        if not token:
+            token = params.get('token')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user = env['res.users'].browse(uid)
+            tenant = user.tenant_id
+
+            if not to_currency or from_currency.upper() == to_currency.upper():
+                return self._make_json_response({"message": {"exchange_rate": 1.0}})
+
+            from_curr = env['res.currency'].sudo().search([('name', '=ilike', from_currency)], limit=1)
+            to_curr = env['res.currency'].sudo().search([('name', '=ilike', to_currency)], limit=1)
+
+            from_rate = self._get_direct_rate(env, from_curr.id, tenant) if from_curr else 1.0
+
+            rate = 1.0
+            if to_curr:
+                to_rate = self._get_direct_rate(env, to_curr.id, tenant)
+                rate = to_rate / from_rate if from_rate else to_rate
+            else:
+                acc = env['havanoposdesk.account'].sudo().search([
+                    '|', ('name', '=ilike', to_currency),
+                    ('currency_id.name', '=ilike', to_currency)
+                ], limit=1)
+                if acc and acc.currency_id:
+                    to_rate = self._get_direct_rate(env, acc.currency_id.id, tenant)
+                    rate = to_rate / from_rate if from_rate else to_rate
+
+            return self._make_json_response({
+                "message": {
+                    "exchange_rate": float(rate) if rate else 1.0
+                }
             })
         finally:
             if custom_cr:
@@ -7401,11 +7470,14 @@ class HavanoPOSDeskAPI(http.Controller):
                     "id": acc.id,
                     "name": acc.name,
                     "account_name": acc.name,
+                    "account": acc.name,
                     "type": acc.type,
                     "on_account": bool(acc.is_on_account),
                     "is_on_account": bool(acc.is_on_account),
                     "currency": currency_code,
+                    "account_currency": currency_code,
                     "currency_id": acc.currency_id.id if acc.currency_id else (base_curr.id if base_curr else False),
+                    "company": company_name if 'company_name' in locals() else (user.company_id.name if hasattr(user, 'company_id') and user.company_id else (tenant.name if tenant else "")),
                     "exchange_rate": rate_val,
                     "rate": rate_val,
                     "inverse_rate": (1.0 / rate_val) if rate_val else 1.0,
