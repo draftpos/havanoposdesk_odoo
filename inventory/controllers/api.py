@@ -12,6 +12,15 @@ from odoo.exceptions import ValidationError, UserError
 _logger = logging.getLogger(__name__)
 
 class HavanoPOSDeskAPI(http.Controller):
+    def _get_direct_rate(self, env, currency_id, tenant=None):
+        domain = [('currency_id', '=', currency_id)]
+        if tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+        rate_record = env['res.currency.rate'].sudo().search(domain, order='name DESC', limit=1)
+        if rate_record:
+            return getattr(rate_record, 'company_rate', rate_record.rate) or 1.0
+        return 1.0
+
 
     def _resolve_sale_user(self, env, sale_data, tenant):
         sale_user_value = (
@@ -278,10 +287,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 if is_base:
                     rate_val = 1.0
                 elif tenant_curr:
-                    company = user.company_id or user_env.company
-                    rates = user_env['res.currency'].sudo()._get_rates(company, fields.Datetime.now()) if 'user_env' in locals() else env['res.currency'].sudo()._get_rates(company, fields.Datetime.now())
-                    from_rate = rates.get(tenant_curr.id, 1.0)
-                    to_rate = rates.get(cur.id, 1.0)
+                    from_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, tenant_curr.id, tenant if 'tenant' in locals() else None)
+                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, cur.id, tenant if 'tenant' in locals() else None)
                     rate_val = to_rate / from_rate if from_rate else 1.0
                 else:
                     rate_val = cur.rate or 1.0
@@ -310,10 +317,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 currency_code = pm_curr.name if pm_curr else (currency or 'USD')
                 rate_val = 1.0
                 if tenant_curr and pm_curr and tenant_curr != pm_curr:
-                    company = user.company_id or user_env.company
-                    rates = user_env['res.currency'].sudo()._get_rates(company, fields.Datetime.now()) if 'user_env' in locals() else env['res.currency'].sudo()._get_rates(company, fields.Datetime.now())
-                    from_rate = rates.get(tenant_curr.id, 1.0)
-                    to_rate = rates.get(pm_curr.id, 1.0)
+                    from_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, tenant_curr.id, tenant if 'tenant' in locals() else None)
+                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, pm_curr.id, tenant if 'tenant' in locals() else None)
                     rate_val = to_rate / from_rate if from_rate else 1.0
                 elif pm_curr and not tenant_curr:
                     rate_val = pm_curr.rate or 1.0
@@ -876,10 +881,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 if is_base:
                     rate_val = 1.0
                 elif base_curr:
-                    company = user.company_id or env.company
-                    rates = user_env['res.currency'].sudo()._get_rates(company, fields.Datetime.now()) if 'user_env' in locals() else env['res.currency'].sudo()._get_rates(company, fields.Datetime.now())
-                    from_rate = rates.get(base_curr.id, 1.0)
-                    to_rate = rates.get(cur.id, 1.0)
+                    from_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, base_curr.id, tenant if 'tenant' in locals() else None)
+                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, cur.id, tenant if 'tenant' in locals() else None)
                     rate_val = to_rate / from_rate if from_rate else 1.0
                 else:
                     rate_val = cur.rate or 1.0
@@ -947,10 +950,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 if is_base:
                     rate_val = 1.0
                 elif base_curr:
-                    company = user.company_id or env.company
-                    rates = user_env['res.currency'].sudo()._get_rates(company, fields.Datetime.now()) if 'user_env' in locals() else env['res.currency'].sudo()._get_rates(company, fields.Datetime.now())
-                    from_rate = rates.get(base_curr.id, 1.0)
-                    to_rate = rates.get(cur.id, 1.0)
+                    from_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, base_curr.id, tenant if 'tenant' in locals() else None)
+                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, cur.id, tenant if 'tenant' in locals() else None)
                     rate_val = to_rate / from_rate if from_rate else 1.0
                 else:
                     rate_val = cur.rate or 1.0
@@ -1010,10 +1011,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 if is_base:
                     rate_val = 1.0
                 elif base_curr:
-                    company = user.company_id or env.company
-                    rates = user_env['res.currency'].sudo()._get_rates(company, fields.Datetime.now()) if 'user_env' in locals() else env['res.currency'].sudo()._get_rates(company, fields.Datetime.now())
-                    from_rate = rates.get(base_curr.id, 1.0)
-                    to_rate = rates.get(cur.id, 1.0)
+                    from_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, base_curr.id, tenant if 'tenant' in locals() else None)
+                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, cur.id, tenant if 'tenant' in locals() else None)
                     rate_val = to_rate / from_rate if from_rate else 1.0
                 else:
                     rate_val = cur.rate or 1.0
@@ -4628,10 +4627,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 currency_code = acc_curr.name if acc_curr else default_currency
                 rate_val = 1.0
                 if base_curr and acc_curr and base_curr != acc_curr:
-                    company = user.company_id or env.company
-                    rates = user_env['res.currency'].sudo()._get_rates(company, fields.Datetime.now()) if 'user_env' in locals() else env['res.currency'].sudo()._get_rates(company, fields.Datetime.now())
-                    from_rate = rates.get(base_curr.id, 1.0)
-                    to_rate = rates.get(acc_curr.id, 1.0)
+                    from_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, base_curr.id, tenant if 'tenant' in locals() else None)
+                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, acc_curr.id, tenant if 'tenant' in locals() else None)
                     rate_val = to_rate / from_rate if from_rate else 1.0
                 elif acc_curr and not base_curr:
                     rate_val = acc_curr.rate or 1.0
@@ -7382,10 +7379,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 acc_curr = acc.currency_id or base_curr
                 rate_val = 1.0
                 if base_curr and acc_curr and base_curr != acc_curr:
-                    company = user.company_id or env.company
-                    rates = user_env['res.currency'].sudo()._get_rates(company, fields.Datetime.now()) if 'user_env' in locals() else env['res.currency'].sudo()._get_rates(company, fields.Datetime.now())
-                    from_rate = rates.get(base_curr.id, 1.0)
-                    to_rate = rates.get(acc_curr.id, 1.0)
+                    from_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, base_curr.id, tenant if 'tenant' in locals() else None)
+                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, acc_curr.id, tenant if 'tenant' in locals() else None)
                     rate_val = to_rate / from_rate if from_rate else 1.0
                 elif acc_curr and not base_curr:
                     rate_val = acc_curr.rate or 1.0
