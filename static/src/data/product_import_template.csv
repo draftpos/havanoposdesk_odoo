@@ -1,3 +1,5 @@
-Product Name,Product Code,Barcode,Cost price,Category,UOM,Active,Advanced Prices / Store,Advanced Prices / Pricelist,Advanced Prices / UoM Name,Advanced Prices / Qty to be Sold,Advanced Prices / Initial Qty,Advanced Prices / Price
-"Coca-Cola 2L","CC-2L","89012345",1.00,"Beverages","Each",1,"Jarvis","Retail","Each",1,50,1.50
-,,,,,,,"Jarvis","Wholesale","Box",12,10,15.00
+Product Name,Product Code,Barcode,Cost price,Category,UOM,Active,Variants / Variant Name,Variants / Cost Price,Variants / Sell Price,Variants / Allocate QTY (from base stock),Advanced Prices / Store,Advanced Prices / Pricelist,Advanced Prices / UoM Name,Advanced Prices / Qty to be Sold,Advanced Prices / Initial Qty,Advanced Prices / Price
+"Example Variant Product (e.g. T-Shirt)","CC-VAR","89012340",10.00,"Beverages","Each",1,"Black - Size M",10.00,15.00,20,,,,,,
+,,,,,,,"White - Size L",10.00,16.00,15,,,,,,
+"Example Standard Product","CC-2L","89012345",1.00,"Beverages","Each",1,,,,,"Main Store","Retail","Each",1,50,1.50
+,,,,,,,,,,,"Main Store","Wholesale","Box",12,10,15.00

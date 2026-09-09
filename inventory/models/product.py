@@ -253,6 +253,9 @@ class HavanoposdeskProduct(models.Model):
         products = super().create(vals_list)
         
         for product in products:
+            if product.variant_ids and not product.is_variant:
+                product.is_variant = True
+
             if product.opening_stock > 0:
                 adj = self.env['havanoposdesk.stock.adjustment'].with_context(from_product_creation=True).create({
                     'store_id': product.store_ids[0].id if product.store_ids else False,
@@ -311,6 +314,11 @@ class HavanoposdeskProduct(models.Model):
                 break # All products in self usually belong to same tenant, or we can just apply first one
 
         res = super().write(vals)
+
+        if 'variant_ids' in vals and vals['variant_ids']:
+            for product in self:
+                if not product.is_variant:
+                    super(HavanoposdeskProduct, product).write({'is_variant': True})
 
         if vals.get('all_stores'):
             for product in self:
@@ -536,6 +544,35 @@ class HavanoposdeskProductVariant(models.Model):
                 'store': val.store,
                 'type': 'Variant Allocation Out',
                 'doc_no': f"Alloc to {self.name}",
+                'tenant_id': self.tenant_id.id,
+            })
+            
+        if remaining > 0:
+            target_store = self.product_id.store_ids[0].name if self.product_id.store_ids else 'Main Store'
+            variant_val = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                ('product_id', '=', self.product_id.id),
+                ('variant_id', '=', self.id),
+                ('store', '=', target_store)
+            ], limit=1)
+            if variant_val:
+                variant_val.on_hand_qty += remaining
+            else:
+                variant_val = self.env['havanoposdesk.stock.valuation'].sudo().create({
+                    'product_id': self.product_id.id,
+                    'variant_id': self.id,
+                    'store': target_store,
+                    'on_hand_qty': remaining,
+                    'tenant_id': self.tenant_id.id,
+                })
+            self.env['havanoposdesk.stock.ledger'].sudo().create({
+                'product_id': self.product_id.id,
+                'variant_id': self.id,
+                'in_qty': remaining,
+                'out_qty': 0.0,
+                'balance_qty': variant_val.on_hand_qty,
+                'store': target_store,
+                'type': 'Variant Stock Initial',
+                'doc_no': f"Initial {self.name}",
                 'tenant_id': self.tenant_id.id,
             })
             
