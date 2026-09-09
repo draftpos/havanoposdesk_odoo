@@ -111,6 +111,7 @@
                                 <field name="variant_ids">
                                     <list editable="bottom">
                                         <field name="name"/>
+                                        <field name="allocate_qty" />
                                         <field name="cost_price"/>
                                         <field name="selling_price"/>
                                         <field name="on_hand_qty" readonly="1"/>
