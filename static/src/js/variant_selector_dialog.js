@@ -104,6 +104,11 @@ patch(Many2OneField.prototype, {
                 );
 
             if (variants && variants.length > 0) {
+                const rootRecord = this.props.record.model?.root;
+                if (rootRecord && "has_variants" in rootRecord.fields && !rootRecord.data.has_variants) {
+                    await rootRecord.update({ has_variants: true });
+                }
+
                 const prodData = this.props.record.data[this.props.name];
                 let productName = "";
                 if (prodData) {
@@ -121,6 +126,10 @@ patch(Many2OneField.prototype, {
                         await this.props.record.update({
                             variant_id: { id: variant.id, display_name: variant.name },
                         });
+                        const root = this.props.record.model?.root;
+                        if (root && "has_variants" in root.fields && !root.data.has_variants) {
+                            await root.update({ has_variants: true });
+                        }
                     },
                 });
             }

@@ -116,6 +116,17 @@ class Purchase(models.Model):
             record.invoice_type = 'Debit Note' if record.is_return else 'Purchase Invoice'
             
     line_ids = fields.One2many('havanoposdesk.purchase.line', 'purchase_id', string='Items')
+    has_variants = fields.Boolean(
+        string='Has Variants',
+        compute='_compute_has_variants',
+        store=True,
+        readonly=False,
+    )
+
+    @api.depends('line_ids.variant_id', 'line_ids.product_id.is_variant')
+    def _compute_has_variants(self):
+        for purchase in self:
+            purchase.has_variants = any(bool(line.variant_id) or (line.product_id and line.product_id.is_variant) for line in purchase.line_ids)
 
     @api.depends('line_ids.price_subtotal', 'line_ids.price_tax', 'line_ids.amount')
     def _compute_amount_total(self):

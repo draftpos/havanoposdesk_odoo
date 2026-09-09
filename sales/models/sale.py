@@ -72,6 +72,17 @@ class Sale(models.Model):
     payment_ids = fields.One2many('havanoposdesk.payment', 'sale_id', string='Payments')
     
     line_ids = fields.One2many('havanoposdesk.sale.line', 'sale_id', string='Items')
+    has_variants = fields.Boolean(
+        string='Has Variants',
+        compute='_compute_has_variants',
+        store=True,
+        readonly=False,
+    )
+
+    @api.depends('line_ids.variant_id', 'line_ids.product_id.is_variant')
+    def _compute_has_variants(self):
+        for sale in self:
+            sale.has_variants = any(bool(line.variant_id) or (line.product_id and line.product_id.is_variant) for line in sale.line_ids)
 
     def _default_store_id(self):
         return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
