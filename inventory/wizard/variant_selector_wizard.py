@@ -8,6 +8,15 @@ class VariantSelectorWizard(models.TransientModel):
     variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', required=True, domain="[('product_id', '=', product_id)]")
     
     def action_confirm(self):
-        # We need a way to pass the selection back. 
-        # Typically handled by frontend or by passing context
-        pass
+        active_model = self.env.context.get('active_model')
+        active_id = self.env.context.get('active_id')
+        if active_model and active_id:
+            record = self.env[active_model].browse(active_id)
+            if hasattr(record, 'variant_id'):
+                record.variant_id = self.variant_id.id
+                # Force rate/cost update if onchange methods exist
+                if hasattr(record, '_onchange_variant_id'):
+                    record._onchange_variant_id()
+                elif hasattr(record, '_onchange_product_id'):
+                    record._onchange_product_id()
+        return {'type': 'ir.actions.act_window_close'}

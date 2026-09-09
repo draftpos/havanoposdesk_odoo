@@ -526,15 +526,24 @@ class PurchaseLine(models.Model):
         if self.product_id and self.product_id.is_variant:
             self.variant_id = False
             return {
-                'type': 'ir.actions.act_window',
-                'name': f'Select Variant for {self.product_id.name}',
-                'res_model': 'havanoposdesk.variant.selector',
-                'view_mode': 'form',
-                'target': 'new',
-                'context': {
-                    'default_product_id': self.product_id.id,
+                'warning': {
+                    'title': "Variant Required",
+                    'message': f"Please click the 'Select Variant' button on the line to choose a variant for {self.product_id.name}."
                 }
             }
+            
+    def action_open_variant_selector(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': f'Select Variant for {self.product_id.name}',
+            'res_model': 'havanoposdesk.variant.selector',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_product_id': self.product_id.id,
+            }
+        }
 
     @api.onchange('product_id', 'uom_id')
     def _onchange_product_uom(self):

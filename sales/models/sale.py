@@ -623,15 +623,24 @@ class SaleLine(models.Model):
             # We must clear variant_id when product changes
             self.variant_id = False
             return {
-                'type': 'ir.actions.act_window',
-                'name': f'Select Variant for {self.product_id.name}',
-                'res_model': 'havanoposdesk.variant.selector',
-                'view_mode': 'form',
-                'target': 'new',
-                'context': {
-                    'default_product_id': self.product_id.id,
+                'warning': {
+                    'title': "Variant Required",
+                    'message': f"Please click the 'Select Variant' button on the line to choose a variant for {self.product_id.name}."
                 }
             }
+            
+    def action_open_variant_selector(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': f'Select Variant for {self.product_id.name}',
+            'res_model': 'havanoposdesk.variant.selector',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_product_id': self.product_id.id,
+            }
+        }
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
     cost_price = fields.Float(string='Cost Price', compute='_compute_cost_price', store=True, readonly=False)
     gross_profit = fields.Float(string='Gross Profit', compute='_compute_gross_profit', store=True)
