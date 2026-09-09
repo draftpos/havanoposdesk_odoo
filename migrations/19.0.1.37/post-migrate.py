@@ -85,7 +85,7 @@ def migrate(cr, version):
         WHERE p.profile_id = prof.id
           AND (prof.havano_role IN ('user', 'cashier') OR prof.name ILIKE '%%Cashier%%')
           AND p.feature IN %s
-    """, [CASHIER_FULL_FEATURES])
+    """, (CASHIER_FULL_FEATURES,))
     _logger.info("Activated full permissions for cashier features in database")
 
     # 5. Ensure all admin profile permissions are fully activated

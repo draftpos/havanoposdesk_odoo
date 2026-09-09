@@ -244,9 +244,9 @@ def post_migrate(env):
             can_submit = True
         FROM havanoposdesk_user_rights_profile prof
         WHERE p.profile_id = prof.id
-          AND (prof.havano_role IN ('user', 'cashier') OR prof.name ILIKE '%Cashier%')
+          AND (prof.havano_role IN ('user', 'cashier') OR prof.name ILIKE '%%Cashier%%')
           AND p.feature IN %s
-    """, [cashier_full_features])
+    """, (cashier_full_features,))
 
     # Ensure all users with tenant_id have user_rights_profile_id linked
     env.cr.execute("""
