@@ -6891,6 +6891,107 @@ class HavanoPOSDeskAPI(http.Controller):
 
     
     # SHIFT MANAGEMENT SYSTEM
+    def _format_shift_response(self, shift):
+        if not shift:
+            return None
+
+        currency_name = (
+            (shift.currency_id.name if shift.currency_id else False)
+            or (shift.tenant_id.currency_id.name if shift.tenant_id and shift.tenant_id.currency_id else False)
+            or 'USD'
+        )
+
+        payment_balances = []
+        if shift.payment_breakdown_ids:
+            for pb in shift.payment_breakdown_ids:
+                opening_amt = getattr(pb, 'opening_amount', 0.0) or 0.0
+                expected_amt = pb.expected_amount or 0.0
+                closing_amt = pb.closing_amount or 0.0
+                diff = pb.difference if hasattr(pb, 'difference') else (closing_amt - expected_amt)
+                payment_balances.append({
+                    "payment_method": pb.name,
+                    "name": pb.name,
+                    "currency": currency_name,
+                    "opening_amount": float(opening_amt),
+                    "expected_amount": float(expected_amt),
+                    "closing_amount": float(closing_amt),
+                    "difference": float(diff),
+                })
+        else:
+            # Fallback if no lines
+            payment_balances.append({
+                "payment_method": "Cash",
+                "name": "Cash",
+                "currency": currency_name,
+                "opening_amount": float(shift.opening_cash or 0.0),
+                "expected_amount": float(shift.expected_cash or 0.0),
+                "closing_amount": float(shift.actual_cash or 0.0),
+                "difference": float(shift.cash_difference or 0.0),
+            })
+            if shift.amount_card:
+                payment_balances.append({
+                    "payment_method": "Card",
+                    "name": "Card",
+                    "currency": currency_name,
+                    "opening_amount": 0.0,
+                    "expected_amount": float(shift.amount_card or 0.0),
+                    "closing_amount": float(shift.amount_card or 0.0),
+                    "difference": 0.0,
+                })
+            if shift.amount_mobile:
+                payment_balances.append({
+                    "payment_method": "Mobile",
+                    "name": "Mobile",
+                    "currency": currency_name,
+                    "opening_amount": 0.0,
+                    "expected_amount": float(shift.amount_mobile or 0.0),
+                    "closing_amount": float(shift.amount_mobile or 0.0),
+                    "difference": 0.0,
+                })
+            if shift.amount_bank:
+                payment_balances.append({
+                    "payment_method": "Bank Transfer",
+                    "name": "Bank Transfer",
+                    "currency": currency_name,
+                    "opening_amount": 0.0,
+                    "expected_amount": float(shift.amount_bank or 0.0),
+                    "closing_amount": float(shift.amount_bank or 0.0),
+                    "difference": 0.0,
+                })
+
+        total_closing = sum(pb['closing_amount'] for pb in payment_balances) if payment_balances else (shift.actual_cash or 0.0)
+        total_expected = sum(pb['expected_amount'] for pb in payment_balances) if payment_balances else (shift.expected_cash or 0.0)
+        total_opening = sum(pb['opening_amount'] for pb in payment_balances) if payment_balances else (shift.opening_cash or 0.0)
+
+        return {
+            "id": shift.id,
+            "name": shift.name,
+            "status": shift.state.capitalize() if shift.state else "Open",
+            "state": shift.state or "open",
+            "opening_time": str(shift.start_date) if shift.start_date else "",
+            "closing_time": str(shift.end_date) if shift.end_date else "",
+            "opening_cash": float(shift.opening_cash or 0.0),
+            "opening_amount": float(shift.opening_cash or total_opening or 0.0),
+            "actual_cash": float(shift.actual_cash or 0.0),
+            "closing_amount": float(shift.actual_cash or total_closing or 0.0),
+            "expected_cash": float(shift.expected_cash or 0.0),
+            "expected_amount": float(shift.expected_cash or total_expected or 0.0),
+            "difference": float(shift.cash_difference or (total_closing - total_expected) or 0.0),
+            "cash_difference": float(shift.cash_difference or 0.0),
+            "total_expenses": float(shift.total_expenses or 0.0),
+            "total_credit_notes": float(shift.total_credit_notes or 0.0),
+            "amount_cash": float(shift.amount_cash or 0.0),
+            "amount_card": float(shift.amount_card or 0.0),
+            "amount_mobile": float(shift.amount_mobile or 0.0),
+            "amount_bank": float(shift.amount_bank or 0.0),
+            "amount_other": float(shift.amount_other or 0.0),
+            "cashier": shift.user_id.name if shift.user_id else "",
+            "store": shift.store_id.name if shift.store_id else "",
+            "store_id": shift.store_id.id if shift.store_id else None,
+            "terminal_id": shift.terminal_id.id if shift.terminal_id else None,
+            "payment_balances": payment_balances,
+        }
+
     @http.route('/api/method/saas_api.www.api.open_shift', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_open_shift(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
@@ -6904,19 +7005,64 @@ class HavanoPOSDeskAPI(http.Controller):
             if not uid:
                 return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
 
-        params = self._get_request_json()
+        # Collect params from all possible sources
+        params = {}
+        try:
+            if hasattr(request.httprequest, 'args'):
+                params.update(request.httprequest.args.to_dict())
+        except Exception:
+            pass
+        try:
+            if hasattr(request.httprequest, 'form'):
+                params.update(request.httprequest.form.to_dict())
+            elif hasattr(request.httprequest, 'values'):
+                params.update(dict(request.httprequest.values))
+        except Exception:
+            pass
+        try:
+            body_json = self._get_request_json()
+            if isinstance(body_json, dict) and body_json:
+                params.update(body_json)
+            elif hasattr(request.httprequest, 'data') and request.httprequest.data:
+                import json as _json
+                parsed = _json.loads(request.httprequest.data.decode('utf-8'))
+                if isinstance(parsed, dict):
+                    params.update(parsed)
+        except Exception:
+            pass
+        if hasattr(request, 'params') and isinstance(request.params, dict):
+            for k, v in request.params.items():
+                if k not in params:
+                    params[k] = v
+        if kwargs:
+            params.update(kwargs)
+
         terminal_param = params.get('terminal_id')
         store_param = params.get('store_id')
         opening_cash = float(params.get('opening_cash') or params.get('opening_amount') or 0.0)
 
         # Parse payment_balances list from Flutter if provided
         payment_balances = params.get('payment_balances') or []
-        if not opening_cash and payment_balances:
+        breakdown_commands = []
+        if payment_balances:
             for pb in payment_balances:
-                m_name = (pb.get('payment_method') or pb.get('name') or '').lower()
+                m_name = pb.get('payment_method') or pb.get('name') or ''
                 amt = float(pb.get('opening_amount') or pb.get('amount') or 0.0)
-                if 'cash' in m_name or not opening_cash:
+                if 'cash' in m_name.lower() or not opening_cash:
                     opening_cash += amt
+                breakdown_commands.append((0, 0, {
+                    'name': m_name or 'Cash',
+                    'opening_amount': amt,
+                    'expected_amount': amt,
+                    'closing_amount': 0.0,
+                }))
+        elif opening_cash:
+            breakdown_commands.append((0, 0, {
+                'name': 'Cash',
+                'opening_amount': opening_cash,
+                'expected_amount': opening_cash,
+                'closing_amount': 0.0,
+            }))
 
         env = request.env(user=uid)
         user_rec = env['res.users'].browse(uid)
@@ -6982,15 +7128,7 @@ class HavanoPOSDeskAPI(http.Controller):
             return self._make_json_response({
                 "message": {
                     "status": "success",
-                    "shift": {
-                        "id": existing_shift.id,
-                        "name": existing_shift.name,
-                        "status": "Open",
-                        "opening_time": str(existing_shift.start_date),
-                        "opening_cash": existing_shift.opening_cash,
-                        "store_id": existing_shift.store_id.id if existing_shift.store_id else None,
-                        "terminal_id": existing_shift.terminal_id.id if existing_shift.terminal_id else None
-                    }
+                    "shift": self._format_shift_response(existing_shift)
                 }
             })
 
@@ -7005,21 +7143,15 @@ class HavanoPOSDeskAPI(http.Controller):
             create_vals['tenant_id'] = tenant.id
         if terminal_id:
             create_vals['terminal_id'] = terminal_id
+        if breakdown_commands:
+            create_vals['payment_breakdown_ids'] = breakdown_commands
 
         shift = env['havanoposdesk.shift'].sudo().create(create_vals)
 
         return self._make_json_response({
             "message": {
                 "status": "success",
-                "shift": {
-                    "id": shift.id,
-                    "name": shift.name,
-                    "status": "Open",
-                    "opening_time": str(shift.start_date),
-                    "opening_cash": shift.opening_cash,
-                    "store_id": shift.store_id.id if shift.store_id else None,
-                    "terminal_id": shift.terminal_id.id if shift.terminal_id else None
-                }
+                "shift": self._format_shift_response(shift)
             }
         })
 
@@ -7036,7 +7168,38 @@ class HavanoPOSDeskAPI(http.Controller):
             if not uid:
                 return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
 
-        params = self._get_request_json()
+        # Collect params from all possible sources
+        params = {}
+        try:
+            if hasattr(request.httprequest, 'args'):
+                params.update(request.httprequest.args.to_dict())
+        except Exception:
+            pass
+        try:
+            if hasattr(request.httprequest, 'form'):
+                params.update(request.httprequest.form.to_dict())
+            elif hasattr(request.httprequest, 'values'):
+                params.update(dict(request.httprequest.values))
+        except Exception:
+            pass
+        try:
+            body_json = self._get_request_json()
+            if isinstance(body_json, dict) and body_json:
+                params.update(body_json)
+            elif hasattr(request.httprequest, 'data') and request.httprequest.data:
+                import json as _json
+                parsed = _json.loads(request.httprequest.data.decode('utf-8'))
+                if isinstance(parsed, dict):
+                    params.update(parsed)
+        except Exception:
+            pass
+        if hasattr(request, 'params') and isinstance(request.params, dict):
+            for k, v in request.params.items():
+                if k not in params:
+                    params[k] = v
+        if kwargs:
+            params.update(kwargs)
+
         env = request.env(user=uid)
         user_rec = env['res.users'].browse(uid)
         tenant = user_rec.tenant_id
@@ -7059,6 +7222,11 @@ class HavanoPOSDeskAPI(http.Controller):
         amount_bank = float(params.get('amount_bank') or 0.0)
         amount_other = float(params.get('amount_other') or 0.0)
 
+        # Build existing opening map from shift.payment_breakdown_ids
+        existing_opening_map = {}
+        for pb in shift.payment_breakdown_ids:
+            existing_opening_map[pb.name.lower()] = getattr(pb, 'opening_amount', 0.0) or 0.0
+
         # If payment_balances array is passed from Flutter
         payment_balances = params.get('payment_balances') or []
         breakdown_lines = []
@@ -7067,55 +7235,65 @@ class HavanoPOSDeskAPI(http.Controller):
                 m_name_raw = pb.get('payment_method') or pb.get('name') or ''
                 m_name = m_name_raw.lower()
                 c_amt = float(pb.get('closing_amount') or pb.get('amount') or 0.0)
+                o_amt = float(pb.get('opening_amount') or existing_opening_map.get(m_name, 0.0))
+                if not o_amt and 'cash' in m_name:
+                    o_amt = float(shift.opening_cash or 0.0)
                 
                 # Determine expected based on computed fields
-                expected = 0.0
+                expected = o_amt
                 if 'cash' in m_name:
                     actual_cash = c_amt
                     expected = shift.expected_cash
                 elif 'card' in m_name or 'pos' in m_name or 'visa' in m_name or 'master' in m_name:
-                    expected = shift.amount_card
+                    expected = o_amt + shift.amount_card
                 elif 'mobile' in m_name or 'ecocash' in m_name or 'mpesa' in m_name or 'airtel' in m_name or 'omari' in m_name:
-                    expected = shift.amount_mobile
+                    expected = o_amt + shift.amount_mobile
                 elif 'bank' in m_name or 'transfer' in m_name:
-                    expected = shift.amount_bank
+                    expected = o_amt + shift.amount_bank
                 else:
-                    expected = shift.amount_other
+                    expected = o_amt + shift.amount_other
                     
                 breakdown_lines.append((0, 0, {
                     'name': m_name_raw,
+                    'opening_amount': o_amt,
                     'expected_amount': expected,
                     'closing_amount': c_amt
                 }))
         else:
             # Backward compatibility for older versions of the app
-            if 'amount_cash' in params:
+            o_cash = existing_opening_map.get('cash', shift.opening_cash)
+            if 'amount_cash' in params or actual_cash:
                 breakdown_lines.append((0, 0, {
                     'name': 'Cash',
+                    'opening_amount': o_cash,
                     'expected_amount': shift.expected_cash,
-                    'closing_amount': amount_cash
+                    'closing_amount': actual_cash if actual_cash else amount_cash
                 }))
             if 'amount_card' in params:
                 breakdown_lines.append((0, 0, {
                     'name': 'Card',
+                    'opening_amount': existing_opening_map.get('card', 0.0),
                     'expected_amount': shift.amount_card,
                     'closing_amount': amount_card
                 }))
             if 'amount_mobile' in params:
                 breakdown_lines.append((0, 0, {
                     'name': 'Mobile',
+                    'opening_amount': existing_opening_map.get('mobile', 0.0),
                     'expected_amount': shift.amount_mobile,
                     'closing_amount': amount_mobile
                 }))
             if 'amount_bank' in params:
                 breakdown_lines.append((0, 0, {
                     'name': 'Bank Transfer',
+                    'opening_amount': existing_opening_map.get('bank transfer', 0.0),
                     'expected_amount': shift.amount_bank,
                     'closing_amount': amount_bank
                 }))
             if 'amount_other' in params:
                 breakdown_lines.append((0, 0, {
                     'name': 'Other',
+                    'opening_amount': existing_opening_map.get('other', 0.0),
                     'expected_amount': shift.amount_other,
                     'closing_amount': amount_other
                 }))
@@ -7139,15 +7317,7 @@ class HavanoPOSDeskAPI(http.Controller):
         return self._make_json_response({
             "message": {
                 "status": "success",
-                "shift": {
-                    "id": shift.id,
-                    "name": shift.name,
-                    "status": "Closed",
-                    "closing_time": str(shift.end_date),
-                    "expected_cash": shift.expected_cash,
-                    "actual_cash": shift.actual_cash,
-                    "difference": shift.cash_difference
-                }
+                "shift": self._format_shift_response(shift)
             }
         })
 
@@ -7187,15 +7357,7 @@ class HavanoPOSDeskAPI(http.Controller):
         return self._make_json_response({
             "message": {
                 "status": "success",
-                "shift": {
-                    "id": shift.id,
-                    "name": shift.name,
-                    "status": "Open",
-                    "opening_time": str(shift.start_date),
-                    "opening_cash": shift.opening_cash,
-                    "store_id": shift.store_id.id if shift.store_id else None,
-                    "terminal_id": shift.terminal_id.id if shift.terminal_id else None
-                }
+                "shift": self._format_shift_response(shift)
             }
         })
 
@@ -7225,19 +7387,7 @@ class HavanoPOSDeskAPI(http.Controller):
         shifts = env['havanoposdesk.shift'].sudo().search(domain, order='start_date desc', limit=50)
         shift_list = []
         for s in shifts:
-            shift_list.append({
-                "id": s.id,
-                "name": s.name,
-                "status": s.state.capitalize() if s.state else "Closed",
-                "opening_time": str(s.start_date) if s.start_date else "",
-                "closing_time": str(s.end_date) if s.end_date else "",
-                "opening_cash": s.opening_cash,
-                "actual_cash": s.actual_cash,
-                "expected_cash": s.expected_cash,
-                "difference": s.cash_difference,
-                "cashier": s.user_id.name if s.user_id else "",
-                "store": s.store_id.name if s.store_id else ""
-            })
+            shift_list.append(self._format_shift_response(s))
 
         return self._make_json_response({
             "message": {

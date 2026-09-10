@@ -295,6 +295,7 @@ class ShiftPaymentLine(models.Model):
 
     shift_id = fields.Many2one('havanoposdesk.shift', string='Shift', required=True, ondelete='cascade')
     name = fields.Char(string='Payment Method', required=True)
+    opening_amount = fields.Monetary(string='Opening Amount', currency_field='currency_id', default=0.0)
     expected_amount = fields.Monetary(string='System Expected', currency_field='currency_id', default=0.0)
     closing_amount = fields.Monetary(string='Declared Amount', currency_field='currency_id', required=True, default=0.0)
     difference = fields.Monetary(string='Difference', currency_field='currency_id', compute='_compute_difference', store=True)

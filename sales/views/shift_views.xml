@@ -105,6 +105,7 @@
                             <field name="payment_breakdown_ids" readonly="1">
                                 <list string="Payment Breakdown" editable="bottom">
                                     <field name="name"/>
+                                    <field name="opening_amount" widget="monetary" optional="show"/>
                                     <field name="expected_amount" widget="monetary"/>
                                     <field name="closing_amount" widget="monetary"/>
                                     <field name="difference" widget="monetary" decoration-danger="difference &lt; 0" decoration-success="difference == 0"/>
