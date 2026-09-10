@@ -7374,6 +7374,19 @@ class HavanoPOSDeskAPI(http.Controller):
             if not uid:
                 return self._make_json_response({"message": {"status": "error", "message": "Unauthorized"}}, status=401)
 
+        params = {}
+        try:
+            if hasattr(request.httprequest, 'args'):
+                params.update(request.httprequest.args.to_dict())
+        except Exception:
+            pass
+        if hasattr(request, 'params') and isinstance(request.params, dict):
+            for k, v in request.params.items():
+                if k not in params:
+                    params[k] = v
+        if kwargs:
+            params.update(kwargs)
+
         env = request.env(user=uid)
         user_rec = env['res.users'].browse(uid)
         domain = []
@@ -7384,16 +7397,51 @@ class HavanoPOSDeskAPI(http.Controller):
         elif user_rec.havano_role == 'admin' and user_rec.store_ids:
             domain.append(('store_id', 'in', user_rec.store_ids.ids))
 
-        shifts = env['havanoposdesk.shift'].sudo().search(domain, order='start_date desc', limit=50)
+        from_date = params.get('from_date')
+        if from_date:
+            domain.append(('start_date', '>=', f"{from_date} 00:00:00"))
+
+        to_date = params.get('to_date')
+        if to_date:
+            domain.append(('start_date', '<=', f"{to_date} 23:59:59"))
+
+        status_filter = params.get('status')
+        if status_filter and status_filter.lower() not in ('all', 'all status'):
+            domain.append(('state', '=', status_filter.lower()))
+
+        user_filter = params.get('user')
+        if user_filter and user_filter.lower() not in ('all', 'all users'):
+            matching_user = env['res.users'].sudo().search([('name', '=ilike', user_filter)], limit=1)
+            if matching_user:
+                domain.append(('user_id', '=', matching_user.id))
+
+        total_count = env['havanoposdesk.shift'].sudo().search_count(domain)
+
+        page = int(params.get('page') or 1)
+        page_size = int(params.get('page_size') or 20)
+        offset = (page - 1) * page_size
+
+        shifts = env['havanoposdesk.shift'].sudo().search(domain, order='start_date desc', offset=offset, limit=page_size)
         shift_list = []
         for s in shifts:
             shift_list.append(self._format_shift_response(s))
+
+        # Collect distinct user names for filters
+        user_domain = [('tenant_id', '=', user_rec.tenant_id.id)] if user_rec.tenant_id else []
+        users = env['res.users'].sudo().search(user_domain)
+        user_names = [u.name for u in users if u.name]
+
+        import math
+        total_pages = math.ceil(total_count / page_size) if page_size > 0 else 1
 
         return self._make_json_response({
             "message": {
                 "status": "success",
                 "shifts": shift_list,
-                "total_count": len(shift_list)
+                "users": user_names,
+                "total_count": total_count,
+                "page": page,
+                "total_pages": max(1, total_pages)
             }
         })
 
