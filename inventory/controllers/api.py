@@ -306,7 +306,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 elif tenant_curr:
                     from_rate = 1.0  # Base currency is always 1.0
                     to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, cur.id, tenant if 'tenant' in locals() else None)
-                    rate_val = to_rate / from_rate if from_rate else 1.0
+                    rate_val = (to_rate / from_rate) if (to_rate is not None and from_rate) else 1.0
                 else:
                     rate_val = cur.rate or 1.0
 
@@ -342,7 +342,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if base_curr and acc_curr and base_curr != acc_curr:
                     from_rate = 1.0  # Base currency is always 1.0
                     to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, acc_curr.id, tenant if 'tenant' in locals() else None)
-                    rate_val = to_rate / from_rate if from_rate else 1.0
+                    rate_val = (to_rate / from_rate) if (to_rate is not None and from_rate) else 1.0
                 elif acc_curr and not base_curr:
                     rate_val = acc_curr.rate or 1.0
 
@@ -911,7 +911,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 elif base_curr:
                     from_rate = 1.0  # Base currency is always 1.0
                     to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, cur.id, tenant if 'tenant' in locals() else None)
-                    rate_val = to_rate / from_rate if from_rate else 1.0
+                    rate_val = (to_rate / from_rate) if (to_rate is not None and from_rate) else 1.0
                 else:
                     rate_val = cur.rate or 1.0
 
@@ -980,7 +980,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 elif base_curr:
                     from_rate = 1.0  # Base currency is always 1.0
                     to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, cur.id, tenant if 'tenant' in locals() else None)
-                    rate_val = to_rate / from_rate if from_rate else 1.0
+                    rate_val = (to_rate / from_rate) if (to_rate is not None and from_rate) else 1.0
                 else:
                     rate_val = cur.rate or 1.0
 
@@ -1041,7 +1041,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 elif base_curr:
                     from_rate = 1.0  # Base currency is always 1.0
                     to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, cur.id, tenant if 'tenant' in locals() else None)
-                    rate_val = to_rate / from_rate if from_rate else 1.0
+                    rate_val = (to_rate / from_rate) if (to_rate is not None and from_rate) else 1.0
                 else:
                     rate_val = cur.rate or 1.0
 
@@ -7600,7 +7600,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if base_curr and acc_curr and base_curr != acc_curr:
                     from_rate = 1.0  # Base currency is always 1.0
                     to_rate = self._get_direct_rate(env, acc_curr.id, tenant if 'tenant' in locals() else None)
-                    rate_val = to_rate / from_rate if from_rate else 1.0
+                    rate_val = (to_rate / from_rate) if (to_rate is not None and from_rate) else 1.0
                 elif acc_curr and not base_curr:
                     rate_val = acc_curr.rate or 1.0
 
