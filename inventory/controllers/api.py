@@ -13,29 +13,29 @@ _logger = logging.getLogger(__name__)
 
 class HavanoPOSDeskAPI(http.Controller):
     def _get_direct_rate(self, env, currency_id, tenant=None):
-        """Return the stored rate from res_currency_rate, or None if no record exists.
-        
-        In Odoo 19, res_currency_rate.rate is the 'technical rate':
-        number of currency units per 1 unit of the base/company currency.
-        Example: if base=USD and ZWG=35 per USD, then rate for ZWG = 35.0
-        Returns None (not 1.0) when no rate record is found, so callers can
+        """Return the company_rate for the given currency — i.e. 'units of this currency
+        per 1 unit of the company/base currency', which is what the Odoo UI shows as
+        'Unit per USD'.
+
+        Example: if 1 USD = 35 ZWG, this returns 35.0 for ZWG.
+
+        Uses ORM (sudo) so:
+          - company_rate is properly computed/normalized (raw 'rate' is a technical field
+            that must be divided by the company currency's rate — ORM does this correctly).
+          - sudo() bypasses the tenant _search filter so we always find the record.
+
+        Returns None when no rate record exists (not 1.0), so callers can
         distinguish 'not found' from 'rate is genuinely 1.0'.
         """
-        res = None
-        if tenant:
-            env.cr.execute(
-                "SELECT rate FROM res_currency_rate WHERE currency_id = %s AND tenant_id = %s ORDER BY name DESC LIMIT 1",
-                (currency_id, tenant.id)
-            )
-            res = env.cr.fetchone()
-        if not res:
-            env.cr.execute(
-                "SELECT rate FROM res_currency_rate WHERE currency_id = %s ORDER BY name DESC LIMIT 1",
-                (currency_id,)
-            )
-            res = env.cr.fetchone()
-        if res is not None and res[0] is not None:
-            return float(res[0])
+        # sudo() bypasses the tenant filter in _search override
+        rate_rec = env['res.currency.rate'].sudo().search(
+            [('currency_id', '=', currency_id)],
+            order='name DESC',
+            limit=1
+        )
+        if rate_rec:
+            cr = rate_rec.company_rate
+            return float(cr) if cr else None
         return None
 
 
