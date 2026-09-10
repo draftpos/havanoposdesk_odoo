@@ -30,7 +30,7 @@ class HavanoPOSDeskAPI(http.Controller):
         # sudo() bypasses the tenant filter in _search override
         rate_rec = env['res.currency.rate'].sudo().search(
             [('currency_id', '=', currency_id)],
-            order='name DESC',
+            order='name DESC, id DESC',
             limit=1
         )
         if rate_rec:
@@ -4701,13 +4701,72 @@ class HavanoPOSDeskAPI(http.Controller):
             return self._make_json_response({}, status=200)
 
         token = request.httprequest.headers.get('Authorization')
-        params = self._get_request_json() or {}
-        if not params and hasattr(request, 'params'):
-            params = dict(request.params)
-        params.update(kwargs or {})
 
-        from_currency = (params.get('from_currency') or params.get('from_currency_code') or 'USD').strip()
-        to_currency = (params.get('to_currency') or params.get('to_currency_code') or '').strip()
+        # Collect params from all possible sources (Dio sends JSON body with Content-Type: application/json)
+        params = {}
+
+        # 1. Query args (GET or query params on POST)
+        try:
+            if hasattr(request.httprequest, 'args'):
+                params.update(request.httprequest.args.to_dict())
+        except Exception:
+            pass
+
+        # 2. Form data (application/x-www-form-urlencoded or multipart)
+        try:
+            if hasattr(request.httprequest, 'form'):
+                params.update(request.httprequest.form.to_dict())
+            elif hasattr(request.httprequest, 'values'):
+                params.update(dict(request.httprequest.values))
+        except Exception:
+            pass
+
+        # 3. JSON body (Dio POST with Content-Type: application/json)
+        try:
+            body_json = self._get_request_json()
+            if isinstance(body_json, dict) and body_json:
+                params.update(body_json)
+            elif hasattr(request.httprequest, 'data') and request.httprequest.data:
+                import json as _json
+                parsed = _json.loads(request.httprequest.data.decode('utf-8'))
+                if isinstance(parsed, dict):
+                    params.update(parsed)
+        except Exception:
+            pass
+
+        # 4. Odoo request.params
+        if hasattr(request, 'params') and isinstance(request.params, dict):
+            for k, v in request.params.items():
+                if k not in params:
+                    params[k] = v
+
+        # 5. kwargs from route pattern matching
+        if kwargs:
+            params.update(kwargs)
+
+        from_currency = (
+            params.get('from_currency')
+            or params.get('from_currency_code')
+            or params.get('from')
+            or params.get('source_currency')
+            or ''
+        ).strip()
+
+        to_currency = (
+            params.get('to_currency')
+            or params.get('to_currency_code')
+            or params.get('to')
+            or params.get('currency')
+            or params.get('currency_code')
+            or params.get('target_currency')
+            or ''
+        ).strip()
+
+        _logger.info(
+            "[api_get_currency_exchange_rate] raw params=%s | from=%s to=%s",
+            {k: v for k, v in params.items() if k in ('from_currency', 'to_currency', 'from_currency_code', 'to_currency_code', 'currency')},
+            from_currency, to_currency
+        )
 
         if not token:
             token = params.get('token')
@@ -4727,35 +4786,11 @@ class HavanoPOSDeskAPI(http.Controller):
             )
             base_currency_name = (base_curr.name if base_curr else 'USD').upper()
 
-            # --- Exact same domain as api_get_accounts ---
-            domain = [('type', 'in', ['Cash', 'Bank']), ('active', '=', True)]
-            if user.havano_role != 'super_admin' and tenant:
-                domain.append(('tenant_id', '=', tenant.id))
+            # Default from_currency to company/base currency if not specified
+            if not from_currency:
+                from_currency = base_currency_name
 
-            accounts = env['havanoposdesk.account'].sudo().search(domain)
-
-            # Build same rate map that api_get_accounts builds
-            debug_accounts = []
-            matched_rate = None
-            for acc in accounts:
-                acc_curr = acc.currency_id or base_curr
-                currency_code = acc_curr.name if acc_curr else base_currency_name
-                rate_val = 1.0
-                if base_curr and acc_curr and base_curr.id != acc_curr.id:
-                    raw_rate = self._get_direct_rate(env, acc_curr.id, tenant)
-                    rate_val = raw_rate if raw_rate is not None else 1.0
-
-                debug_accounts.append({
-                    'account': acc.name,
-                    'currency_code': currency_code,
-                    'currency_id': acc_curr.id if acc_curr else None,
-                    'rate_val': rate_val,
-                })
-
-                # Match to_currency by exact currency code
-                if to_currency and currency_code.upper() == to_currency.upper():
-                    matched_rate = rate_val
-
+            # If to_currency is empty, or same currencies, rate is 1.0
             if not to_currency or from_currency.upper() == to_currency.upper():
                 return self._make_json_response({
                     "message": {"exchange_rate": 1.0},
@@ -4765,28 +4800,72 @@ class HavanoPOSDeskAPI(http.Controller):
                     }
                 })
 
-            if to_currency.upper() == base_currency_name:
-                return self._make_json_response({
-                    "message": {"exchange_rate": 1.0},
-                    "_debug": {"reason": "to_is_base_currency", "base": base_currency_name}
-                })
+            domain = [('type', 'in', ['Cash', 'Bank']), ('active', '=', True)]
+            if user.havano_role != 'super_admin' and tenant:
+                domain.append(('tenant_id', '=', tenant.id))
 
-            if matched_rate is not None:
-                _logger.info("[api_get_currency_exchange_rate] Matched %s -> rate=%s", to_currency, matched_rate)
-                return self._make_json_response({"message": {"exchange_rate": float(matched_rate)}})
+            accounts = env['havanoposdesk.account'].sudo().search(domain)
 
-            # No match — return diagnostic info so we can see WHY
+            def _resolve_rate(curr_code):
+                if not curr_code:
+                    return 1.0
+                if curr_code.upper() == base_currency_name:
+                    return 1.0
+
+                # Check accounts first (exact match or accounts with currency)
+                for acc in accounts:
+                    acc_curr = acc.currency_id or base_curr
+                    c_name = (acc_curr.name if acc_curr else '').upper()
+                    if c_name == curr_code.upper() or (acc.name and curr_code.upper() in acc.name.upper()):
+                        if base_curr and acc_curr and base_curr.id != acc_curr.id:
+                            r = self._get_direct_rate(env, acc_curr.id, tenant)
+                            if r is not None and r > 0:
+                                return float(r)
+                        elif acc_curr and base_curr and acc_curr.id == base_curr.id:
+                            return 1.0
+
+                # Search in res.currency directly
+                candidates = [curr_code]
+                if curr_code.upper() in ('ZWG', 'ZIG'):
+                    candidates = ['Zig', 'ZWG', 'ZiG', 'ZIG']
+                for cand in candidates:
+                    curr_rec = env['res.currency'].sudo().search([('name', '=ilike', cand)], limit=1)
+                    if curr_rec:
+                        if base_curr and curr_rec.id == base_curr.id:
+                            return 1.0
+                        r = self._get_direct_rate(env, curr_rec.id, tenant)
+                        if r is not None and r > 0:
+                            return float(r)
+
+                return None
+
+            # Calculate the exchange rate
+            rate_from = _resolve_rate(from_currency)
+            rate_to = _resolve_rate(to_currency)
+
+            final_rate = None
+            if from_currency.upper() == base_currency_name and rate_to is not None:
+                final_rate = rate_to
+            elif to_currency.upper() == base_currency_name and rate_from is not None and rate_from > 0:
+                final_rate = 1.0 / rate_from
+            elif rate_from is not None and rate_to is not None and rate_from > 0:
+                final_rate = rate_to / rate_from
+
+            if final_rate is not None:
+                _logger.info("[api_get_currency_exchange_rate] Matched %s -> %s: rate=%s", from_currency, to_currency, final_rate)
+                return self._make_json_response({"message": {"exchange_rate": float(final_rate)}})
+
+            # No match — return diagnostic info
             return self._make_json_response({
                 "message": {"exchange_rate": 1.0},
                 "_debug": {
-                    "reason": "no_account_matched_to_currency",
+                    "reason": "rate_not_found",
                     "from_currency": from_currency,
                     "to_currency": to_currency,
                     "base_currency": base_currency_name,
                     "tenant_id": tenant.id if tenant else None,
-                    "user_id": user.id,
-                    "uid_resolved": uid,
-                    "accounts_checked": debug_accounts,
+                    "rate_from": rate_from,
+                    "rate_to": rate_to,
                 }
             })
 
