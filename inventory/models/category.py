@@ -4,13 +4,21 @@ class HavanoposdeskCategory(models.Model):
     _name = 'havanoposdesk.category'
     _description = 'Category'
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Category name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'Category name must be unique per tenant!')
     ]
 
     name = fields.Char(string='Category Name', required=True)
+    not_for_pos = fields.Boolean(string='Not For POS', default=False)
     store_ids = fields.Many2many('havanoposdesk.store', string='Stores', required=False, default=lambda self: self._default_store_ids())
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self._default_tenant_id())
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('tenant_id') and self.env.user.tenant_id:
+                vals['tenant_id'] = self.env.user.tenant_id.id
+        return super().create(vals_list)
 
     def _default_store_ids(self):
         # Prevent accessing env.user during registry load
@@ -33,7 +41,7 @@ class HavanoposdeskCategory(models.Model):
                     ('tenant_id', '=', record.tenant_id.id),
                     ('name', '=ilike', record.name.strip())
                 ]
-                if self.search_count(domain) > 0:
+                if self.sudo().search_count(domain) > 0:
                     raise ValidationError(f"A Category with the name '{record.name}' already exists in your workspace. Please choose a different name.")
 
     @api.model

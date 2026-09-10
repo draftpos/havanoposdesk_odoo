@@ -8,6 +8,7 @@
             <form string="Stock Valuation By Date">
                 <group>
                     <field name="date_to"/>
+                    <field name="store_id" options="{'no_create': True, 'no_open': True}" placeholder="All Stores (Default)"/>
                     <field name="tenant_id" invisible="1"/>
                 </group>
                 <footer>

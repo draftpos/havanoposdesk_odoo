@@ -120,12 +120,17 @@
                     <field name="name" />
                     <field name="type" />
                     <field name="balance" />
+                    <field name="active" />
                     <templates>
                         <t t-name="card">
-                            <div t-attf-class="oe_kanban_global_click havano-kanban-card">
-                                <div class="havano-card-header">
+                            <div t-attf-class="oe_kanban_global_click havano-kanban-card {{ !record.active.raw_value ? 'opacity-50' : '' }}">
+                                <div class="havano-card-header d-flex justify-content-between align-items-center">
                                     <div class="customer-name">
                                         <field name="name" />
+                                    </div>
+                                    <div>
+                                        <span t-if="!record.active.raw_value" class="badge bg-danger">Inactive</span>
+                                        <span t-if="record.active.raw_value" class="badge bg-success">Active</span>
                                     </div>
                                 </div>
                                 <div class="havano-card-date">
@@ -147,6 +152,7 @@
             <field name="res_model">havanoposdesk.account</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="mobile_view_mode">kanban</field>
+            <field name="context">{'active_test': False}</field>
         </record>
 
         

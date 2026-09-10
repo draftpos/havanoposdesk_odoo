@@ -1,3 +1,5 @@
+from . import audit_log
+from . import audit_mixin
 from . import tenant
 from . import res_users
 from . import store
@@ -6,6 +8,7 @@ from . import subscription
 from . import payment
 from . import payment_transaction
 from . import res_config_settings
+from . import res_currency
 from . import res_currency_rate
 from . import user_rights
 from . import ir_module_module
@@ -14,3 +17,5 @@ from . import error_log
 from . import dashboard
 from . import support_ticket
 from . import ir_actions_act_window 
+from . import cash_transfer
+from . import restaurant

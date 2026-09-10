@@ -51,19 +51,6 @@ class ResUsers(models.Model):
                 if not user.pricelist_id:
                     raise ValidationError(_("Default Pricelist is required for cashier/employee."))
 
-    @api.constrains('store_ids', 'havano_role')
-    def _check_store_access_limit(self):
-        for user in self:
-            if user.havano_role not in ('admin', 'super_admin') and len(user.store_ids) > 1:
-                if user.default_store_id:
-                    user.sudo().write({'store_ids': [(6, 0, [user.default_store_id.id])]})
-                elif user.store_ids:
-                    first_store = user.store_ids[0].id
-                    user.sudo().write({
-                        'default_store_id': first_store,
-                        'store_ids': [(6, 0, [first_store])]
-                    })
-
     @api.constrains('default_store_id', 'pricelist_id')
     def _check_pricelist_belongs_to_store(self):
         for user in self:
@@ -91,26 +78,19 @@ class ResUsers(models.Model):
     @api.onchange('default_store_id')
     def _onchange_default_store_id(self):
         if self.default_store_id:
-            if self.havano_role not in ('admin', 'super_admin'):
-                self.store_ids = self.default_store_id
+            if self.store_ids:
+                self.store_ids = self.store_ids | self.default_store_id
             else:
-                if self.store_ids:
-                    self.store_ids = self.store_ids | self.default_store_id
-                else:
-                    self.store_ids = self.default_store_id
+                self.store_ids = self.default_store_id
 
     @api.onchange('store_ids')
     def _onchange_store_ids(self):
-        if self.havano_role not in ('admin', 'super_admin') and len(self.store_ids) > 1:
-            if self.default_store_id and self.default_store_id in self.store_ids:
-                self.store_ids = self.default_store_id
-            else:
-                self.store_ids = self.store_ids[:1]
-
         if len(self.store_ids) == 1:
             self.default_store_id = self.store_ids[0]
             if self.default_store_id and self.default_store_id.pricelist_id and not self.pricelist_id:
                 self.pricelist_id = self.default_store_id.pricelist_id
+        elif self.default_store_id and self.default_store_id not in self.store_ids:
+            self.default_store_id = self.store_ids[0] if self.store_ids else False
 
     @api.depends('havano_role')
     def _compute_allow_backoffice(self):
@@ -119,14 +99,8 @@ class ResUsers(models.Model):
 
     @api.onchange('havano_role')
     def _onchange_havano_role_profile(self):
-        """Auto-select default profile and trim store_ids to single default store for non-admin roles."""
+        """Auto-select default profile for roles."""
         for user in self:
-            if user.havano_role not in ('admin', 'super_admin'):
-                if user.default_store_id:
-                    user.store_ids = user.default_store_id
-                elif user.store_ids:
-                    user.store_ids = user.store_ids[:1]
-
             if user.havano_role and user.tenant_id:
                 profile_name = ''
                 if user.havano_role == 'super_admin':
@@ -261,6 +235,17 @@ class ResUsers(models.Model):
         if self.env.user.havano_role == 'admin' and operation in ('read', 'write', 'create', 'search'):
             return True
         return super().check_access_rights(operation, raise_exception=raise_exception)
+
+    @api.model
+    def has_group(self, group_ext_id):
+        if group_ext_id == 'havanoposdesk_odoo.group_enable_shifts':
+            tenant = self.env.user.tenant_id
+            if not tenant:
+                tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+            if tenant and tenant.enable_shift:
+                return True
+            return False
+        return super().has_group(group_ext_id)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -466,7 +451,7 @@ class ResUsers(models.Model):
                 if not default_store:
                     default_store = self.env['havanoposdesk.store'].search([('tenant_id', '=', tenant_id)], limit=1)
                 
-                if default_store:
+                if default_store and not vals.get('default_store_id'):
                     vals['default_store_id'] = default_store.id
                     if 'store_ids' not in vals:
                         vals['store_ids'] = [(6, 0, [default_store.id])]
@@ -611,6 +596,7 @@ class ResUsers(models.Model):
             tenant_admin_group = self.env.ref('havanoposdesk_odoo.group_tenant_admin', raise_if_not_found=False)
             erp_manager_group = self.env.ref('base.group_erp_manager', raise_if_not_found=False)
             group_system = self.env.ref('base.group_system', raise_if_not_found=False)
+            internal_group = self.env.ref('base.group_user', raise_if_not_found=False)
             for user in self:
                 group_cmds = []
                 portal_group = self.env.ref('base.group_portal', raise_if_not_found=False)
@@ -622,6 +608,10 @@ class ResUsers(models.Model):
                 
                 if group_cmds:
                     user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
+
+                # Ensure all active ERP users have base.group_user (Internal User)
+                if internal_group and internal_group not in user.group_ids:
+                    user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, internal_group.id, 0)]})
 
                 if user.havano_role == 'super_admin':
                     if group_system and group_system not in user.group_ids:
@@ -660,14 +650,28 @@ class ResUsers(models.Model):
             tenant_id = user.tenant_id.id if user.tenant_id else False
             if not tenant_id:
                 continue
+            
+            # If the user already has a profile for their current role, don't auto-overwrite it
+            if user.user_rights_profile_id and user.user_rights_profile_id.havano_role == role:
+                continue
+                
             profile = self.env['havanoposdesk.user.rights.profile'].search([
                 ('tenant_id', '=', tenant_id),
                 ('havano_role', '=', role),
+                ('is_default', '=', True)
             ], limit=1)
+            
+            if not profile:
+                profile = self.env['havanoposdesk.user.rights.profile'].search([
+                    ('tenant_id', '=', tenant_id),
+                    ('havano_role', '=', role),
+                ], limit=1)
+                
             if profile and user.user_rights_profile_id.id != profile.id:
                 user.sudo().with_context(bypass_sync_role_groups=True).write(
                     {'user_rights_profile_id': profile.id}
                 )
+
 
     def action_verify_user(self):
         for user in self:
@@ -857,7 +861,9 @@ class ResUsers(models.Model):
             ('active', '=', True),
             '|',
             ('verification_sent_at', '<', threshold_time),
-            ('&', ('verification_sent_at', '=', False), ('create_date', '<', threshold_time))
+            '&',
+            ('verification_sent_at', '=', False),
+            ('create_date', '<', threshold_time)
         ])
         
         if unverified_users:
@@ -868,7 +874,7 @@ class HavanoChangePasswordWizard(models.TransientModel):
     _name = 'havano.change.password.wizard'
     _description = 'Change Cashier Password'
 
-    user_id = fields.Many2one('res.users', string='Cashier', required=True)
+    user_id = fields.Many2one('res.users', string='Cashier', required=True, ondelete='cascade')
     new_password = fields.Char(string='New Password', required=True)
 
     def action_change_password(self):

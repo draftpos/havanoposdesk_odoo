@@ -14,18 +14,20 @@
                     <field name="name" string="Reference" optional="show" />
                     <field name="local_invoice_id" optional="hide" />
                     <field name="invoice_type" string="Type" optional="hide" readonly="1" decoration-danger="is_return" decoration-info="is_quotation" decoration-bf="is_return or is_quotation" />
-                    <field name="payment_status" optional="show" column_invisible="context.get('default_is_quotation')" />
-                    <field name="account_id" optional="show" column_invisible="context.get('default_is_quotation')" />
+                    <field name="payment_status_display" optional="show" column_invisible="context.default_is_quotation" string="Payment Status" />
+                    <field name="account_id" optional="show" column_invisible="context.default_is_quotation" />
                     <field name="customer" optional="show" />
                     <field name="date" string="Date" optional="show" />
                     <field name="store_id" optional="show" />
                     <field name="terminal_id" optional="hide" />
+                    <field name="app_version" string="App Version" optional="hide" />
                     <field name="salesperson_id" optional="show" />
                     <field name="amount_untaxed" string="Total Exclu" widget="monetary" optional="hide" />
                     <field name="amount_tax" string="Total Tax" widget="monetary" optional="hide" />
                     <field name="amount_total" string="Total" widget="monetary" optional="show" />
-                    <field name="amount_total_base" string="Base Total" sum="Base Total" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="show" />
+                    <field name="amount_total_base" string="Base Total" sum="Base Total" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="hide" />
                     <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done' and not is_return" decoration-danger="state == 'cancelled' or is_return" optional="show" />
+                    <field name="fiscal_status" string="ZIMRA Status" widget="badge" decoration-success="fiscal_status == 'fiscalized'" decoration-warning="fiscal_status == 'PENDING_SYNC'" decoration-danger="fiscal_status == 'failed'" optional="show"/>
                 </list>
             </field>
         </record>
@@ -44,6 +46,7 @@
                         <button name="action_cancel" string="Cancel" type="object" invisible="state not in ['confirmed', 'done']" />
                         <button name="action_draft" string="Reset to Draft" type="object" invisible="state != 'cancelled'" />
                         <button name="%(action_havanoposdesk_sale_return_wizard)d" string="Credit Note" type="action" class="btn-primary" invisible="state != 'done' or is_return or is_quotation" />
+                        <button name="action_retry_fiscalization" string="Retry ZIMRA Sync" type="object" class="btn-warning" invisible="fiscal_status not in ['PENDING_SYNC', 'failed']"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,done" />
                     </header>
                     <sheet>
@@ -63,13 +66,14 @@
                                 <field name="customer" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="tenant_currency_id" invisible="1"/>
                                 <field name="customer_balance" string="Customer Balance" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" invisible="not customer or is_quotation" class="text-muted"/>
-                                <field name="customer_allow_multi_currency" invisible="1"/>
-                                <field name="customer_secondary_currency_id" invisible="1"/>
-                                <field name="customer_secondary_balance" string="Secondary Balance" widget="monetary" options="{'currency_field': 'customer_secondary_currency_id'}" invisible="not customer_allow_multi_currency or is_quotation" class="text-muted"/>
+
                                 <field name="store_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="date" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="allowed_pricelist_ids" invisible="1" />
                                 <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" readonly="state != 'draft'" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="allow_multi_currency" invisible="1" />
+                                <field name="currency_id" invisible="allow_multi_currency == False" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" class="border-bottom border-dark" />
+                                <field name="exchange_rate" invisible="allow_multi_currency == False" readonly="state != 'draft'" class="border-bottom border-dark" />
                                 <field name="return_id" invisible="not is_return" readonly="1" class="border-bottom border-dark" />
                                 <field name="is_return" invisible="1" />
                                 <field name="is_quotation" invisible="1" />
@@ -77,17 +81,14 @@
                                 <field name="tenant_id" invisible="1" />
                             </group>
                             <group>
-                                <!-- RIGHT: Local Invoice ID, Currency, Exchange Rate, Payment fields -->
+                                <!-- RIGHT: Local Invoice ID, Payment fields -->
                                 <field name="local_invoice_id" readonly="1" class="border-bottom border-dark" />
-                                <field name="available_currency_ids" invisible="1" />
-                                <field name="allow_multi_currency" invisible="1" />
-                                <field name="currency_id" invisible="allow_multi_currency == False" domain="[('id', 'in', available_currency_ids)]" options="{'no_create': True}" class="border-bottom border-dark" />
-                                <field name="exchange_rate" invisible="allow_multi_currency == False" readonly="state != 'draft'" class="border-bottom border-dark" />
-                                <field name="payment_status" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" invisible="is_quotation" />
-                                <field name="payment_policy" invisible="payment_status != 'cash' or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" />
-                                <field name="account_id" invisible="payment_status != 'cash' or payment_policy != 'single' or is_quotation" required="not is_quotation and payment_status == 'cash' and payment_policy == 'single'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark" />
-                                <field name="single_payment_amount" invisible="payment_status != 'cash' or payment_policy != 'single' or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" />
-                                <div colspan="2" class="mt-3" invisible="payment_status != 'cash' or payment_policy != 'multi' or is_quotation">
+                                <field name="payment_status" invisible="1" />
+                                <field name="payment_status_display" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" invisible="is_quotation" />
+                                <field name="payment_policy" invisible="payment_status not in ['cash', 'partial'] or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" />
+                                <field name="account_id" domain="[('tenant_id', '=', tenant_id), ('type', 'in', ['Bank', 'Cash']), ('active', '=', True), ('is_on_account', '=', False)]" invisible="payment_status not in ['cash', 'partial'] or payment_policy != 'single' or is_quotation" required="not is_quotation and payment_status in ['cash', 'partial'] and payment_policy == 'single'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark" />
+                                <field name="single_payment_amount" invisible="payment_status not in ['cash', 'partial'] or payment_policy != 'single' or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" />
+                                <div colspan="2" class="mt-3" invisible="payment_status not in ['cash', 'partial'] or payment_policy != 'multi' or is_quotation">
                                     <div class="card border-info" style="border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                                         <div class="card-header bg-info text-white fw-bold py-2" style="font-size: 1.1em;">
                                             <i class="fa fa-money me-2"></i> Payment Summary
@@ -95,16 +96,16 @@
                                         <div class="card-body bg-light py-2 px-3">
                                             <div class="row mb-1 align-items-center">
                                                 <div class="col-6 fw-bold">Total Invoiced:</div>
-                                                <div class="col-6 text-end"><field name="amount_total_base" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" nolabel="1"/></div>
+                                                <div class="col-6 text-end"><field name="amount_total" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/></div>
                                             </div>
                                             <div class="row mb-1 align-items-center">
                                                 <div class="col-6 fw-bold text-success">Paid Amount:</div>
-                                                <div class="col-6 text-end text-success fw-bold"><field name="amount_paid_base" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" nolabel="1"/></div>
+                                                <div class="col-6 text-end text-success fw-bold"><field name="amount_paid" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/></div>
                                             </div>
                                             <hr class="my-1 border-secondary"/>
                                             <div class="row mt-1 align-items-center">
                                                 <div class="col-6 fw-bold text-danger">Balance Due:</div>
-                                                <div class="col-6 text-end text-danger fw-bold"><field name="amount_balance_base" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" nolabel="1"/></div>
+                                                <div class="col-6 text-end text-danger fw-bold"><field name="amount_balance" widget="monetary" options="{'currency_field': 'currency_id'}" nolabel="1"/></div>
                                             </div>
                                         </div>
                                     </div>
@@ -116,39 +117,83 @@
                                 <field name="line_ids" readonly="state != 'draft'" mode="list,kanban">
                                     <list editable="bottom">
                                         <field name="currency_id" column_invisible="True" />
-                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('is_active', '=', True)]" width="40%" string="Item" />
+                                        <field name="exchange_rate" column_invisible="True" />
+                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('is_active', '=', True), ('not_for_sale', '=', False)]" width="40%" string="Item" />
                                         <field name="variant_id" column_invisible="not parent.has_variants" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="15%" />
                                         <field name="available_uom_ids" column_invisible="True" />
-                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{'no_create': True}" width="15%" />
+                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{&apos;no_create&apos;: True}" width="15%" />
                                         <field name="accepted_qty" string="Qty" width="15%" />
                                         <field name="rate" width="15%" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary" options="{'currency_field': 'currency_id'}" />
-                                        <field name="tax_ids" widget="many2many_tags" domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]" width="15%" optional="show" />
+                                        <field name="tax_ids" widget="many2many_tags" domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]" width="15%" optional="show" options="{'no_create': True, 'no_create_edit': True, 'no_quick_create': True, 'no_search_more': True}" />
+                                        <field name="price_tax" string="Tax Amt" width="15%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" />
                                         <field name="amount" width="20%" widget="monetary" options="{'currency_field': 'currency_id'}" />
+                                        <!-- Base-Currency columns (shown only when invoice uses a different currency from base) -->
+                                        <field name="price_subtotal_fc" string="Rate (Base)" optional="hide" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <field name="price_tax_fc" string="Tax (Base)" optional="hide" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
+                                        <field name="amount_fc" string="Total (Base)" optional="hide" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" />
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
+                                    <field name="is_cross_currency" invisible="1" />
                                     <field name="amount_untaxed" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Excl" invisible="not is_tax_enabled and amount_tax == 0" />
                                     <field name="amount_tax" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Tax" invisible="not is_tax_enabled and amount_tax == 0" />
                                     <field name="amount_total" class="oe_subtotal_footer_separator" widget="monetary" options="{'currency_field': 'currency_id'}" string="Total Incl" />
+                                    <!-- Foreign-Currency footer totals: shown only when document currency differs from base -->
+                                    <field name="amount_untaxed_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Excl (Base Curr)" invisible="1" class="text-muted" />
+                                    <field name="amount_tax_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Tax (Base Curr)" invisible="1" class="text-muted" />
+                                    <field name="amount_total_fc" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" string="Total Incl (Base Curr)" invisible="1" class="text-muted fw-bold" />
                                 </group>
                             </page>
-                            <page string="Payment Breakdown" name="payment_entries" invisible="payment_status != 'cash' or payment_policy != 'multi' or is_quotation">
+                            <page string="Payment Breakdown" name="payment_entries" invisible="payment_status not in ['cash', 'partial'] or payment_policy != 'multi' or is_quotation">
                                 <field name="payment_ids" readonly="state != 'draft'" context="{'default_customer_id': customer, 'default_date': date, 'default_payment_type': 'receipt', 'default_tenant_id': tenant_id, 'default_currency_id': currency_id, 'default_exchange_rate': exchange_rate}">
                                     <list editable="bottom">
                                         <field name="tenant_id" column_invisible="True"/>
                                         <field name="payment_type" column_invisible="True"/>
                                         <field name="customer_id" column_invisible="True"/>
+                                        <field name="tenant_currency_id" column_invisible="True"/>
                                         <field name="name" readonly="1" force_save="1" optional="hide"/>
                                         <field name="account_id" required="1"/>
-                                        <field name="currency_id" />
+                                        <field name="currency_id" domain="[('tenant_id', '=', parent.tenant_id)]" />
                                         <field name="exchange_rate" />
                                         <field name="amount" sum="Total"/>
-                                        <field name="amount_base" sum="Base Total" readonly="1" force_save="1"/>
+                                        <field name="amount_base" sum="Base Total" readonly="1" force_save="1" optional="hide"/>
+                                        <field name="amount_owing_currency" string="Balance Due" readonly="1" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                        <field name="amount_owing_base" string="Owing (Base)" readonly="1" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" optional="hide"/>
                                         <field name="state" readonly="1" force_save="1"/>
                                     </list>
                                 </field>
+                            </page>
+                            <page string="ZIMRA Fiscalization" name="fiscalization_details" invisible="state != 'done' or fiscal_status == 'not_required'">
+                                <group>
+                                    <group string="Fiscal Status">
+                                        <field name="fiscal_status" widget="badge" decoration-success="fiscal_status == 'fiscalized'" decoration-warning="fiscal_status == 'PENDING_SYNC'" decoration-danger="fiscal_status == 'failed'"/>
+                                        <field name="fiscal_global_no"/>
+                                        <field name="fiscal_verification_code"/>
+                                        <field name="fiscal_receipt_counter"/>
+                                    </group>
+                                    <group string="Device &amp; Day Info">
+                                        <field name="fiscal_device_serial"/>
+                                        <field name="fiscal_device_id"/>
+                                        <field name="fiscal_day"/>
+                                    </group>
+                                </group>
+                                <group string="ZIMRA Verification URL / QR Link" invisible="not fiscal_qr_code">
+                                    <field name="fiscal_qr_code" widget="url"/>
+                                </group>
+                                <group string="Fiscalization Error" invisible="not fiscal_error">
+                                    <field name="fiscal_error" readonly="1" class="text-danger"/>
+                                </group>
+                            </page>
+                            <page string="Other Info" name="other_info">
+                                <group>
+                                    <group string="POS / Application Info">
+                                        <field name="terminal_id" readonly="1" />
+                                        <field name="app_version" readonly="1" />
+                                        <field name="salesperson_id" readonly="state != 'draft'" />
+                                    </group>
+                                </group>
                             </page>
                         </notebook>
                     </sheet>
@@ -190,13 +235,15 @@
                     <field name="name" string="Reference Number" filter_domain="['|', ('name', 'ilike', self), ('customer', 'ilike', self)]" />
                     <field name="customer" />
                     <field name="store_id" />
-                    <field name="payment_status" />
+                    <field name="terminal_id" />
+                    <field name="app_version" string="App Version" />
+                    <field name="payment_status_display" />
                     <field name="create_uid" />
                     <field name="date" />
                     <filter string="Quotations" name="filter_quotations" domain="[('is_quotation', '=', True)]" />
                     <filter string="Sales Invoices" name="filter_invoices" domain="[('is_quotation', '=', False), ('is_return', '=', False)]" />
                     <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
-                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().replace(day=1).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today().replace(day=1) + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
                     <filter string="Reference" name="filter_reference" domain="[('name', '!=', False)]" />
                     <filter string="Payment Mode" name="filter_payment" domain="[('payment_status', '!=', False)]" />
                     <filter string="Created On" name="filter_created_on" date="date" />
@@ -209,9 +256,10 @@
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}" />
                         <filter string="Customer" name="group_by_customer" context="{'group_by': 'customer'}" />
                         <filter string="Store" name="group_by_store" context="{'group_by': 'store_id'}" />
+                        <filter string="App Version" name="group_by_app_version" context="{'group_by': 'app_version'}" />
                         <filter string="Currency" name="group_by_currency" context="{'group_by': 'currency_id'}" />
                         <filter string="Today" name="group_today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:day'}" />
-                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d 00:00:00'))]" context="{'group_by': 'date:month'}" />
+                        <filter string="This Month" name="group_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" context="{'group_by': 'date:month'}" />
                     </group>
                 </search>
             </field>
@@ -223,7 +271,7 @@
             <field name="res_model">havanoposdesk.sale</field>
             <field name="view_mode">list,form</field>
             <field name="search_view_id" ref="view_havanoposdesk_sale_search" />
-            <field name="domain">[('is_quotation', '=', False), ('is_return', '=', False)]</field>
+            <field name="domain">[('is_quotation', '=', False)]</field>
             <field name="context">{'default_payment_status': 'cash', 'search_default_today': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
@@ -259,9 +307,24 @@
             </field>
         </record>
 
-        
+        <record id="action_kitchen_orders" model="ir.actions.act_window">
+            <field name="name">Kitchen Orders</field>
+            <field name="res_model">havanoposdesk.sale</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_sale_search" />
+            <field name="domain">['|', ('table_id', '!=', False), ('is_quotation', '=', True)]</field>
+            <field name="context">{'default_is_quotation': True, 'search_default_today': 1}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No active kitchen orders found!
+                </p>
+            </field>
+        </record>
+
+        <!-- Menu Items -->
         <menuitem id="menu_sales_orders" name="Sales Invoices" parent="menu_sales_operations" action="action_sales_operations" sequence="5" />
         <menuitem id="menu_quotations" name="Quotations" parent="menu_sales_operations" action="action_quotations" sequence="10" />
+        <menuitem id="menu_kitchen_orders" name="Kitchen Orders" parent="menu_sales_operations" action="action_kitchen_orders" sequence="12" groups="base.group_user" />
         <menuitem id="menu_sales_returns" name="Sales Returns" parent="menu_sales_reports" action="action_sales_returns" sequence="60" />
 
         

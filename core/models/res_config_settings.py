@@ -56,14 +56,44 @@ class ResConfigSettings(models.TransientModel):
                 ("enable_payment_entries", "BOOLEAN DEFAULT FALSE"),
                 ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
                 ("enable_shift", "BOOLEAN DEFAULT FALSE"),
+                ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
                 ("theme_color", "VARCHAR"),
                 ("product_name_format", "VARCHAR"),
                 ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
                 ("payment_status", "VARCHAR"),
+                ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
+                ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
+                ("payroll_url", "VARCHAR"),
+                ("stock_decimal_places", "INTEGER DEFAULT 3"),
+                ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
+                ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
             ]
             for col_name, col_type in cols:
                 if col_name not in existing_cols:
                     cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN {col_name} {col_type};")
+
+            # Ensure wizard foreign keys have ON DELETE CASCADE so they never block tenant operations
+            wizard_tables = [
+                'havanoposdesk_tenant_topup_wizard',
+                'havanoposdesk_subscription_pay_wizard',
+                'havanoposdesk_tenant_upgrade_wizard'
+            ]
+            for tbl in wizard_tables:
+                try:
+                    cr.execute(f"SELECT to_regclass('{tbl}');")
+                    if cr.fetchone()[0]:
+                        cr.execute(f"""
+                            SELECT conname 
+                            FROM pg_constraint 
+                            WHERE conrelid = '{tbl}'::regclass 
+                              AND confrelid = 'havanoposdesk_tenant'::regclass;
+                        """)
+                        for row in cr.fetchall():
+                            con_name = row[0]
+                            cr.execute(f"ALTER TABLE {tbl} DROP CONSTRAINT IF EXISTS \"{con_name}\";")
+                            cr.execute(f"ALTER TABLE {tbl} ADD CONSTRAINT \"{con_name}\" FOREIGN KEY (tenant_id) REFERENCES havanoposdesk_tenant(id) ON DELETE CASCADE;")
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -77,6 +107,12 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.restrict_price_modification',
         readonly=False,
         string="Restrict Price Modification"
+    )
+
+    biz_restaurant_mode_enabled = fields.Boolean(
+        related='tenant_id.restaurant_mode_enabled',
+        readonly=False,
+        string="Enable Restaurant Mode"
     )
 
     biz_allow_negative_stock = fields.Boolean(
@@ -93,10 +129,38 @@ class ResConfigSettings(models.TransientModel):
         help="If enabled, users will be allowed to edit the product codes (item codes) on products."
     )
 
+    biz_stock_decimal_places = fields.Integer(
+        string="Stock / Quantity Decimal Places",
+        related='tenant_id.stock_decimal_places',
+        readonly=False,
+        help="Number of decimal places used for quantities and stock (minimum 1)."
+    )
+
+    biz_do_not_round_stock = fields.Boolean(
+        string="Do Not Round Quantities (Truncate)",
+        related='tenant_id.do_not_round_stock',
+        readonly=False,
+        help="If enabled, decimal values will be truncated instead of rounded (e.g. 1.67 with 1 decimal place becomes 1.6)."
+    )
+
+    biz_expenses_require_approval = fields.Boolean(
+        string="Expenses Require Approval",
+        related='tenant_id.expenses_require_approval',
+        readonly=False,
+        help="If enabled, expenses submitted by cashiers from the POS will require manager approval before cash is deducted."
+    )
+
+    def _default_tenant_id(self):
+        tenant = self.env.user.tenant_id
+        if not tenant:
+            tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+        return tenant.id if tenant else False
+
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant',
         string="Tenant",
-        default=lambda self: self.env.user.tenant_id.id
+        ondelete='cascade',
+        default=_default_tenant_id
     )
 
     biz_currency_id = fields.Many2one(
@@ -107,19 +171,9 @@ class ResConfigSettings(models.TransientModel):
     )
     biz_logo = fields.Image(
         string="Business Logo",
-        compute='_compute_biz_logo',
-        inverse='_inverse_biz_logo',
+        related='tenant_id.logo',
         readonly=False
     )
-
-    @api.depends('tenant_id')
-    def _compute_biz_logo(self):
-        for record in self:
-            record.biz_logo = self.env.company.logo
-
-    def _inverse_biz_logo(self):
-        for record in self:
-            self.env.company.sudo().write({'logo': record.biz_logo})
     has_transactions = fields.Boolean(
         string="Has Transactions",
         related='tenant_id.has_transactions'
@@ -196,6 +250,132 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.enable_shift',
         readonly=False
     )
+    biz_enable_kitchen_settings = fields.Boolean(
+        string="Enable Kitchen Settings",
+        related='tenant_id.enable_kitchen_settings',
+        readonly=False
+    )
+    biz_enable_manufacturing = fields.Boolean(
+        string="Enable Manufacturing",
+        related='tenant_id.enable_manufacturing',
+        readonly=False
+    )
+
+    biz_enable_payroll = fields.Boolean(
+        related='tenant_id.enable_payroll',
+        readonly=False,
+        string="Enable Payroll"
+    )
+
+    biz_payroll_url = fields.Char(
+        related='tenant_id.payroll_url',
+        readonly=False,
+        string="Payroll URL"
+    )
+
+    # ZIMRA Fiscalization Settings
+    biz_enable_fiscalization = fields.Boolean(
+        string="Enable Fiscalization",
+        related='tenant_id.enable_fiscalization',
+        readonly=False
+    )
+    biz_fiscal_provider = fields.Selection(
+        string="Fiscal Provider",
+        related='tenant_id.fiscal_provider',
+        readonly=False
+    )
+    biz_fiscal_base_url = fields.Char(
+        string="Base URL",
+        related='tenant_id.fiscal_base_url',
+        readonly=False
+    )
+    biz_fiscal_api_key = fields.Char(
+        string="API Key",
+        related='tenant_id.fiscal_api_key',
+        readonly=False
+    )
+    biz_fiscal_api_secret = fields.Char(
+        string="API Secret",
+        related='tenant_id.fiscal_api_secret',
+        readonly=False
+    )
+    biz_fiscal_device_sn = fields.Char(
+        string="Default Device Serial No (EFD SN)",
+        related='tenant_id.fiscal_device_sn',
+        readonly=False
+    )
+    biz_fiscal_ping_interval = fields.Integer(
+        string="Ping Interval (Minutes)",
+        related='tenant_id.fiscal_ping_interval',
+        readonly=False
+    )
+    biz_fiscalized_invoice_heading = fields.Char(
+        string="Fiscalized Invoice Heading",
+        related='tenant_id.fiscalized_invoice_heading',
+        readonly=False
+    )
+    biz_powered_by_footer = fields.Char(
+        string="Powered By Footer Text",
+        related='tenant_id.powered_by_footer',
+        readonly=False
+    )
+
+
+
+    def action_ping_zimra_device(self):
+        self.ensure_one()
+        class ConfigWrapper:
+            def __init__(self, base_url, api_key, api_secret, device_sn):
+                self.fiscal_base_url = base_url
+                self.fiscal_api_key = api_key
+                self.fiscal_api_secret = api_secret
+                self.fiscal_device_sn = device_sn
+
+        base_url = self.biz_fiscal_base_url or (self.tenant_id and self.tenant_id.fiscal_base_url)
+        api_key = self.biz_fiscal_api_key or (self.tenant_id and self.tenant_id.fiscal_api_key)
+        api_secret = self.biz_fiscal_api_secret or (self.tenant_id and self.tenant_id.fiscal_api_secret)
+        device_sn = self.biz_fiscal_device_sn or (self.tenant_id and self.tenant_id.fiscal_device_sn)
+
+        if not base_url:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Failed',
+                    'message': 'Base URL is required to ping ZIMRA device.',
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
+        cfg = ConfigWrapper(base_url, api_key, api_secret, device_sn)
+        from .fiscal_service import get_zimra_service
+        service = get_zimra_service(self.env)
+        res = service.ping_device(cfg)
+        if res.get('success'):
+            data = res.get('data', {})
+            msg = f"Connected! Device SN: {data.get('device_sn', 'OK')} | Status: Online"
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Successful',
+                    'message': msg,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        else:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Failed',
+                    'message': res.get('error', 'Connection failed'),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
 
     # Product Sequence
     biz_prod_seq_prefix = fields.Char(string="Product Sequence Prefix", related='tenant_id.prod_seq_prefix', readonly=False)
@@ -209,6 +389,11 @@ class ResConfigSettings(models.TransientModel):
 
     # Sales Sequence
     biz_allow_credit_sales = fields.Boolean(string="Allow Sales on Credit", related='tenant_id.allow_credit_sales', readonly=False)
+    biz_default_payment_status = fields.Selection(
+        related='tenant_id.default_payment_status',
+        readonly=False,
+        string="Default Payment Mode"
+    )
     biz_sale_seq_prefix = fields.Char(string="Sale Sequence Prefix", related='tenant_id.sale_seq_prefix', readonly=False)
     biz_sale_seq_next = fields.Integer(string="Sale Sequence Next Number", related='tenant_id.sale_seq_next', readonly=False)
     biz_sale_seq_padding = fields.Integer(string="Sale Sequence Padding", related='tenant_id.sale_seq_padding', readonly=False)
@@ -348,6 +533,14 @@ class ResConfigSettings(models.TransientModel):
         icp = self.env['ir.config_parameter'].sudo()
         old_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
         super().set_values()
+        
+        # Explicitly save tenant related fields to ensure they persist
+        if self.tenant_id:
+            self.tenant_id.sudo().write({
+                'enable_payroll': self.biz_enable_payroll,
+                'payroll_url': self.biz_payroll_url,
+            })
+            
         bot_name = icp.get_param('havanoposdesk.bot_name', 'HavanoBot')
         bot_email = icp.get_param('havanoposdesk.bot_email', 'bot@havano.cloud')
         # Rename OdooBot in the database
@@ -358,6 +551,9 @@ class ResConfigSettings(models.TransientModel):
                 'email': bot_email,
             })
             
+        # Clear the registry cache so that `has_group` overrides take effect instantly for menu visibility
+        self.env.registry.clear_cache()
+
         new_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
         if old_base != new_base:
             return {

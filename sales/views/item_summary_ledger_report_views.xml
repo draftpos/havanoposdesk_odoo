@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Item Summary Ledger Tree/List View -->
+        <record id="view_item_summary_ledger_report_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.item.summary.ledger.report.list</field>
+            <field name="model">havanoposdesk.item.summary.ledger.report</field>
+            <field name="arch" type="xml">
+                <list string="Item Summary Ledger" create="false" edit="false" delete="false">
+                    <field name="item_name" string="Product Name" optional="show"/>
+                    <field name="category_id" string="Category" optional="show"/>
+                    <field name="store_name" string="Store" optional="show"/>
+                    <field name="opening_stock" string="Opening Stock" optional="show" sum="Total"/>
+                    <field name="qty_in" string="In" optional="show" sum="Total"/>
+                    <field name="qty_out" string="Out" optional="show" sum="Total"/>
+                    <field name="pricelist_id" string="Price List" optional="show"/>
+                    <field name="manufactured" string="Manufactured" optional="show" sum="Total"/>
+                    <field name="closing_stock" string="Closing Stock" optional="show" sum="Total"/>
+                    <field name="item_code" string="Product Code" optional="hide"/>
+                    <field name="date" optional="hide"/>
+                    <field name="doc_no" string="Reference" optional="hide"/>
+                    <field name="type" string="Transaction Type" optional="hide"/>
+                    <field name="store_id" optional="hide"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Item Summary Ledger Pivot View -->
+        <record id="view_item_summary_ledger_report_pivot" model="ir.ui.view">
+            <field name="name">havanoposdesk.item.summary.ledger.report.pivot</field>
+            <field name="model">havanoposdesk.item.summary.ledger.report</field>
+            <field name="arch" type="xml">
+                <pivot string="Item Summary Ledger" disable_linking="True">
+                    <field name="category_id" type="row"/>
+                    <field name="product_id" type="row"/>
+                    <field name="qty_in" type="measure"/>
+                    <field name="qty_out" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- Item Summary Ledger Search View -->
+        <record id="view_item_summary_ledger_report_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.item.summary.ledger.report.search</field>
+            <field name="model">havanoposdesk.item.summary.ledger.report</field>
+            <field name="arch" type="xml">
+                <search string="Search Summary Ledger">
+                    <field name="product_id" string="Item"/>
+                    <field name="item_code"/>
+                    <field name="category_id"/>
+                    <field name="store_id"/>
+                    <field name="pricelist_id"/>
+                    <field name="doc_no"/>
+                    <separator/>
+                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
+                    <filter string="In Only" name="filter_in" domain="[('qty_in', '&gt;', 0)]"/>
+                    <filter string="Out Only" name="filter_out" domain="[('qty_out', '&gt;', 0)]"/>
+                    <group>
+                        <filter string="Item" name="group_by_product" context="{'group_by':'product_id'}"/>
+                        <filter string="Item Group" name="group_by_category" context="{'group_by':'category_id'}"/>
+                        <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
+                        <filter string="Price List" name="group_by_pricelist" context="{'group_by':'pricelist_id'}"/>
+                        <filter string="Date" name="group_by_date" context="{'group_by':'date'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Action for Item Summary Ledger Report -->
+        <record id="action_item_summary_ledger_report" model="ir.actions.act_window">
+            <field name="name">Item Summary Ledger</field>
+            <field name="res_model">havanoposdesk.item.summary.ledger.report</field>
+            <field name="view_mode">list,pivot</field>
+            <field name="search_view_id" ref="view_item_summary_ledger_report_search"/>
+            <field name="context">{'search_default_today': 1}</field>
+        </record>
+
+        <!-- Menu Item under Stock -> Reports -->
+        <menuitem id="menu_item_summary_ledger_report" name="Item Summary Ledger" parent="menu_inventory_reports" action="action_item_summary_ledger_report" sequence="40"/>
+    </data>
+</odoo>

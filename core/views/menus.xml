@@ -22,8 +22,17 @@
         <!-- Top-level Menus acting as Apps on the Dashboard -->
         <menuitem id="menu_inventory_root" name="Stock" sequence="10" web_icon="havanoposdesk_odoo,static/description/stock.png"/>
         <menuitem id="menu_sales_root" name="Sales" sequence="20" web_icon="havanoposdesk_odoo,static/description/sales.png"/>
-        <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="havanoposdesk_odoo,static/description/purchases.png" action="action_havanoposdesk_purchase"/>
+        <menuitem id="menu_suppliers_root" name="Suppliers" sequence="30" web_icon="havanoposdesk_odoo,static/description/purchases.png"/>
         <menuitem id="menu_accounts_root" name="Accounts" sequence="40" web_icon="havanoposdesk_odoo,static/description/accounts.png"/>
+        <menuitem id="menu_tenant_admin_settings_root" name="Configurations" sequence="550" web_icon="havanoposdesk_odoo,static/description/configs.png" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        
+        <record id="action_payroll_external_redirect" model="ir.actions.act_url">
+            <field name="name">Payroll External Link</field>
+            <field name="url">/havano/payroll/redirect</field>
+            <field name="target">new</field>
+        </record>
+        <menuitem id="menu_payroll_root" name="Payroll" action="action_payroll_external_redirect" sequence="45" web_icon="havanoposdesk_odoo,static/description/payroll.png" groups="base.group_user"/>
+        
         <menuitem id="menu_dashboard_main" name="Dashboard" sequence="5" web_icon="board,static/description/icon.png" action="action_havano_dashboard_client"/>
 
         <!-- Stock Navigation Tabs -->
@@ -33,7 +42,9 @@
         <!-- Sales Navigation Tabs -->
         <menuitem id="menu_sales_master" name="Master" parent="menu_sales_root" sequence="10"/>
         <menuitem id="menu_sales_operations" name="Operations" parent="menu_sales_root" sequence="20"/>
+        <menuitem id="menu_sales_cash_transfer" name="Cash Transfers" parent="menu_sales_operations" action="action_havanoposdesk_cash_transfer" sequence="15"/>
         <menuitem id="menu_sales_reports" name="Reports" parent="menu_sales_root" sequence="30"/>
+        <menuitem id="menu_shift_report" name="Shift Reconciliation Report" parent="menu_sales_reports" action="action_havanoposdesk_shift" sequence="15"/>
 
         <!-- Suppliers Navigation Tabs -->
         <menuitem id="menu_suppliers_master" name="Master" parent="menu_suppliers_root" sequence="10"/>
@@ -43,6 +54,7 @@
         <!-- Accounts Navigation Tabs -->
         <menuitem id="menu_accounts_master" name="Master" parent="menu_accounts_root" sequence="10"/>
         <menuitem id="menu_accounts_operations" name="Operations" parent="menu_accounts_root" sequence="20"/>
+        <menuitem id="menu_cash_transfer" name="Cash Transfers" parent="menu_accounts_operations" action="action_havanoposdesk_cash_transfer" sequence="15"/>
         <menuitem id="menu_accounts_reports" name="Reports" parent="menu_accounts_root" sequence="30"/>
 
         <!-- Profit and Loss Client Action -->
@@ -51,6 +63,14 @@
             <field name="tag">havanoposdesk_profit_and_loss</field>
         </record>
         <menuitem id="menu_accounts_profit_and_loss" name="Profit and Loss" parent="menu_accounts_reports" action="action_havanoposdesk_profit_and_loss" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+
+        <!-- Cashbook Client Action -->
+        <record id="action_havanoposdesk_cashbook" model="ir.actions.client">
+            <field name="name">Cashbook</field>
+            <field name="tag">havanoposdesk_cashbook</field>
+        </record>
+        <menuitem id="menu_accounts_cashbook" name="Cashbook" parent="menu_accounts_reports" action="action_havanoposdesk_cashbook" sequence="5"/>
+        <menuitem id="menu_sales_cashbook" name="Store Cashbook" parent="menu_sales_reports" action="action_havanoposdesk_cashbook" sequence="35"/>
 
         <!-- Actions -->
         <record id="action_havanoposdesk_tenant" model="ir.actions.act_window">

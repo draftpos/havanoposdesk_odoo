@@ -4,6 +4,7 @@ from datetime import datetime
 
 class StockTransfer(models.Model):
     _name = 'havanoposdesk.stock.transfer'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Stock Transfer'
     _order = 'date desc, id desc'
 
@@ -19,7 +20,8 @@ class StockTransfer(models.Model):
     to_store_id = fields.Many2one('havanoposdesk.store', string='To Store', required=True, domain="[('tenant_id', '=', tenant_id)]")
     state = fields.Selection([
         ('draft', 'Draft'),
-        ('done', 'Transferred')
+        ('done', 'Transferred'),
+        ('cancelled', 'Cancelled'),
     ], string='Status', default='draft', readonly=True, copy=False)
 
     line_ids = fields.One2many('havanoposdesk.stock.transfer.line', 'transfer_id', string='Transfer Lines')
@@ -140,6 +142,31 @@ class StockTransfer(models.Model):
 
             record.write({'state': 'done'})
 
+    def action_cancel(self):
+        for record in self:
+            if record.state != 'done':
+                continue
+
+            for line in record.line_ids:
+                valuation_from = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                    ('product_id', '=', line.product_id.id),
+                    ('store', '=', record.from_store_id.name),
+                ], limit=1)
+                if valuation_from:
+                    valuation_from.write({'on_hand_qty': valuation_from.on_hand_qty + line.qty})
+
+                valuation_to = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                    ('product_id', '=', line.product_id.id),
+                    ('store', '=', record.to_store_id.name),
+                ], limit=1)
+                if valuation_to:
+                    valuation_to.write({'on_hand_qty': valuation_to.on_hand_qty - line.qty})
+
+            record.write({'state': 'cancelled'})
+
+    def action_draft(self):
+        self.filtered(lambda record: record.state == 'cancelled').write({'state': 'draft'})
+
 
 class StockTransferLine(models.Model):
     _name = 'havanoposdesk.stock.transfer.line'
@@ -150,7 +177,7 @@ class StockTransferLine(models.Model):
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, domain="[('tenant_id', '=', tenant_id)]")
     variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     uom_id = fields.Many2one('havanoposdesk.uom', string='Unit of Measure')
-    available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', store=False)
+    available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', compute_sudo=True, store=False)
     qty = fields.Float(string='Quantity', default=1.0, required=True)
     on_hand_qty = fields.Float(
         string='On Hand (From Store)',

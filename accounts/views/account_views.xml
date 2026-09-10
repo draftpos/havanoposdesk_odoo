@@ -6,12 +6,14 @@
             <field name="name">havanoposdesk.account.list</field>
             <field name="model">havanoposdesk.account</field>
             <field name="arch" type="xml">
-                <list string="Accounts">
+                <list string="Accounts" decoration-muted="not active">
                     <field name="name" />
                     <field name="type" />
+                    <field name="is_on_account" optional="show" />
                     <field name="store_ids" widget="many2many_tags" optional="show" />
                     <field name="currency_id" optional="show" invisible="type not in ['Cash', 'Bank']" />
                     <field name="balance" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                    <field name="active" widget="boolean_toggle"/>
                 </list>
             </field>
         </record>
@@ -23,15 +25,56 @@
             <field name="arch" type="xml">
                 <form string="Account">
                     <sheet>
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_view_cash_transfers" type="object" class="oe_stat_button" icon="fa-exchange" invisible="type not in ['Cash', 'Bank']">
+                                <field name="cash_transfer_count" widget="statinfo" string="Transfers"/>
+                            </button>
+                        </div>
+                        <widget name="web_ribbon" title="Deactivated" bg_color="text-bg-danger" invisible="active"/>
                         <group>
                             <group>
                                 <field name="name" />
                                 <field name="type" />
+                                <field name="is_on_account" invisible="type != 'Cash'" />
+                                <field name="active" widget="boolean_toggle" />
                                 <field name="store_ids" widget="many2many_tags" />
-                                <field name="currency_id" invisible="type not in ['Cash', 'Bank']" />
+                                <field name="tenant_id" invisible="1" />
+                                <field name="currency_id" domain="[('tenant_id', '=', tenant_id)]" invisible="type not in ['Cash', 'Bank']" required="type in ['Cash', 'Bank']" />
                                 <field name="balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             </group>
                         </group>
+                        <notebook invisible="type not in ['Cash', 'Bank']">
+                            <page string="Outgoing Cash Transfers" name="outgoing_transfers">
+                                <field name="cash_transfer_from_ids" readonly="1">
+                                    <list string="Outgoing Transfers" default_order="date desc">
+                                        <field name="name"/>
+                                        <field name="date"/>
+                                        <field name="from_branch_id"/>
+                                        <field name="to_branch_id"/>
+                                        <field name="to_account_id"/>
+                                        <field name="amount" widget="monetary"/>
+                                        <field name="shift_id" optional="show"/>
+                                        <field name="reason" optional="show"/>
+                                        <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-muted="state == 'cancelled'"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Incoming Cash Transfers" name="incoming_transfers">
+                                <field name="cash_transfer_to_ids" readonly="1">
+                                    <list string="Incoming Transfers" default_order="date desc">
+                                        <field name="name"/>
+                                        <field name="date"/>
+                                        <field name="from_branch_id"/>
+                                        <field name="to_branch_id"/>
+                                        <field name="from_account_id"/>
+                                        <field name="amount" widget="monetary"/>
+                                        <field name="shift_id" optional="show"/>
+                                        <field name="reason" optional="show"/>
+                                        <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'posted'" decoration-muted="state == 'cancelled'"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
                     </sheet>
                 </form>
             </field>
@@ -45,6 +88,9 @@
                 <search string="Accounts">
                     <field name="name" />
                     <field name="type" />
+                    <filter string="Active" name="filter_active" domain="[('active','=',True)]" />
+                    <filter string="Deactivated / Archived" name="filter_inactive" domain="[('active','=',False)]" />
+                    <separator/>
                     <filter string="Expenses" name="filter_expense" domain="[('type','=','Expense')]" />
                     <filter string="Cash/Bank" name="filter_cash_bank" domain="[('type','in',['Cash','Bank'])]" />
                 </search>
@@ -56,6 +102,8 @@
             <field name="name">Chart of Accounts</field>
             <field name="res_model">havanoposdesk.account</field>
             <field name="view_mode">list,form</field>
+            <field name="domain">[]</field>
+            <field name="context">{'active_test': False}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Create a new Account
@@ -70,7 +118,8 @@
             <field name="name">Cash Balance</field>
             <field name="res_model">havanoposdesk.account</field>
             <field name="view_mode">list,form</field>
-            <field name="context">{'search_default_filter_cash_bank': 1}</field>
+            <field name="domain">[]</field>
+            <field name="context">{'search_default_filter_cash_bank': 1, 'search_default_filter_active': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     No Cash or Bank accounts found.

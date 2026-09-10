@@ -33,6 +33,7 @@
                         <group>
                             <group string="Basic Configuration">
                                 <field name="havano_role" />
+                                <field name="is_default" />
                             </group>
                             <group string="Tax Configuration">
                                 <field name="is_additional_tax_enabled" />

@@ -4,8 +4,8 @@ class HavanoposdeskPricelist(models.Model):
     _name = 'havanoposdesk.pricelist'
     _description = 'Pricelist'
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Pricelist name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'Pricelist name must be unique per tenant!')
     ]
 
     name = fields.Char(string='Pricelist Name', required=True)
@@ -19,6 +19,12 @@ class HavanoposdeskPricelist(models.Model):
         string='Tenant',
         required=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+    )
+    currency_id = fields.Many2one(
+        'res.currency',
+        string='Currency',
+        help='Currency for prices in this pricelist. If not set, the base currency is assumed.',
+        default=lambda self: self.env.user.tenant_id.currency_id.id if self.env.user.tenant_id and self.env.user.tenant_id.currency_id else False,
     )
 
     @api.constrains('name', 'tenant_id')

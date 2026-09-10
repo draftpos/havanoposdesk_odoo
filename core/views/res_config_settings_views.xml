@@ -46,6 +46,14 @@
                     </block>
 
                     <block title="My Business" name="my_business_config">
+                        <setting string="Restaurant Mode" help="Enable restaurant features (Floors, Tables, Waiters)">
+                            <field name="biz_restaurant_mode_enabled"/>
+                            <div class="mt16" invisible="not biz_restaurant_mode_enabled">
+                                <button name="%(havanoposdesk_restaurant_floor_action)d" type="action" string="Manage Floors" icon="fa-arrow-right" class="btn-link"/>
+                                <button name="%(havanoposdesk_restaurant_table_action)d" type="action" string="Manage Tables" icon="fa-arrow-right" class="btn-link"/>
+                                <button name="%(havanoposdesk_restaurant_waiter_action)d" type="action" string="Manage Waiters" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
                         <setting string="Global Multi-Currencies" help="Enforce multi-currencies on all customers automatically">
                             <field name="biz_global_multi_currency_customers"/>
                             <div class="mt16" invisible="not biz_global_multi_currency_customers">
@@ -60,11 +68,78 @@
                         <setting string="Business Currency" help="Main currency of your business">
                             <div class="content-group mt8">
                                 <field name="has_transactions" invisible="1"/>
-                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions"/>
+                                <field name="biz_currency_id" class="o_light_label" readonly="has_transactions" domain="[('tenant_id', '=', tenant_id)]"/>
+                            </div>
+                            <div class="mt16">
+                                <button name="%(action_havanoposdesk_currencies)d" type="action" string="Manage Currencies" icon="fa-arrow-right" class="btn-link"/>
                             </div>
                         </setting>
                         <setting string="Business Logo" help="Upload the business logo to be used on all invoices and reports.">
                             <field name="biz_logo" widget="image" class="w-100 bg-view"/>
+                        </setting>
+                        <setting id="enable_manufacturing_setting" string="Enable Manufacturing" help="Enable Manufacturing (Bill of Materials and Production Orders).">
+                            <field name="biz_enable_manufacturing"/>
+                        </setting>
+                    </block>
+
+                    <block title="Decimal Precision &amp; Rounding" name="decimal_precision_config">
+                        <setting string="Stock Decimal Places" help="Set number of decimal places for stock quantities (1 or more, default 3)">
+                            <field name="biz_stock_decimal_places"/>
+                        </setting>
+                        <setting string="Do Not Round (Truncate Decimals)" help="If checked, decimal quantities are truncated without rounding (e.g. 1.67 with 1 decimal place becomes 1.6)">
+                            <field name="biz_do_not_round_stock"/>
+                        </setting>
+                    </block>
+
+                    <block title="Expense Settings" name="expense_settings_config">
+                        <setting string="Expenses Require Approval" help="When enabled, expenses submitted by cashiers from the POS will be put in Pending Approval state and must be approved by a manager before cash is deducted">
+                            <field name="biz_expenses_require_approval"/>
+                        </setting>
+                    </block>
+
+                    <block title="Payroll Integration" name="payroll_integration_config">
+                        <setting string="Enable Payroll" help="Enable the Payroll Module">
+                            <field name="biz_enable_payroll"/>
+                        </setting>
+                        <setting string="Payroll URL" help="Enter the URL to the external Payroll system" invisible="not biz_enable_payroll">
+                            <field name="biz_payroll_url"/>
+                        </setting>
+                    </block>
+
+                    <block title="ZIMRA Fiscalization Configuration" name="fiscalization_config">
+                        <setting string="Enable Fiscalization" help="Toggle ZIMRA Electronic Fiscal Device integration ON/OFF">
+                            <field name="biz_enable_fiscalization"/>
+                        </setting>
+                        <setting string="Fiscal Provider" help="Select the fiscal device service provider" invisible="not biz_enable_fiscalization">
+                            <field name="biz_fiscal_provider"/>
+                        </setting>
+                        <setting string="ZIMRA Cloud Base URL" help="URL endpoint for Havano ZIMRA Cloud API" invisible="not biz_enable_fiscalization">
+                            <field name="biz_fiscal_base_url"/>
+                        </setting>
+                        <setting string="API Credentials" help="API Key and API Secret for 2-tier authentication" invisible="not biz_enable_fiscalization">
+                            <div class="content-group mt8">
+                                <label for="biz_fiscal_api_key" string="API Key"/>
+                                <field name="biz_fiscal_api_key" password="True" class="oe_inline ms-2 me-4"/>
+                                <label for="biz_fiscal_api_secret" string="API Secret"/>
+                                <field name="biz_fiscal_api_secret" password="True" class="oe_inline ms-2"/>
+                            </div>
+                        </setting>
+                        <setting string="Default EFD Serial Number" help="ZIMRA Electronic Fiscal Device Serial Number (can be overridden per-shop)" invisible="not biz_enable_fiscalization">
+                            <field name="biz_fiscal_device_sn"/>
+                        </setting>
+                        <setting string="Fiscalized Invoice Heading" help="Custom invoice title heading printed on fiscalized sales documents (Default: Fiscal Tax Invoice)" invisible="not biz_enable_fiscalization">
+                            <field name="biz_fiscalized_invoice_heading"/>
+                        </setting>
+
+                        <setting string="Powered By Footer Text" help="Custom Powered-By text printed at the bottom of receipts (Default: Powered by HavanoERP)">
+                            <field name="biz_powered_by_footer"/>
+                        </setting>
+
+
+                        <setting string="Device Test &amp; Ping" help="Test connectivity to ZIMRA Cloud API server" invisible="not biz_enable_fiscalization">
+                            <div class="mt16">
+                                <button name="action_ping_zimra_device" type="object" string="Ping ZIMRA Device" icon="fa-plug" class="btn btn-primary"/>
+                            </div>
                         </setting>
                     </block>
 
@@ -84,6 +159,15 @@
                         </setting>
                     </block>
 
+                    <block title="Activity &amp; Audit Trail" name="audit_trail_config">
+                        <setting string="Activity Logs" help="Track all record creations, edits, deletions, user actions, and IP addresses across your workspace.">
+                            <div class="mt16">
+                                <button name="%(action_havanoposdesk_audit_logs)d" type="action" string="View Activity Logs" icon="fa-history" class="btn btn-primary me-2"/>
+                                <button name="%(action_havanoposdesk_audit_log_clear_wizard)d" type="action" string="Clear / Archive Logs" icon="fa-archive" class="btn btn-secondary"/>
+                            </div>
+                        </setting>
+                    </block>
+
                     <block title="Mobile POS Configuration" name="mobile_pos_config">
                         <setting string="Enable Quotations" help="Allow quotations management in POS app">
                             <field name="biz_enable_quotations"/>
@@ -99,6 +183,12 @@
                         </setting>
                         <setting string="Enable Shift Management" help="Track sales shifts and cash drawer opening/closing">
                             <field name="biz_enable_shift"/>
+                        </setting>
+                    </block>
+
+                    <block title="Stock Settings" name="stock_settings_config">
+                        <setting string="Kitchen Settings" help="Enable kitchen order selections on products">
+                            <field name="biz_enable_kitchen_settings"/>
                         </setting>
                     </block>
                 </app>
@@ -274,6 +364,9 @@
                         </setting>
                         <setting string="Allow Credit Sales" help="Allow creating sales invoices on credit (e.g. from POS terminals or API).">
                             <field name="biz_allow_credit_sales"/>
+                        </setting>
+                        <setting string="Default Payment Mode" help="Default payment mode when creating a sale in base currency.">
+                            <field name="biz_default_payment_status" widget="radio"/>
                         </setting>
                         <setting string="Enable Barcode Scanning" help="Activate barcode scanning for products in POS.">
                             <field name="biz_enable_barcode"/>
@@ -485,5 +578,8 @@
         <field name="view_id" ref="res_config_settings_view_form"/>
         <field name="context">{'module': 'havanoposdesk_suppliers'}</field>
     </record>
+
+    <!-- Attach actions to root menus defined in other files -->
+    <menuitem id="havanoposdesk_odoo.menu_tenant_admin_settings_root" action="action_havanoposdesk_settings_my_business"/>
 </odoo>
 

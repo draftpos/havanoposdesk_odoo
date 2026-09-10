@@ -1,0 +1,20 @@
+--- manufacturing/models/bom.py
++++ manufacturing/models/bom.py
+@@ -23,10 +23,17 @@
+         compute='_compute_raw_material_product_ids'
+     )
+     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
++    output_summary = fields.Char(string='Outputs Summary', compute='_compute_output_summary')
+ 
+     @api.depends('raw_material_ids.total_price')
+     def _compute_total_cost(self):
+         for bom in self:
+             bom.total_cost = sum(bom.raw_material_ids.mapped('total_price'))
++
++    @api.depends('output_ids.product_id', 'output_ids.qty')
++    def _compute_output_summary(self):
++        for bom in self:
++            summaries = [f"{line.qty}x {line.product_id.name}" for line in bom.output_ids if line.product_id]
++            bom.output_summary = ", ".join(summaries)
+ 
+     @api.depends('raw_material_ids.product_id')

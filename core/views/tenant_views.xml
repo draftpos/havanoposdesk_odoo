@@ -84,6 +84,13 @@
                                 class="oe_highlight"
                                 invisible="subscription_state == 'pending' or pending_subscription_plan_id"/>
 
+                        <button name="action_open_delete_wizard"
+                                type="object"
+                                string="Delete Tenant"
+                                class="btn-danger"
+                                icon="fa-trash"
+                                groups="base.group_system"/>
+
                         <field name="subscription_state"
                                widget="statusbar"
                                statusbar_visible="active,pending,expired,cancelled"/>
@@ -92,6 +99,8 @@
                     <sheet>
                         <group string="Pending Plan Upgrade Request" invisible="not pending_subscription_plan_id">
                             <field name="pending_subscription_plan_id" readonly="1" options="{'no_create': True}"/>
+                            <field name="pending_billing_cycle" readonly="1"/>
+                            <field name="pending_duration_months" readonly="1" invisible="pending_billing_cycle != 'custom_months'"/>
                             <field name="pending_additional_terminals" readonly="1"/>
                             <field name="pending_additional_stores" readonly="1"/>
                             <field name="pending_subscription_total_amount" readonly="1"/>
@@ -99,24 +108,29 @@
                         <group>
                             <group string="Active Subscription &amp; Wallet">
                                 <field name="name"
-                                       readonly="not context.get('is_super_admin', False)"/>
-                                <field name="account_balance" readonly="1"/>
+                                        readonly="not context.is_super_admin"/>
+                                    <field name="account_balance" readonly="not context.is_super_admin"/>
                                 <field name="subscription_plan_id"
                                        options="{'no_create': True}"
-                                       readonly="1"/>
-                                <field name="additional_terminals" readonly="1"/>
-                                <field name="additional_stores" readonly="1"/>
+                                        readonly="not context.is_super_admin"/>
+                                    <field name="billing_cycle" readonly="not context.is_super_admin"/>
+                                    <field name="duration_months" readonly="not context.is_super_admin" invisible="billing_cycle != 'custom_months'"/>
+                                    <field name="additional_terminals" readonly="not context.is_super_admin"/>
+                                    <field name="additional_stores" readonly="not context.is_super_admin"/>
                                 <field name="effective_max_stores" readonly="1"/>
                                 <field name="effective_max_terminals" readonly="1"/>
                                 <field name="subscription_total_amount" readonly="1"/>
-                                <field name="payment_status" readonly="1"/>
+                                <field name="payment_status" readonly="not context.is_super_admin"/>
                             </group>
 
                             <group string="Duration &amp; Status">
                                 <field name="subscription_start_date" readonly="1"/>
                                 <field name="subscription_end_date" readonly="1"/>
                                 <field name="active"
-                                       readonly="not context.get('is_super_admin', False)"/>
+                                       readonly="not context.is_super_admin"/>
+                            </group>
+                            <group string="Features">
+                                <field name="restaurant_mode_enabled" widget="boolean_toggle"/>
                             </group>
                         </group>
 
@@ -126,6 +140,8 @@
                                     <list string="Payments &amp; Top-Up Log" default_order="date desc" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'">
                                         <field name="date"/>
                                         <field name="payment_type"/>
+                                        <field name="billing_cycle" optional="show"/>
+                                        <field name="duration_months" optional="show"/>
                                         <field name="amount" sum="Total Amount"/>
                                         <field name="payment_method"/>
                                         <field name="transaction_reference"/>
@@ -168,6 +184,10 @@
                     <group>
                         <field name="subscription_plan_id"
                                options="{'no_create': True}"/>
+                        <field name="billing_cycle"/>
+                        <field name="duration_months"
+                               invisible="billing_cycle != 'custom_months'"
+                               required="billing_cycle == 'custom_months'"/>
                         <field name="is_custom" invisible="1"/>
                         <field name="extra_terminal_price" invisible="1"/>
                         <field name="additional_terminals"
@@ -177,7 +197,8 @@
                                readonly="1"
                                invisible="not is_custom"
                                string="Included Stores Allowance"/>
-                        <field name="computed_total_price" readonly="1"/>
+                        <field name="monthly_price" readonly="1"/>
+                        <field name="computed_total_price" readonly="1" string="Total Amount ($)"/>
                     </group>
                     <footer>
                         <button string="Confirm Upgrade"
@@ -201,6 +222,11 @@
                     <group>
                         <field name="tenant_id" invisible="1"/>
                         <field name="subscription_plan_id" readonly="1"/>
+                        <field name="billing_cycle"/>
+                        <field name="duration_months"
+                               invisible="billing_cycle != 'custom_months'"
+                               required="billing_cycle == 'custom_months'"/>
+                        <field name="monthly_rate" readonly="1"/>
                         <field name="amount" readonly="1"/>
                         <field name="payment_method" widget="radio"/>
                         <field name="phone" placeholder="e.g. 0771234567" invisible="payment_method != 'ecocash'" required="payment_method == 'ecocash'"/>

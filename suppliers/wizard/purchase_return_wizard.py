@@ -5,7 +5,7 @@ class PurchaseReturnWizard(models.TransientModel):
     _name = 'havanoposdesk.purchase.return.wizard'
     _description = 'Purchase Return Wizard'
 
-    purchase_id = fields.Many2one('havanoposdesk.purchase', string='Purchase', required=True)
+    purchase_id = fields.Many2one('havanoposdesk.purchase', string='Purchase', required=True, ondelete='cascade')
     line_ids = fields.One2many('havanoposdesk.purchase.return.wizard.line', 'wizard_id', string='Items to Return')
     amount_total = fields.Float(string='Total Refund', compute='_compute_amount_total')
 
@@ -96,9 +96,9 @@ class PurchaseReturnWizardLine(models.TransientModel):
     _name = 'havanoposdesk.purchase.return.wizard.line'
     _description = 'Purchase Return Wizard Line'
 
-    wizard_id = fields.Many2one('havanoposdesk.purchase.return.wizard', string='Wizard')
-    purchase_line_id = fields.Many2one('havanoposdesk.purchase.line', string='Purchase Line')
-    product_id = fields.Many2one('havanoposdesk.product', string='Product')
+    wizard_id = fields.Many2one('havanoposdesk.purchase.return.wizard', string='Wizard', ondelete='cascade')
+    purchase_line_id = fields.Many2one('havanoposdesk.purchase.line', string='Purchase Line', ondelete='cascade')
+    product_id = fields.Many2one('havanoposdesk.product', string='Product', ondelete='cascade')
     qty_purchased = fields.Float(string='Qty Purchased')
     qty_returned = fields.Float(string='Return Qty', default=0.0)
     rate = fields.Float(string='Rate')

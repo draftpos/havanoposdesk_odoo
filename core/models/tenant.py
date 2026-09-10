@@ -1,5 +1,5 @@
 from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, AccessError
 import logging
 import traceback
 from dateutil.relativedelta import relativedelta
@@ -33,10 +33,31 @@ class HavanoposdeskTenant(models.Model):
             ("enable_payment_entries", "BOOLEAN DEFAULT FALSE"),
             ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
             ("enable_shift", "BOOLEAN DEFAULT FALSE"),
+            ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
             ("theme_color", "VARCHAR"),
             ("product_name_format", "VARCHAR"),
             ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
             ("payment_status", "VARCHAR"),
+            ("enable_fiscalization", "BOOLEAN DEFAULT FALSE"),
+            ("restaurant_mode_enabled", "BOOLEAN DEFAULT FALSE"),
+            ("is_vat_registered", "BOOLEAN DEFAULT FALSE"),
+            ("fiscal_provider", "VARCHAR DEFAULT 'havano_zimra'"),
+            ("fiscal_base_url", "VARCHAR"),
+            ("fiscal_api_key", "VARCHAR"),
+            ("fiscal_api_secret", "VARCHAR"),
+            ("fiscal_device_sn", "VARCHAR"),
+            ("fiscal_ping_interval", "INTEGER DEFAULT 5"),
+            ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
+            ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
+            ("payroll_url", "VARCHAR"),
+            ("stock_decimal_places", "INTEGER DEFAULT 3"),
+            ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
+            ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
+            ("billing_cycle", "VARCHAR DEFAULT '1_month'"),
+            ("duration_months", "INTEGER DEFAULT 1"),
+            ("pending_billing_cycle", "VARCHAR DEFAULT '1_month'"),
+            ("pending_duration_months", "INTEGER DEFAULT 1"),
+
         ]
         for col_name, col_type in columns:
             try:
@@ -44,15 +65,62 @@ class HavanoposdeskTenant(models.Model):
                     cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
             except Exception:
                 pass
+
+        # Ensure wizard foreign keys have ON DELETE CASCADE so they never block tenant operations
+        wizard_tables = [
+            'havanoposdesk_tenant_topup_wizard',
+            'havanoposdesk_subscription_pay_wizard',
+            'havanoposdesk_tenant_upgrade_wizard'
+        ]
+        for tbl in wizard_tables:
+            try:
+                with cr.savepoint():
+                    cr.execute(f"SELECT to_regclass('{tbl}');")
+                    if cr.fetchone()[0]:
+                        cr.execute(f"""
+                            SELECT conname 
+                            FROM pg_constraint 
+                            WHERE conrelid = '{tbl}'::regclass 
+                              AND confrelid = 'havanoposdesk_tenant'::regclass;
+                        """)
+                        for row in cr.fetchall():
+                            con_name = row[0]
+                            cr.execute(f"ALTER TABLE {tbl} DROP CONSTRAINT IF EXISTS \"{con_name}\";")
+                            cr.execute(f"ALTER TABLE {tbl} ADD CONSTRAINT \"{con_name}\" FOREIGN KEY (tenant_id) REFERENCES havanoposdesk_tenant(id) ON DELETE CASCADE;")
+            except Exception:
+                pass
         return res
 
     name = fields.Char(string='Tenant Name', required=True)
+    logo = fields.Image(string="Logo")
     active = fields.Boolean(default=True)
     currency_id = fields.Many2one('res.currency', string='Default Currency', default=lambda self: self.env.ref('base.USD').id)
     allow_multi_currency = fields.Boolean(string='Allow Multi Currency', default=False)
     global_multi_currency_customers = fields.Boolean(string='Global Multi-Currency Customers', default=False)
     global_secondary_currency_id = fields.Many2one('res.currency', string='Default Secondary Currency')
     allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=True)
+
+    # ZIMRA Fiscalization Settings
+    enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
+    restaurant_mode_enabled = fields.Boolean(string='Enable Restaurant Mode', default=False)
+    is_vat_registered = fields.Boolean(string='VAT Registered Taxpayer', default=True)
+    fiscal_provider = fields.Selection([
+        ('havano_zimra', 'Havano ZIMRA Cloud'),
+        ('axis', 'Axis Virtual API'),
+        ('revmax', 'Revmax Hardware')
+    ], string='Fiscal Provider', default='havano_zimra')
+    fiscal_base_url = fields.Char(string='Base URL', default='https://erpfiscal.havano.online')
+    fiscal_api_key = fields.Char(string='API Key')
+    fiscal_api_secret = fields.Char(string='API Secret')
+
+    enable_payroll = fields.Boolean(string='Enable Payroll', default=False)
+    payroll_url = fields.Char(string='Payroll URL')
+    fiscal_device_sn = fields.Char(string='Device Serial No (EFD SN)')
+    fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
+
+    # Manufacturing Settings
+    enable_manufacturing = fields.Boolean(string='Enable Manufacturing', default=False)
+
     has_transactions = fields.Boolean(string="Has Transactions", compute="_compute_has_transactions")
     
     def _compute_has_transactions(self):
@@ -70,6 +138,14 @@ class HavanoposdeskTenant(models.Model):
             tenant.has_transactions = has_tx
             
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan')
+    billing_cycle = fields.Selection([
+        ('1_month', '1 Month (Monthly)'),
+        ('3_months', '3 Months (Quarterly)'),
+        ('6_months', '6 Months (Bi-Annual)'),
+        ('12_months', '1 Year (Annual)'),
+        ('custom_months', 'Custom Months')
+    ], string='Billing Cycle', default='1_month')
+    duration_months = fields.Integer(string='Duration (Months)', default=1)
     additional_terminals = fields.Integer(string='Additional Terminals', default=0, help='Extra terminals requested under Custom Plan ($12/terminal)')
     additional_stores = fields.Integer(string='Additional Stores', default=0, help='Auto-calculated store allowance (3 stores per terminal)')
     account_balance = fields.Float(string='Account Balance ($)', default=0.0, help='Prepaid balance/wallet for subscription plans and top-ups.')
@@ -84,8 +160,28 @@ class HavanoposdeskTenant(models.Model):
     ], string='Subscription State', default='active')
     subscription_start_date = fields.Date(string='Subscription Start Date')
     subscription_end_date = fields.Date(string='Subscription End Date')
+    is_trial = fields.Boolean(string='Is Trial Tenant', compute='_compute_is_trial', store=True)
+
+    @api.depends('subscription_plan_id', 'subscription_plan_id.is_trial', 'subscription_plan_id.price')
+    def _compute_is_trial(self):
+        for tenant in self:
+            plan = tenant.subscription_plan_id
+            if not plan:
+                tenant.is_trial = True
+            elif plan.is_trial or plan.price == 0.0 or 'demo' in (plan.name or '').lower():
+                tenant.is_trial = True
+            else:
+                tenant.is_trial = False
 
     pending_subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Pending Subscription Plan', help='New plan requested that is pending approval or payment.')
+    pending_billing_cycle = fields.Selection([
+        ('1_month', '1 Month (Monthly)'),
+        ('3_months', '3 Months (Quarterly)'),
+        ('6_months', '6 Months (Bi-Annual)'),
+        ('12_months', '1 Year (Annual)'),
+        ('custom_months', 'Custom Months')
+    ], string='Pending Billing Cycle', default='1_month')
+    pending_duration_months = fields.Integer(string='Pending Duration (Months)', default=1)
     pending_additional_terminals = fields.Integer(string='Pending Additional Terminals', default=0)
     pending_additional_stores = fields.Integer(string='Pending Additional Stores', default=0)
     pending_subscription_total_amount = fields.Float(string='Pending Total Amount ($)', compute='_compute_pending_subscription_total_amount', store=True)
@@ -134,40 +230,75 @@ class HavanoposdeskTenant(models.Model):
                 tenant.effective_max_stores = 0
                 tenant.effective_max_terminals = 0
             elif plan.is_custom:
-                extra_term = max(0, tenant.additional_terminals or 0)
+                stores_per_term = plan.stores_per_terminal or 3
                 base_term = plan.max_terminals or 1
+                extra_term = max(0, tenant.additional_terminals or 0)
+                if extra_term == 0 and tenant.additional_stores > 0:
+                    calculated_total_terms = tenant.additional_stores // stores_per_term
+                    if calculated_total_terms > base_term:
+                        extra_term = calculated_total_terms - base_term
+                    elif tenant.additional_stores > (base_term * stores_per_term):
+                        extra_term = (tenant.additional_stores - (base_term * stores_per_term)) // stores_per_term
                 total_term = base_term + extra_term
                 tenant.effective_max_terminals = total_term
-                tenant.effective_max_stores = total_term * (plan.stores_per_terminal or 3)
+                tenant.effective_max_stores = max(total_term * stores_per_term, tenant.additional_stores or 0)
             else:
                 tenant.effective_max_terminals = plan.max_terminals or 0
                 tenant.effective_max_stores = plan.max_stores or (tenant.effective_max_terminals * 3)
 
-    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'subscription_plan_id.extra_store_price', 'additional_terminals')
+    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.annual_discount_percentage', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'subscription_plan_id.extra_store_price', 'subscription_plan_id.stores_per_terminal', 'additional_terminals', 'additional_stores', 'duration_months', 'billing_cycle')
     def _compute_subscription_total_amount(self):
         for tenant in self:
             plan = tenant.subscription_plan_id
             if not plan:
                 tenant.subscription_total_amount = 0.0
-            elif plan.is_custom:
+                continue
+            if plan.is_custom:
+                stores_per_term = plan.stores_per_terminal or 3
+                base_term = plan.max_terminals or 1
                 extra_term = max(0, tenant.additional_terminals or 0)
+                if extra_term == 0 and tenant.additional_stores > 0:
+                    calculated_total_terms = tenant.additional_stores // stores_per_term
+                    if calculated_total_terms > base_term:
+                        extra_term = calculated_total_terms - base_term
                 extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-                tenant.subscription_total_amount = (plan.price or 12.0) + (extra_term * extra_price)
+                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
             else:
-                tenant.subscription_total_amount = plan.price or 0.0
+                m_rate = plan.price or 0.0
+            
+            months = max(1, tenant.duration_months or 1)
+            if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
+                discount = plan.annual_discount_percentage / 100.0
+                tenant.subscription_total_amount = m_rate * 12.0 * (1.0 - discount)
+            else:
+                tenant.subscription_total_amount = m_rate * months
 
-    @api.depends('pending_subscription_plan_id', 'pending_subscription_plan_id.price', 'pending_subscription_plan_id.is_custom', 'pending_subscription_plan_id.extra_terminal_price', 'pending_subscription_plan_id.extra_store_price', 'pending_additional_terminals')
+    @api.depends('pending_subscription_plan_id', 'pending_subscription_plan_id.price', 'pending_subscription_plan_id.annual_discount_percentage', 'pending_subscription_plan_id.is_custom', 'pending_subscription_plan_id.extra_terminal_price', 'pending_subscription_plan_id.extra_store_price', 'pending_subscription_plan_id.stores_per_terminal', 'pending_additional_terminals', 'pending_additional_stores', 'pending_duration_months', 'pending_billing_cycle')
     def _compute_pending_subscription_total_amount(self):
         for tenant in self:
             plan = tenant.pending_subscription_plan_id
             if not plan:
                 tenant.pending_subscription_total_amount = 0.0
-            elif plan.is_custom:
+                continue
+            if plan.is_custom:
+                stores_per_term = plan.stores_per_terminal or 3
+                base_term = plan.max_terminals or 1
                 extra_term = max(0, tenant.pending_additional_terminals or 0)
+                if extra_term == 0 and tenant.pending_additional_stores > 0:
+                    calculated_total_terms = tenant.pending_additional_stores // stores_per_term
+                    if calculated_total_terms > base_term:
+                        extra_term = calculated_total_terms - base_term
                 extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-                tenant.pending_subscription_total_amount = (plan.price or 12.0) + (extra_term * extra_price)
+                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
             else:
-                tenant.pending_subscription_total_amount = plan.price or 0.0
+                m_rate = plan.price or 0.0
+            
+            months = max(1, tenant.pending_duration_months or 1)
+            if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
+                discount = plan.annual_discount_percentage / 100.0
+                tenant.pending_subscription_total_amount = m_rate * 12.0 * (1.0 - discount)
+            else:
+                tenant.pending_subscription_total_amount = m_rate * months
 
     @api.depends('pending_subscription_plan_id')
     def _compute_has_pending_upgrade(self):
@@ -261,6 +392,10 @@ class HavanoposdeskTenant(models.Model):
 
     # Sales Sequence Config
     allow_credit_sales = fields.Boolean(string='Allow Sales on Credit', default=False)
+    default_payment_status = fields.Selection([
+        ('cash', 'Paid (Cash/Bank)'),
+        ('account', 'On Account')
+    ], string='Default Payment Mode', default='cash')
     sale_seq_prefix = fields.Char(string='Sale Sequence Prefix', default='S')
     sale_seq_next = fields.Integer(string='Sale Sequence Next Number', default=1)
     sale_seq_padding = fields.Integer(string='Sale Sequence Padding', default=4)
@@ -304,6 +439,12 @@ class HavanoposdeskTenant(models.Model):
     trn_seq_prefix = fields.Char(string='Stock Transfer Sequence Prefix', default='TRN')
     trn_seq_next = fields.Integer(string='Stock Transfer Sequence Next Number', default=1)
     trn_seq_padding = fields.Integer(string='Stock Transfer Sequence Padding', default=4)
+
+    # Cash Transfer Sequence Config (CTR-10001 format)
+    cash_trn_seq_prefix = fields.Char(string='Cash Transfer Sequence Prefix', default='CTR-')
+    cash_trn_seq_next = fields.Integer(string='Cash Transfer Sequence Next Number', default=10001)
+    cash_trn_seq_padding = fields.Integer(string='Cash Transfer Sequence Padding', default=5)
+
     api_cost_center = fields.Char(string="API Cost Center")
     api_warehouse = fields.Char(string="API Warehouse")
 
@@ -313,28 +454,66 @@ class HavanoposdeskTenant(models.Model):
     enable_payment_entries = fields.Boolean(string='Enable Payment Entries', default=False)
     show_qty_on_hand = fields.Boolean(string='Show Qty on Hand in POS', default=False)
     enable_shift = fields.Boolean(string='Enable Shift Management', default=False)
+    enable_kitchen_settings = fields.Boolean(string='Enable Kitchen Settings', default=False)
     enable_tax = fields.Boolean(string='Enable Tax', default=False)
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
     allow_edit_item_code = fields.Boolean(string='Allow Editing Item Code', default=False)
+    stock_decimal_places = fields.Integer(string='Stock Decimal Places', default=3, help='Number of decimal places (minimum 1)')
+    do_not_round_stock = fields.Boolean(string='Do Not Round Stock (Truncate)', default=False, help='If checked, values are truncated without rounding, e.g., 1.67 with 1 decimal place becomes 1.6.')
+    expenses_require_approval = fields.Boolean(string='Expenses Require Approval', default=False, help='If enabled, expenses submitted by cashiers will require manager approval before they are posted and deduct cash.')
+
+    @api.constrains('stock_decimal_places')
+    def _check_stock_decimal_places(self):
+        for rec in self:
+            if rec.stock_decimal_places < 1:
+                raise ValidationError(_("Stock Decimal Places must be at least 1."))
+
+    def format_stock_quantity(self, qty):
+        if qty is None:
+            return 0.0
+        import math
+        dp = max(1, int(self.stock_decimal_places or 3))
+        if self.do_not_round_stock:
+            factor = 10 ** dp
+            if qty >= 0:
+                return math.floor(qty * factor) / factor
+            else:
+                return math.ceil(qty * factor) / factor
+        else:
+            return round(qty, dp)
+
+    # Global Fiscalization Settings (Defaults for stores)
+    enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
+    fiscal_provider = fields.Selection([
+        ('havano_zimra', 'Havano ZIMRA Cloud'),
+        ('axis', 'Axis Virtual API'),
+        ('revmax', 'Revmax Hardware')
+    ], string='Fiscal Provider', default='havano_zimra')
+    fiscal_base_url = fields.Char(string='Base URL', default='https://erpfiscal.havano.online')
+    fiscal_api_key = fields.Char(string='API Key')
+    fiscal_api_secret = fields.Char(string='API Secret')
+    fiscal_device_sn = fields.Char(string='Default Device Serial No (EFD SN)')
+    fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
+    fiscalized_invoice_heading = fields.Char(string='Fiscalized Invoice Heading', default='Fiscal Tax Invoice')
+
+    powered_by_footer = fields.Char(string='Powered By Footer Text', default='Powered by HavanoERP')
+
+
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if not vals.get('subscription_plan_id'):
-                plan = self.env.ref('havanoposdesk_odoo.subscription_plan_1', raise_if_not_found=False)
-                if not plan:
-                    plan = self.env['havanoposdesk.subscription.plan'].sudo().search([('name', 'ilike', 'Plan 1')], limit=1)
-                if not plan:
-                    plan = self.env['havanoposdesk.subscription.plan'].sudo().search([], order='id asc', limit=1)
+                plan = self.env['havanoposdesk.subscription.plan'].sudo().search([('name', 'ilike', 'Demo Plan')], limit=1)
                 if not plan:
                     plan = self.env['havanoposdesk.subscription.plan'].sudo().create({
-                        'name': 'Plan 1 (1 Store, 1 Terminal)',
-                        'price': 15.0,
-                        'duration_days': 30,
-                        'max_stores': 1,
-                        'max_terminals': 1,
-                        'max_users': 2,
+                        'name': 'Demo Plan',
+                        'price': 0.0,
+                        'duration_days': 14,
+                        'max_stores': 0,
+                        'max_terminals': 0,
+                        'max_users': 0,
                         'is_custom': False,
                     })
                 vals['subscription_plan_id'] = plan.id
@@ -353,7 +532,12 @@ class HavanoposdeskTenant(models.Model):
         tenants = super().create(vals_list)
         for tenant in tenants:
             usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
-            store_currency_id = tenant.currency_id.id if tenant.currency_id else (usd_currency.id if usd_currency else False)
+            target_curr = tenant.currency_id or usd_currency
+            if target_curr:
+                target_curr = self.env['res.currency']._validate_tenant_currency(target_curr, tenant)
+                if tenant.currency_id != target_curr:
+                    tenant.sudo().write({'currency_id': target_curr.id})
+            store_currency_id = target_curr.id if target_curr else False
             
             store = self.env['havanoposdesk.store'].sudo().create({
                 'name': tenant.name,
@@ -384,7 +568,7 @@ class HavanoposdeskTenant(models.Model):
                 {
                     'name': 'Cashier Profile',
                     'tenant_id': tenant.id,
-                    'havano_role': 'cashier'
+                    'havano_role': 'user'
                 }
             ])
             
@@ -393,71 +577,153 @@ class HavanoposdeskTenant(models.Model):
 
     def _seed_default_data(self):
         self.ensure_one()
-        _logger.info("SEED_DEFAULT_DATA CALLED VIA ORM")
-        store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', self.id)], limit=1)
-        store_id = store.id if store else False
+        _logger.info("SEED_DEFAULT_DATA CALLED FOR TENANT: %s (id: %s)", self.name, self.id)
         tenant_id = self.id
         
         usd = self.env.ref('base.USD', raise_if_not_found=False)
-        currency_id = self.currency_id.id if self.currency_id else (usd.id if usd else False)
+        target_curr = self.currency_id or usd
+        if target_curr:
+            target_curr = self.env['res.currency']._validate_tenant_currency(target_curr, self)
+            if self.currency_id != target_curr:
+                self.sudo().write({'currency_id': target_curr.id})
+        currency_id = target_curr.id if target_curr else False
         
-        # 1. Customer Group
-        cg = self.env['havanoposdesk.customer.group'].sudo().create({
-            'name': 'Default Group',
-            'tenant_id': tenant_id,
-        })
-        
-        # 2. Supplier
-        self.env['havanoposdesk.supplier'].sudo().create({
-            'name': 'General Supplier',
-            'tenant_id': tenant_id,
-            'store_id': store_id,
-        })
-        
-        # 3. Default Deposit Account
-        self.env['havanoposdesk.account'].sudo().create({
-            'name': 'Cash',
-            'type': 'Cash',
-            'tenant_id': tenant_id,
-            'currency_id': currency_id,
-        })
-        
-        # 4. Default Expenses Account
-        expenses = ['Electricity', 'Rent', 'Utilities', 'Wages & Salaries', 'Breakages', 'Council Licenses', 'Maintanences', 'Fuel']
-        for exp in expenses:
-            self.env['havanoposdesk.account'].sudo().create({
-                'name': exp,
-                'type': 'Expense',
+        # 1. Default Store
+        store = self.env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not store:
+            store = self.env['havanoposdesk.store'].sudo().create({
+                'name': self.name or 'Main Store',
                 'tenant_id': tenant_id,
+                'is_default': True,
                 'currency_id': currency_id,
             })
-            
-        # 5. Default Customer
-        self.env['havanoposdesk.customer'].sudo().create({
-            'name': 'Cash Customer',
-            'customer_group_id': cg.id,
-            'tenant_id': tenant_id,
-            'store_ids': [(6, 0, [store_id])] if store_id else False,
-        })
-        
-        # 6. Default Categories
-        self.env['havanoposdesk.category'].sudo().create([
-            {
-                'name': 'Basic',
+        store_id = store.id if store else False
+
+        # 2. Default POS Terminal
+        terminal = self.env['havanoposdesk.pos.terminal'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not terminal and store:
+            self.env['havanoposdesk.pos.terminal'].sudo().create({
+                'name': 'Pos 1',
+                'store_id': store.id,
+                'tenant_id': tenant_id,
+            })
+
+        # 3. Default User Rights Profiles
+        profiles = [
+            ('Super Admin Profile', 'super_admin'),
+            ('Admin Profile', 'admin'),
+            ('Cashier Profile', 'user'),
+        ]
+        for prof_name, role in profiles:
+            existing_prof = self.env['havanoposdesk.user.rights.profile'].sudo().search([
+                ('tenant_id', '=', tenant_id),
+                '|', ('name', '=ilike', prof_name), ('havano_role', 'in', (role, 'cashier' if role == 'user' else role))
+            ], limit=1)
+            if not existing_prof:
+                self.env['havanoposdesk.user.rights.profile'].sudo().create({
+                    'name': prof_name,
+                    'tenant_id': tenant_id,
+                    'havano_role': role,
+                })
+
+        # 4. Customer Group
+        cg = self.env['havanoposdesk.customer.group'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not cg:
+            cg = self.env['havanoposdesk.customer.group'].sudo().create({
+                'name': 'Default Group',
+                'tenant_id': tenant_id,
+            })
+
+        # 5. Supplier
+        supplier = self.env['havanoposdesk.supplier'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not supplier:
+            self.env['havanoposdesk.supplier'].sudo().create({
+                'name': 'General Supplier',
+                'tenant_id': tenant_id,
+                'store_id': store_id,
+            })
+
+        # 6. Default Deposit Accounts / Payment Methods
+        deposit_accounts = [
+            ('Cash', 'Cash'),
+            ('Bank', 'Bank'),
+            ('EcoCash', 'Bank'),
+            ('Card / Swipe', 'Bank'),
+        ]
+        for acc_name, acc_type in deposit_accounts:
+            existing_acc = self.env['havanoposdesk.account'].sudo().search([
+                ('name', '=ilike', acc_name),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_acc:
+                self.env['havanoposdesk.account'].sudo().create({
+                    'name': acc_name,
+                    'type': acc_type,
+                    'tenant_id': tenant_id,
+                    'currency_id': currency_id,
+                    'store_id': store_id,
+                    'store_ids': False,
+                })
+
+        # 7. Default Expenses Accounts
+        expenses = [
+            'Electricity',
+            'Rent',
+            'Utilities',
+            'Wages & Salaries',
+            'Breakages',
+            'Council Licenses',
+            'Maintenance',
+            'Fuel',
+            'Stationery & Office Supplies',
+            'Transport & Travel',
+            'Advertising & Marketing',
+            'Bank Charges',
+            'Lunch',
+        ]
+        for exp in expenses:
+            existing_exp = self.env['havanoposdesk.account'].sudo().search([
+                ('name', '=ilike', exp),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_exp:
+                self.env['havanoposdesk.account'].sudo().create({
+                    'name': exp,
+                    'type': 'Expense',
+                    'tenant_id': tenant_id,
+                    'currency_id': currency_id,
+                    'store_id': store_id,
+                    'store_ids': False,
+                })
+
+        # 8. Default Customer
+        customer = self.env['havanoposdesk.customer'].sudo().search([('tenant_id', '=', tenant_id)], limit=1)
+        if not customer:
+            self.env['havanoposdesk.customer'].sudo().create({
+                'name': 'Cash Customer',
+                'customer_group_id': cg.id if cg else False,
                 'tenant_id': tenant_id,
                 'store_ids': [(6, 0, [store_id])] if store_id else False,
-            },
-            {
-                'name': 'Beverages',
-                'tenant_id': tenant_id,
-                'store_ids': [(6, 0, [store_id])] if store_id else False,
-            }
-        ])
-        
-        # 7. Default Pricelist
+            })
+
+        # 9. Default Categories
+        categories = ['Basic', 'Beverages']
+        for cat_name in categories:
+            existing_cat = self.env['havanoposdesk.category'].sudo().search([
+                ('name', '=ilike', cat_name),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_cat:
+                self.env['havanoposdesk.category'].sudo().create({
+                    'name': cat_name,
+                    'tenant_id': tenant_id,
+                    'store_ids': [(6, 0, [store_id])] if store_id else False,
+                })
+
+        # 10. Default Pricelist
         retail_pl = self.env['havanoposdesk.pricelist'].sudo().search([
             ('tenant_id', '=', tenant_id),
-            ('name', '=ilike', 'Retail')
+            ('type', '=', 'selling')
         ], limit=1)
         if not retail_pl:
             retail_pl = self.env['havanoposdesk.pricelist'].sudo().create({
@@ -471,28 +737,38 @@ class HavanoposdeskTenant(models.Model):
                 store.sudo().write({'pricelist_ids': [(6, 0, [retail_pl.id])]})
             if not store.pricelist_id:
                 store.sudo().write({'pricelist_id': retail_pl.id})
-        
-        # 8. Default UOMs — 'Each' is first and is the default for products and API
+
+        # 11. Default UOMs — 'Each' is first and is the default for products and API
         uoms = ['Each', 'Kg', 'Litre', 'Meter', 'Pieces', 'Box', 'Set']
         for uom in uoms:
-            self.env['havanoposdesk.uom'].sudo().create({
-                'name': uom,
-                'tenant_id': tenant_id,
-            })
-        
-        # 9. Default Taxes — seeded as INACTIVE so tenant manually activates what they need
+            existing_uom = self.env['havanoposdesk.uom'].sudo().search([
+                ('name', '=ilike', uom),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_uom:
+                self.env['havanoposdesk.uom'].sudo().create({
+                    'name': uom,
+                    'tenant_id': tenant_id,
+                })
+
+        # 12. Default Taxes — seeded as INACTIVE so tenant manually activates what they need
         default_taxes = [
             ('VAT', 15.0, 'Sales'),
             ('Exempt', 0.0, 'Sales'),
         ]
         for (tax_name, tax_rate, tax_type) in default_taxes:
-            self.env['havanoposdesk.tax'].sudo().create({
-                'name': tax_name,
-                'rate': tax_rate,
-                'tax_type': tax_type,
-                'active': False,
-                'tenant_id': tenant_id,
-            })
+            existing_tax = self.env['havanoposdesk.tax'].sudo().search([
+                ('name', '=ilike', tax_name),
+                ('tenant_id', '=', tenant_id)
+            ], limit=1)
+            if not existing_tax:
+                self.env['havanoposdesk.tax'].sudo().create({
+                    'name': tax_name,
+                    'rate': tax_rate,
+                    'tax_type': tax_type,
+                    'active': False,
+                    'tenant_id': tenant_id,
+                })
 
     def action_approve(self):
         for tenant in self:
@@ -502,17 +778,29 @@ class HavanoposdeskTenant(models.Model):
                 'active': True
             }
             target_plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
+            months = tenant.pending_duration_months or tenant.duration_months or 1
             if tenant.pending_subscription_plan_id:
                 vals['subscription_plan_id'] = tenant.pending_subscription_plan_id.id
+                vals['additional_terminals'] = tenant.pending_additional_terminals
                 vals['additional_stores'] = tenant.pending_additional_stores
+                vals['billing_cycle'] = tenant.pending_billing_cycle or '1_month'
+                vals['duration_months'] = months
                 vals['pending_subscription_plan_id'] = False
+                vals['pending_additional_terminals'] = 0
                 vals['pending_additional_stores'] = 0
+                vals['pending_billing_cycle'] = '1_month'
+                vals['pending_duration_months'] = 1
 
             if target_plan:
-                duration = target_plan.duration_days or 30
-                start_date = fields.Date.context_today(self)
+                today = fields.Date.context_today(self)
+                if tenant.subscription_state == 'active' and tenant.subscription_end_date and tenant.subscription_end_date >= today:
+                    start_date = tenant.subscription_start_date or today
+                    end_date = tenant.subscription_end_date + relativedelta(months=months)
+                else:
+                    start_date = today
+                    end_date = today + relativedelta(months=months)
                 vals['subscription_start_date'] = start_date
-                vals['subscription_end_date'] = start_date + relativedelta(days=duration)
+                vals['subscription_end_date'] = end_date
 
             tenant.with_context(bypass_subscription_check=True).write(vals)
 
@@ -527,7 +815,10 @@ class HavanoposdeskTenant(models.Model):
             if tenant.pending_subscription_plan_id:
                 vals = {
                     'pending_subscription_plan_id': False,
-                    'pending_additional_stores': 0
+                    'pending_additional_terminals': 0,
+                    'pending_additional_stores': 0,
+                    'pending_billing_cycle': '1_month',
+                    'pending_duration_months': 1,
                 }
                 if not tenant.subscription_plan_id or tenant.subscription_state != 'active':
                     vals['subscription_state'] = 'cancelled'
@@ -537,21 +828,46 @@ class HavanoposdeskTenant(models.Model):
                     'subscription_state': 'cancelled'
                 })
 
-    def action_select_plan(self, plan_id, additional_stores=0, additional_terminals=0):
+    def action_select_plan(self, plan_id, additional_stores=0, additional_terminals=0, billing_cycle='1_month', duration_months=1):
         plan = self.env['havanoposdesk.subscription.plan'].sudo().browse(plan_id)
-        extra_terminals = max(0, int(additional_terminals or 0)) if (plan.exists() and plan.is_custom) else 0
-        extra_stores = ( (plan.max_terminals or 1) + extra_terminals ) * (plan.stores_per_terminal or 3) if (plan.exists() and plan.is_custom) else max(0, int(additional_stores or 0))
+        if plan.exists() and plan.is_custom:
+            stores_per_term = plan.stores_per_terminal or 3
+            base_term = plan.max_terminals or 1
+            extra_terminals = max(0, int(additional_terminals or 0))
+            if extra_terminals == 0 and int(additional_stores or 0) > 0:
+                calc_terms = int(additional_stores) // stores_per_term
+                if calc_terms > base_term:
+                    extra_terminals = calc_terms - base_term
+            extra_stores = (base_term + extra_terminals) * stores_per_term
+        else:
+            extra_terminals = 0
+            extra_stores = max(0, int(additional_stores or 0))
+
+        months = int(duration_months or 1)
+        if billing_cycle == '3_months':
+            months = 3
+        elif billing_cycle == '6_months':
+            months = 6
+        elif billing_cycle == '12_months':
+            months = 12
+
         if self.check_subscription_active():
             self.with_context(bypass_subscription_check=True).write({
                 'pending_subscription_plan_id': plan_id,
                 'pending_additional_terminals': extra_terminals,
                 'pending_additional_stores': extra_stores,
+                'pending_billing_cycle': billing_cycle,
+                'pending_duration_months': months,
             })
         else:
             self.with_context(bypass_subscription_check=True).write({
                 'subscription_plan_id': plan_id,
                 'additional_terminals': extra_terminals,
                 'additional_stores': extra_stores,
+                'billing_cycle': billing_cycle,
+                'duration_months': months,
+                'pending_billing_cycle': billing_cycle,
+                'pending_duration_months': months,
                 'subscription_state': 'pending',
                 'payment_status': 'unpaid'
             })
@@ -561,9 +877,14 @@ class HavanoposdeskTenant(models.Model):
             plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
             if not plan:
                 raise ValidationError('No subscription plan selected.')
-            duration = plan.duration_days or 30
-            start_date = fields.Date.context_today(self)
-            end_date = start_date + relativedelta(days=duration)
+            months = tenant.pending_duration_months or tenant.duration_months or 1
+            today = fields.Date.context_today(self)
+            if tenant.subscription_state == 'active' and tenant.subscription_end_date and tenant.subscription_end_date >= today:
+                start_date = tenant.subscription_start_date or today
+                end_date = tenant.subscription_end_date + relativedelta(months=months)
+            else:
+                start_date = today
+                end_date = today + relativedelta(months=months)
             vals = {
                 'payment_status': 'paid',
                 'subscription_state': 'active',
@@ -575,9 +896,13 @@ class HavanoposdeskTenant(models.Model):
                 vals['subscription_plan_id'] = tenant.pending_subscription_plan_id.id
                 vals['additional_terminals'] = tenant.pending_additional_terminals
                 vals['additional_stores'] = tenant.pending_additional_stores
+                vals['billing_cycle'] = tenant.pending_billing_cycle or '1_month'
+                vals['duration_months'] = months
                 vals['pending_subscription_plan_id'] = False
                 vals['pending_additional_terminals'] = 0
                 vals['pending_additional_stores'] = 0
+                vals['pending_billing_cycle'] = '1_month'
+                vals['pending_duration_months'] = 1
             tenant.with_context(bypass_subscription_check=True).write(vals)
 
     def action_upgrade_plan(self):
@@ -638,10 +963,14 @@ class HavanoposdeskTenant(models.Model):
 
             # Create completed payment record
             import time
+            cycle = tenant.pending_billing_cycle or tenant.billing_cycle or '1_month'
+            months = tenant.pending_duration_months or tenant.duration_months or 1
             ref = f"BAL-{tenant.id}-{plan.id}-{fields.Datetime.now().strftime('%Y%m%d%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
             self.env['havanoposdesk.subscription.payment'].create({
                 'tenant_id': tenant.id,
                 'subscription_plan_id': plan.id,
+                'billing_cycle': cycle,
+                'duration_months': months,
                 'amount': amount,
                 'payment_method': 'account_balance',
                 'payment_type': 'subscription',
@@ -651,6 +980,7 @@ class HavanoposdeskTenant(models.Model):
 
             # Activate plan
             tenant.action_pay_and_activate()
+
 
 
     def _get_next_sequence(self, seq_type):
@@ -666,13 +996,46 @@ class HavanoposdeskTenant(models.Model):
         prefix = getattr(self, prefix_field) or ''
         next_val = getattr(self, next_field) or 1
         padding = getattr(self, padding_field) or 0
-        
-        # Format the sequence number
-        seq_str = str(next_val)
-        if padding > 0:
-            seq_str = seq_str.zfill(padding)
+
+        # Mapping of sequence types to model and field to guarantee uniqueness
+        seq_target_map = {
+            'prod': ('havanoposdesk.product', 'item_code'),
+            'sale': ('havanoposdesk.sale', 'name'),
+            'quotation': ('havanoposdesk.sale', 'name'),
+            'sale_ret': ('havanoposdesk.sale', 'name'),
+            'pay_in': ('havanoposdesk.payment', 'name'),
+            'pay_out': ('havanoposdesk.payment', 'name'),
+            'stock_adj': ('havanoposdesk.stock.adjustment', 'name'),
+            'trn': ('havanoposdesk.stock.transfer', 'name'),
+            'exp': ('havanoposdesk.expense', 'name'),
+            'cash_trn': ('havanoposdesk.cash.transfer', 'name'),
+            'purchase': ('havanoposdesk.purchase', 'name'),
+            'po': ('havanoposdesk.purchase', 'name'),
+            'bill': ('havanoposdesk.purchase', 'name'),
+            'pur_ret': ('havanoposdesk.purchase', 'name'),
+        }
+
+        target_info = seq_target_map.get(seq_type)
+        formatted_seq = ''
+
+        # Auto-advance to the next available unused ID
+        while True:
+            seq_str = str(next_val)
+            if padding > 0:
+                seq_str = seq_str.zfill(padding)
+            formatted_seq = f"{prefix}{seq_str}"
             
-        formatted_seq = f"{prefix}{seq_str}"
+            if target_info and target_info[0] in self.env:
+                model_name, field_name = target_info
+                exists = self.env[model_name].sudo().search_count([
+                    ('tenant_id', '=', self.id),
+                    (field_name, '=', formatted_seq)
+                ]) > 0
+                if not exists:
+                    break
+                next_val += 1
+            else:
+                break
         
         # Increment and update
         self.write({next_field: next_val + 1})
@@ -693,18 +1056,285 @@ class HavanoposdeskTenant(models.Model):
                     raise ValidationError('You cannot modify subscription details or payment status directly. Please use the "Change/Upgrade Plan" or "Pay & Activate Plan" buttons.')
         return super().write(vals)
 
+    def action_open_delete_wizard(self):
+        self.ensure_one()
+        user = self.env.user
+        if not (self.env.su or user.id == 1 or getattr(user, 'havano_role', None) == 'super_admin'):
+            raise AccessError(_("Access Denied: Only Super Admins can delete tenants."))
+        return {
+            'name': _('Delete Tenant: %s') % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'wizard.delete.tenant',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_tenant_id': self.id,
+                'active_id': self.id,
+            }
+        }
+
+    def action_hard_delete_tenant_data(self):
+        """
+        Permanently deletes all data, stores, users, catalog, sales, stock, restaurant,
+        manufacturing, permissions and settings associated with the tenant.
+        Only executable by Super Admins.
+        """
+        user = self.env.user
+        if not (self.env.su or user.id == 1 or getattr(user, 'havano_role', None) == 'super_admin'):
+            raise AccessError(_("Access Denied: Only Super Admins can delete tenants."))
+
+        for tenant in self:
+            t_id = tenant.id
+            _logger.info("Starting cascading hard deletion for tenant ID %s (%s)", t_id, tenant.name)
+
+            def safe_delete(model_name, domain):
+                if model_name in self.env:
+                    try:
+                        records = self.env[model_name].sudo().search(domain)
+                        if records:
+                            _logger.info("Deleting %s records from %s for tenant %s", len(records), model_name, t_id)
+                            records.unlink()
+                    except Exception as e:
+                        _logger.warning("Error deleting %s for tenant %s: %s", model_name, t_id, e)
+
+            # 1. Restaurant Orders & Layout
+            safe_delete('havanoposdesk.restaurant.order', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.restaurant.table', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.restaurant.floor', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.restaurant.waiter', [('tenant_id', '=', t_id)])
+
+            # 2. Sales Returns & Lines
+            safe_delete('havanoposdesk.sales.return.line', [('sale_return_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.sales.return', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.sale.return.wizard.line', [('wizard_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.sale.return.wizard', [('tenant_id', '=', t_id)])
+
+            # 3. Sales & Lines
+            sales = self.env['havanoposdesk.sale'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.sale' in self.env else False
+            if sales:
+                safe_delete('havanoposdesk.sale.line', [('sale_id', 'in', sales.ids)])
+                safe_delete('havanoposdesk.sale', [('id', 'in', sales.ids)])
+
+            # 4. Purchases & Lines & Returns
+            safe_delete('havanoposdesk.purchase.return.wizard.line', [('wizard_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.purchase.return.wizard', [('tenant_id', '=', t_id)])
+            purchases = self.env['havanoposdesk.purchase'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.purchase' in self.env else False
+            if purchases:
+                safe_delete('havanoposdesk.purchase.line', [('purchase_id', 'in', purchases.ids)])
+                safe_delete('havanoposdesk.purchase', [('id', 'in', purchases.ids)])
+
+            # 5. Payments, Payment Lines & Payment Methods
+            safe_delete('havanoposdesk.payment.line', [('payment_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.payment', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.payment.method', [('tenant_id', '=', t_id)])
+
+            # 6. Expenses & Cash Transfers & Shifts
+            safe_delete('havanoposdesk.expense', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cash.transfer', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cash.balance', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cashbook', [('tenant_id', '=', t_id)])
+            shifts = self.env['havanoposdesk.pos.shift'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.pos.shift' in self.env else False
+            if shifts:
+                safe_delete('havanoposdesk.pos.shift.payment', [('shift_id', 'in', shifts.ids)])
+                safe_delete('havanoposdesk.pos.shift', [('id', 'in', shifts.ids)])
+
+            # 7. Manufacturing (Orders, Raw Materials, Outputs, BOMs)
+            safe_delete('havanoposdesk.production.order.raw_material', [('production_order_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.production.order.output', [('production_order_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.production.order', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.manufacturing.bom.line', [('bom_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.manufacturing.bom.output', [('bom_id.tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.manufacturing.bom', [('tenant_id', '=', t_id)])
+
+            # 8. POS Terminals & Store Banks
+            safe_delete('havanoposdesk.pos.terminal', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.store.bank', [('tenant_id', '=', t_id)])
+
+            # 9. Stock Records (Ledgers, Valuations, Adjustments, Transfers, Entries)
+            safe_delete('havanoposdesk.stock.ledger', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.stock.valuation', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.stock.valuation.date.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.stock.valuation.date.wizard', [('tenant_id', '=', t_id)])
+            
+            adjustments = self.env['havanoposdesk.stock.adjustment'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.stock.adjustment' in self.env else False
+            if adjustments:
+                safe_delete('havanoposdesk.stock.adjustment.line', [('adjustment_id', 'in', adjustments.ids)])
+                safe_delete('havanoposdesk.stock.adjustment', [('id', 'in', adjustments.ids)])
+
+            transfers = self.env['havanoposdesk.stock.transfer'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.stock.transfer' in self.env else False
+            if transfers:
+                safe_delete('havanoposdesk.stock.transfer.line', [('transfer_id', 'in', transfers.ids)])
+                safe_delete('havanoposdesk.stock.transfer', [('id', 'in', transfers.ids)])
+
+            entries = self.env['havanoposdesk.stock.entry'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.stock.entry' in self.env else False
+            if entries:
+                safe_delete('havanoposdesk.stock.entry.line', [('entry_id', 'in', entries.ids)])
+                safe_delete('havanoposdesk.stock.entry', [('id', 'in', entries.ids)])
+
+            # 10. Product Catalog (Prices, Bundles, Products, Categories, UOMs, Taxes, Pricelists)
+            safe_delete('havanoposdesk.product.uom.price', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.product.bundle.item', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.product.bundle', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.product.costing', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.product', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.category', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.uom', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.tax', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.pricelist', [('tenant_id', '=', t_id)])
+
+            # 11. Partners / Customers / Suppliers / Accounts
+            safe_delete('havanoposdesk.customer', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.customer.group', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.supplier', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.account', [('tenant_id', '=', t_id)])
+
+            # 12. Reports & Snapshots
+            safe_delete('havanoposdesk.daily.sales.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cashier.sales.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.terminal.sales.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.category.sales.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.item.profitability.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.cashier.profitability.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.shop.profitability.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.item.detailed.ledger.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.item.summary.ledger.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.profit.loss.report', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.profit_and_loss', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.profit.and.loss', [('tenant_id', '=', t_id)])
+
+            # 13. Audit, Logs, Issues, Tickets
+            safe_delete('havanoposdesk.audit.log', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.audit.log.clear.wizard', [('tenant_id', '=', t_id)])
+            safe_delete('havano.error.issue', [('tenant_id', '=', t_id)])
+            safe_delete('havano.error.event', [('tenant_id', '=', t_id)])
+            safe_delete('havano.error.log', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.system.log', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.sync.issue', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.issue', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.support.ticket', [('tenant_id', '=', t_id)])
+
+            # 14. Subscriptions & Subscription Wizards
+            safe_delete('havanoposdesk.tenant.topup.wizard', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.subscription.pay.wizard', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.tenant.upgrade.wizard', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.subscription.payment', [('tenant_id', '=', t_id)])
+            safe_delete('havanoposdesk.subscription', [('tenant_id', '=', t_id)])
+
+            # 15. User Rights Profiles & Permissions
+            profiles = self.env['havanoposdesk.user.rights.profile'].sudo().search([('tenant_id', '=', t_id)]) if 'havanoposdesk.user.rights.profile' in self.env else False
+            if profiles:
+                safe_delete('havanoposdesk.user.rights.permission', [('profile_id', 'in', profiles.ids)])
+                safe_delete('havanoposdesk.backoffice.permission', [('profile_id', 'in', profiles.ids)])
+                safe_delete('havanoposdesk.user.rights.profile', [('id', 'in', profiles.ids)])
+
+            # 16. Stores
+            safe_delete('havanoposdesk.store', [('tenant_id', '=', t_id)])
+
+            # 17. Tenant Users (excluding system id 1, 2 and super admin users)
+            tenant_users = self.env['res.users'].sudo().search([
+                ('tenant_id', '=', t_id),
+                ('id', 'not in', [1, 2]),
+                ('havano_role', '!=', 'super_admin')
+            ])
+            if tenant_users:
+                _logger.info("Unlinking %s users for tenant ID %s", len(tenant_users), t_id)
+                partner_ids = [u.partner_id.id for u in tenant_users if u.partner_id and u.partner_id.id not in [1, 2]]
+                tenant_users.unlink()
+                if partner_ids:
+                    orphan_partners = self.env['res.partner'].sudo().search([
+                        ('id', 'in', partner_ids),
+                        ('user_ids', '=', False)
+                    ])
+                    if orphan_partners:
+                        try:
+                            orphan_partners.unlink()
+                        except Exception:
+                            pass
+
+            # 18. Finally unlink the tenant record itself
+            super(HavanoposdeskTenant, tenant).unlink()
+        return True
+
+    def unlink(self):
+        # Automatically cascade-delete child records cleanly to prevent FK constraint failures
+        return self.action_hard_delete_tenant_data()
+
+    @api.model
+    def cron_cleanup_expired_trial_tenants(self):
+        """
+        Automated cleanup cron job:
+        Deletes stores, users, and all transactional/inventory data for trial tenants
+        whose trial expired more than 1 month (30 days) ago without an upgraded/paid subscription.
+        (Month 1 = Trial period; Month 2 = Grace/retention period before permanent deletion).
+        """
+        today = fields.Date.context_today(self)
+        cutoff_date = today - relativedelta(days=30)
+        _logger.info("Running cron_cleanup_expired_trial_tenants with cutoff date: %s", cutoff_date)
+
+        trial_tenants = self.sudo().search([
+            ('subscription_end_date', '<=', cutoff_date),
+            ('subscription_state', 'in', ['expired', 'cancelled', 'pending']),
+        ])
+
+        deleted_count = 0
+        for tenant in trial_tenants:
+            # Check if tenant ever had an approved paid subscription
+            has_paid_subscription = bool(tenant.subscription_payment_ids.filtered(
+                lambda p: p.payment_type != 'topup' and p.status == 'approved'
+            ))
+            is_trial_plan = (
+                not tenant.subscription_plan_id 
+                or tenant.subscription_plan_id.price == 0.0 
+                or 'demo' in (tenant.subscription_plan_id.name or '').lower()
+                or getattr(tenant.subscription_plan_id, 'is_trial', False)
+                or getattr(tenant, 'is_trial', False)
+            )
+
+            if is_trial_plan and not has_paid_subscription:
+                tenant_name = tenant.name
+                tenant_id = tenant.id
+                _logger.info("Cleaning up expired trial tenant %s (ID: %s, Expired: %s)", tenant_name, tenant_id, tenant.subscription_end_date)
+                try:
+                    tenant.action_hard_delete_tenant_data()
+                    deleted_count += 1
+                except Exception as e:
+                    _logger.exception("Error deleting expired trial tenant %s (ID: %s): %s", tenant_name, tenant_id, e)
+
+        _logger.info("Finished cron_cleanup_expired_trial_tenants. Deleted %s expired trial tenants.", deleted_count)
+        return True
+
 
 class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
     _name = 'havanoposdesk.tenant.upgrade.wizard'
     _description = 'Upgrade Tenant Subscription Plan'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
-    subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='New Subscription Plan', required=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
+    subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='New Subscription Plan', required=True, ondelete='cascade')
+    billing_cycle = fields.Selection([
+        ('1_month', '1 Month (Monthly)'),
+        ('3_months', '3 Months (Quarterly)'),
+        ('6_months', '6 Months (Bi-Annual)'),
+        ('12_months', '1 Year (Annual)'),
+        ('custom_months', 'Custom Months')
+    ], string='Billing Cycle', default='1_month', required=True)
+    duration_months = fields.Integer(string='Duration (Months)', default=1, required=True)
     is_custom = fields.Boolean(string='Is Custom Plan', compute='_compute_plan_details')
     additional_terminals = fields.Integer(string='Additional Terminals Needed', default=0, help='Extra terminals requested ($12 per additional terminal)')
     additional_stores = fields.Integer(string='Included Stores (3 per terminal)', compute='_compute_included_stores')
     extra_terminal_price = fields.Float(string='Extra Price per Terminal ($)', compute='_compute_plan_details')
-    computed_total_price = fields.Float(string='Total Monthly Price ($)', compute='_compute_total_price')
+    monthly_price = fields.Float(string='Monthly Base Rate ($)', compute='_compute_total_price')
+    computed_total_price = fields.Float(string='Total Price ($)', compute='_compute_total_price')
+
+    @api.onchange('billing_cycle')
+    def _onchange_billing_cycle(self):
+        if self.billing_cycle == '1_month':
+            self.duration_months = 1
+        elif self.billing_cycle == '3_months':
+            self.duration_months = 3
+        elif self.billing_cycle == '6_months':
+            self.duration_months = 6
+        elif self.billing_cycle == '12_months':
+            self.duration_months = 12
 
     @api.depends('subscription_plan_id', 'additional_terminals')
     def _compute_included_stores(self):
@@ -727,18 +1357,28 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
                 wizard.is_custom = False
                 wizard.extra_terminal_price = 12.0
 
-    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'additional_terminals')
+    @api.depends('subscription_plan_id', 'subscription_plan_id.price', 'subscription_plan_id.annual_discount_percentage', 'subscription_plan_id.is_custom', 'subscription_plan_id.extra_terminal_price', 'additional_terminals', 'duration_months', 'billing_cycle')
     def _compute_total_price(self):
         for wizard in self:
             plan = wizard.subscription_plan_id
             if not plan:
+                wizard.monthly_price = 0.0
                 wizard.computed_total_price = 0.0
-            elif plan.is_custom:
+                continue
+            if plan.is_custom:
                 extra = max(0, wizard.additional_terminals or 0)
                 extra_price = plan.extra_terminal_price or 12.0
-                wizard.computed_total_price = (plan.price or 12.0) + (extra * extra_price)
+                m_rate = (plan.price or 12.0) + (extra * extra_price)
             else:
-                wizard.computed_total_price = plan.price or 0.0
+                m_rate = plan.price or 0.0
+
+            wizard.monthly_price = m_rate
+            months = max(1, wizard.duration_months or 1)
+            if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
+                discount = plan.annual_discount_percentage / 100.0
+                wizard.computed_total_price = m_rate * 12.0 * (1.0 - discount)
+            else:
+                wizard.computed_total_price = m_rate * months
 
     @api.onchange('tenant_id')
     def _onchange_tenant_id(self):
@@ -752,23 +1392,35 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
             raise ValidationError('No tenant associated with the user.')
         target_plan = self.subscription_plan_id
         current_plan = self.tenant_id.pending_subscription_plan_id or self.tenant_id.subscription_plan_id
-        if target_plan == current_plan and not target_plan.is_custom:
-            raise ValidationError('You cannot select your current subscription plan without changing terminal options.')
+        current_cycle = self.tenant_id.pending_billing_cycle or self.tenant_id.billing_cycle or '1_month'
+        current_months = self.tenant_id.pending_duration_months or self.tenant_id.duration_months or 1
+        
+        # Check if anything changed
+        if (target_plan == current_plan and not target_plan.is_custom 
+            and self.billing_cycle == current_cycle and (self.duration_months or 1) == current_months):
+            raise ValidationError('You cannot select the identical subscription plan and billing cycle without changes.')
         
         extra_terminals = max(0, self.additional_terminals or 0) if self.subscription_plan_id.is_custom else 0
         extra_stores = ((target_plan.max_terminals or 1) + extra_terminals) * (target_plan.stores_per_terminal or 3) if target_plan.is_custom else 0
+        months = max(1, self.duration_months or 1)
 
         if self.tenant_id.check_subscription_active():
             self.tenant_id.with_context(bypass_subscription_check=True).write({
                 'pending_subscription_plan_id': self.subscription_plan_id.id,
                 'pending_additional_terminals': extra_terminals,
                 'pending_additional_stores': extra_stores,
+                'pending_billing_cycle': self.billing_cycle,
+                'pending_duration_months': months,
             })
         else:
             self.tenant_id.with_context(bypass_subscription_check=True).write({
                 'subscription_plan_id': self.subscription_plan_id.id,
                 'additional_terminals': extra_terminals,
                 'additional_stores': extra_stores,
+                'billing_cycle': self.billing_cycle,
+                'duration_months': months,
+                'pending_billing_cycle': self.billing_cycle,
+                'pending_duration_months': months,
                 'subscription_state': 'pending',
                 'payment_status': 'unpaid'
             })

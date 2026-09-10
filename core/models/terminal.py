@@ -4,6 +4,7 @@ from odoo.exceptions import ValidationError, RedirectWarning
 
 class HavanoposdeskPosTerminal(models.Model):
     _name = 'havanoposdesk.pos.terminal'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'POS Terminal'
 
     name = fields.Char(string='Terminal Name', required=True, readonly=True, default=lambda self: self._get_default_name())
@@ -21,6 +22,7 @@ class HavanoposdeskPosTerminal(models.Model):
         default=lambda self: self.env.user.default_store_id.id or self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1).id
     )
     device_hardware_id = fields.Char(string='Device Hardware ID', readonly=True)
+    app_version = fields.Char(string='App Version', readonly=True)
     last_seen = fields.Datetime(string='Last Seen')
     sequence_prefix = fields.Char(string='Sequence Prefix')
     last_logged_in_user_id = fields.Many2one('res.users', string='Last Logged In By', readonly=True)

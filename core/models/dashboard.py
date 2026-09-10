@@ -7,7 +7,7 @@ class HavanoposdeskDashboard(models.AbstractModel):
     _description = 'Dashboard Model'
 
     @api.model
-    def get_dashboard_data(self, date_from, date_to):
+    def get_dashboard_data(self, date_from, date_to, store_id=False):
         """
         Fetch KPI and Chart data for the dashboard.
         """
@@ -15,6 +15,9 @@ class HavanoposdeskDashboard(models.AbstractModel):
         domain_sale = [('tenant_id', '=', tenant_id)] if tenant_id else []
         domain_val = [('tenant_id', '=', tenant_id)] if tenant_id else []
         
+        if store_id:
+            domain_sale.append(('store_id', '=', store_id))
+
         # Calculate previous period for trends
         prev_domain_sale = list(domain_sale)
         if date_from and date_to:
@@ -34,11 +37,13 @@ class HavanoposdeskDashboard(models.AbstractModel):
 
         # Domain for expenses
         domain_exp = [('tenant_id', '=', tenant_id)] if tenant_id else []
+        if store_id:
+            domain_exp.append(('store_id', '=', store_id))
         prev_domain_exp = list(domain_exp)
 
         if date_from and date_to:
             domain_exp += [('date', '>=', date_from), ('date', '<=', date_to)]
-            prev_domain_exp += [('date', '>=', prev_start), ('date', '<=', prev_end)]
+            prev_domain_exp += [('date', '>=', p_start), ('date', '<=', p_end)]
 
         # Fetch current period data
         sales = self.env['havanoposdesk.sale'].search(domain_sale)

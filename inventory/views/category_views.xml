@@ -7,6 +7,7 @@
             <field name="arch" type="xml">
                 <list  string="Categories">
                     <field  name="name"/>
+                    <field  name="not_for_pos" optional="show"/>
                     <field  name="store_ids" widget="many2many_tags"/>
                     <field  name="tenant_id" column_invisible="1"/>
                 </list>
@@ -22,6 +23,7 @@
                         <group>
                             <group>
                                 <field name="name" string="Category Name" placeholder="e.g. Beverages" class="border-bottom border-dark"/>
+                                <field name="not_for_pos"/>
                                 <field name="tenant_id" invisible="1"/>
                             </group>
                             <group>

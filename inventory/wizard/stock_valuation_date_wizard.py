@@ -9,9 +9,17 @@ class StockValuationDateWizard(models.TransientModel):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        ondelete='cascade',
         default=lambda self: self.env.user.tenant_id.id
     )
     date_to = fields.Date(string='Date To', required=True, default=fields.Date.context_today)
+    store_id = fields.Many2one(
+        'havanoposdesk.store', 
+        string='Store', 
+        required=False,
+        domain="[('tenant_id', '=', tenant_id)] if tenant_id else []",
+        help="Leave empty to calculate for all stores."
+    )
 
     def action_compute(self):
         self.ensure_one()
@@ -24,6 +32,8 @@ class StockValuationDateWizard(models.TransientModel):
             ('tenant_id', '=', self.tenant_id.id),
             ('create_date', '<=', date_to_dt)
         ]
+        if self.store_id:
+            domain.append(('store_id', '=', self.store_id.id))
         
         ledgers = self.env['havanoposdesk.stock.ledger'].search(domain)
         
@@ -77,14 +87,14 @@ class StockValuationDateReport(models.TransientModel):
     _description = 'Stock Valuation By Date Report'
     
     wizard_id = fields.Many2one('havanoposdesk.stock.valuation.date.wizard', string='Wizard Reference', ondelete='cascade')
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', ondelete='cascade')
     currency_id = fields.Many2one(related='tenant_id.currency_id', store=True)
-    product_id = fields.Many2one('havanoposdesk.product', string='Product')
+    product_id = fields.Many2one('havanoposdesk.product', string='Product', ondelete='cascade')
     item_name = fields.Char(related='product_id.name', string='Item Name', store=True)
     item_code = fields.Char(related='product_id.item_code', string='Code', store=True)
     category_id = fields.Many2one(related='product_id.category_id', string='Category', store=True)
     store = fields.Char(string='Store')
-    store_id = fields.Many2one('havanoposdesk.store', string='Store Link')
+    store_id = fields.Many2one('havanoposdesk.store', string='Store Link', ondelete='cascade')
     on_hand_qty = fields.Float(string='On Hand Qty')
     value_cost = fields.Float(string='Value Cost')
     value_selling = fields.Float(string='Value Selling')

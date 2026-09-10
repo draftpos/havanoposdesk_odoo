@@ -18,6 +18,9 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
         'stock_transfer': 'havanoposdesk.stock.transfer',
         'credit_note': 'havanoposdesk.sale',
         'debit_note': 'havanoposdesk.purchase',
+        'currency': 'res.currency',
+        'currency_rate': 'res.currency.rate',
+        'exchange_rate': 'res.currency.rate',
     }
 
     def _get_auth_env(self):
@@ -69,6 +72,8 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
                     user = env['res.users'].browse(uid)
                     if user.tenant_id and hasattr(Model, 'tenant_id'):
                         domain.append(('tenant_id', '=', user.tenant_id.id))
+                    if model_name == 'category':
+                        domain.append(('not_for_pos', '=', False))
                     
                     records = Model.search(domain)
                     data = records.read()
@@ -155,12 +160,8 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
                 'allow_advanced_pricing': True
             })
             
-            # Create Store
-            store = env['havanoposdesk.store'].create({
-                'name': 'Main Store',
-                'tenant_id': tenant.id,
-                'is_default': True
-            })
+            # Get default store created during tenant initialization
+            store = env['havanoposdesk.store'].search([('tenant_id', '=', tenant.id)], limit=1)
             
             # Create User
             user = env['res.users'].create({
@@ -169,8 +170,8 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
                 'password': password,
                 'tenant_id': tenant.id,
                 'havano_role': 'admin',
-                'store_ids': [(4, store.id)],
-                'default_store_id': store.id
+                'store_ids': [(4, store.id)] if store else False,
+                'default_store_id': store.id if store else False
             })
 
             # Return defaults
@@ -190,6 +191,8 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
         params['is_return'] = True
         
         request.httprequest.data = json.dumps(params).encode('utf-8')
+        if 'items' in params or 'sales' in params:
+            return self.api_sales_invoice(**kwargs)
         return self.generic_rest_api('sale_invoice', **kwargs)
 
     @http.route('/api/debit_note', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')

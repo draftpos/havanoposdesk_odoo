@@ -13,7 +13,6 @@ class ClearDataWizard(models.TransientModel):
 
     state = fields.Selection([
         ('request', 'Request'),
-        ('verify',  'Verify'),
         ('done',    'Done'),
     ], string='State', default='request')
 
@@ -27,9 +26,7 @@ class ClearDataWizard(models.TransientModel):
     confirm_loss = fields.Boolean(
         string='I understand that this will permanently delete data and it cannot be recovered.'
     )
-    generated_code = fields.Char(string='Generated Code')
-    entered_code   = fields.Char(string='Verification Code')
-    result_log     = fields.Text(string='Deletion Report', readonly=True)
+    result_log   = fields.Text(string='Deletion Report', readonly=True)
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -67,9 +64,9 @@ class ClearDataWizard(models.TransientModel):
             domain.append(('id', '!=', self.env.user.id))
         return self.env['res.users'].sudo().search(domain)
 
-    # ── Step 1: request ──────────────────────────────────────────────────────
+    # ── Step 1: Request & Delete ──────────────────────────────────────────────
 
-    def action_send_code(self):
+    def action_delete_data(self):
         self.ensure_one()
 
         if not self.reason or len(self.reason.strip()) < 20:
@@ -80,61 +77,6 @@ class ClearDataWizard(models.TransientModel):
             raise ValidationError(
                 "You must tick the confirmation checkbox before proceeding."
             )
-
-        # Generate 6-digit code
-        code = ''.join(random.choices(string.digits, k=6))
-        self.generated_code = code
-        self.state = 'verify'
-
-        # Send code to the current user's email (from their partner record)
-        user_email = self.env.user.partner_id.email
-        if user_email:
-            try:
-                self._send_template(
-                    'havanoposdesk_odoo.mail_template_clear_data_code',
-                    user_email,
-                )
-                _logger.info("Clear data: verification code sent to %s", user_email)
-            except Exception as e:
-                _logger.error(
-                    "Clear data: could not send code to %s: %s", user_email, e
-                )
-        else:
-            _logger.warning(
-                "Clear data: user %s has no email address — code not emailed.",
-                self.env.user.login,
-            )
-
-        # Notify all OTHER system admins (best-effort)
-        try:
-            for admin in self._get_system_admins(exclude_self=True):
-                admin_email = admin.partner_id.email
-                if admin_email:
-                    self._send_template(
-                        'havanoposdesk_odoo.mail_template_clear_data_notify',
-                        admin_email,
-                        extra_ctx={'notify_admin_name': admin.name},
-                    )
-        except Exception as e:
-            _logger.warning("Clear data: admin notification failed: %s", e)
-
-        return {
-            'type':      'ir.actions.act_window',
-            'res_model': self._name,
-            'res_id':    self.id,
-            'view_mode': 'form',
-            'target':    'new',
-        }
-
-    # ── Step 2: verify & delete ───────────────────────────────────────────────
-
-    def action_verify_and_delete(self):
-        self.ensure_one()
-
-        if not self.entered_code:
-            raise ValidationError("Please enter the verification code.")
-        if self.entered_code.strip() != self.generated_code:
-            raise ValidationError("Incorrect verification code. Please try again.")
 
         # Execute deletion and capture report
         self.result_log = self._execute_deletion()
@@ -200,7 +142,7 @@ class ClearDataWizard(models.TransientModel):
             scope_label = f"Tenant: {tenant.name}"
 
         # ── ORM delete helper ─────────────────────────────────────────────────
-        def orm_delete(label, model_name, extra_domain=None):
+        def orm_delete(label, model_name, extra_domain=None, cancel_first=False):
             """
             Delete records of *model_name* using self.env (current DB, current
             registry).  Silently skips if the model is not installed on this site.
@@ -209,9 +151,19 @@ class ClearDataWizard(models.TransientModel):
             if model_name not in self.env:
                 return  # not installed here — skip without logging noise
 
-            domain = list(base_domain)
+            model_fields = self.env[model_name]._fields
+            domain = []
+            if base_domain:
+                if 'tenant_id' in model_fields:
+                    domain = list(base_domain)
+                elif 'product_id' in model_fields:
+                    domain = [('product_id.tenant_id', '=', tenant.id)]
+                elif 'sale_id' in model_fields:
+                    domain = [('sale_id.tenant_id', '=', tenant.id)]
+                elif 'purchase_id' in model_fields:
+                    domain = [('purchase_id.tenant_id', '=', tenant.id)]
+
             if self.store_id:
-                model_fields = self.env[model_name]._fields
                 if 'store_id' in model_fields:
                     domain.append(('store_id', '=', self.store_id.id))
                 elif 'store' in model_fields:
@@ -230,6 +182,20 @@ class ClearDataWizard(models.TransientModel):
                 records = self.env[model_name].sudo().search(domain)
                 count   = len(records)
                 if count:
+                    if cancel_first and hasattr(records, 'action_cancel'):
+                        active_records = records.filtered(
+                            lambda record: getattr(record, 'state', False)
+                            not in (False, 'draft', 'Draft', 'cancelled', 'Cancelled')
+                        )
+                        if active_records:
+                            active_records.action_cancel()
+
+                        cancelled_records = records.filtered(
+                            lambda record: getattr(record, 'state', False)
+                            in ('cancelled', 'Cancelled')
+                        )
+                        if cancelled_records and hasattr(cancelled_records, 'action_draft'):
+                            cancelled_records.action_draft()
                     records.unlink()
                 log.append(
                     f"  {'✓' if count else '–'}  {label:<35s} {count:>5} record(s)"
@@ -243,18 +209,25 @@ class ClearDataWizard(models.TransientModel):
         log.append("  TRANSACTIONS")
         log.append("═" * 52)
 
-        # Child records must come before parent records (FK order)
+        # Cancel parents first so their stock and account effects are reversed.
+        orm_delete("Sales",                   "havanoposdesk.sale", cancel_first=True)
+        orm_delete("Purchases",               "havanoposdesk.purchase", cancel_first=True)
+        orm_delete("Stock adjustments",       "havanoposdesk.stock.adjustment", cancel_first=True)
+        orm_delete("Stock entries",            "havanoposdesk.stock.entry", cancel_first=True)
+        orm_delete("Stock transfers",          "havanoposdesk.stock.transfer", cancel_first=True)
+        orm_delete("Expenses",                "havanoposdesk.expense", cancel_first=True)
+        orm_delete("Payments",                "havanoposdesk.payment", cancel_first=True)
+
+        # Dependent and derived records can be removed after reversal.
         orm_delete("Sale lines",              "havanoposdesk.sale.line")
-        orm_delete("Sales",                   "havanoposdesk.sale")
         orm_delete("Purchase lines",          "havanoposdesk.purchase.line")
-        orm_delete("Purchases",               "havanoposdesk.purchase")
         orm_delete("Stock adjustment lines",  "havanoposdesk.stock.adjustment.line")
-        orm_delete("Stock adjustments",       "havanoposdesk.stock.adjustment")
+        orm_delete("Stock entry lines",       "havanoposdesk.stock.entry.line")
+        orm_delete("Stock transfer lines",    "havanoposdesk.stock.transfer.line")
         orm_delete("Stock valuation",         "havanoposdesk.stock.valuation")
         orm_delete("Stock ledger",            "havanoposdesk.stock.ledger")
-        orm_delete("Payments",                "havanoposdesk.payment")
+        orm_delete("Payment lines",           "havanoposdesk.payment.line")
         orm_delete("Accounts",                "havanoposdesk.account")
-        orm_delete("Expenses",                "havanoposdesk.expense")
         orm_delete("Product costing history", "havanoposdesk.product.costing")
 
         # ── Master data (only when user chose 'all_data') ─────────────────────

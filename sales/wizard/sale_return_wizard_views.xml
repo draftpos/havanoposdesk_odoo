@@ -12,7 +12,15 @@
                             Enter the quantity of each item you wish to return. A new Credit Note will be generated, and stock will be returned to inventory.
                         </p>
                         <group>
-                            <field name="sale_id" readonly="1" class="border-bottom border-dark" />
+                            <group>
+                                <field name="sale_id" readonly="1" class="border-bottom border-dark" />
+                            </group>
+                            <group>
+                                <field name="payment_status_display" widget="radio" options="{'horizontal': true}"/>
+                                <field name="payment_policy" invisible="payment_status_display != 'cash'" widget="radio" options="{'horizontal': true}" />
+                                <field name="account_id" invisible="payment_status_display != 'cash' or payment_policy != 'single'" required="payment_status_display == 'cash' and payment_policy == 'single'" options="{'no_create': True, 'no_open': True}"/>
+                                <field name="single_payment_amount" invisible="payment_status_display != 'cash' or payment_policy != 'single'" />
+                            </group>
                         </group>
                         <field name="line_ids">
                             <list editable="bottom" create="0" delete="0">

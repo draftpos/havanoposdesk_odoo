@@ -5,9 +5,24 @@ class SaleReturnWizard(models.TransientModel):
     _name = 'havanoposdesk.sale.return.wizard'
     _description = 'Sale Return Wizard'
 
-    sale_id = fields.Many2one('havanoposdesk.sale', string='Sale', required=True)
+    sale_id = fields.Many2one('havanoposdesk.sale', string='Sale', required=True, ondelete='cascade')
     line_ids = fields.One2many('havanoposdesk.sale.return.wizard.line', 'wizard_id', string='Items to Return')
     amount_total = fields.Float(string='Total Refund', compute='_compute_amount_total')
+    payment_status_display = fields.Selection([
+        ('cash', 'Paid'),
+        ('account', 'On Account')
+    ], string='Payment Status', default='cash', required=True)
+    payment_policy = fields.Selection([
+        ('single', 'Single Payment'),
+        ('multi', 'Split / Multi-Currency Payment')
+    ], string='Payment Policy', default='single')
+    account_id = fields.Many2one('havanoposdesk.account', string='Deposit Account', domain="[('type', 'in', ['Cash', 'Bank'])]")
+    single_payment_amount = fields.Float(string='Payment Amount')
+
+    @api.onchange('amount_total')
+    def _onchange_amount_total(self):
+        if self.payment_policy == 'single':
+            self.single_payment_amount = self.amount_total
 
     @api.depends('line_ids.amount')
     def _compute_amount_total(self):
@@ -67,8 +82,10 @@ class SaleReturnWizard(models.TransientModel):
             'store_id': self.sale_id.store_id.id,
             'tenant_id': self.sale_id.tenant_id.id,
             'salesperson_id': self.env.user.id,
-            'payment_status': self.sale_id.payment_status,
-            'account_id': self.sale_id.account_id.id if self.sale_id.account_id else False,
+            'payment_status': 'cash' if self.payment_status_display == 'cash' else 'account',
+            'payment_policy': self.payment_policy,
+            'account_id': self.account_id.id if self.payment_status_display == 'cash' and self.payment_policy == 'single' and self.account_id else False,
+            'single_payment_amount': self.single_payment_amount,
             'line_ids': [],
         }
 
@@ -98,9 +115,9 @@ class SaleReturnWizardLine(models.TransientModel):
     _name = 'havanoposdesk.sale.return.wizard.line'
     _description = 'Sale Return Wizard Line'
 
-    wizard_id = fields.Many2one('havanoposdesk.sale.return.wizard', string='Wizard')
-    sale_line_id = fields.Many2one('havanoposdesk.sale.line', string='Sale Line')
-    product_id = fields.Many2one('havanoposdesk.product', string='Product', readonly=True)
+    wizard_id = fields.Many2one('havanoposdesk.sale.return.wizard', string='Wizard', ondelete='cascade')
+    sale_line_id = fields.Many2one('havanoposdesk.sale.line', string='Sale Line', ondelete='cascade')
+    product_id = fields.Many2one('havanoposdesk.product', string='Product', readonly=True, ondelete='cascade')
     qty_sold = fields.Float(string='Qty Sold', readonly=True)
     qty_returned = fields.Float(string='Return Qty', default=0.0)
     rate = fields.Float(string='Rate', readonly=True)

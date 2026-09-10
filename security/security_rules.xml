@@ -8,6 +8,10 @@
             <field name="implied_ids" eval="[(4, ref('base.group_user')), (4, ref('base.group_erp_manager'))]"/>
         </record>
 
+        <record id="group_enable_shifts" model="res.groups">
+            <field name="name">Enable Shifts</field>
+        </record>
+
         <!-- Tenant Model Isolation Rule -->
         <record id="rule_havano_tenant_isolation" model="ir.rule">
             <field name="name">Havano Tenant Isolation</field>
@@ -21,7 +25,7 @@
             <field name="name">Havano Category Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_category"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_ids', '=', False), ('store_ids', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else ['|', ('tenant_id', '=', False), ('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- UOM Model Isolation Rule -->
@@ -29,7 +33,7 @@
             <field name="name">Havano UOM Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_uom"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else ['|', ('tenant_id', '=', False), ('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Pricelist Model Isolation Rule -->
@@ -37,7 +41,7 @@
             <field name="name">Havano Pricelist Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_pricelist"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else ['|', ('tenant_id', '=', False), ('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Product UOM Price Model Isolation Rule -->
@@ -45,7 +49,7 @@
             <field name="name">Havano Product UOM Price Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_product_uom_price"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else ['|', ('tenant_id', '=', False), ('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Store Model Isolation Rule -->
@@ -110,7 +114,7 @@
             <field name="name">Havano Account Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_account"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_ids', '=', False), ('store_ids', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_ids', '=', False), ('store_ids', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Payment Model Isolation Rule -->
@@ -142,7 +146,7 @@
             <field name="name">Havano Stock Valuation Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_stock_valuation"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Stock Ledger Model Isolation Rule -->
@@ -150,7 +154,7 @@
             <field name="name">Havano Stock Ledger Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_stock_ledger"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Customer Model Isolation Rule -->
@@ -222,7 +226,7 @@
             <field name="name">Havano Item Profitability Report Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_item_profitability_report"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Category Sales Report Model Isolation Rule -->
@@ -230,7 +234,7 @@
             <field name="name">Havano Category Sales Report Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_category_sales_report"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Cashier Sales Report Model Isolation Rule -->
@@ -238,7 +242,7 @@
             <field name="name">Havano Cashier Sales Report Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_cashier_sales_report"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids), ('salesperson_id', '=', user.id)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'admin' and user.store_ids else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids), ('salesperson_id', '=', user.id)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Terminal Sales Report Model Isolation Rule -->
@@ -246,7 +250,23 @@
             <field name="name">Havano Terminal Sales Report Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_terminal_sales_report"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids), ('salesperson_id', '=', user.id)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'admin' and user.store_ids else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids), ('salesperson_id', '=', user.id)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Cash Transfer Model Isolation Rule -->
+        <record id="rule_havano_cash_transfer_isolation" model="ir.rule">
+            <field name="name">Havano Cash Transfer Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_cash_transfer"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Shift Model Isolation Rule -->
+        <record id="rule_havano_shift_isolation" model="ir.rule">
+            <field name="name">Havano Shift Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_shift"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Daily Sales Report Model Isolation Rule -->
@@ -254,14 +274,14 @@
             <field name="name">Havano Daily Sales Report Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_daily_sales_report"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
         <!-- Expense Model Isolation Rule -->
         <record id="rule_havano_expense_isolation" model="ir.rule">
             <field name="name">Havano Expense Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_expense"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if (user.havano_role == 'admin' and user.store_ids) or user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Customer Group Model Isolation Rule -->
@@ -316,6 +336,30 @@
         <record id="rule_havano_subscription_payment_isolation" model="ir.rule">
             <field name="name">Havano Subscription Payment Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_subscription_payment"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Currency Isolation Rule -->
+        <record id="rule_havano_currency_isolation" model="ir.rule">
+            <field name="name">Havano Currency Isolation</field>
+            <field name="model_id" ref="base.model_res_currency"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Currency Rate Isolation Rule -->
+        <record id="rule_havano_currency_rate_isolation" model="ir.rule">
+            <field name="name">Havano Currency Rate Isolation</field>
+            <field name="model_id" ref="base.model_res_currency_rate"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
+        <!-- Audit Log Isolation Rule -->
+        <record id="rule_havano_audit_log_isolation" model="ir.rule">
+            <field name="name">Havano Activity Log Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_audit_log"/>
             <field name="global" eval="True"/>
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>

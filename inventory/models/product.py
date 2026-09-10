@@ -3,13 +3,24 @@ from odoo.exceptions import ValidationError
 
 class HavanoposdeskProduct(models.Model):
     _name = 'havanoposdesk.product'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Product'
     _rec_names_search = ['name', 'item_code']
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'The product name must be unique per tenant!'),
-        ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
-        ('barcode_tenant_uniq', 'unique (barcode, tenant_id)', 'The Product Barcode must be unique per tenant!')
+    def _auto_init(self):
+        res = super()._auto_init()
+        cr = self.env.cr
+        try:
+            with cr.savepoint():
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
+        except Exception:
+            pass
+        return res
+
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'The product name must be unique per tenant!'),
+        models.Constraint('unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
+        models.Constraint('unique (barcode, tenant_id)', 'The Product Barcode must be unique per tenant!')
     ]
 
     name = fields.Char(string='Product Name', required=True)
@@ -17,6 +28,11 @@ class HavanoposdeskProduct(models.Model):
     allow_edit_item_code = fields.Boolean(related='tenant_id.allow_edit_item_code', string="Allow Edit Item Code")
     barcode = fields.Char(string='Barcode', copy=False)
     is_barcode_enabled = fields.Boolean(related='tenant_id.enable_barcode', string="Barcode Enabled")
+    sellbyprice = fields.Boolean(
+        string='Sell by Price',
+        default=False,
+        help='If enabled, allows selling this item by entering the total price first, which automatically calculates the quantity.'
+    )
 
     @api.constrains('name', 'tenant_id')
     def _check_unique_name(self):
@@ -30,6 +46,20 @@ class HavanoposdeskProduct(models.Model):
                 if self.search_count(domain) > 0:
                     raise ValidationError(f"A Product with the name '{record.name}' already exists in your workspace. Please choose a different name.")
 
+    @api.constrains('item_code', 'tenant_id')
+    def _check_unique_item_code(self):
+        for record in self:
+            if record.item_code and record.item_code != 'New' and record.tenant_id:
+                domain = [
+                    ('id', '!=', record.id),
+                    ('tenant_id', '=', record.tenant_id.id),
+                    ('item_code', '=', record.item_code.strip())
+                ]
+                if self.search_count(domain) > 0:
+                    raise ValidationError(
+                        f"A Product with the code '{record.item_code}' already exists in your workspace. Please choose a different code."
+                    )
+
     @api.depends('name', 'item_code', 'tenant_id')
     def _compute_display_name(self):
         is_super_admin = self.env.user.has_group('base.group_system')
@@ -40,12 +70,6 @@ class HavanoposdeskProduct(models.Model):
             else:
                 record.display_name = base_name
 
-    @api.model
-    def _name_search(self, name='', args=None, operator='ilike', limit=100, order=None):
-        args = list(args or [])
-        if name:
-            args += ['|', ('name', operator, name), ('item_code', operator, name)]
-        return self._search(args, limit=limit, order=order)
 
     @api.model
     def default_get(self, fields_list):
@@ -58,7 +82,8 @@ class HavanoposdeskProduct(models.Model):
                 res['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
         return res
     buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
-    selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', store=True, readonly=False)
+    selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', inverse='_inverse_selling_price', store=True, readonly=False)
+    uom_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='UOM Prices')
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
 from odoo import models, fields, api, _
@@ -185,11 +210,11 @@ class HavanoposdeskProduct(models.Model):
             else:
                 record.sell_price_with_tax = sell_price * (1.0 + s_rate_excl)
 
-    @api.depends()
+    @api.depends('tenant_id')
     def _compute_has_active_taxes(self):
-        has_taxes = bool(self.env['havanoposdesk.tax'].search([('active', '=', True)], limit=1))
         for record in self:
-            record.has_active_taxes = has_taxes
+            tenant_id = record.tenant_id.id if record.tenant_id else self.env.user.tenant_id.id
+            record.has_active_taxes = bool(self.env['havanoposdesk.tax'].search([('active', '=', True), ('tenant_id', '=', tenant_id)], limit=1))
 
     @api.onchange('sale_tax_ids')
     def _onchange_sale_tax_ids(self):
@@ -244,6 +269,38 @@ class HavanoposdeskProduct(models.Model):
                 else:
                     vals['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
 
+            # Auto-map purchase_tax_ids from sale_tax_ids if not provided
+            if 'sale_tax_ids' in vals and 'purchase_tax_ids' not in vals:
+                raw_ids = []
+                if isinstance(vals['sale_tax_ids'], list):
+                    for item in vals['sale_tax_ids']:
+                        if isinstance(item, (list, tuple)) and len(item) == 3 and item[0] == 6:
+                            raw_ids.extend(item[2])
+                        elif isinstance(item, int):
+                            raw_ids.append(item)
+                if raw_ids:
+                    sale_taxes = self.env['havanoposdesk.tax'].sudo().browse(raw_ids)
+                    purchase_tax_ids = []
+                    for sale_tax in sale_taxes:
+                        matching_ptax = self.env['havanoposdesk.tax'].sudo().search([
+                            ('tax_type', '=', 'Purchases'),
+                            ('active', '=', True),
+                            ('name', '=', sale_tax.name),
+                            ('tenant_id', '=', tenant_id)
+                        ], limit=1)
+                        if not matching_ptax:
+                            matching_ptax = self.env['havanoposdesk.tax'].sudo().search([
+                                ('tax_type', '=', 'Purchases'),
+                                ('active', '=', True),
+                                ('rate', '=', sale_tax.rate),
+                                ('is_inclusive', '=', sale_tax.is_inclusive),
+                                ('tenant_id', '=', tenant_id)
+                            ], limit=1)
+                        if matching_ptax:
+                            purchase_tax_ids.append(matching_ptax.id)
+                    if purchase_tax_ids:
+                        vals['purchase_tax_ids'] = [(6, 0, purchase_tax_ids)]
+
             # Set store_ids to all stores if all_stores is True (either by default or explicitly)
             if (vals.get('all_stores', True) and 'store_ids' not in vals) or vals.get('all_stores') is True:
                 if tenant_id:
@@ -255,6 +312,16 @@ class HavanoposdeskProduct(models.Model):
         for product in products:
             if product.variant_ids and not product.is_variant:
                 product.is_variant = True
+            if product.use_ingredients and not product.bom_id:
+                bom = self.env['havanoposdesk.manufacturing.bom'].create({
+                    'name': f"BOM for {product.name}",
+                    'tenant_id': product.tenant_id.id,
+                    'output_ids': [(0, 0, {
+                        'product_id': product.id,
+                        'qty': 1.0
+                    })]
+                })
+                product.bom_id = bom.id
 
             if product.opening_stock > 0:
                 adj = self.env['havanoposdesk.stock.adjustment'].with_context(from_product_creation=True).create({
@@ -326,6 +393,20 @@ class HavanoposdeskProduct(models.Model):
                 super(HavanoposdeskProduct, product).write({
                     'store_ids': [(6, 0, all_store_records.ids)]
                 })
+
+        if vals.get('use_ingredients'):
+            for product in self:
+                if product.use_ingredients and not product.bom_id:
+                    bom = self.env['havanoposdesk.manufacturing.bom'].create({
+                        'name': f"BOM for {product.name}",
+                        'tenant_id': product.tenant_id.id,
+                        'output_ids': [(0, 0, {
+                            'product_id': product.id,
+                            'qty': 1.0
+                        })]
+                    })
+                    product.bom_id = bom.id
+
         return res
 
     color_hex = fields.Char(string='Color Hex')
@@ -341,6 +422,7 @@ class HavanoposdeskProduct(models.Model):
         ('white', 'White'),
     ], string='Color')
     image_1920 = fields.Image(string='Image', max_width=1920, max_height=1920)
+    not_for_sale = fields.Boolean(string='Not For Sale', default=False)
     
     # Advanced Pricing
     discount_percentage = fields.Float(string='Discount Percentage')
@@ -349,9 +431,44 @@ class HavanoposdeskProduct(models.Model):
     # Other
     internal_notes = fields.Text(string='Internal Notes')
     is_active = fields.Boolean(string='Active', default=True)
+    kitchen_settings_enabled = fields.Boolean(
+        related='tenant_id.enable_kitchen_settings',
+        string='Kitchen Settings Enabled'
+    )
+    kitchen_order_1 = fields.Boolean(string='Order 1', default=False)
+    kitchen_order_2 = fields.Boolean(string='Order 2', default=False)
+    kitchen_order_3 = fields.Boolean(string='Order 3', default=False)
+    kitchen_order_4 = fields.Boolean(string='Order 4', default=False)
+    kitchen_order_5 = fields.Boolean(string='Order 5', default=False)
+    kitchen_order_6 = fields.Boolean(string='Order 6', default=False)
+    kitchen_order_7 = fields.Boolean(string='Order 7', default=False)
     
-    category_id = fields.Many2one('havanoposdesk.category', string='Category', default=lambda self: (self.env['havanoposdesk.category'].search([('name', '=', 'Basic')], limit=1) or self.env['havanoposdesk.category'].create({'name': 'Basic'})).id)
-    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=lambda self: (self.env['havanoposdesk.uom'].search([('name', '=', 'Each')], limit=1) or self.env['havanoposdesk.uom'].create({'name': 'Each'})).id)
+    def _default_category_id(self):
+        if not self.env.registry.ready:
+            return False
+        tenant_id = self.env.user.tenant_id.id if self.env.user.tenant_id else False
+        domain = [('tenant_id', '=', tenant_id)] if tenant_id else []
+        cat = self.env['havanoposdesk.category'].sudo().search(domain + [('name', '=ilike', 'Basic')], limit=1)
+        if not cat and tenant_id:
+            cat = self.env['havanoposdesk.category'].sudo().search(domain, limit=1)
+        if not cat:
+            cat = self.env['havanoposdesk.category'].sudo().search([('name', '=ilike', 'Basic')], limit=1)
+        return cat.id if cat else False
+
+    def _default_uom_id(self):
+        if not self.env.registry.ready:
+            return False
+        tenant_id = self.env.user.tenant_id.id if self.env.user.tenant_id else False
+        domain = [('tenant_id', '=', tenant_id)] if tenant_id else []
+        uom = self.env['havanoposdesk.uom'].sudo().search(domain + [('name', '=ilike', 'Each')], limit=1)
+        if not uom and tenant_id:
+            uom = self.env['havanoposdesk.uom'].sudo().search(domain, limit=1)
+        if not uom:
+            uom = self.env['havanoposdesk.uom'].sudo().search([('name', '=ilike', 'Each')], limit=1)
+        return uom.id if uom else False
+
+    category_id = fields.Many2one('havanoposdesk.category', string='Category', default=_default_category_id)
+    uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=_default_uom_id)
     
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
     currency_id = fields.Many2one(related='tenant_id.currency_id', string='Currency', store=False)
@@ -359,6 +476,9 @@ class HavanoposdeskProduct(models.Model):
     allow_advanced_pricing = fields.Boolean(related='tenant_id.allow_advanced_pricing', readonly=True)
     is_bundle = fields.Boolean(string='Is Bundle', default=False)
     bundle_item_ids = fields.One2many('havanoposdesk.product.bundle.item', 'parent_product_id', string='Bundle Items')
+    use_ingredients = fields.Boolean(string='Use Ingredients', default=False)
+    bom_id = fields.Many2one('havanoposdesk.manufacturing.bom', string='Bill of Materials', copy=False)
+    ingredient_ids = fields.One2many(related='bom_id.raw_material_ids', readonly=False, string='Ingredients')
 
     @api.constrains('advanced_price_ids')
     def _check_advanced_price_ids_unique(self):
@@ -375,12 +495,41 @@ class HavanoposdeskProduct(models.Model):
                     ) % (product.name, store_name, pricelist_name, uom_name))
                 seen.add(key)
 
-    @api.depends('is_bundle', 'bundle_item_ids', 'bundle_item_ids.qty', 'bundle_item_ids.buying_price', 'bundle_item_ids.selling_price', 'bundle_item_ids.subtotal_cost', 'bundle_item_ids.subtotal_selling')
+    @api.depends('is_bundle', 'bundle_item_ids', 'bundle_item_ids.qty', 'bundle_item_ids.buying_price', 'bundle_item_ids.selling_price', 'bundle_item_ids.subtotal_cost', 'bundle_item_ids.subtotal_selling', 'uom_price_ids.price')
     def _compute_bundle_prices(self):
         for record in self:
             if record.is_bundle:
                 record.buying_price = sum(item.subtotal_cost for item in record.bundle_item_ids)
                 record.selling_price = sum(item.subtotal_selling for item in record.bundle_item_ids)
+            elif record.id:
+                default_store = self.env.user.default_store_id
+                if not default_store and self.env.user.store_ids:
+                    default_store = self.env.user.store_ids[0]
+                if not default_store and record.store_ids:
+                    default_store = record.store_ids[0]
+                
+                if default_store and default_store.pricelist_id:
+                    price_line = record.uom_price_ids.filtered(
+                        lambda p: p.store_id.id == default_store.id and p.pricelist_id.id == default_store.pricelist_id.id and (not record.uom_id or p.uom_id.id == record.uom_id.id)
+                    )
+                    if price_line:
+                        record.selling_price = price_line[0].price
+
+    def _inverse_selling_price(self):
+        for record in self:
+            if not record.is_bundle:
+                default_store = self.env.user.default_store_id
+                if not default_store and self.env.user.store_ids:
+                    default_store = self.env.user.store_ids[0]
+                if not default_store and record.store_ids:
+                    default_store = record.store_ids[0]
+                
+                if default_store and default_store.pricelist_id:
+                    price_line = record.uom_price_ids.filtered(
+                        lambda p: p.store_id.id == default_store.id and p.pricelist_id.id == default_store.pricelist_id.id and (not record.uom_id or p.uom_id.id == record.uom_id.id)
+                    )
+                    if price_line:
+                        price_line[0].price = record.selling_price
 
     @api.onchange('is_bundle', 'bundle_item_ids')
     def _onchange_bundle_item_ids(self):
@@ -440,8 +589,116 @@ class HavanoposdeskProduct(models.Model):
     def get_import_templates(self):
         return [{
             'label': _('Import Template for Products'),
-            'template': '/havanoposdesk_odoo/product_template.csv'
+            'template': '/havanoposdesk_odoo/static/src/data/product_import_template.csv'
         }]
+
+    def action_export_with_inventory(self):
+        """Export products with per-store pricing and inventory.
+        Uses Odoo-compatible relational headers so the CSV can be re-imported directly."""
+        import io
+        import csv
+        import base64
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Odoo-compatible relational headers for direct re-import
+        writer.writerow([
+            'name', 'item_code', 'barcode', 'buying_price', 'selling_price',
+            'category_id/name', 'uom_id/name', 'is_active', 'store_ids/name',
+            'advanced_price_ids/store_id/name', 'advanced_price_ids/pricelist_id/name',
+            'advanced_price_ids/uom_id/name', 'advanced_price_ids/qty_to_be_sold',
+            'advanced_price_ids/initial_stock', 'advanced_price_ids/price',
+            'on_hand_qty_in_store'
+        ])
+
+        products = self if self else self.search([('tenant_id', '=', self.env.user.tenant_id.id)])
+
+        for product in products:
+            store_names = ','.join(product.store_ids.mapped('name'))
+            
+            # Collect all stores: from store_ids + any stores in valuations
+            all_store_ids = set(product.store_ids.ids)
+            valuations = self.env['havanoposdesk.stock.valuation'].search([
+                ('product_id', '=', product.id)
+            ])
+            for v in valuations:
+                if v.store_id:
+                    all_store_ids.add(v.store_id.id)
+            
+            stores = self.env['havanoposdesk.store'].browse(list(all_store_ids))
+            
+            if not stores:
+                writer.writerow([
+                    product.name, product.item_code or '', product.barcode or '',
+                    product.buying_price, product.selling_price,
+                    product.category_id.name or '', product.uom_id.name or '',
+                    1 if product.is_active else 0,
+                    '', '', '', '', '', '', '', product.on_hand_qty
+                ])
+                continue
+
+            first_product_row = True
+            for store in stores:
+                store_vals = valuations.filtered(lambda v: v.store_id.id == store.id)
+                on_hand = sum(store_vals.mapped('on_hand_qty'))
+                
+                store_price_lines = product.advanced_price_ids.filtered(
+                    lambda p: p.store_id.id == store.id
+                )
+                
+                if store_price_lines:
+                    for pl in store_price_lines:
+                        if first_product_row:
+                            writer.writerow([
+                                product.name, product.item_code or '', product.barcode or '',
+                                product.buying_price, product.selling_price,
+                                product.category_id.name or '', product.uom_id.name or '',
+                                1 if product.is_active else 0, store_names,
+                                pl.store_id.name or '', pl.pricelist_id.name or '',
+                                pl.uom_id.name or '', pl.qty_to_be_sold,
+                                pl.initial_stock, pl.price, on_hand
+                            ])
+                            first_product_row = False
+                        else:
+                            writer.writerow([
+                                '', '', '', '', '', '', '', '', '',
+                                pl.store_id.name or '', pl.pricelist_id.name or '',
+                                pl.uom_id.name or '', pl.qty_to_be_sold,
+                                pl.initial_stock, pl.price, on_hand
+                            ])
+                else:
+                    # No price line for this store, just output the store's stock
+                    if first_product_row:
+                        writer.writerow([
+                            product.name, product.item_code or '', product.barcode or '',
+                            product.buying_price, product.selling_price,
+                            product.category_id.name or '', product.uom_id.name or '',
+                            1 if product.is_active else 0, store_names,
+                            store.name, '', '', '', '', '', on_hand
+                        ])
+                        first_product_row = False
+                    else:
+                        writer.writerow([
+                            '', '', '', '', '', '', '', '', '',
+                            store.name, '', '', '', '', '', on_hand
+                        ])
+
+        csv_data = base64.b64encode(output.getvalue().encode('utf-8'))
+        output.close()
+
+        attachment = self.env['ir.attachment'].create({
+            'name': 'products_with_inventory.csv',
+            'type': 'binary',
+            'datas': csv_data,
+            'mimetype': 'text/csv',
+        })
+
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'/web/content/{attachment.id}?download=true',
+            'target': 'new',
+        }
 
 class HavanoposdeskProductCosting(models.Model):
     _name = 'havanoposdesk.product.costing'
@@ -449,6 +706,7 @@ class HavanoposdeskProductCosting(models.Model):
 
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, ondelete='cascade')
     purchase_line_id = fields.Many2one('havanoposdesk.purchase.line', string='Purchase Line', ondelete='cascade')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', related='product_id.tenant_id', store=True, index=True)
     date = fields.Date(string='Date', default=fields.Date.context_today)
     qty = fields.Float(string='Quantity')
     price = fields.Float(string='Price/Rate')

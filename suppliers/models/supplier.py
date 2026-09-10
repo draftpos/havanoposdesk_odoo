@@ -1,11 +1,13 @@
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 
 class HavanoposdeskSupplier(models.Model):
     _name = 'havanoposdesk.supplier'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Supplier'
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Supplier name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'Supplier name must be unique per tenant!')
     ]
 
     name = fields.Char(string='Supplier Name', required=True)
@@ -26,9 +28,10 @@ class HavanoposdeskSupplier(models.Model):
     @api.constrains('currency_id', 'secondary_currency_id')
     def _check_currencies(self):
         for record in self:
+            self.env['res.currency']._validate_tenant_currency(record.currency_id, record.tenant_id)
+            self.env['res.currency']._validate_tenant_currency(record.secondary_currency_id, record.tenant_id)
             if record.allow_multi_currency and record.currency_id and record.secondary_currency_id:
                 if record.currency_id == record.secondary_currency_id:
-                    from odoo.exceptions import ValidationError
                     raise ValidationError("The primary and secondary currencies cannot be the same.")
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 

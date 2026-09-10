@@ -1,12 +1,14 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError, RedirectWarning
+from odoo.addons.base.models.res_partner import _tz_get
 
 class HavanoposdeskStore(models.Model):
     _name = 'havanoposdesk.store'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Store'
 
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'Store name must be unique per tenant!')
+    _constraints = [
+        models.Constraint('unique (name, tenant_id)', 'Store name must be unique per tenant!')
     ]
 
     name = fields.Char(string='Store Name', required=True)
@@ -20,6 +22,13 @@ class HavanoposdeskStore(models.Model):
         'res.currency', 
         string='Store Currency', 
         default=lambda self: self.env.user.tenant_id.currency_id.id if self.env.user.tenant_id else self.env.ref('base.USD').id
+    )
+    tz = fields.Selection(
+        _tz_get,
+        string='Timezone',
+        default=lambda self: self.env.user.tz or 'Africa/Harare',
+        required=True,
+        help="Store timezone for local transaction recording and validation."
     )
     pricelist_ids = fields.Many2many(
         'havanoposdesk.pricelist',
@@ -52,8 +61,57 @@ class HavanoposdeskStore(models.Model):
     vat_no = fields.Char(string='VAT No')
     default_terms = fields.Html(string='Terms & Conditions')
     default_footer = fields.Text(string='Default Footer')
+    powered_by_footer = fields.Char(string='Powered By Footer Text', default='Powered by HavanoERP')
     tagline = fields.Char(string='Tagline')
+
     bank_account_ids = fields.One2many('havanoposdesk.store.bank', 'store_id', string='Bank Accounts')
+
+    # Per-Store ZIMRA Fiscalization Settings
+    enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
+    is_vat_registered = fields.Boolean(string='VAT Registered Taxpayer', default=True, help="Uncheck if company is non-VAT registered / exempt.")
+    fiscal_provider = fields.Selection([
+        ('havano_zimra', 'Havano ZIMRA Cloud'),
+        ('axis', 'Axis Virtual API'),
+        ('revmax', 'Revmax Hardware')
+    ], string='Fiscal Provider', default='havano_zimra')
+    fiscal_base_url = fields.Char(string='Base URL', default='https://erpfiscal.havano.online')
+    fiscal_api_key = fields.Char(string='API Key')
+    fiscal_api_secret = fields.Char(string='API Secret')
+    fiscal_device_sn = fields.Char(string='Device Serial No (EFD SN)')
+    fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
+    fiscalized_invoice_heading = fields.Char(string='Fiscalized Invoice Heading', default='Fiscal Tax Invoice')
+
+
+
+    def action_ping_zimra_device(self):
+        self.ensure_one()
+        from .fiscal_service import get_zimra_service
+        service = get_zimra_service(self.env)
+        res = service.ping_device(self)
+        if res.get('success'):
+            data = res.get('data', {})
+            msg = f"Connected! Device SN: {data.get('device_sn', 'OK')} | Status: Online"
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Successful',
+                    'message': msg,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        else:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Ping Failed',
+                    'message': res.get('error', 'Connection failed'),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
 
 
     @api.depends('name', 'tenant_id')
@@ -68,6 +126,8 @@ class HavanoposdeskStore(models.Model):
     @api.constrains('is_default', 'tenant_id')
     def _check_single_default_store(self):
         for store in self:
+            if self.env.context.get('skip_default_store_check'):
+                continue
             if store.is_default:
                 domain = [
                     ('tenant_id', '=', store.tenant_id.id),
@@ -76,6 +136,21 @@ class HavanoposdeskStore(models.Model):
                 ]
                 if self.search_count(domain) > 0:
                     raise ValidationError("Only one store can be set as the default store per tenant.")
+            elif not self.search_count([
+                ('tenant_id', '=', store.tenant_id.id),
+                ('is_default', '=', True),
+            ]):
+                raise ValidationError(_('Each tenant must have one default store.'))
+
+    @api.onchange('is_default')
+    def _onchange_is_default(self):
+        if self.is_default:
+            return {
+                'warning': {
+                    'title': _('Default Store Switched'),
+                    'message': _('This store will become the default store when you save. The current default store will be switched off.'),
+                }
+            }
 
     @api.constrains('name', 'tenant_id')
     def _check_unique_store_name_per_tenant(self):
@@ -159,9 +234,19 @@ class HavanoposdeskStore(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        assigned_default_tenants = set()
         for vals in vals_list:
             if vals.get('name'):
                 vals['name'] = vals['name'].strip()
+
+            tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
+            if tenant_id and tenant_id not in assigned_default_tenants and not self.sudo().search_count([
+                ('tenant_id', '=', tenant_id),
+                ('is_default', '=', True),
+            ]):
+                vals['is_default'] = True
+                assigned_default_tenants.add(tenant_id)
+
             if self.env.user.havano_role == 'super_admin':
                 continue
                 
@@ -324,6 +409,25 @@ class HavanoposdeskStore(models.Model):
           - havanoposdesk_stock_adjustment_line (store Char)
           - havanoposdesk_purchase_line     (store Char)
         """
+        if vals.get('is_default'):
+            for store in self:
+                self.search([
+                    ('tenant_id', '=', store.tenant_id.id),
+                    ('is_default', '=', True),
+                    ('id', '!=', store.id),
+                ]).with_context(
+                    allow_default_switch=True,
+                    skip_default_store_check=True,
+                ).write({'is_default': False})
+        elif vals.get('is_default') is False and not self.env.context.get('allow_default_switch'):
+            for store in self:
+                if store.is_default and not self.search_count([
+                    ('tenant_id', '=', store.tenant_id.id),
+                    ('is_default', '=', True),
+                    ('id', '!=', store.id),
+                ]):
+                    raise ValidationError(_('You cannot untick the only default store. Select another store as default first.'))
+
         new_name = vals.get('name')
 
         if new_name:

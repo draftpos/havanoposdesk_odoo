@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, tools
 from odoo.exceptions import AccessError
 import logging
 
@@ -6,6 +6,7 @@ _logger = logging.getLogger(__name__)
 
 class HavanoposdeskUserRightsProfile(models.Model):
     _name = 'havanoposdesk.user.rights.profile'
+    _inherit = ['havanoposdesk.audit.mixin']
     _description = 'User Rights Profile'
     _order = 'name'
 
@@ -19,6 +20,7 @@ class HavanoposdeskUserRightsProfile(models.Model):
     is_additional_tax_enabled = fields.Boolean(string='Is Additional Tax Enabled', default=False)
     food_tax = fields.Float(string='Food Tax %')
     tourism_tax = fields.Float(string='Tourism Tax %')
+    is_default = fields.Boolean(string='Is Default for Role', default=False)
     
     @api.model
     def _get_havano_role_selection(self):
@@ -63,19 +65,58 @@ class HavanoposdeskUserRightsProfile(models.Model):
                     'Categories', 'Brands', 'Taxes', 'Stock Management',
                     'Payment Entries', 'Reports', 'Profit and Loss', 'Settings',
                     'Printer', 'Terminals', 'Stores', 'Suppliers', 'Customers',
-                    'Expenses', 'User Profiles'
+                    'Expenses', 'Payroll', 'User Profiles'
                 ]
                 permission_lines = []
-                is_cashier = vals.get('havano_role') == 'cashier'
+                is_cashier = vals.get('havano_role') in ('user', 'cashier')
+                
+                cashier_full_access = {
+                    'POS', 'Dashboard', 'Reports', 'Settings',
+                    'Sales', 'Quotations', 'Customers', 'Expenses', 'Printer'
+                }
+                cashier_read_only = {
+                    'Products', 'Categories', 'Brands', 'Taxes',
+                    'Stock Management', 'Payment Entries', 'Stores', 'Terminals', 'Suppliers'
+                }
+
                 for feature in features:
-                    permission_lines.append((0, 0, {
-                        'feature': feature,
-                        'can_read': True,
-                        'can_create': not is_cashier,
-                        'can_update': not is_cashier,
-                        'can_delete': not is_cashier,
-                        'can_submit': not is_cashier,
-                    }))
+                    if is_cashier:
+                        if feature in cashier_full_access:
+                            permission_lines.append((0, 0, {
+                                'feature': feature,
+                                'can_read': True,
+                                'can_create': True,
+                                'can_update': True,
+                                'can_delete': True,
+                                'can_submit': True,
+                            }))
+                        elif feature in cashier_read_only:
+                            permission_lines.append((0, 0, {
+                                'feature': feature,
+                                'can_read': True,
+                                'can_create': False,
+                                'can_update': False,
+                                'can_delete': False,
+                                'can_submit': False,
+                            }))
+                        else:
+                            permission_lines.append((0, 0, {
+                                'feature': feature,
+                                'can_read': False,
+                                'can_create': False,
+                                'can_update': False,
+                                'can_delete': False,
+                                'can_submit': False,
+                            }))
+                    else:
+                        permission_lines.append((0, 0, {
+                            'feature': feature,
+                            'can_read': True,
+                            'can_create': True,
+                            'can_update': True,
+                            'can_delete': True,
+                            'can_submit': True,
+                        }))
                 vals['permission_ids'] = permission_lines
 
             if 'backoffice_permission_ids' not in vals or not vals['backoffice_permission_ids']:
@@ -93,7 +134,7 @@ class HavanoposdeskUserRightsProfile(models.Model):
                     'Payment Providers', 'Support Tickets', 'My Preferences'
                 ]
                 bo_permission_lines = []
-                is_cashier = vals.get('havano_role') == 'cashier'
+                is_cashier = vals.get('havano_role') in ('user', 'cashier')
                 for feature in bo_features:
                     bo_permission_lines.append((0, 0, {
                         'feature': feature,
@@ -105,20 +146,14 @@ class HavanoposdeskUserRightsProfile(models.Model):
         records = super().create(vals_list)
         for record in records:
             if record.havano_role and record.tenant_id:
-                users = self.env['res.users'].search([
+                # If this is the very first profile for this role, mark it as default
+                existing = self.env['havanoposdesk.user.rights.profile'].search_count([
                     ('tenant_id', '=', record.tenant_id.id),
                     ('havano_role', '=', record.havano_role),
-                    ('user_rights_profile_id', '!=', record.id)
+                    ('id', '!=', record.id)
                 ])
-                if users:
-                    users.sudo().with_context(bypass_sync_role_groups=True).write({'user_rights_profile_id': record.id})
-        return records
-
-    def write(self, vals):
-        res = super().write(vals)
-        if 'havano_role' in vals:
-            for record in self:
-                if record.havano_role and record.tenant_id:
+                if existing == 0:
+                    record.is_default = True
                     users = self.env['res.users'].search([
                         ('tenant_id', '=', record.tenant_id.id),
                         ('havano_role', '=', record.havano_role),
@@ -126,8 +161,97 @@ class HavanoposdeskUserRightsProfile(models.Model):
                     ])
                     if users:
                         users.sudo().with_context(bypass_sync_role_groups=True).write({'user_rights_profile_id': record.id})
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        if 'is_default' in vals:
+            for record in self:
+                if record.is_default and record.havano_role and record.tenant_id:
+                    others = self.env['havanoposdesk.user.rights.profile'].search([
+                        ('tenant_id', '=', record.tenant_id.id),
+                        ('havano_role', '=', record.havano_role),
+                        ('id', '!=', record.id)
+                    ])
+                    if others:
+                        others.write({'is_default': False})
         return res
 
+    def _register_hook(self):
+        super()._register_hook()
+        try:
+            cashier_full_features = (
+                'POS', 'Dashboard', 'Reports', 'Settings',
+                'Sales', 'Quotations', 'Customers', 'Expenses', 'Printer'
+            )
+            # 1. Update existing permission records for cashier profiles
+            self.env.cr.execute("""
+                UPDATE havanoposdesk_user_rights_permission p
+                SET can_read = True,
+                    can_create = True,
+                    can_update = True,
+                    can_delete = True,
+                    can_submit = True
+                FROM havanoposdesk_user_rights_profile prof
+                WHERE p.profile_id = prof.id
+                  AND (prof.havano_role IN ('user', 'cashier') OR prof.name ILIKE '%%Cashier%%')
+                  AND p.feature IN %s
+            """, (cashier_full_features,))
+
+            # 2. Normalize role on cashier profiles
+            self.env.cr.execute("""
+                UPDATE havanoposdesk_user_rights_profile
+                SET havano_role = 'user'
+                WHERE havano_role = 'cashier';
+            """)
+
+            # 3. Link unlinked users
+            self.env.cr.execute("""
+                UPDATE res_users u
+                SET user_rights_profile_id = (
+                    SELECT p.id FROM havanoposdesk_user_rights_profile p
+                    WHERE p.tenant_id = u.tenant_id
+                      AND (p.havano_role = u.havano_role OR (u.havano_role = 'user' AND p.havano_role IN ('user', 'cashier')))
+                    ORDER BY p.is_default DESC, p.id ASC
+                    LIMIT 1
+                )
+                WHERE u.tenant_id IS NOT NULL
+                  AND u.user_rights_profile_id IS NULL;
+            """)
+
+            # 4. Populate any missing features for cashier profiles
+            cashier_profiles = self.env['havanoposdesk.user.rights.profile'].sudo().with_context(active_test=False).search([
+                '|', ('havano_role', 'in', ('user', 'cashier')), ('name', 'ilike', 'Cashier')
+            ])
+            all_features = [
+                'Dashboard', 'POS', 'Quotations', 'Sales', 'Products',
+                'Categories', 'Brands', 'Taxes', 'Stock Management',
+                'Payment Entries', 'Reports', 'Profit and Loss', 'Settings',
+                'Printer', 'Terminals', 'Stores', 'Suppliers', 'Customers',
+                'Expenses', 'Payroll', 'User Profiles'
+            ]
+            cashier_full_set = set(cashier_full_features)
+            cashier_read_set = {
+                'Products', 'Categories', 'Brands', 'Taxes',
+                'Stock Management', 'Payment Entries', 'Stores', 'Terminals', 'Suppliers'
+            }
+            for prof in cashier_profiles:
+                existing_feats = prof.permission_ids.mapped('feature')
+                for f in all_features:
+                    if f not in existing_feats:
+                        is_full = f in cashier_full_set
+                        is_read = is_full or (f in cashier_read_set)
+                        self.env['havanoposdesk.user.rights.permission'].sudo().create({
+                            'profile_id': prof.id,
+                            'feature': f,
+                            'can_read': is_read,
+                            'can_create': is_full,
+                            'can_update': is_full,
+                            'can_delete': is_full,
+                            'can_submit': is_full,
+                        })
+        except Exception as e:
+            _logger.warning("Error in user rights profile _register_hook: %s", e)
 
 class HavanoposdeskUserRightsPermission(models.Model):
     _name = 'havanoposdesk.user.rights.permission'
@@ -155,6 +279,7 @@ class HavanoposdeskUserRightsPermission(models.Model):
         ('Suppliers', 'Suppliers'),
         ('Customers', 'Customers'),
         ('Expenses', 'Expenses'),
+        ('Payroll', 'Payroll'),
         ('User Profiles', 'User Profiles')
     ], string='Feature', required=True)
     can_read = fields.Boolean(string='Read', default=True)
@@ -163,8 +288,8 @@ class HavanoposdeskUserRightsPermission(models.Model):
     can_delete = fields.Boolean(string='Delete', default=True)
     can_submit = fields.Boolean(string='Submit', default=True)
 
-    _sql_constraints = [
-        ('profile_feature_uniq', 'unique(profile_id, feature)', 'A feature permission already exists for this profile!')
+    _constraints = [
+        models.Constraint('unique(profile_id, feature)', 'A feature permission already exists for this profile!')
     ]
 
 
@@ -212,6 +337,7 @@ class HavanoposdeskBackofficePermission(models.Model):
         ('Sync Issues', 'Sync Issues'),
         ('Configs', 'Configs'),
         ('Settings', 'Settings'),
+        ('Payroll', 'Payroll'),
         ('Dashboard', 'Dashboard'),
         ('Tenants', 'Tenants'),
         ('Subscription Plans', 'Subscription Plans'),
@@ -235,7 +361,7 @@ class HavanoposdeskBackofficePermission(models.Model):
             'purchases': ['Purchases', 'Expense Posting', 'Payments', 'Suppliers'],
             'inventory': ['Products', 'Categories', 'UOM', 'Pricelists', 'Stock Transfers', 'Stock Adjustments', 'Stock Evaluations', 'Stock Ledger', 'Stores'],
             'accounting': ['Taxes', 'Exchange Rate', 'Currencies', 'Chart of Accounts', 'Item Profitability', 'Category Profitability'],
-            'settings': ['Users', 'User Rights Profiles', 'My Subscription', 'POS Terminals', 'Profit and Loss', 'Cash Balance', 'Daily Sales', 'Cashier Profitability', 'Shop Profitability', 'System Logs', 'Issues', 'Sync Issues', 'Configs', 'Settings', 'Dashboard', 'Tenants', 'Subscription Plans', 'Payment Providers', 'Support Tickets', 'My Preferences']
+            'settings': ['Users', 'User Rights Profiles', 'My Subscription', 'POS Terminals', 'Profit and Loss', 'Cash Balance', 'Daily Sales', 'Cashier Profitability', 'Shop Profitability', 'System Logs', 'Issues', 'Sync Issues', 'Configs', 'Settings', 'Payroll', 'Dashboard', 'Tenants', 'Subscription Plans', 'Payment Providers', 'Support Tickets', 'My Preferences']
         }
         feature_to_cat = {}
         for cat, features in cat_map.items():
@@ -248,8 +374,8 @@ class HavanoposdeskBackofficePermission(models.Model):
     is_read_only = fields.Boolean(string='Read Only', default=False)
     is_full_access = fields.Boolean(string='Full Access', default=True)
 
-    _sql_constraints = [
-        ('bo_profile_feature_uniq', 'unique(profile_id, feature)', 'A feature permission already exists for this profile!')
+    _constraints = [
+        models.Constraint('unique(profile_id, feature)', 'A feature permission already exists for this profile!')
     ]
 
 
@@ -306,54 +432,129 @@ _logger = logging.getLogger(__name__)
 
 from odoo.models import BaseModel
 original_check_access_rights = BaseModel.check_access_rights
+original_check_access = BaseModel._check_access
+
+HAVANO_MODELS = frozenset(MODEL_FEATURE_MAP.keys())
+
+from odoo.models import BaseModel, Model, AbstractModel, TransientModel
+
+def custom_check_access(self, operation: str):
+    if operation == 'read':
+        if self._name in ('res.currency', 'res.currency.rate') or self.env.context.get('bypass_backoffice_read'):
+            return None
+        if self._name.startswith('havanoposdesk.') or self._name in HAVANO_MODELS:
+            user = self.env.user
+            if self.env.su or user.id == 1 or getattr(user, 'havano_role', None) == 'super_admin':
+                return None
+            if not self._ids or 'tenant_id' not in self._fields or not user.tenant_id:
+                return None
+            try:
+                records_tenant_ids = set(self.sudo().mapped('tenant_id.id'))
+                if records_tenant_ids.issubset({False, user.tenant_id.id}):
+                    return None
+            except Exception:
+                pass
+    return original_check_access(self, operation)
+
+BaseModel._check_access = custom_check_access
+Model._check_access = custom_check_access
+AbstractModel._check_access = custom_check_access
+TransientModel._check_access = custom_check_access
+
+class IrRule(models.Model):
+    _inherit = 'ir.rule'
+
+    @api.model
+    def _compute_domain(self, model_name, mode='read'):
+        if mode == 'read' and self.env.context.get('bypass_backoffice_read'):
+            try:
+                from odoo.orm.domains import Domain
+                return Domain.TRUE
+            except ImportError:
+                return []
+        return super()._compute_domain(model_name, mode=mode)
+
+class IrModelAccess(models.Model):
+    _inherit = 'ir.model.access'
+
+    @api.model
+    def check(self, model, mode='read', raise_exception=True):
+        if self.env.su or self.env.uid == 1:
+            return True
+        if mode == 'read' and (model in ('res.currency', 'res.currency.rate') or self.env.context.get('bypass_backoffice_read')):
+            return True
+        if isinstance(model, str) and (model.startswith('havanoposdesk.') or model in HAVANO_MODELS):
+            if bool(self.env.uid):
+                return True
+        return super().check(model, mode=mode, raise_exception=raise_exception)
+
+    @api.model
+    @tools.ormcache('self.env.uid', 'mode')
+    def _get_allowed_models(self, mode='read'):
+        res = super()._get_allowed_models(mode=mode)
+        if bool(self.env.uid):
+            return res | HAVANO_MODELS | {'res.currency', 'res.currency.rate'}
+        if mode == 'read':
+            return res | {'res.currency', 'res.currency.rate'}
+        return res
+
 
 def enforce_backoffice_permissions(self, operation, raise_exception=True):
     if not isinstance(operation, str) or operation not in ('read', 'write', 'create', 'unlink'):
         return True
 
-    res = original_check_access_rights(self, operation, raise_exception)
+    # 1. Superuser / Admin user id 1 / Super Admin role always have full bypass
+    if self.env.su or self.env.user.id == 1:
+        return True
     
+    if getattr(self.env.user, 'havano_role', None) == 'super_admin':
+        return True
+
+    # 2. Currency and exchange rates must always be readable so monetary fields and reports render properly
+    if operation == 'read' and self._name in ('res.currency', 'res.currency.rate'):
+        return True
+
+    # 3. Context bypass for internal reads / exports
+    if operation == 'read' and self.env.context.get('bypass_backoffice_read'):
+        return True
+
+    # 4. Check backoffice permissions for custom models
     if self._name in MODEL_FEATURE_MAP:
-        if self.env.su or self.env.user.id == 1:
-            return res
-        
-        if getattr(self.env.user, 'havano_role', None) == 'super_admin':
-            return res
-
-        if operation == 'read' and self.env.context.get('bypass_backoffice_read'):
-            return res
-
         user = self.env.user
         profile = user.user_rights_profile_id
         feature_name = MODEL_FEATURE_MAP[self._name]
-        
-        _logger.info("CHECK_ACCESS_RIGHTS: user=%s, model=%s, feature=%s, operation=%s, profile=%s", user.login, self._name, feature_name, operation, profile.name if profile else None)
-        
+
+        # If user has no explicit profile assigned or is Admin, default safely
         if not profile:
+            if user.havano_role in ('admin', 'super_admin') or operation == 'read':
+                return True
             if raise_exception:
                 raise AccessError(f"Permission Denied: No User Rights Profile assigned.")
             return False
+
+        if user.havano_role == 'admin' and not profile:
+            return True
             
         bo_perm = profile.backoffice_permission_ids.filtered(lambda p: p.feature == feature_name)
         if not bo_perm:
+            # If the permission line is completely missing from the profile, deny access
             if raise_exception:
                 raise AccessError(f"Permission Denied: You do not have access to '{feature_name}'.")
             return False
             
         perm = bo_perm[0]
-        _logger.info("CHECK_ACCESS_RIGHTS PERM: is_full=%s, is_read_only=%s", perm.is_full_access, perm.is_read_only)
         if not perm.is_full_access and not perm.is_read_only:
+            # If both Full Access and Read Only are unchecked, deny all access (hidden)
             if raise_exception:
                 raise AccessError(f"Permission Denied: You do not have access to '{feature_name}'.")
             return False
             
-        if operation in ('write', 'create', 'unlink') and bo_perm[0].is_read_only:
-            _logger.info("CHECK_ACCESS_RIGHTS BLOCKING %s", operation)
+        if operation in ('write', 'create', 'unlink') and perm.is_read_only:
             if raise_exception:
                 raise AccessError(f"Permission Denied: You have Read-Only access to '{feature_name}'. You cannot create, modify, or delete records.")
             return False
                 
-    return res
+    return original_check_access_rights(self, operation, raise_exception)
 
 BaseModel.check_access_rights = enforce_backoffice_permissions
 

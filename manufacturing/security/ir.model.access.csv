@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_havanoposdesk_manufacturing_bom,havanoposdesk.manufacturing.bom.access,model_havanoposdesk_manufacturing_bom,base.group_user,1,1,1,1
+access_havanoposdesk_manufacturing_bom_line,havanoposdesk.manufacturing.bom.line.access,model_havanoposdesk_manufacturing_bom_line,base.group_user,1,1,1,1
+access_havanoposdesk_manufacturing_bom_output,havanoposdesk.manufacturing.bom.output.access,model_havanoposdesk_manufacturing_bom_output,base.group_user,1,1,1,1
+access_havanoposdesk_production_order,havanoposdesk.production.order.access,model_havanoposdesk_production_order,base.group_user,1,1,1,1
+access_havanoposdesk_production_order_raw,havanoposdesk.production.order.raw_material.access,model_havanoposdesk_production_order_raw_material,base.group_user,1,1,1,1
+access_havanoposdesk_production_order_out,havanoposdesk.production.order.output.access,model_havanoposdesk_production_order_output,base.group_user,1,1,1,1

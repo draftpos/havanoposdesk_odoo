@@ -10,6 +10,7 @@
                     <field name="name"/>
                     <field name="tenant_id" column_invisible="1"/>
                     <field name="pricelist_id"/>
+                    <field name="tz" optional="show"/>
                     <field name="terminal_count"/>
                     <field name="last_open"/>
                     <field name="sales_count"/>
@@ -36,13 +37,14 @@
                                     <group>
                                         <field name="name"/>
                                         <field name="tenant_id" invisible="1"/>
-                                        <field name="currency_id" options="{'no_create': True, 'no_open': True}"/>
+                                        <field name="currency_id" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True, 'no_open': True}"/>
+                                        <field name="tz" required="1"/>
                                         <field name="pricelist_ids" widget="many2many_tags" options="{'no_create': True}"/>
                                         <field name="pricelist_id" options="{'no_create': True}" required="1"/>
                                     </group>
                                     <group>
                                         <field name="active"/>
-                                        <field name="is_default"/>
+                                        <field name="is_default" readonly="is_default"/>
                                         <field name="auto_populate_data"/>
                                     </group>
                                 </group>
@@ -64,8 +66,10 @@
                                 <group string="Default Texts">
                                     <field name="default_terms"/>
                                     <field name="default_footer"/>
+                                    <field name="powered_by_footer"/>
                                     <field name="tagline"/>
                                 </group>
+
                                 <separator string="Banking Details"/>
                                 <field name="bank_account_ids">
                                     <list editable="bottom">
@@ -78,9 +82,42 @@
                                     </list>
                                 </field>
                             </page>
+                            <page string="ZIMRA Fiscalization">
+                                <div class="mb-3" invisible="not enable_fiscalization">
+                                    <button name="action_ping_zimra_device" string="Ping ZIMRA Device" type="object" class="btn-primary"/>
+                                </div>
+                                <group>
+                                    <group string="ZIMRA Configuration">
+                                        <field name="enable_fiscalization"/>
+                                        <field name="is_vat_registered" invisible="not enable_fiscalization"/>
+                                        <field name="fiscal_provider" invisible="not enable_fiscalization"/>
+                                        <field name="fiscal_base_url" invisible="not enable_fiscalization"/>
+                                        <field name="fiscal_device_sn" invisible="not enable_fiscalization"/>
+                                        <field name="fiscalized_invoice_heading" invisible="not enable_fiscalization"/>
+                                    </group>
+                                    <group string="API Credentials" invisible="not enable_fiscalization">
+                                        <field name="fiscal_api_key" password="True"/>
+                                        <field name="fiscal_api_secret" password="True"/>
+                                        <field name="fiscal_ping_interval"/>
+                                    </group>
+                                </group>
+                            </page>
                         </notebook>
                     </sheet>
                 </form>
+            </field>
+        </record>
+
+        <!-- Store Search View -->
+        <record id="view_havanoposdesk_store_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.store.search</field>
+            <field name="model">havanoposdesk.store</field>
+            <field name="arch" type="xml">
+                <search string="Stores">
+                    <field name="name"/>
+                    <filter string="Active" name="filter_active" domain="[('active','=',True)]"/>
+                    <filter string="Archived / Inactive" name="filter_inactive" domain="[('active','=',False)]"/>
+                </search>
             </field>
         </record>
 
@@ -89,6 +126,8 @@
             <field name="name">Stores</field>
             <field name="res_model">havanoposdesk.store</field>
             <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_store_search"/>
+            <field name="context">{'active_test': False}</field>
         </record>
     </data>
 </odoo>
