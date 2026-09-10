@@ -83,6 +83,8 @@ class Shift(models.Model):
         'payment_ids.payment_type',
         'payment_ids.account_id',
         'payment_ids.transaction_category',
+        'payment_ids.payment_line_ids.amount_base',
+        'payment_ids.payment_line_ids.account_id',
     )
     def _compute_payments_breakdown(self):
         for shift in self:
@@ -93,61 +95,73 @@ class Shift(models.Model):
             other = 0.0
             credit_notes = 0.0
 
-            # 1. Process Sales & Credit Notes
-            valid_sales = shift.sale_ids.filtered(lambda s: s.state != 'cancelled' and not s.is_quotation)
-            for sale in valid_sales:
+            # 1. Compute credit notes from return sales
+            return_sales = shift.sale_ids.filtered(lambda s: s.state != 'cancelled' and not s.is_quotation and s.is_return)
+            for sale in return_sales:
                 sale_amt = sale.amount_total_base or sale.amount_total
-                if sale.is_return:
-                    credit_notes += abs(sale_amt)
-                    continue
+                credit_notes += abs(sale_amt)
 
-                posted_payments = sale.payment_ids.filtered(lambda p: p.state != 'cancelled')
-                if posted_payments:
-                    for p in posted_payments:
-                        if p.is_multi_currency and p.payment_line_ids:
-                            for line in p.payment_line_ids:
-                                cat = self._classify_account(line.account_id)
-                                amt = line.amount_base or line.amount
-                                if cat == 'cash': cash += amt
-                                elif cat == 'card': card += amt
-                                elif cat == 'mobile': mobile += amt
-                                elif cat == 'bank': bank += amt
-                                else: other += amt
-                        else:
-                            cat = self._classify_account(p.account_id)
-                            amt = p.amount_base or p.amount
+            # 2. Collect ALL unique posted payments for this shift:
+            # - Payments with shift_id == shift
+            # - Payments linked to any sale in this shift (sale_id.shift_id == shift)
+            # Exclude expense payouts and cash transfers (which have their own dedicated fields)
+            shift_payments = (shift.payment_ids | shift.sale_ids.mapped('payment_ids')).filtered(
+                lambda p: p.state != 'cancelled' and not p.expense_id and not p.transfer_id
+            )
+
+            for p in shift_payments:
+                is_return = bool(p.sale_id and p.sale_id.is_return)
+                # If payment has multi-currency/multi-account lines:
+                if p.is_multi_currency and p.payment_line_ids:
+                    for line in p.payment_line_ids:
+                        cat = self._classify_account(line.account_id)
+                        amt = line.amount_base or line.amount
+                        if p.payment_type == 'receipt' and not is_return:
                             if cat == 'cash': cash += amt
                             elif cat == 'card': card += amt
                             elif cat == 'mobile': mobile += amt
                             elif cat == 'bank': bank += amt
                             else: other += amt
-                elif sale.payment_status in ('cash', 'partial') and sale.account_id:
+                        elif p.payment_type == 'payment' or is_return:
+                            if not p.sale_id:
+                                # Standalone payout (not return sale)
+                                if cat == 'cash': cash -= amt
+                                elif cat == 'card': card -= amt
+                                elif cat == 'mobile': mobile -= amt
+                                elif cat == 'bank': bank += amt
+                                else: other -= amt
+                else:
+                    cat = self._classify_account(p.account_id)
+                    amt = p.amount_base or p.amount
+                    if p.payment_type == 'receipt' and not is_return:
+                        if cat == 'cash': cash += amt
+                        elif cat == 'card': card += amt
+                        elif cat == 'mobile': mobile += amt
+                        elif cat == 'bank': bank += amt
+                        else: other += amt
+                    elif p.payment_type == 'payment' or is_return:
+                        if not p.sale_id:
+                            # Standalone payout (not return sale)
+                            if cat == 'cash': cash -= amt
+                            elif cat == 'card': card -= amt
+                            elif cat == 'mobile': mobile -= amt
+                            elif cat == 'bank': bank -= amt
+                            else: other -= amt
+
+            # 3. Fallback: Only for sales with NO payment records at all
+            sales_with_payments = shift_payments.mapped('sale_id')
+            unpaid_sales = shift.sale_ids.filtered(
+                lambda s: s.state != 'cancelled' and not s.is_quotation and not s.is_return and s not in sales_with_payments and not s.payment_ids
+            )
+            for sale in unpaid_sales:
+                if sale.payment_status in ('cash', 'partial') and sale.account_id:
                     cat = self._classify_account(sale.account_id)
+                    sale_amt = sale.amount_total_base or sale.amount_total
                     if cat == 'cash': cash += sale_amt
                     elif cat == 'card': card += sale_amt
                     elif cat == 'mobile': mobile += sale_amt
                     elif cat == 'bank': bank += sale_amt
                     else: other += sale_amt
-
-            # 2. Process Standalone Customer Receipts / Payments (not linked to sales/expenses/transfers)
-            standalone_payments = shift.payment_ids.filtered(
-                lambda p: p.state == 'posted' and not p.sale_id and not p.expense_id and not p.transfer_id
-            )
-            for p in standalone_payments:
-                cat = self._classify_account(p.account_id)
-                amt = p.amount_base or p.amount
-                if p.payment_type == 'receipt':
-                    if cat == 'cash': cash += amt
-                    elif cat == 'card': card += amt
-                    elif cat == 'mobile': mobile += amt
-                    elif cat == 'bank': bank += amt
-                    else: other += amt
-                elif p.payment_type == 'payment':
-                    if cat == 'cash': cash -= amt
-                    elif cat == 'card': card -= amt
-                    elif cat == 'mobile': mobile -= amt
-                    elif cat == 'bank': bank -= amt
-                    else: other -= amt
 
             shift.amount_cash = cash
             shift.amount_card = card
