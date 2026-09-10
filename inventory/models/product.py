@@ -81,24 +81,6 @@ class HavanoposdeskProduct(models.Model):
             else:
                 res['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
         return res
-    buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
-    selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', inverse='_inverse_selling_price', store=True, readonly=False)
-    uom_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='UOM Prices')
-    markup = fields.Float(string='Markup', compute='_compute_markup')
-    cost_price = fields.Float(string='Cost Price')
-from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
-
-class HavanoposdeskProduct(models.Model):
-    _name = 'havanoposdesk.product'
-    _description = 'Product'
-    _rec_names_search = ['name', 'item_code']
-
-    _sql_constraints = [
-        ('name_tenant_uniq', 'unique (name, tenant_id)', 'The product name must be unique per tenant!'),
-        ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
-        ('barcode_tenant_uniq', 'unique (barcode, tenant_id)', 'The Product Barcode must be unique per tenant!')
-    ]
 
     name = fields.Char(string='Product Name', required=True)
     item_code = fields.Char(string='Product Code', required=False, copy=False, default=lambda self: 'New')
@@ -118,35 +100,10 @@ class HavanoposdeskProduct(models.Model):
                 if self.search_count(domain) > 0:
                     raise ValidationError(f"A Product with the name '{record.name}' already exists in your workspace. Please choose a different name.")
 
-    @api.depends('name', 'item_code', 'tenant_id')
-    def _compute_display_name(self):
-        is_super_admin = self.env.user.has_group('base.group_system')
-        for record in self:
-            base_name = f"[{record.item_code}] {record.name}" if record.item_code and record.item_code != 'New' else record.name
-            if is_super_admin and record.tenant_id:
-                record.display_name = f"{base_name} ({record.tenant_id.name})"
-            else:
-                record.display_name = base_name
 
-    @api.model
-    def _name_search(self, name='', args=None, operator='ilike', limit=100, order=None):
-        args = list(args or [])
-        if name:
-            args += ['|', ('name', operator, name), ('item_code', operator, name)]
-        return self._search(args, limit=limit, order=order)
-
-    @api.model
-    def default_get(self, fields_list):
-        res = super(HavanoposdeskProduct, self).default_get(fields_list)
-        if 'item_code' in fields_list and res.get('item_code') == 'New':
-            tenant = self.env.user.tenant_id
-            if tenant:
-                res['item_code'] = tenant._get_next_sequence('prod')
-            else:
-                res['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
-        return res
     buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
     selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', store=True, readonly=False)
+    uom_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='UOM Prices')
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)

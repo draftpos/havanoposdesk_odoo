@@ -8,6 +8,9 @@ inventory/models/__pycache__/
 
 # IDEs/Editor cache files
 .ipynb_checkpoints
-.vscode/
 .idea/
 .DS_Store
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
