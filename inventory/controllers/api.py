@@ -7037,6 +7037,7 @@ class HavanoPOSDeskAPI(http.Controller):
         if kwargs:
             params.update(kwargs)
 
+        _logger.info("[api_open_shift] Incoming open_shift request from uid=%s. Params: %s", uid, params)
         terminal_param = params.get('terminal_id')
         store_param = params.get('store_id')
         opening_cash = float(params.get('opening_cash') or params.get('opening_amount') or 0.0)
@@ -7125,10 +7126,12 @@ class HavanoPOSDeskAPI(http.Controller):
         existing_shift = env['havanoposdesk.shift'].sudo().search(existing_shift_domain, limit=1)
 
         if existing_shift:
+            formatted_shift = self._format_shift_response(existing_shift)
+            _logger.info("[api_open_shift] Returning existing open shift ID %s: %s", existing_shift.id, formatted_shift)
             return self._make_json_response({
                 "message": {
                     "status": "success",
-                    "shift": self._format_shift_response(existing_shift)
+                    "shift": formatted_shift
                 }
             })
 
@@ -7147,11 +7150,13 @@ class HavanoPOSDeskAPI(http.Controller):
             create_vals['payment_breakdown_ids'] = breakdown_commands
 
         shift = env['havanoposdesk.shift'].sudo().create(create_vals)
+        formatted_shift = self._format_shift_response(shift)
+        _logger.info("[api_open_shift] Created and returning new open shift ID %s: %s", shift.id, formatted_shift)
 
         return self._make_json_response({
             "message": {
                 "status": "success",
-                "shift": self._format_shift_response(shift)
+                "shift": formatted_shift
             }
         })
 
