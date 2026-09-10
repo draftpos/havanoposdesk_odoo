@@ -50,6 +50,7 @@
                         <field name="state" widget="statusbar" statusbar_visible="draft,done" />
                     </header>
                     <sheet>
+                        <field name="has_variants" invisible="1"/>
                         <div class="oe_title" invisible="not id">
                             <h1>
                                 <field name="name" readonly="1" />
@@ -113,11 +114,12 @@
                         </group>
                         <notebook>
                             <page string="Order Lines">
-                                <field name="line_ids" readonly="state != 'draft'" widget="section_and_note_one2many" mode="list,kanban">
+                                <field name="line_ids" readonly="state != 'draft'" mode="list,kanban">
                                     <list editable="bottom">
                                         <field name="currency_id" column_invisible="True" />
                                         <field name="exchange_rate" column_invisible="True" />
                                         <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('is_active', '=', True), ('not_for_sale', '=', False)]" width="40%" string="Item" />
+                                        <field name="variant_id" column_invisible="not parent.has_variants" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="15%" />
                                         <field name="available_uom_ids" column_invisible="True" />
                                         <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids" options="{&apos;no_create&apos;: True}" width="15%" />
                                         <field name="accepted_qty" string="Qty" width="15%" />

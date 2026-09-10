@@ -125,6 +125,17 @@ class Purchase(models.Model):
             raise ValidationError(_('A store is required for every purchase. Configure a default store before creating a purchase.'))
             
     line_ids = fields.One2many('havanoposdesk.purchase.line', 'purchase_id', string='Items')
+    has_variants = fields.Boolean(
+        string='Has Variants',
+        compute='_compute_has_variants',
+        store=True,
+        readonly=False,
+    )
+
+    @api.depends('line_ids.variant_id', 'line_ids.product_id.is_variant')
+    def _compute_has_variants(self):
+        for purchase in self:
+            purchase.has_variants = any(bool(line.variant_id) or (line.product_id and line.product_id.is_variant) for line in purchase.line_ids)
 
     @api.depends('line_ids.price_subtotal', 'line_ids.price_tax', 'line_ids.amount')
     def _compute_amount_total(self):
@@ -259,10 +270,13 @@ class Purchase(models.Model):
                     if purchase.is_return:
                         # Revert/Subtract stock for return (no opening_stock update here)
                         
-                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                        domain = [
                             ('product_id', '=', line.product_id.id),
                             ('store', '=', purchase.store_id.name if purchase.store_id else '')
-                        ], limit=1)
+                        ]
+                        if line.variant_id:
+                            domain.append(('variant_id', '=', line.variant_id.id))
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
                         
                         current_qty = valuation.on_hand_qty if valuation else 0.0
                         new_balance = current_qty - base_qty
@@ -274,6 +288,7 @@ class Purchase(models.Model):
                         else:
                             self.env['havanoposdesk.stock.valuation'].sudo().create({
                                 'product_id': line.product_id.id,
+                                'variant_id': line.variant_id.id if line.variant_id else False,
                                 'store': purchase.store_id.name if purchase.store_id else '',
                                 'on_hand_qty': new_balance,
                                 'tenant_id': line.product_id.tenant_id.id,
@@ -282,6 +297,7 @@ class Purchase(models.Model):
                         # Create Ledger Entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
+                            'variant_id': line.variant_id.id if line.variant_id else False,
                             'in_qty': 0.0,
                             'out_qty': base_qty,
                             'balance_qty': new_balance,
@@ -324,10 +340,13 @@ class Purchase(models.Model):
                             'date': purchase.posting_date,
                         })
 
-                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                        domain = [
                             ('product_id', '=', line.product_id.id),
                             ('store', '=', purchase.store_id.name if purchase.store_id else '')
-                        ], limit=1)
+                        ]
+                        if line.variant_id:
+                            domain.append(('variant_id', '=', line.variant_id.id))
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
                         
                         current_qty = valuation.on_hand_qty if valuation else 0.0
                         new_balance = current_qty + base_qty
@@ -339,6 +358,7 @@ class Purchase(models.Model):
                         else:
                             self.env['havanoposdesk.stock.valuation'].sudo().create({
                                 'product_id': line.product_id.id,
+                                'variant_id': line.variant_id.id if line.variant_id else False,
                                 'store': purchase.store_id.name if purchase.store_id else '',
                                 'on_hand_qty': new_balance,
                                 'tenant_id': line.product_id.tenant_id.id,
@@ -347,6 +367,7 @@ class Purchase(models.Model):
                         # Create Ledger Entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
+                            'variant_id': line.variant_id.id if line.variant_id else False,
                             'in_qty': base_qty,
                             'out_qty': 0.0,
                             'balance_qty': new_balance,
@@ -388,6 +409,7 @@ class Purchase(models.Model):
                         # Create reverse ledger entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
+                            'variant_id': line.variant_id.id if line.variant_id else False,
                             'in_qty': base_qty,
                             'out_qty': 0.0,
                             'balance_qty': line.product_id.opening_stock,
@@ -397,10 +419,13 @@ class Purchase(models.Model):
                         })
 
                         # Update Valuation Entry using sudo()
-                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                        domain = [
                             ('product_id', '=', line.product_id.id),
                             ('store', '=', purchase.store_id.name if purchase.store_id else '')
-                        ], limit=1)
+                        ]
+                        if line.variant_id:
+                            domain.append(('variant_id', '=', line.variant_id.id))
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
                         if valuation:
                             valuation.write({
                                 'on_hand_qty': valuation.on_hand_qty + base_qty,
@@ -422,6 +447,7 @@ class Purchase(models.Model):
                         # Create reverse ledger entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': line.product_id.id,
+                            'variant_id': line.variant_id.id if line.variant_id else False,
                             'in_qty': 0.0,
                             'out_qty': base_qty,
                             'balance_qty': line.product_id.opening_stock,
@@ -431,10 +457,13 @@ class Purchase(models.Model):
                         })
 
                         # Update Valuation Entry using sudo()
-                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                        domain = [
                             ('product_id', '=', line.product_id.id),
                             ('store', '=', purchase.store_id.name if purchase.store_id else '')
-                        ], limit=1)
+                        ]
+                        if line.variant_id:
+                            domain.append(('variant_id', '=', line.variant_id.id))
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
                         if valuation:
                             valuation.write({
                                 'on_hand_qty': valuation.on_hand_qty - base_qty,
@@ -464,6 +493,7 @@ class PurchaseLine(models.Model):
     currency_id = fields.Many2one('res.currency', related='purchase_id.currency_id', readonly=True)
     exchange_rate = fields.Float(related='purchase_id.exchange_rate', readonly=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
     rate = fields.Float(string='Rate')
@@ -509,6 +539,18 @@ class PurchaseLine(models.Model):
             ])
             uom_ids.extend(prices.mapped('uom_id.id'))
             line.available_uom_ids = [(6, 0, list(set(uom_ids)))]
+
+    @api.onchange('variant_id')
+    def _onchange_variant_id(self):
+        for line in self:
+            if line.variant_id:
+                line.rate = line.variant_id.cost_price * (line.exchange_rate or 1.0)
+                
+    @api.onchange('product_id')
+    def _onchange_product_id_variant(self):
+        for line in self:
+            if line.product_id and line.product_id.is_variant:
+                line.variant_id = False
 
     @api.onchange('product_id', 'uom_id')
     def _onchange_product_uom(self):

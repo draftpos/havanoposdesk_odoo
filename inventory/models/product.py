@@ -86,15 +86,87 @@ class HavanoposdeskProduct(models.Model):
     uom_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='UOM Prices')
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError
+
+class HavanoposdeskProduct(models.Model):
+    _name = 'havanoposdesk.product'
+    _description = 'Product'
+    _rec_names_search = ['name', 'item_code']
+
+    _sql_constraints = [
+        ('name_tenant_uniq', 'unique (name, tenant_id)', 'The product name must be unique per tenant!'),
+        ('item_code_tenant_uniq', 'unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
+        ('barcode_tenant_uniq', 'unique (barcode, tenant_id)', 'The Product Barcode must be unique per tenant!')
+    ]
+
+    name = fields.Char(string='Product Name', required=True)
+    item_code = fields.Char(string='Product Code', required=False, copy=False, default=lambda self: 'New')
+    allow_edit_item_code = fields.Boolean(related='tenant_id.allow_edit_item_code', string="Allow Edit Item Code")
+    barcode = fields.Char(string='Barcode', copy=False)
+    is_barcode_enabled = fields.Boolean(related='tenant_id.enable_barcode', string="Barcode Enabled")
+
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_name(self):
+        for record in self:
+            if record.name and record.tenant_id:
+                domain = [
+                    ('id', '!=', record.id),
+                    ('tenant_id', '=', record.tenant_id.id),
+                    ('name', '=ilike', record.name.strip())
+                ]
+                if self.search_count(domain) > 0:
+                    raise ValidationError(f"A Product with the name '{record.name}' already exists in your workspace. Please choose a different name.")
+
+    @api.depends('name', 'item_code', 'tenant_id')
+    def _compute_display_name(self):
+        is_super_admin = self.env.user.has_group('base.group_system')
+        for record in self:
+            base_name = f"[{record.item_code}] {record.name}" if record.item_code and record.item_code != 'New' else record.name
+            if is_super_admin and record.tenant_id:
+                record.display_name = f"{base_name} ({record.tenant_id.name})"
+            else:
+                record.display_name = base_name
+
+    @api.model
+    def _name_search(self, name='', args=None, operator='ilike', limit=100, order=None):
+        args = list(args or [])
+        if name:
+            args += ['|', ('name', operator, name), ('item_code', operator, name)]
+        return self._search(args, limit=limit, order=order)
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super(HavanoposdeskProduct, self).default_get(fields_list)
+        if 'item_code' in fields_list and res.get('item_code') == 'New':
+            tenant = self.env.user.tenant_id
+            if tenant:
+                res['item_code'] = tenant._get_next_sequence('prod')
+            else:
+                res['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
+        return res
+    buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
+    selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', store=True, readonly=False)
+    markup = fields.Float(string='Markup', compute='_compute_markup')
+    cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
+    is_variant = fields.Boolean(string='Is Variant', default=False)
+    variant_ids = fields.One2many('havanoposdesk.product.variant', 'product_id', string='Variants')
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
 
-    @api.depends('is_bundle')
+    @api.depends('is_bundle', 'is_variant', 'variant_ids.on_hand_qty')
     def _compute_on_hand_qty(self):
         for record in self:
             if record.is_bundle:
                 record.on_hand_qty = 0.0
+            elif record.is_variant:
+                unallocated_vals = self.env['havanoposdesk.stock.valuation'].search([
+                    ('product_id', '=', record.id),
+                    ('variant_id', '=', False)
+                ])
+                unallocated_qty = sum(unallocated_vals.mapped('on_hand_qty'))
+                record.on_hand_qty = sum(record.variant_ids.mapped('on_hand_qty')) + unallocated_qty
             else:
                 valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', '=', record.id)])
                 record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
@@ -238,6 +310,8 @@ class HavanoposdeskProduct(models.Model):
         products = super().create(vals_list)
         
         for product in products:
+            if product.variant_ids and not product.is_variant:
+                product.is_variant = True
             if product.use_ingredients and not product.bom_id:
                 bom = self.env['havanoposdesk.manufacturing.bom'].create({
                     'name': f"BOM for {product.name}",
@@ -307,6 +381,11 @@ class HavanoposdeskProduct(models.Model):
                 break # All products in self usually belong to same tenant, or we can just apply first one
 
         res = super().write(vals)
+
+        if 'variant_ids' in vals and vals['variant_ids']:
+            for product in self:
+                if not product.is_variant:
+                    super(HavanoposdeskProduct, product).write({'is_variant': True})
 
         if vals.get('all_stores'):
             for product in self:
@@ -632,3 +711,133 @@ class HavanoposdeskProductCosting(models.Model):
     qty = fields.Float(string='Quantity')
     price = fields.Float(string='Price/Rate')
     cost_type = fields.Selection([('last', 'Last Purchase'), ('average', 'Average')], string='Cost Type', default='last')
+
+class HavanoposdeskProductVariant(models.Model):
+    _name = 'havanoposdesk.product.variant'
+    _description = 'Product Variant'
+
+    product_id = fields.Many2one('havanoposdesk.product', string='Parent Product', required=True, ondelete='cascade')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id)
+    name = fields.Char(string='Variant Name', required=True)
+    cost_price = fields.Float(string='Cost Price')
+    selling_price = fields.Float(string='Sell Price')
+    allocate_qty = fields.Float(string='Allocate QTY (from base stock)', default=0.0)
+    on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
+    
+    @api.depends('product_id')
+    def _compute_on_hand_qty(self):
+        for record in self:
+            valuations = self.env['havanoposdesk.stock.valuation'].search([('variant_id', '=', record.id)])
+            record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
+            
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        for record in records:
+            if record.allocate_qty > 0:
+                record._allocate_stock_from_parent(record.allocate_qty)
+                super(HavanoposdeskProductVariant, record).write({'allocate_qty': 0.0})
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        if 'allocate_qty' in vals:
+            for record in self:
+                if record.allocate_qty > 0:
+                    record._allocate_stock_from_parent(record.allocate_qty)
+                    super(HavanoposdeskProductVariant, record).write({'allocate_qty': 0.0})
+        return res
+
+    def _allocate_stock_from_parent(self, qty_to_allocate):
+        valuations = self.env['havanoposdesk.stock.valuation'].sudo().search([
+            ('product_id', '=', self.product_id.id),
+            ('variant_id', '=', False),
+            ('on_hand_qty', '>', 0)
+        ])
+        
+        remaining = qty_to_allocate
+        for val in valuations:
+            if remaining <= 0:
+                break
+                
+            deduct = min(val.on_hand_qty, remaining)
+            val.on_hand_qty -= deduct
+            remaining -= deduct
+            
+            variant_val = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                ('product_id', '=', self.product_id.id),
+                ('variant_id', '=', self.id),
+                ('store', '=', val.store)
+            ], limit=1)
+            
+            if variant_val:
+                variant_val.on_hand_qty += deduct
+            else:
+                variant_val = self.env['havanoposdesk.stock.valuation'].sudo().create({
+                    'product_id': self.product_id.id,
+                    'variant_id': self.id,
+                    'store': val.store,
+                    'on_hand_qty': deduct,
+                    'tenant_id': self.tenant_id.id,
+                })
+                
+            self.env['havanoposdesk.stock.ledger'].sudo().create({
+                'product_id': self.product_id.id,
+                'variant_id': self.id,
+                'in_qty': deduct,
+                'out_qty': 0.0,
+                'balance_qty': variant_val.on_hand_qty,
+                'store': val.store,
+                'type': 'Variant Allocation In',
+                'doc_no': f"Alloc to {self.name}",
+                'tenant_id': self.tenant_id.id,
+            })
+            
+            self.env['havanoposdesk.stock.ledger'].sudo().create({
+                'product_id': self.product_id.id,
+                'variant_id': False,
+                'in_qty': 0.0,
+                'out_qty': deduct,
+                'balance_qty': val.on_hand_qty,
+                'store': val.store,
+                'type': 'Variant Allocation Out',
+                'doc_no': f"Alloc to {self.name}",
+                'tenant_id': self.tenant_id.id,
+            })
+            
+        if remaining > 0:
+            target_store = self.product_id.store_ids[0].name if self.product_id.store_ids else 'Main Store'
+            variant_val = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                ('product_id', '=', self.product_id.id),
+                ('variant_id', '=', self.id),
+                ('store', '=', target_store)
+            ], limit=1)
+            if variant_val:
+                variant_val.on_hand_qty += remaining
+            else:
+                variant_val = self.env['havanoposdesk.stock.valuation'].sudo().create({
+                    'product_id': self.product_id.id,
+                    'variant_id': self.id,
+                    'store': target_store,
+                    'on_hand_qty': remaining,
+                    'tenant_id': self.tenant_id.id,
+                })
+            self.env['havanoposdesk.stock.ledger'].sudo().create({
+                'product_id': self.product_id.id,
+                'variant_id': self.id,
+                'in_qty': remaining,
+                'out_qty': 0.0,
+                'balance_qty': variant_val.on_hand_qty,
+                'store': target_store,
+                'type': 'Variant Stock Initial',
+                'doc_no': f"Initial {self.name}",
+                'tenant_id': self.tenant_id.id,
+            })
+            
+    @api.onchange('product_id')
+    def _onchange_product_id(self):
+        if self.product_id:
+            if not self.cost_price:
+                self.cost_price = self.product_id.buying_price
+            if not self.selling_price:
+                self.selling_price = self.product_id.selling_price

@@ -57,10 +57,14 @@ class StockTransfer(models.Model):
                     raise ValidationError(f"Quantity for product '{line.product_id.name}' must be greater than zero.")
 
                 # Always check current stock in from_store
-                valuation_from = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                domain_from = [
                     ('product_id', '=', line.product_id.id),
                     ('store', '=', record.from_store_id.name)
-                ], limit=1)
+                ]
+                if line.variant_id:
+                    domain_from.append(('variant_id', '=', line.variant_id.id))
+                    
+                valuation_from = self.env['havanoposdesk.stock.valuation'].sudo().search(domain_from, limit=1)
                 current_qty = valuation_from.on_hand_qty if valuation_from else 0.0
 
                 # Block if zero stock
@@ -84,6 +88,7 @@ class StockTransfer(models.Model):
                 else:
                     self.env['havanoposdesk.stock.valuation'].sudo().create({
                         'product_id': line.product_id.id,
+                        'variant_id': line.variant_id.id if line.variant_id else False,
                         'store': record.from_store_id.name,
                         'on_hand_qty': -line.qty,
                         'tenant_id': record.tenant_id.id,
@@ -91,6 +96,7 @@ class StockTransfer(models.Model):
 
                 self.env['havanoposdesk.stock.ledger'].sudo().create({
                     'product_id': line.product_id.id,
+                    'variant_id': line.variant_id.id if line.variant_id else False,
                     'in_qty': 0.0,
                     'out_qty': line.qty,
                     'balance_qty': (valuation_from.on_hand_qty - line.qty) if valuation_from else -line.qty,
@@ -102,15 +108,20 @@ class StockTransfer(models.Model):
                 })
 
                 # Add to destination store
-                valuation_to = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                domain_to = [
                     ('product_id', '=', line.product_id.id),
                     ('store', '=', record.to_store_id.name)
-                ], limit=1)
+                ]
+                if line.variant_id:
+                    domain_to.append(('variant_id', '=', line.variant_id.id))
+                    
+                valuation_to = self.env['havanoposdesk.stock.valuation'].sudo().search(domain_to, limit=1)
                 if valuation_to:
                     valuation_to.write({'on_hand_qty': valuation_to.on_hand_qty + line.qty})
                 else:
                     self.env['havanoposdesk.stock.valuation'].sudo().create({
                         'product_id': line.product_id.id,
+                        'variant_id': line.variant_id.id if line.variant_id else False,
                         'store': record.to_store_id.name,
                         'on_hand_qty': line.qty,
                         'tenant_id': record.tenant_id.id,
@@ -118,6 +129,7 @@ class StockTransfer(models.Model):
 
                 self.env['havanoposdesk.stock.ledger'].sudo().create({
                     'product_id': line.product_id.id,
+                    'variant_id': line.variant_id.id if line.variant_id else False,
                     'in_qty': line.qty,
                     'out_qty': 0.0,
                     'balance_qty': (valuation_to.on_hand_qty + line.qty) if valuation_to else line.qty,
@@ -163,6 +175,7 @@ class StockTransferLine(models.Model):
     transfer_id = fields.Many2one('havanoposdesk.stock.transfer', string='Transfer', required=True, ondelete='cascade')
     tenant_id = fields.Many2one(related='transfer_id.tenant_id', store=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, domain="[('tenant_id', '=', tenant_id)]")
+    variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     uom_id = fields.Many2one('havanoposdesk.uom', string='Unit of Measure')
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', compute_sudo=True, store=False)
     qty = fields.Float(string='Quantity', default=1.0, required=True)
@@ -172,16 +185,20 @@ class StockTransferLine(models.Model):
         store=False,
     )
 
-    @api.depends('product_id', 'transfer_id.from_store_id')
+    @api.depends('product_id', 'variant_id', 'transfer_id.from_store_id')
     def _compute_on_hand_qty(self):
         for line in self:
             if not line.product_id or not line.transfer_id.from_store_id:
                 line.on_hand_qty = 0.0
                 continue
-            valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+            domain = [
                 ('product_id', '=', line.product_id.id),
                 ('store', '=', line.transfer_id.from_store_id.name),
-            ], limit=1)
+            ]
+            if line.variant_id:
+                domain.append(('variant_id', '=', line.variant_id.id))
+                
+            valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
             line.on_hand_qty = valuation.on_hand_qty if valuation else 0.0
 
     @api.depends('product_id')
@@ -204,5 +221,13 @@ class StockTransferLine(models.Model):
             if not line.product_id:
                 line.uom_id = False
                 continue
+            if line.product_id.is_variant:
+                line.variant_id = False
             if not line.uom_id or line.uom_id.id not in line.available_uom_ids.ids:
                 line.uom_id = line.product_id.uom_id
+
+    @api.onchange('variant_id')
+    def _onchange_variant_id(self):
+        for line in self:
+            if line.variant_id:
+                line._compute_on_hand_qty()

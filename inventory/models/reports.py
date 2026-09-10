@@ -20,6 +20,8 @@ class StockValuation(models.Model):
     item_name = fields.Char(related='product_id.name', string='Item Name', store=True)
     item_code = fields.Char(related='product_id.item_code', string='Code', store=True)
     category_id = fields.Many2one(related='product_id.category_id', string='Category', store=True)
+    variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', ondelete='cascade')
+    variant_name = fields.Char(related='variant_id.name', string='Variant Name', store=True)
     store = fields.Char(string='Store')
     store_id = fields.Many2one('havanoposdesk.store', string='Store Link', compute='_compute_store_id', store=True)
     on_hand_qty = fields.Float(string='On Hand Qty')
@@ -73,6 +75,8 @@ class StockLedger(models.Model):
             record.currency_id = record.tenant_id.currency_id or self.env.company.currency_id.id
     item_name = fields.Char(related='product_id.name', string='Item Name', store=True)
     item_code = fields.Char(related='product_id.item_code', string='Code', store=True)
+    variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', ondelete='cascade')
+    variant_name = fields.Char(related='variant_id.name', string='Variant Name', store=True)
     uom_id = fields.Many2one(related='product_id.uom_id', string='UOM', store=True)
     in_qty = fields.Float(string='In Qty')
     out_qty = fields.Float(string='Out Qty')

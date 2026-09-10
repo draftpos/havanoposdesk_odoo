@@ -52,6 +52,7 @@
                                         <field name="tenant_id" invisible="1" />
                                         <field name="track_qty" invisible="is_bundle == True" class="border-bottom border-dark" />
                                         <field name="is_bundle" class="border-bottom border-dark" />
+                                        <field name="is_variant" class="border-bottom border-dark" />
                                         <field name="use_ingredients" class="border-bottom border-dark" />
                                         <field name="has_multiple_stores" invisible="1" />
                                         <field name="all_stores" invisible="has_multiple_stores == False" class="border-bottom border-dark" />
@@ -110,6 +111,17 @@
                                 </group>
                                 
 
+                            </page>
+                            <page string="Variants" invisible="is_variant == False">
+                                <field name="variant_ids">
+                                    <list editable="bottom">
+                                        <field name="name"/>
+                                        <field name="allocate_qty" />
+                                        <field name="cost_price"/>
+                                        <field name="selling_price"/>
+                                        <field name="on_hand_qty" readonly="1"/>
+                                    </list>
+                                </field>
                             </page>
                             <page string="Other">
                                 <group>

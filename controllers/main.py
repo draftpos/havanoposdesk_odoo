@@ -26,22 +26,37 @@ class ProductImportTemplateController(http.Controller):
         # Write headers
         headers = [
             "Product Name", "Product Code", "Barcode", "Cost price", "Category", 
-            "UOM", "Active", "Advanced Prices / Store", 
-            "Advanced Prices / Pricelist", "Advanced Prices / UOM", 
+            "UOM", "Active", 
+            "Variants / Variant Name", "Variants / Cost Price", "Variants / Sell Price", "Variants / Allocate QTY (from base stock)",
+            "Advanced Prices / Store", 
+            "Advanced Prices / Pricelist", "Advanced Prices / UoM Name", 
             "Advanced Prices / Qty to be Sold", "Advanced Prices / Initial Qty", "Advanced Prices / Price"
         ]
         writer.writerow(headers)
         
-        # Write example row
         info_msg = f"Leave this column BLANK! Next auto-assigned code will be {next_code}"
-        writer.writerow([
-            "Example Product 1", info_msg, "89012345", 1.00, "Beverages", "Each", 1, 
-            "Main Store", "Retail", "Each", 1, 50, 1.50
-        ])
         
-        # Write second advanced price line for the same product
+        # Write Example Product 1: With Variants
+        writer.writerow([
+            "Example Variant Product (e.g. T-Shirt)", info_msg, "89012340", 10.00, "Beverages", "Each", 1, 
+            "Black - Size M", 10.00, 15.00, 20,
+            "", "", "", "", "", ""
+        ])
         writer.writerow([
             "", "", "", "", "", "", "", 
+            "White - Size L", 10.00, 16.00, 15,
+            "", "", "", "", "", ""
+        ])
+        
+        # Write Example Product 2: Standard Product with Advanced Prices
+        writer.writerow([
+            "Example Standard Product", info_msg, "89012345", 1.00, "Beverages", "Each", 1, 
+            "", "", "", "",
+            "Main Store", "Retail", "Each", 1, 50, 1.50
+        ])
+        writer.writerow([
+            "", "", "", "", "", "", "", 
+            "", "", "", "",
             "Main Store", "Wholesale", "Box", 12, 10, 15.00
         ])
         

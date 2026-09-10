@@ -651,6 +651,14 @@ class HavanoPOSDeskAPI(http.Controller):
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
                     'store_id': p.store_ids[0].id if p.store_ids else None,
+                    'is_variant': 1 if p.is_variant else 0,
+                    'variants': [{
+                        'id': v.id,
+                        'name': v.name,
+                        'cost_price': v.cost_price,
+                        'selling_price': v.selling_price,
+                        'on_hand_qty': v.on_hand_qty,
+                    } for v in p.variant_ids] if p.is_variant else [],
                 })
             return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
         
@@ -702,8 +710,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 'name': data.get('name'),
                 'item_code': data.get('item_code') or 'New',
                 'barcode': data.get('barcode'),
-                'buying_price': data.get('buying_price', 0.0),
-                'selling_price': data.get('selling_price', 0.0),
+                'buying_price': float(data.get('buying_price', 0.0) or 0.0),
+                'selling_price': float(data.get('selling_price', 0.0) or 0.0),
                 'color_hex': data.get('color_hex'),
                 'track_qty': data.get('track_qty', True),
                 'sellbyprice': bool(data.get('sellbyprice') or data.get('sell_by_price')),
@@ -738,6 +746,27 @@ class HavanoPOSDeskAPI(http.Controller):
                     return request.make_response(json.dumps({'error': 'Oops! The selected Unit of Measure does not exist for this tenant.'}), headers=[('Content-Type', 'application/json')], status=400)
                 vals['uom_id'] = data['uom']
                 
+            # Handle Product Variants
+            variants_input = data.get('variants') or data.get('variant_ids') or []
+            variant_commands = []
+            if isinstance(variants_input, list):
+                for v in variants_input:
+                    if isinstance(v, dict):
+                        v_name = v.get('name') or v.get('variant_name')
+                        if v_name:
+                            variant_commands.append((0, 0, {
+                                'name': v_name,
+                                'cost_price': float(v.get('cost_price') or v.get('buying_price') or vals.get('buying_price') or 0.0),
+                                'selling_price': float(v.get('selling_price') or v.get('sell_price') or vals.get('selling_price') or 0.0),
+                                'allocate_qty': float(v.get('allocate_qty') or v.get('initial_qty') or v.get('on_hand_qty') or v.get('qty') or 0.0),
+                                'tenant_id': tenant_id,
+                            }))
+            
+            is_variant_flag = bool(data.get('is_variant')) or bool(data.get('is_variant_')) or bool(variant_commands)
+            vals['is_variant'] = is_variant_flag
+            if variant_commands:
+                vals['variant_ids'] = variant_commands
+                
             product = request.env['havanoposdesk.product'].sudo().create(vals)
             
             res_data = {
@@ -756,6 +785,14 @@ class HavanoPOSDeskAPI(http.Controller):
                 'uom': product.uom_id.id if product.uom_id else None,
                 'tenant_id': product.tenant_id.id,
                 'store_id': product.store_ids[0].id if product.store_ids else None,
+                'is_variant': 1 if product.is_variant else 0,
+                'variants': [{
+                    'id': v.id,
+                    'name': v.name,
+                    'cost_price': v.cost_price,
+                    'selling_price': v.selling_price,
+                    'on_hand_qty': v.on_hand_qty,
+                } for v in product.variant_ids] if product.is_variant else [],
             }
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')], status=201)
 
@@ -2324,6 +2361,38 @@ class HavanoPOSDeskAPI(http.Controller):
             product = request.env['havanoposdesk.product'].sudo().create(product_vals)
         elif tax_ids:
             product.sudo().write({'sale_tax_ids': [(6, 0, tax_ids)]})
+
+        # Handle Variants
+        variants_input = data.get('variants') or data.get('variant_ids')
+        if variants_input and isinstance(variants_input, list):
+            for v in variants_input:
+                if isinstance(v, dict):
+                    v_name = v.get('name') or v.get('variant_name')
+                    if v_name:
+                        existing_v = request.env['havanoposdesk.product.variant'].sudo().search([
+                            ('product_id', '=', product.id),
+                            ('name', '=', v_name),
+                            ('tenant_id', '=', tenant.id),
+                        ], limit=1)
+                        v_cost = float(v.get('cost_price') or v.get('buying_price') or product.buying_price or 0.0)
+                        v_sell = float(v.get('selling_price') or v.get('sell_price') or product.selling_price or 0.0)
+                        v_qty = float(v.get('allocate_qty') or v.get('initial_qty') or v.get('on_hand_qty') or v.get('qty') or 0.0)
+                        if existing_v:
+                            existing_v.write({
+                                'cost_price': v_cost,
+                                'selling_price': v_sell,
+                                'allocate_qty': v_qty,
+                            })
+                        else:
+                            request.env['havanoposdesk.product.variant'].sudo().create({
+                                'product_id': product.id,
+                                'name': v_name,
+                                'cost_price': v_cost,
+                                'selling_price': v_sell,
+                                'allocate_qty': v_qty,
+                                'tenant_id': tenant.id,
+                            })
+            product.write({'is_variant': True})
 
         store_prices = data.get('store_prices') or data.get('advanced_prices') or data.get('prices')
         if store_prices and isinstance(store_prices, list):
