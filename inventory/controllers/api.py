@@ -13,16 +13,30 @@ _logger = logging.getLogger(__name__)
 
 class HavanoPOSDeskAPI(http.Controller):
     def _get_direct_rate(self, env, currency_id, tenant=None):
+        """Return the stored rate from res_currency_rate, or None if no record exists.
+        
+        In Odoo 19, res_currency_rate.rate is the 'technical rate':
+        number of currency units per 1 unit of the base/company currency.
+        Example: if base=USD and ZWG=35 per USD, then rate for ZWG = 35.0
+        Returns None (not 1.0) when no rate record is found, so callers can
+        distinguish 'not found' from 'rate is genuinely 1.0'.
+        """
         res = None
         if tenant:
-            env.cr.execute("SELECT rate FROM res_currency_rate WHERE currency_id = %s AND tenant_id = %s ORDER BY name DESC LIMIT 1", (currency_id, tenant.id))
+            env.cr.execute(
+                "SELECT rate FROM res_currency_rate WHERE currency_id = %s AND tenant_id = %s ORDER BY name DESC LIMIT 1",
+                (currency_id, tenant.id)
+            )
             res = env.cr.fetchone()
-        if not res or not res[0]:
-            env.cr.execute("SELECT rate FROM res_currency_rate WHERE currency_id = %s ORDER BY name DESC LIMIT 1", (currency_id,))
+        if not res:
+            env.cr.execute(
+                "SELECT rate FROM res_currency_rate WHERE currency_id = %s ORDER BY name DESC LIMIT 1",
+                (currency_id,)
+            )
             res = env.cr.fetchone()
-        if res and res[0]:
-            return res[0]
-        return 1.0
+        if res is not None and res[0] is not None:
+            return float(res[0])
+        return None
 
 
     def _resolve_sale_user(self, env, sale_data, tenant):
@@ -4641,11 +4655,11 @@ class HavanoPOSDeskAPI(http.Controller):
                 currency_code = acc_curr.name if acc_curr else default_currency
                 rate_val = 1.0
                 if base_curr and acc_curr and base_curr != acc_curr:
-                    from_rate = 1.0  # Base currency is always 1.0
-                    to_rate = self._get_direct_rate(user_env if 'user_env' in locals() else env, acc_curr.id, tenant if 'tenant' in locals() else None)
-                    rate_val = to_rate / from_rate if from_rate else 1.0
+                    raw_rate = self._get_direct_rate(env, acc_curr.id, tenant)
+                    # _get_direct_rate returns None when no rate record exists in DB
+                    rate_val = raw_rate if raw_rate is not None else 1.0
                 elif acc_curr and not base_curr:
-                    rate_val = acc_curr.rate or 1.0
+                    rate_val = getattr(acc_curr, 'rate', None) or 1.0
 
                 accounts_data.append({
                     "id": acc.id,
@@ -4711,58 +4725,90 @@ class HavanoPOSDeskAPI(http.Controller):
                 _logger.info("[api_get_currency_exchange_rate] Same currency (%s == %s), returning 1.0", from_currency, to_currency)
                 return self._make_json_response({"message": {"exchange_rate": 1.0}})
 
+            base_curr = (
+                (tenant.currency_id if tenant and tenant.currency_id else False)
+                or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
+            )
+            base_currency_name = (base_curr.name if base_curr else 'USD').upper()
+
+            # Resolve currency records, preferring tenant-scoped ones
             from_curr = False
             to_curr = False
             if tenant:
                 from_curr = env['res.currency'].sudo().search([('tenant_id', '=', tenant.id), ('name', '=ilike', from_currency)], limit=1)
                 to_curr = env['res.currency'].sudo().search([('tenant_id', '=', tenant.id), ('name', '=ilike', to_currency)], limit=1)
-
             if not from_curr:
                 from_curr = env['res.currency'].sudo().search([('name', '=ilike', from_currency)], limit=1)
             if not to_curr:
                 to_curr = env['res.currency'].sudo().search([('name', '=ilike', to_currency)], limit=1)
 
-            base_curr = (tenant.currency_id if tenant and tenant.currency_id else False) or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
+            _logger.info(
+                "[api_get_currency_exchange_rate] from=%s (id=%s), to=%s (id=%s), base=%s, tenant=%s",
+                from_currency, from_curr.id if from_curr else None,
+                to_currency, to_curr.id if to_curr else None,
+                base_currency_name, tenant.id if tenant else None
+            )
 
-            if base_curr and from_curr and from_curr.id == base_curr.id:
+            # ── from_rate: rate of from_currency relative to base ──────────────
+            # If from_currency IS the base, its rate is 1.0 by definition.
+            if from_currency.upper() == base_currency_name or (base_curr and from_curr and from_curr.id == base_curr.id):
                 from_rate = 1.0
-            elif base_curr and from_currency.upper() == (base_curr.name or 'USD').upper():
-                from_rate = 1.0
+            elif from_curr:
+                raw = self._get_direct_rate(env, from_curr.id, tenant)
+                from_rate = raw if raw is not None else 1.0
             else:
-                from_rate = self._get_direct_rate(env, from_curr.id, tenant) if from_curr else 1.0
+                from_rate = 1.0
 
-            to_rate = 1.0
-            rate_found = False
-            if base_curr and to_curr and to_curr.id == base_curr.id:
+            # ── to_rate: rate of to_currency relative to base ─────────────────
+            # If to_currency IS the base, its rate is 1.0 by definition.
+            if to_currency.upper() == base_currency_name or (base_curr and to_curr and to_curr.id == base_curr.id):
                 to_rate = 1.0
-                rate_found = True
-            elif base_curr and to_currency.upper() == (base_curr.name or 'USD').upper():
-                to_rate = 1.0
-                rate_found = True
+                rate_source = 'base_currency'
             elif to_curr:
-                tr = self._get_direct_rate(env, to_curr.id, tenant)
-                if tr and tr != 1.0:
-                    to_rate = tr
-                    rate_found = True
-                elif tr == 1.0:
-                    to_rate = 1.0
+                raw = self._get_direct_rate(env, to_curr.id, tenant)
+                if raw is not None:
+                    to_rate = raw
+                    rate_source = 'res_currency_rate (id=%s, raw=%s)' % (to_curr.id, raw)
+                else:
+                    # No rate record found – fall through to account lookup
+                    to_rate = None
+                    rate_source = 'not_found_in_res_currency_rate'
+            else:
+                to_rate = None
+                rate_source = 'currency_not_found'
 
-            # If not found yet or defaulted to 1.0, look up tenant accounts linked to this currency or name
-            if not rate_found:
+            # ── Account fallback: look at havanoposdesk.account for a linked currency ──
+            if to_rate is None:
                 acc_dom = [('tenant_id', '=', tenant.id)] if tenant else []
                 acc = env['havanoposdesk.account'].sudo().search(
                     acc_dom + ['|', ('currency_id.name', '=ilike', to_currency), ('name', '=ilike', to_currency)],
                     limit=1
                 )
                 if acc and acc.currency_id:
-                    acc_rate = self._get_direct_rate(env, acc.currency_id.id, tenant)
-                    if acc_rate:
-                        to_rate = acc_rate
-                        rate_found = True
+                    acc_raw = self._get_direct_rate(env, acc.currency_id.id, tenant)
+                    if acc_raw is not None:
+                        to_rate = acc_raw
+                        rate_source = 'havanoposdesk.account (acc=%s, currency=%s, raw=%s)' % (acc.name, acc.currency_id.name, acc_raw)
 
-            rate = to_rate / from_rate if from_rate else to_rate
-            final_rate = float(rate) if rate else 1.0
-            _logger.info("[api_get_currency_exchange_rate] from=%s, to=%s -> final_rate=%s (from_rate=%s, to_rate=%s)", from_currency, to_currency, final_rate, from_rate, to_rate)
+            # Final fallback
+            if to_rate is None:
+                to_rate = 1.0
+                rate_source = 'fallback_1.0_no_rate_found'
+
+            # Final rate: to_rate / from_rate
+            # Both rates are in "units of their currency per 1 base currency unit".
+            # So to go from from_currency to to_currency:
+            #   how many to_currency units = (to_rate / from_rate)
+            from_rate_safe = from_rate if from_rate else 1.0
+            final_rate = float(to_rate / from_rate_safe)
+
+            _logger.info(
+                "[api_get_currency_exchange_rate] from=%s->%s, to=%s->%s, base=%s | "
+                "from_rate=%s, to_rate=%s, final_rate=%s | source=%s",
+                from_currency, from_curr.id if from_curr else None,
+                to_currency, to_curr.id if to_curr else None,
+                base_currency_name, from_rate, to_rate, final_rate, rate_source
+            )
 
             return self._make_json_response({
                 "message": {
