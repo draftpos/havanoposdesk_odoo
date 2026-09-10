@@ -4721,75 +4721,74 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
 
-            if not to_currency or from_currency.upper() == to_currency.upper():
-                _logger.info("[api_get_currency_exchange_rate] Same currency (%s == %s), returning 1.0", from_currency, to_currency)
-                return self._make_json_response({"message": {"exchange_rate": 1.0}})
-
             base_curr = (
                 (tenant.currency_id if tenant and tenant.currency_id else False)
                 or (user.company_id.currency_id if hasattr(user, 'company_id') and user.company_id and user.company_id.currency_id else False)
             )
             base_currency_name = (base_curr.name if base_curr else 'USD').upper()
 
-            _logger.info(
-                "[api_get_currency_exchange_rate] from=%s, to=%s, base=%s, tenant=%s",
-                from_currency, to_currency, base_currency_name, tenant.id if tenant else None
-            )
+            # --- Exact same domain as api_get_accounts ---
+            domain = [('type', 'in', ['Cash', 'Bank']), ('active', '=', True)]
+            if user.havano_role != 'super_admin' and tenant:
+                domain.append(('tenant_id', '=', tenant.id))
 
-            # If to_currency is the base, rate is always 1.0
+            accounts = env['havanoposdesk.account'].sudo().search(domain)
+
+            # Build same rate map that api_get_accounts builds
+            debug_accounts = []
+            matched_rate = None
+            for acc in accounts:
+                acc_curr = acc.currency_id or base_curr
+                currency_code = acc_curr.name if acc_curr else base_currency_name
+                rate_val = 1.0
+                if base_curr and acc_curr and base_curr.id != acc_curr.id:
+                    raw_rate = self._get_direct_rate(env, acc_curr.id, tenant)
+                    rate_val = raw_rate if raw_rate is not None else 1.0
+
+                debug_accounts.append({
+                    'account': acc.name,
+                    'currency_code': currency_code,
+                    'currency_id': acc_curr.id if acc_curr else None,
+                    'rate_val': rate_val,
+                })
+
+                # Match to_currency by exact currency code
+                if to_currency and currency_code.upper() == to_currency.upper():
+                    matched_rate = rate_val
+
+            if not to_currency or from_currency.upper() == to_currency.upper():
+                return self._make_json_response({
+                    "message": {"exchange_rate": 1.0},
+                    "_debug": {
+                        "reason": "same_or_empty_currency",
+                        "from": from_currency, "to": to_currency
+                    }
+                })
+
             if to_currency.upper() == base_currency_name:
-                return self._make_json_response({"message": {"exchange_rate": 1.0}})
+                return self._make_json_response({
+                    "message": {"exchange_rate": 1.0},
+                    "_debug": {"reason": "to_is_base_currency", "base": base_currency_name}
+                })
 
-            # ── STRATEGY 1: havanoposdesk.account (same logic as api_get_accounts) ──
-            # This is proven to work. We look up an active account whose currency
-            # name matches to_currency, then call _get_direct_rate with its currency_id.
-            acc_dom = [('tenant_id', '=', tenant.id), ('active', '=', True)] if tenant else [('active', '=', True)]
-            acc = env['havanoposdesk.account'].sudo().search(
-                acc_dom + [('currency_id.name', '=ilike', to_currency)],
-                limit=1
-            )
-            if not acc:
-                # Also try matching by account name (e.g. to_currency='ZWG' matching account named 'ZWG CASH')
-                acc = env['havanoposdesk.account'].sudo().search(
-                    acc_dom + [('name', 'ilike', to_currency)],
-                    limit=1
-                )
-            if acc and acc.currency_id:
-                acc_curr = acc.currency_id
-                if not base_curr or acc_curr.id != (base_curr.id if base_curr else 0):
-                    raw = self._get_direct_rate(env, acc_curr.id, tenant)
-                    if raw is not None:
-                        _logger.info(
-                            "[api_get_currency_exchange_rate] STRATEGY-1 account='%s' currency_id=%s raw=%s -> returning %s",
-                            acc.name, acc_curr.id, raw, raw
-                        )
-                        return self._make_json_response({"message": {"exchange_rate": float(raw)}})
+            if matched_rate is not None:
+                _logger.info("[api_get_currency_exchange_rate] Matched %s -> rate=%s", to_currency, matched_rate)
+                return self._make_json_response({"message": {"exchange_rate": float(matched_rate)}})
 
-            # ── STRATEGY 2: res.currency by name -> res_currency_rate ─────────────
-            to_curr = False
-            if tenant:
-                to_curr = env['res.currency'].sudo().search(
-                    [('tenant_id', '=', tenant.id), ('name', '=ilike', to_currency)], limit=1
-                )
-            if not to_curr:
-                to_curr = env['res.currency'].sudo().search([('name', '=ilike', to_currency)], limit=1)
-
-            if to_curr:
-                raw = self._get_direct_rate(env, to_curr.id, tenant)
-                if raw is not None:
-                    _logger.info(
-                        "[api_get_currency_exchange_rate] STRATEGY-2 res.currency id=%s name=%s raw=%s -> returning %s",
-                        to_curr.id, to_curr.name, raw, raw
-                    )
-                    return self._make_json_response({"message": {"exchange_rate": float(raw)}})
-
-            # ── STRATEGY 3: fallback ──────────────────────────────────────────────
-            _logger.warning(
-                "[api_get_currency_exchange_rate] No rate found for to_currency='%s'. "
-                "Ensure exchange rates are configured in Odoo Accounting > Currencies. Returning 1.0.",
-                to_currency
-            )
-            return self._make_json_response({"message": {"exchange_rate": 1.0}})
+            # No match — return diagnostic info so we can see WHY
+            return self._make_json_response({
+                "message": {"exchange_rate": 1.0},
+                "_debug": {
+                    "reason": "no_account_matched_to_currency",
+                    "from_currency": from_currency,
+                    "to_currency": to_currency,
+                    "base_currency": base_currency_name,
+                    "tenant_id": tenant.id if tenant else None,
+                    "user_id": user.id,
+                    "uid_resolved": uid,
+                    "accounts_checked": debug_accounts,
+                }
+            })
 
         finally:
             if custom_cr:
