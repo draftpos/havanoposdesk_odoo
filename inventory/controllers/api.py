@@ -6895,102 +6895,120 @@ class HavanoPOSDeskAPI(http.Controller):
         if not shift:
             return None
 
-        currency_name = (
-            (shift.currency_id.name if shift.currency_id else False)
-            or (shift.tenant_id.currency_id.name if shift.tenant_id and shift.tenant_id.currency_id else False)
-            or 'USD'
-        )
+        try:
+            currency_name = (
+                (shift.currency_id.name if shift.currency_id else False)
+                or (shift.tenant_id.currency_id.name if shift.tenant_id and shift.tenant_id.currency_id else False)
+                or 'USD'
+            )
 
-        payment_balances = []
-        if shift.payment_breakdown_ids:
-            for pb in shift.payment_breakdown_ids:
-                opening_amt = getattr(pb, 'opening_amount', 0.0) or 0.0
-                expected_amt = pb.expected_amount or 0.0
-                closing_amt = pb.closing_amount or 0.0
-                diff = pb.difference if hasattr(pb, 'difference') else (closing_amt - expected_amt)
+            payment_balances = []
+            if hasattr(shift, 'payment_breakdown_ids') and shift.payment_breakdown_ids:
+                for pb in shift.payment_breakdown_ids:
+                    opening_amt = getattr(pb, 'opening_amount', 0.0) or 0.0
+                    expected_amt = pb.expected_amount or 0.0
+                    closing_amt = pb.closing_amount or 0.0
+                    diff = pb.difference if hasattr(pb, 'difference') else (closing_amt - expected_amt)
+                    payment_balances.append({
+                        "payment_method": pb.name or "Cash",
+                        "name": pb.name or "Cash",
+                        "currency": currency_name,
+                        "opening_amount": float(opening_amt),
+                        "expected_amount": float(expected_amt),
+                        "closing_amount": float(closing_amt),
+                        "difference": float(diff),
+                    })
+            else:
+                # Fallback if no lines
                 payment_balances.append({
-                    "payment_method": pb.name,
-                    "name": pb.name,
+                    "payment_method": "Cash",
+                    "name": "Cash",
                     "currency": currency_name,
-                    "opening_amount": float(opening_amt),
-                    "expected_amount": float(expected_amt),
-                    "closing_amount": float(closing_amt),
-                    "difference": float(diff),
+                    "opening_amount": float(shift.opening_cash or 0.0),
+                    "expected_amount": float(shift.expected_cash or 0.0),
+                    "closing_amount": float(shift.actual_cash or 0.0),
+                    "difference": float(shift.cash_difference or 0.0),
                 })
-        else:
-            # Fallback if no lines
-            payment_balances.append({
-                "payment_method": "Cash",
-                "name": "Cash",
-                "currency": currency_name,
-                "opening_amount": float(shift.opening_cash or 0.0),
-                "expected_amount": float(shift.expected_cash or 0.0),
-                "closing_amount": float(shift.actual_cash or 0.0),
+                if getattr(shift, 'amount_card', 0.0):
+                    payment_balances.append({
+                        "payment_method": "Card",
+                        "name": "Card",
+                        "currency": currency_name,
+                        "opening_amount": 0.0,
+                        "expected_amount": float(shift.amount_card or 0.0),
+                        "closing_amount": float(shift.amount_card or 0.0),
+                        "difference": 0.0,
+                    })
+                if getattr(shift, 'amount_mobile', 0.0):
+                    payment_balances.append({
+                        "payment_method": "Mobile",
+                        "name": "Mobile",
+                        "currency": currency_name,
+                        "opening_amount": 0.0,
+                        "expected_amount": float(shift.amount_mobile or 0.0),
+                        "closing_amount": float(shift.amount_mobile or 0.0),
+                        "difference": 0.0,
+                    })
+                if getattr(shift, 'amount_bank', 0.0):
+                    payment_balances.append({
+                        "payment_method": "Bank Transfer",
+                        "name": "Bank Transfer",
+                        "currency": currency_name,
+                        "opening_amount": 0.0,
+                        "expected_amount": float(shift.amount_bank or 0.0),
+                        "closing_amount": float(shift.amount_bank or 0.0),
+                        "difference": 0.0,
+                    })
+
+            total_closing = sum(pb['closing_amount'] for pb in payment_balances) if payment_balances else (shift.actual_cash or 0.0)
+            total_expected = sum(pb['expected_amount'] for pb in payment_balances) if payment_balances else (shift.expected_cash or 0.0)
+            total_opening = sum(pb['opening_amount'] for pb in payment_balances) if payment_balances else (shift.opening_cash or 0.0)
+
+            return {
+                "id": shift.id,
+                "name": shift.name,
+                "status": shift.state.capitalize() if shift.state else "Open",
+                "state": shift.state or "open",
+                "opening_time": str(shift.start_date) if shift.start_date else "",
+                "closing_time": str(shift.end_date) if shift.end_date else "",
+                "opening_cash": float(shift.opening_cash or 0.0),
+                "opening_amount": float(shift.opening_cash or total_opening or 0.0),
+                "actual_cash": float(shift.actual_cash or 0.0),
+                "closing_amount": float(shift.actual_cash or total_closing or 0.0),
+                "expected_cash": float(shift.expected_cash or 0.0),
+                "expected_amount": float(shift.expected_cash or total_expected or 0.0),
+                "difference": float(shift.cash_difference or (total_closing - total_expected) or 0.0),
+                "cash_difference": float(shift.cash_difference or 0.0),
+                "total_expenses": float(getattr(shift, 'total_expenses', 0.0) or 0.0),
+                "total_credit_notes": float(getattr(shift, 'total_credit_notes', 0.0) or 0.0),
+                "amount_cash": float(getattr(shift, 'amount_cash', 0.0) or 0.0),
+                "amount_card": float(getattr(shift, 'amount_card', 0.0) or 0.0),
+                "amount_mobile": float(getattr(shift, 'amount_mobile', 0.0) or 0.0),
+                "amount_bank": float(getattr(shift, 'amount_bank', 0.0) or 0.0),
+                "amount_other": float(getattr(shift, 'amount_other', 0.0) or 0.0),
+                "cashier": shift.user_id.name if shift.user_id else "",
+                "store": shift.store_id.name if shift.store_id else "",
+                "store_id": shift.store_id.id if shift.store_id else None,
+                "terminal_id": shift.terminal_id.id if shift.terminal_id else None,
+                "payment_balances": payment_balances,
+            }
+        except Exception as e:
+            _logger.exception("[_format_shift_response] Error formatting shift: %s", e)
+            return {
+                "id": shift.id,
+                "name": shift.name or "Shift",
+                "status": (shift.state or "open").capitalize(),
+                "state": shift.state or "open",
+                "opening_time": str(shift.start_date) if shift.start_date else "",
+                "closing_time": str(shift.end_date) if shift.end_date else "",
+                "opening_cash": float(shift.opening_cash or 0.0),
+                "actual_cash": float(shift.actual_cash or 0.0),
+                "expected_cash": float(shift.expected_cash or 0.0),
                 "difference": float(shift.cash_difference or 0.0),
-            })
-            if shift.amount_card:
-                payment_balances.append({
-                    "payment_method": "Card",
-                    "name": "Card",
-                    "currency": currency_name,
-                    "opening_amount": 0.0,
-                    "expected_amount": float(shift.amount_card or 0.0),
-                    "closing_amount": float(shift.amount_card or 0.0),
-                    "difference": 0.0,
-                })
-            if shift.amount_mobile:
-                payment_balances.append({
-                    "payment_method": "Mobile",
-                    "name": "Mobile",
-                    "currency": currency_name,
-                    "opening_amount": 0.0,
-                    "expected_amount": float(shift.amount_mobile or 0.0),
-                    "closing_amount": float(shift.amount_mobile or 0.0),
-                    "difference": 0.0,
-                })
-            if shift.amount_bank:
-                payment_balances.append({
-                    "payment_method": "Bank Transfer",
-                    "name": "Bank Transfer",
-                    "currency": currency_name,
-                    "opening_amount": 0.0,
-                    "expected_amount": float(shift.amount_bank or 0.0),
-                    "closing_amount": float(shift.amount_bank or 0.0),
-                    "difference": 0.0,
-                })
-
-        total_closing = sum(pb['closing_amount'] for pb in payment_balances) if payment_balances else (shift.actual_cash or 0.0)
-        total_expected = sum(pb['expected_amount'] for pb in payment_balances) if payment_balances else (shift.expected_cash or 0.0)
-        total_opening = sum(pb['opening_amount'] for pb in payment_balances) if payment_balances else (shift.opening_cash or 0.0)
-
-        return {
-            "id": shift.id,
-            "name": shift.name,
-            "status": shift.state.capitalize() if shift.state else "Open",
-            "state": shift.state or "open",
-            "opening_time": str(shift.start_date) if shift.start_date else "",
-            "closing_time": str(shift.end_date) if shift.end_date else "",
-            "opening_cash": float(shift.opening_cash or 0.0),
-            "opening_amount": float(shift.opening_cash or total_opening or 0.0),
-            "actual_cash": float(shift.actual_cash or 0.0),
-            "closing_amount": float(shift.actual_cash or total_closing or 0.0),
-            "expected_cash": float(shift.expected_cash or 0.0),
-            "expected_amount": float(shift.expected_cash or total_expected or 0.0),
-            "difference": float(shift.cash_difference or (total_closing - total_expected) or 0.0),
-            "cash_difference": float(shift.cash_difference or 0.0),
-            "total_expenses": float(shift.total_expenses or 0.0),
-            "total_credit_notes": float(shift.total_credit_notes or 0.0),
-            "amount_cash": float(shift.amount_cash or 0.0),
-            "amount_card": float(shift.amount_card or 0.0),
-            "amount_mobile": float(shift.amount_mobile or 0.0),
-            "amount_bank": float(shift.amount_bank or 0.0),
-            "amount_other": float(shift.amount_other or 0.0),
-            "cashier": shift.user_id.name if shift.user_id else "",
-            "store": shift.store_id.name if shift.store_id else "",
-            "store_id": shift.store_id.id if shift.store_id else None,
-            "terminal_id": shift.terminal_id.id if shift.terminal_id else None,
-            "payment_balances": payment_balances,
-        }
+                "store_id": shift.store_id.id if shift.store_id else None,
+                "terminal_id": shift.terminal_id.id if shift.terminal_id else None,
+                "payment_balances": [],
+            }
 
     @http.route('/api/method/saas_api.www.api.open_shift', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_open_shift(self, **kwargs):
@@ -7065,100 +7083,116 @@ class HavanoPOSDeskAPI(http.Controller):
                 'closing_amount': 0.0,
             }))
 
-        env = request.env(user=uid)
-        user_rec = env['res.users'].browse(uid)
-        tenant = user_rec.tenant_id
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            user_rec = env['res.users'].browse(uid)
+            tenant = user_rec.tenant_id
 
-        # Resolve store
-        store_id = False
-        if store_param:
-            if isinstance(store_param, int) or (isinstance(store_param, str) and str(store_param).isdigit()):
-                store_domain = [('id', '=', int(store_param))]
-                if tenant:
-                    store_domain.append(('tenant_id', '=', tenant.id))
-                store_rec = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
-                store_id = store_rec.id if store_rec else False
-            else:
-                store_domain = [('name', '=ilike', str(store_param).strip())]
-                if tenant:
-                    store_domain.append(('tenant_id', '=', tenant.id))
-                store_rec = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
-                store_id = store_rec.id if store_rec else False
-        if not store_id:
-            if user_rec.default_store_id and (not tenant or user_rec.default_store_id.tenant_id.id == tenant.id):
-                store_id = user_rec.default_store_id.id
-            elif user_rec.store_ids:
-                matching_stores = user_rec.store_ids.filtered(lambda s: not tenant or s.tenant_id.id == tenant.id)
-                if matching_stores:
-                    store_id = matching_stores[0].id
-        if not store_id:
-            store_domain = [('tenant_id', '=', tenant.id)] if tenant else []
-            store = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
-            store_id = store.id if store else False
+            # Resolve store
+            store_id = False
+            if store_param:
+                if isinstance(store_param, int) or (isinstance(store_param, str) and str(store_param).isdigit()):
+                    store_domain = [('id', '=', int(store_param))]
+                    if tenant:
+                        store_domain.append(('tenant_id', '=', tenant.id))
+                    store_rec = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
+                    store_id = store_rec.id if store_rec else False
+                else:
+                    store_domain = [('name', '=ilike', str(store_param).strip())]
+                    if tenant:
+                        store_domain.append(('tenant_id', '=', tenant.id))
+                    store_rec = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
+                    store_id = store_rec.id if store_rec else False
+            if not store_id:
+                if user_rec.default_store_id and (not tenant or user_rec.default_store_id.tenant_id.id == tenant.id):
+                    store_id = user_rec.default_store_id.id
+                elif user_rec.store_ids:
+                    matching_stores = user_rec.store_ids.filtered(lambda s: not tenant or s.tenant_id.id == tenant.id)
+                    if matching_stores:
+                        store_id = matching_stores[0].id
+            if not store_id:
+                store_domain = [('tenant_id', '=', tenant.id)] if tenant else []
+                store = env['havanoposdesk.store'].sudo().search(store_domain, limit=1)
+                store_id = store.id if store else False
+            if not store_id:
+                # Absolute fallback to any active store in DB
+                any_store = env['havanoposdesk.store'].sudo().search([], limit=1)
+                store_id = any_store.id if any_store else False
 
-        # Resolve terminal
-        terminal_id = False
-        if terminal_param:
-            if isinstance(terminal_param, int) or (isinstance(terminal_param, str) and str(terminal_param).isdigit()):
-                term_domain = [('id', '=', int(terminal_param))]
-                if store_id:
-                    term_domain.append(('store_id', '=', store_id))
-                elif tenant:
-                    term_domain.append(('tenant_id', '=', tenant.id))
-                term_rec = env['havanoposdesk.pos.terminal'].sudo().search(term_domain, limit=1)
-                terminal_id = term_rec.id if term_rec else False
-            else:
-                term_domain = [('name', '=ilike', str(terminal_param).strip())]
-                if store_id:
-                    term_domain.append(('store_id', '=', store_id))
-                elif tenant:
-                    term_domain.append(('tenant_id', '=', tenant.id))
-                term_rec = env['havanoposdesk.pos.terminal'].sudo().search(term_domain, limit=1)
-                terminal_id = term_rec.id if term_rec else False
+            # Resolve terminal
+            terminal_id = False
+            if terminal_param:
+                if isinstance(terminal_param, int) or (isinstance(terminal_param, str) and str(terminal_param).isdigit()):
+                    term_domain = [('id', '=', int(terminal_param))]
+                    if store_id:
+                        term_domain.append(('store_id', '=', store_id))
+                    elif tenant:
+                        term_domain.append(('tenant_id', '=', tenant.id))
+                    term_rec = env['havanoposdesk.pos.terminal'].sudo().search(term_domain, limit=1)
+                    terminal_id = term_rec.id if term_rec else False
+                else:
+                    term_domain = [('name', '=ilike', str(terminal_param).strip())]
+                    if store_id:
+                        term_domain.append(('store_id', '=', store_id))
+                    elif tenant:
+                        term_domain.append(('tenant_id', '=', tenant.id))
+                    term_rec = env['havanoposdesk.pos.terminal'].sudo().search(term_domain, limit=1)
+                    terminal_id = term_rec.id if term_rec else False
 
-        # Check if already open shift exists for this user and tenant
-        existing_shift_domain = [
-            ('user_id', '=', uid),
-            ('state', '=', 'open')
-        ]
-        if tenant:
-            existing_shift_domain.append(('tenant_id', '=', tenant.id))
-        existing_shift = env['havanoposdesk.shift'].sudo().search(existing_shift_domain, limit=1)
+            # Check if already open shift exists for this user and tenant
+            existing_shift_domain = [
+                ('user_id', '=', uid),
+                ('state', '=', 'open')
+            ]
+            if tenant:
+                existing_shift_domain.append(('tenant_id', '=', tenant.id))
+            existing_shift = env['havanoposdesk.shift'].sudo().search(existing_shift_domain, limit=1)
 
-        if existing_shift:
-            formatted_shift = self._format_shift_response(existing_shift)
-            _logger.info("[api_open_shift] Returning existing open shift ID %s: %s", existing_shift.id, formatted_shift)
+            if existing_shift:
+                formatted_shift = self._format_shift_response(existing_shift)
+                _logger.info("[api_open_shift] Returning existing open shift ID %s: %s", existing_shift.id, formatted_shift)
+                return self._make_json_response({
+                    "message": {
+                        "status": "success",
+                        "shift": formatted_shift
+                    }
+                })
+
+            create_vals = {
+                'user_id': uid,
+                'store_id': store_id,
+                'opening_cash': opening_cash,
+                'state': 'open',
+                'start_date': fields.Datetime.now()
+            }
+            if tenant:
+                create_vals['tenant_id'] = tenant.id
+            if terminal_id:
+                create_vals['terminal_id'] = terminal_id
+            if breakdown_commands:
+                create_vals['payment_breakdown_ids'] = breakdown_commands
+
+            shift = env['havanoposdesk.shift'].sudo().create(create_vals)
+            formatted_shift = self._format_shift_response(shift)
+            _logger.info("[api_open_shift] Created and returning new open shift ID %s: %s", shift.id, formatted_shift)
+
             return self._make_json_response({
                 "message": {
                     "status": "success",
                     "shift": formatted_shift
                 }
             })
-
-        create_vals = {
-            'user_id': uid,
-            'store_id': store_id,
-            'opening_cash': opening_cash,
-            'state': 'open',
-            'start_date': fields.Datetime.now()
-        }
-        if tenant:
-            create_vals['tenant_id'] = tenant.id
-        if terminal_id:
-            create_vals['terminal_id'] = terminal_id
-        if breakdown_commands:
-            create_vals['payment_breakdown_ids'] = breakdown_commands
-
-        shift = env['havanoposdesk.shift'].sudo().create(create_vals)
-        formatted_shift = self._format_shift_response(shift)
-        _logger.info("[api_open_shift] Created and returning new open shift ID %s: %s", shift.id, formatted_shift)
-
-        return self._make_json_response({
-            "message": {
-                "status": "success",
-                "shift": formatted_shift
-            }
-        })
+        except Exception as e:
+            _logger.exception("[api_open_shift] Error opening shift: %s", e)
+            return self._make_json_response({
+                "message": {
+                    "status": "error",
+                    "message": str(e)
+                }
+            }, status=500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
 
     @http.route('/api/method/saas_api.www.api.close_shift', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_close_shift(self, **kwargs):
