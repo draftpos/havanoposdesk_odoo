@@ -641,7 +641,7 @@ class Sale(models.Model):
                 _cap_and_post(payment)
         elif sale.payment_policy == 'multi' and not used_on_account:
             raise ValidationError("You must add at least one payment entry for cash sales/returns in the Payment Breakdown tab.")
-        elif not used_on_account:
+        elif not used_on_account and not existing and remaining_base > 0.0001:
             if not sale.account_id:
                 raise ValidationError("You must select a Deposit Account for Single Payment cash sales/returns.")
             raw_payment_amount = sale.single_payment_amount if sale.single_payment_amount > 0 else target_amount

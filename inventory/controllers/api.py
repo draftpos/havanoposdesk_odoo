@@ -4425,6 +4425,33 @@ class HavanoPOSDeskAPI(http.Controller):
                             break
 
             today_date = fields.Date.context_today(env.user)
+            ref_str = params.get('reference_no') or params.get('reference') or params.get('remarks') or 'Payment Entry'
+
+            # Deduplication: If this payment is linked to a sale that already has payments created during POS sync
+            if sale_obj:
+                existing_payments = sale_obj.payment_ids.filtered(lambda p: p.state != 'cancelled')
+                # 1. Exact amount / account match on this sale
+                match = existing_payments.filtered(
+                    lambda p: abs(p.amount - amount) < 0.01 or (account_obj and p.account_id.id == account_obj.id)
+                )
+                if not match and sale_obj.payment_status == 'cash' and existing_payments:
+                    match = existing_payments[:1]
+
+                if match:
+                    payment = match[0]
+                    if ref_str and not payment.reference:
+                        payment.sudo().write({'reference': ref_str})
+                    if custom_cr:
+                        custom_cr.commit()
+                    return self._make_json_response({
+                        "data": {
+                            "name": payment.name,
+                            "id": payment.id,
+                            "status": payment.state,
+                            "amount": payment.amount,
+                            "account": payment.account_id.name if payment.account_id else ""
+                        }
+                    })
 
             payment_vals = {
                 'payment_type': payment_type,
@@ -4434,7 +4461,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'account_id': account_obj.id if account_obj else False,
                 'amount': amount,
                 'date': today_date,
-                'reference': params.get('reference_no') or params.get('reference') or params.get('remarks') or 'Payment Entry',
+                'reference': ref_str,
                 'store_id': store_obj.id if store_obj else False,
                 'shift_id': shift_id_val if shift_id_val else False,
                 'sale_id': sale_obj.id if sale_obj else False,
