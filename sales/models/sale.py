@@ -378,7 +378,7 @@ class Sale(models.Model):
                         paid_doc += payment.amount_base * rate
                 record.amount_paid = paid_doc
             else:
-                if record.state in ('confirmed', 'done') and valid_payments:
+                if valid_payments:
                     record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
                     paid_doc = 0.0
                     for payment in valid_payments:
@@ -508,7 +508,11 @@ class Sale(models.Model):
             if not vals.get('currency_id'):
                 tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val) if tenant_id_val else self.env['havanoposdesk.tenant']
-                if vals.get('customer'):
+                if vals.get('store_id'):
+                    store = self.env['havanoposdesk.store'].browse(vals['store_id'])
+                    if store and store.currency_id:
+                        vals['currency_id'] = store.currency_id.id
+                if not vals.get('currency_id') and vals.get('customer'):
                     customer = self.env['havanoposdesk.customer'].browse(vals['customer'])
                     if customer.currency_id:
                         self.env['res.currency']._validate_tenant_currency(customer.currency_id, tenant)
@@ -523,6 +527,24 @@ class Sale(models.Model):
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val) if tenant_id_val else self.env['havanoposdesk.tenant']
             if vals.get('currency_id'):
                 self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
+
+            curr_id = vals.get('currency_id')
+            if curr_id and tenant and tenant.currency_id and curr_id != tenant.currency_id.id:
+                rate_val = vals.get('exchange_rate')
+                if not rate_val or rate_val == 1.0:
+                    rate_rec = self.env['res.currency.rate'].sudo().search(
+                        [('currency_id', '=', curr_id)],
+                        order='name desc, id desc',
+                        limit=1
+                    )
+                    if rate_rec and rate_rec.company_rate:
+                        vals['exchange_rate'] = float(rate_rec.company_rate)
+                    else:
+                        curr_rec = self.env['res.currency'].browse(curr_id)
+                        sale_date = vals.get('date') or vals.get('posting_date') or fields.Date.context_today(self)
+                        conv_rate = curr_rec._get_conversion_rate(tenant.currency_id, curr_rec, self.env.company, sale_date)
+                        if conv_rate and conv_rate != 1.0:
+                            vals['exchange_rate'] = conv_rate
 
         sales = super().create(vals_list)
         
@@ -663,14 +685,29 @@ class Sale(models.Model):
             elif requested_base + 0.0001 >= remaining_base:
                 payment_amount = target_amount
             if payment_amount > 0:
+                pay_curr = sale.account_id.currency_id if sale.account_id and sale.account_id.currency_id else sale.currency_id
+                pay_rate = sale.exchange_rate
+                final_pay_amount = payment_amount
+                if pay_curr != sale.currency_id:
+                    pay_rate_rec = self.env['res.currency.rate'].sudo().search(
+                        [('currency_id', '=', pay_curr.id)],
+                        order='name desc, id desc',
+                        limit=1
+                    )
+                    pay_rate = float(pay_rate_rec.company_rate) if (pay_rate_rec and pay_rate_rec.company_rate) else 1.0
+                    if not pay_rate or pay_rate == 1.0:
+                        pay_rate = pay_curr._get_conversion_rate(sale.tenant_id.currency_id, pay_curr, self.env.company, sale.posting_date or fields.Date.context_today(sale)) or 1.0
+                    base_to_pay = min(requested_base, remaining_base)
+                    final_pay_amount = base_to_pay * pay_rate
+
                 payment = self.env['havanoposdesk.payment'].create([{
                     'payment_type': expected_payment_type,
                     'partner_type': 'customer',
                     'customer_id': sale.customer.id,
                     'account_id': sale.account_id.id,
-                    'currency_id': sale.currency_id.id,
-                    'exchange_rate': sale.exchange_rate,
-                    'amount': payment_amount,
+                    'currency_id': pay_curr.id,
+                    'exchange_rate': pay_rate,
+                    'amount': final_pay_amount,
                     'date': sale.posting_date or fields.Date.context_today(sale),
                     'tenant_id': sale.tenant_id.id,
                     'sale_id': sale.id,

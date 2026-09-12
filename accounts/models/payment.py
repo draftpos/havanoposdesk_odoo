@@ -158,10 +158,32 @@ class Payment(models.Model):
             if tenant_id:
                 vals['tenant_id'] = tenant_id
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
+            if not vals.get('currency_id') and vals.get('account_id'):
+                account = self.env['havanoposdesk.account'].browse(vals.get('account_id'))
+                if account.currency_id:
+                    vals['currency_id'] = account.currency_id.id
             if tenant.currency_id and not vals.get('currency_id'):
                 vals['currency_id'] = tenant.currency_id.id
             if vals.get('currency_id'):
                 self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
+
+            curr_id = vals.get('currency_id')
+            if curr_id and tenant and tenant.currency_id and curr_id != tenant.currency_id.id:
+                rate_val = vals.get('exchange_rate')
+                if not rate_val or rate_val == 1.0:
+                    rate_rec = self.env['res.currency.rate'].sudo().search(
+                        [('currency_id', '=', curr_id)],
+                        order='name desc, id desc',
+                        limit=1
+                    )
+                    if rate_rec and rate_rec.company_rate:
+                        vals['exchange_rate'] = float(rate_rec.company_rate)
+                    else:
+                        curr_rec = self.env['res.currency'].browse(curr_id)
+                        pay_date = vals.get('date') or fields.Date.context_today(self)
+                        conv_rate = curr_rec._get_conversion_rate(tenant.currency_id, curr_rec, self.env.company, pay_date)
+                        if conv_rate and conv_rate != 1.0:
+                            vals['exchange_rate'] = conv_rate
             if tenant_id:
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
                 if tenant and not tenant.check_subscription_active():
