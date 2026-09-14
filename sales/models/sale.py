@@ -62,11 +62,24 @@ class Sale(models.Model):
                 record.invoice_type = 'Sales Invoice'
     
     def _default_account_id(self):
-        return self.env['havanoposdesk.account'].search([
+        domain = [
             ('type', 'in', ['Cash', 'Bank']),
             ('active', '=', True),
             ('is_on_account', '=', False),
-        ], limit=1).id
+        ]
+        tenant = (hasattr(self, 'tenant_id') and self.tenant_id) or (
+            self.env.user.tenant_id if hasattr(self.env, 'user') and self.env.user else False
+        )
+        if tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+        acc = self.env['havanoposdesk.account'].search(domain, limit=1)
+        if not acc:
+            acc = self.env['havanoposdesk.account'].search([
+                ('type', 'in', ['Cash', 'Bank']),
+                ('active', '=', True),
+                ('is_on_account', '=', False),
+            ], limit=1)
+        return acc.id if acc else False
 
     def _default_payment_status(self):
         tenant = self.env.user.tenant_id
@@ -143,39 +156,85 @@ class Sale(models.Model):
 
 
 
+    def _get_currency_direct_rate(self, currency, tenant=None):
+        if not currency:
+            return 1.0
+        domain = [('currency_id', '=', currency.id)]
+        if tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+        rate_rec = self.env['res.currency.rate'].sudo().search(
+            domain,
+            order='name desc, id desc',
+            limit=1
+        )
+        if not rate_rec and tenant:
+            rate_rec = self.env['res.currency.rate'].sudo().search(
+                [('currency_id', '=', currency.id)],
+                order='name desc, id desc',
+                limit=1
+            )
+        if rate_rec:
+            cr = rate_rec.company_rate
+            if cr and float(cr) > 0:
+                return float(cr)
+            if rate_rec.rate and float(rate_rec.rate) > 0:
+                r = float(rate_rec.rate)
+                return (1.0 / r) if r < 1.0 else r
+        return 1.0
+
     @api.onchange('customer')
     def _onchange_customer(self):
         if self.customer:
             target_currency = self.customer.currency_id
-            self.currency_id = target_currency.id
-            
-            # Auto-fetch exchange rate for the target currency
-            if target_currency and self.tenant_id and self.tenant_id.currency_id:
-                if target_currency == self.tenant_id.currency_id:
-                    self.exchange_rate = 1.0
-                else:
-                    date = self.date or fields.Date.context_today(self)
-                    rate = target_currency._get_conversion_rate(
-                        self.tenant_id.currency_id, target_currency, self.env.company, date
+            if target_currency:
+                self.currency_id = target_currency.id
+                if self.tenant_id and self.tenant_id.currency_id:
+                    is_base = (target_currency == self.tenant_id.currency_id) or (
+                        target_currency.name and self.tenant_id.currency_id.name and
+                        target_currency.name.strip().upper() == self.tenant_id.currency_id.name.strip().upper()
                     )
-                    self.exchange_rate = rate or 1.0
+                    if is_base:
+                        self.exchange_rate = 1.0
+                    else:
+                        rate = self._get_currency_direct_rate(target_currency, self.tenant_id)
+                        self.exchange_rate = rate or 1.0
+            else:
+                if not self.currency_id and self.tenant_id and self.tenant_id.currency_id:
+                    self.currency_id = self.tenant_id.currency_id.id
+                    self.exchange_rate = 1.0
+
+            if not self.payment_status:
+                self.payment_status = self.tenant_id.default_payment_status or 'cash'
+            if not self.payment_policy:
+                self.payment_policy = 'single'
+            if not self.account_id and self.payment_status in ['cash', 'partial']:
+                self.account_id = self._default_account_id()
 
     @api.onchange('currency_id', 'tenant_id')
     def _onchange_currency_id(self):
         if self.currency_id and self.tenant_id and self.tenant_id.currency_id:
-            if self.currency_id == self.tenant_id.currency_id:
+            is_base = (self.currency_id == self.tenant_id.currency_id) or (
+                self.currency_id.name and self.tenant_id.currency_id.name and
+                self.currency_id.name.strip().upper() == self.tenant_id.currency_id.name.strip().upper()
+            )
+            if is_base:
                 self.exchange_rate = 1.0
-                if not self.payment_status:
-                    self.payment_status = self.tenant_id.default_payment_status or 'cash'
             else:
-                # Odoo's res.currency stores rate as: 1 base = X foreign
-                date = self.date or fields.Date.context_today(self)
-                rate = self.currency_id._get_conversion_rate(self.tenant_id.currency_id, self.currency_id, self.env.company, date)
+                rate = self._get_currency_direct_rate(self.currency_id, self.tenant_id)
                 self.exchange_rate = rate or 1.0
-                # Force user to choose payment mode for foreign currency
-                self.payment_status = False
+
+            # Preserve payment fields and default them if missing
+            if not self.payment_status:
+                self.payment_status = self.tenant_id.default_payment_status or 'cash'
+            if not self.payment_policy:
+                self.payment_policy = 'single'
+            if not self.account_id and self.payment_status in ['cash', 'partial']:
+                self.account_id = self._default_account_id()
+
             if self.line_ids:
                 self.line_ids._recompute_prices_for_currency()
+            if self.payment_policy == 'single' and self.payment_status != 'account':
+                self.single_payment_amount = abs(self.amount_total)
     terminal_id = fields.Many2one(
         'havanoposdesk.pos.terminal', 
         string='POS Terminal', 
@@ -295,6 +354,7 @@ class Sale(models.Model):
                 bool(record.currency_id)
                 and bool(record.tenant_currency_id)
                 and record.currency_id != record.tenant_currency_id
+                and (record.currency_id.name or '').strip().upper() != (record.tenant_currency_id.name or '').strip().upper()
             )
 
     @api.depends('amount_untaxed', 'amount_tax', 'amount_total', 'exchange_rate', 'currency_id', 'tenant_currency_id')
@@ -306,7 +366,12 @@ class Sale(models.Model):
         Otherwise, the document is already in foreign currency, so we store the document totals.
         """
         for record in self:
-            if record.currency_id == record.tenant_currency_id:
+            is_base = (record.currency_id == record.tenant_currency_id) or (
+                record.currency_id and record.tenant_currency_id and
+                record.currency_id.name and record.tenant_currency_id.name and
+                record.currency_id.name.strip().upper() == record.tenant_currency_id.name.strip().upper()
+            )
+            if is_base:
                 rate = record.exchange_rate if record.exchange_rate else 1.0
                 record.amount_untaxed_fc = record.amount_untaxed * rate
                 record.amount_tax_fc = record.amount_tax * rate
@@ -526,25 +591,29 @@ class Sale(models.Model):
             tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val) if tenant_id_val else self.env['havanoposdesk.tenant']
             if vals.get('currency_id'):
-                self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
+                validated_curr = self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
+                if validated_curr:
+                    vals['currency_id'] = validated_curr.id
 
             curr_id = vals.get('currency_id')
-            if curr_id and tenant and tenant.currency_id and curr_id != tenant.currency_id.id:
-                rate_val = vals.get('exchange_rate')
-                if not rate_val or rate_val == 1.0:
-                    rate_rec = self.env['res.currency.rate'].sudo().search(
-                        [('currency_id', '=', curr_id)],
-                        order='name desc, id desc',
-                        limit=1
-                    )
-                    if rate_rec and rate_rec.company_rate:
-                        vals['exchange_rate'] = float(rate_rec.company_rate)
-                    else:
-                        curr_rec = self.env['res.currency'].browse(curr_id)
-                        sale_date = vals.get('date') or vals.get('posting_date') or fields.Date.context_today(self)
-                        conv_rate = curr_rec._get_conversion_rate(tenant.currency_id, curr_rec, self.env.company, sale_date)
-                        if conv_rate and conv_rate != 1.0:
-                            vals['exchange_rate'] = conv_rate
+            if curr_id and tenant and tenant.currency_id:
+                curr_rec = self.env['res.currency'].browse(curr_id)
+                is_base = (curr_rec == tenant.currency_id) or (
+                    curr_rec.name and tenant.currency_id.name and
+                    curr_rec.name.strip().upper() == tenant.currency_id.name.strip().upper()
+                )
+                if is_base:
+                    vals['exchange_rate'] = 1.0
+                else:
+                    rate_val = vals.get('exchange_rate')
+                    if not rate_val or rate_val == 1.0:
+                        vals['exchange_rate'] = self._get_currency_direct_rate(curr_rec, tenant)
+                    elif 0 < rate_val < 1.0:
+                        direct = self._get_currency_direct_rate(curr_rec, tenant)
+                        if direct > 1.0:
+                            vals['exchange_rate'] = direct
+                        else:
+                            vals['exchange_rate'] = 1.0 / rate_val
 
         sales = super().create(vals_list)
         

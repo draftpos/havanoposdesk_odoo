@@ -14,6 +14,7 @@ class HavanoposdeskProduct(models.Model):
             with cr.savepoint():
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS hs_code VARCHAR;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS print_after_order BOOLEAN DEFAULT FALSE;")
         except Exception:
             pass
         return res
@@ -391,6 +392,11 @@ class HavanoposdeskProduct(models.Model):
     # Other
     internal_notes = fields.Text(string='Internal Notes')
     is_active = fields.Boolean(string='Active', default=True)
+    print_after_order = fields.Boolean(
+        string='Print After Order',
+        default=False,
+        help='If enabled, triggers printing after an order containing this item is placed.'
+    )
     kitchen_settings_enabled = fields.Boolean(
         related='tenant_id.enable_kitchen_settings',
         string='Kitchen Settings Enabled'

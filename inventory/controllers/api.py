@@ -411,6 +411,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "custom_is_order_item_7": int(p.kitchen_order_7),
                     "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
                     "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
+                    "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0,
                 })
                 
             import base64
@@ -649,6 +650,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'is_sales_item': 1,
                     'sellbyprice': 1 if getattr(p, 'sellbyprice', False) else 0,
                     'sell_by_price': 1 if getattr(p, 'sellbyprice', False) else 0,
+                    'print_after_order': 1 if getattr(p, 'print_after_order', False) else 0,
                     'category': p.category_id.id if p.category_id else None,
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
@@ -717,6 +719,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'color_hex': data.get('color_hex'),
                 'track_qty': data.get('track_qty', True),
                 'sellbyprice': bool(data.get('sellbyprice') or data.get('sell_by_price')),
+                'print_after_order': bool(data.get('print_after_order')),
                 'tenant_id': tenant_id,
                 'store_id': store_id,
             }
@@ -783,6 +786,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'track_qty': product.track_qty,
                 'sellbyprice': 1 if getattr(product, 'sellbyprice', False) else 0,
                 'sell_by_price': 1 if getattr(product, 'sellbyprice', False) else 0,
+                'print_after_order': 1 if getattr(product, 'print_after_order', False) else 0,
                 'category': product.category_id.id if product.category_id else None,
                 'uom': product.uom_id.id if product.uom_id else None,
                 'tenant_id': product.tenant_id.id,
@@ -2090,12 +2094,20 @@ class HavanoPOSDeskAPI(http.Controller):
                     'all_stores': True,
                 })
 
-            base_rate = rate or product.selling_price or 1.0
-            base_curr = tenant.currency_id if tenant else request.env.company.currency_id
-            if doc_currency != base_curr and doc_exchange_rate and doc_exchange_rate != 1.0:
-                final_rate = base_rate * doc_exchange_rate
+            if rate and float(rate) > 0:
+                final_rate = float(rate)
             else:
-                final_rate = base_rate
+                base_rate = product.selling_price or 1.0
+                base_curr = tenant.currency_id if tenant else request.env.company.currency_id
+                is_base = (doc_currency == base_curr) or (
+                    doc_currency and base_curr and
+                    doc_currency.name and base_curr.name and
+                    doc_currency.name.strip().upper() == base_curr.name.strip().upper()
+                )
+                if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
+                    final_rate = base_rate * doc_exchange_rate
+                else:
+                    final_rate = base_rate
 
             line_vals = {
                 'product_id': product.id,
@@ -2394,6 +2406,8 @@ class HavanoPOSDeskAPI(http.Controller):
             }
             if 'sellbyprice' in data or 'sell_by_price' in data:
                 product_vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
+            if 'print_after_order' in data:
+                product_vals['print_after_order'] = bool(data.get('print_after_order'))
             if tax_ids:
                 product_vals['sale_tax_ids'] = [(6, 0, tax_ids)]
             product = request.env['havanoposdesk.product'].sudo().create(product_vals)
@@ -2877,7 +2891,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 "tourism_tax": tourism_tax,
                 "cumulative": cumulative,
                 "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
-                "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0
+                "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
+                "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0
             })
             
         import math
@@ -3214,11 +3229,19 @@ class HavanoPOSDeskAPI(http.Controller):
                         'all_stores': True,
                     })
 
-                base_rate = price or product.selling_price or 1.0
-                if doc_currency != base_curr and doc_exchange_rate and doc_exchange_rate != 1.0:
-                    final_rate = base_rate * doc_exchange_rate
+                if price and float(price) > 0:
+                    final_rate = float(price)
                 else:
-                    final_rate = base_rate
+                    base_rate = product.selling_price or 1.0
+                    is_base = (doc_currency == base_curr) or (
+                        doc_currency and base_curr and
+                        doc_currency.name and base_curr.name and
+                        doc_currency.name.strip().upper() == base_curr.name.strip().upper()
+                    )
+                    if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
+                        final_rate = base_rate * doc_exchange_rate
+                    else:
+                        final_rate = base_rate
 
                 line_vals = {
                     'product_id': product.id,
@@ -3389,6 +3412,13 @@ class HavanoPOSDeskAPI(http.Controller):
                     vals['sellbyprice'] = sbp_raw.lower() in ['yes', 'true', '1']
                 else:
                     vals['sellbyprice'] = bool(sbp_raw)
+
+            if 'print_after_order' in params:
+                pao_raw = params.get('print_after_order')
+                if isinstance(pao_raw, str):
+                    vals['print_after_order'] = pao_raw.lower() in ['yes', 'true', '1']
+                else:
+                    vals['print_after_order'] = bool(pao_raw)
 
             product.write(vals)
 
@@ -3740,11 +3770,12 @@ class HavanoPOSDeskAPI(http.Controller):
                             ('local_invoice_id', '=', local_invoice_id)
                         ], limit=1)
                         if existing_sale:
-                            return self._make_json_response({
-                                "error": f"Sale with local_invoice_id '{local_invoice_id}' already exists in cloud",
-                                "existing_sale": existing_sale.name,
-                                "local_invoice_id": local_invoice_id
-                            }, status=409)
+                            responses.append({
+                                "name": existing_sale.name,
+                                "local_invoice_id": local_invoice_id,
+                                "status": "exists"
+                            })
+                            continue
 
                         store = self._get_current_store(user, tenant, sale_data)
                         if not store:
@@ -3836,7 +3867,7 @@ class HavanoPOSDeskAPI(http.Controller):
                                     line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
 
                             if raw_rate is not None and float(raw_rate) > 0:
-                                base_rate = float(raw_rate)
+                                rate = float(raw_rate)
                             else:
                                 base_rate = product.selling_price or 1.0
                                 if pricelist_id and line_vals.get('uom_id'):
@@ -3848,11 +3879,16 @@ class HavanoPOSDeskAPI(http.Controller):
                                     if pl_price_rec and pl_price_rec.price:
                                         base_rate = pl_price_rec.price
 
-                            base_curr = tenant.currency_id if tenant else env.company.currency_id
-                            if doc_currency != base_curr and doc_exchange_rate and doc_exchange_rate != 1.0:
-                                rate = base_rate * doc_exchange_rate
-                            else:
-                                rate = base_rate
+                                base_curr = tenant.currency_id if tenant else env.company.currency_id
+                                is_base = (doc_currency == base_curr) or (
+                                    doc_currency and base_curr and
+                                    doc_currency.name and base_curr.name and
+                                    doc_currency.name.strip().upper() == base_curr.name.strip().upper()
+                                )
+                                if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
+                                    rate = base_rate * doc_exchange_rate
+                                else:
+                                    rate = base_rate
 
                             line_vals['rate'] = rate
 
@@ -4050,29 +4086,52 @@ class HavanoPOSDeskAPI(http.Controller):
         If required/passed but not found or not passed, returns (False, error_message).
         """
         term_param = sale_data.get('terminal_id') or sale_data.get('terminal') or sale_data.get('pos_profile')
-        if not term_param:
-            return False, "POS Terminal is required (please provide pos_profile or terminal_id)"
-
         terminal = False
-        if isinstance(term_param, int) or (isinstance(term_param, str) and str(term_param).strip().isdigit()):
-            terminal = env['havanoposdesk.pos.terminal'].sudo().browse(int(term_param))
-            if not terminal.exists() or (tenant and terminal.tenant_id.id != tenant.id):
-                terminal = False
-        if not terminal:
-            term_str = str(term_param).strip()
-            if store:
-                terminal = env['havanoposdesk.pos.terminal'].sudo().search([
-                    ('tenant_id', '=', tenant.id),
-                    ('store_id', '=', store.id),
-                    '|', ('name', '=ilike', term_str), ('name', '=', term_str)
-                ], limit=1)
+        if term_param:
+            if isinstance(term_param, int) or (isinstance(term_param, str) and str(term_param).strip().isdigit()):
+                terminal = env['havanoposdesk.pos.terminal'].sudo().browse(int(term_param))
+                if not terminal.exists() or (tenant and terminal.tenant_id.id != tenant.id):
+                    terminal = False
+            if not terminal:
+                term_str = str(term_param).strip()
+                if store:
+                    terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                        ('tenant_id', '=', tenant.id),
+                        ('store_id', '=', store.id),
+                        '|', ('name', '=ilike', term_str), ('name', '=', term_str)
+                    ], limit=1)
+                if not terminal:
+                    terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                        ('tenant_id', '=', tenant.id),
+                        '|', ('name', '=ilike', term_str), ('name', '=', term_str)
+                    ], limit=1)
+
+        # Fallback to cashier or user selected terminal, active store terminal, or active tenant terminal
+        if not terminal and sale_user and getattr(sale_user, 'selected_terminal_id', None):
+            terminal = sale_user.selected_terminal_id
+        if not terminal and user and getattr(user, 'selected_terminal_id', None):
+            terminal = user.selected_terminal_id
+        if not terminal and store:
+            terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('store_id', '=', store.id),
+                ('active', '=', True),
+            ], limit=1)
             if not terminal:
                 terminal = env['havanoposdesk.pos.terminal'].sudo().search([
-                    ('tenant_id', '=', tenant.id),
-                    '|', ('name', '=ilike', term_str), ('name', '=', term_str)
+                    ('store_id', '=', store.id),
+                    ('active', '=', True),
                 ], limit=1)
+        if not terminal and tenant:
+            terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('active', '=', True),
+            ], limit=1)
+
         if not terminal:
-            return False, f"POS Terminal '{term_param}' not found"
+            if term_param:
+                return False, f"POS Terminal '{term_param}' not found"
+            return False, "POS Terminal is required (please provide pos_profile or terminal_id)"
         return terminal, None
 
     def _resolve_sale_currency_and_rate(self, env, tenant, store, customer, sale_data, sale_user=None):
@@ -4114,7 +4173,12 @@ class HavanoPOSDeskAPI(http.Controller):
             doc_currency = env['res.currency']._validate_tenant_currency(doc_currency, tenant)
 
         # Exchange rate
-        if doc_currency == base_curr:
+        is_base = (doc_currency == base_curr) or (
+            doc_currency and base_curr and
+            doc_currency.name and base_curr.name and
+            doc_currency.name.strip().upper() == base_curr.name.strip().upper()
+        )
+        if is_base:
             doc_exchange_rate = 1.0
         else:
             # Check explicit rate in payload (exchange_rate or conversion_rate)
@@ -4131,17 +4195,14 @@ class HavanoPOSDeskAPI(http.Controller):
                                 rate_val = p_rate
                                 break
 
+            direct_sys_rate = self._get_direct_rate(env, doc_currency.id, tenant)
             if rate_val > 0 and rate_val != 1.0:
-                doc_exchange_rate = rate_val
+                if rate_val < 1.0:
+                    doc_exchange_rate = direct_sys_rate if direct_sys_rate and direct_sys_rate > 1.0 else (1.0 / rate_val)
+                else:
+                    doc_exchange_rate = rate_val
             else:
-                rate = self._get_direct_rate(env, doc_currency.id, tenant)
-                if not rate or rate <= 0:
-                    today_date = fields.Date.context_today(sale_user or env.user)
-                    try:
-                        rate = doc_currency._get_conversion_rate(base_curr, doc_currency, env.company, today_date)
-                    except Exception:
-                        rate = getattr(doc_currency, 'rate', None) or 1.0
-                doc_exchange_rate = float(rate) if rate and float(rate) > 0 else (rate_val if rate_val > 0 else 1.0)
+                doc_exchange_rate = float(direct_sys_rate) if direct_sys_rate and float(direct_sys_rate) > 0 else 1.0
 
         return doc_currency, doc_exchange_rate
 
@@ -4251,14 +4312,16 @@ class HavanoPOSDeskAPI(http.Controller):
                     primary_account_id = p_account
 
                 # 1. Resolve payment currency:
-                # "Then payment method uses currency set for that payment method and if different from base currency apply proper conversion"
+                # Prioritize explicit payload currency if provided, then fall back to account currency, then base currency
                 curr_rec = False
-                if acc and acc.currency_id:
-                    curr_rec = acc.currency_id
-                elif p_curr:
+                if p_curr:
                     curr_rec = env['res.currency'].sudo().search(
                         self._tenant_currency_domain(tenant) + [('name', '=ilike', str(p_curr).strip())], limit=1
                     )
+                    if not curr_rec:
+                        curr_rec = env['res.currency'].sudo().search([('name', '=ilike', str(p_curr).strip())], limit=1)
+                if not curr_rec and acc and acc.currency_id:
+                    curr_rec = acc.currency_id
                 if not curr_rec:
                     curr_rec = base_curr
 
@@ -4266,20 +4329,31 @@ class HavanoPOSDeskAPI(http.Controller):
                     curr_rec = env['res.currency']._validate_tenant_currency(curr_rec, tenant)
 
                 # 2. Resolve payment exchange rate:
-                if curr_rec == base_curr:
+                is_pay_base = (curr_rec == base_curr) or (
+                    curr_rec and base_curr and
+                    curr_rec.name and base_curr.name and
+                    curr_rec.name.strip().upper() == base_curr.name.strip().upper()
+                )
+                if is_pay_base:
                     pay_rate = 1.0
                 else:
+                    direct_pay_rate = self._get_direct_rate(env, curr_rec.id, tenant)
+                    if not direct_pay_rate or direct_pay_rate <= 0:
+                        today_date = fields.Date.context_today(env.user)
+                        try:
+                            direct_pay_rate = curr_rec._get_conversion_rate(base_curr, curr_rec, env.company, today_date)
+                        except Exception:
+                            direct_pay_rate = getattr(curr_rec, 'rate', None) or 1.0
+
                     if p_rate_raw and float(p_rate_raw) > 0 and float(p_rate_raw) != 1.0:
-                        pay_rate = float(p_rate_raw)
+                        raw_r = float(p_rate_raw)
+                        # Client sent inverted rate (e.g. 0.02857 for 35.0)
+                        if raw_r < 1.0:
+                            pay_rate = direct_pay_rate if direct_pay_rate and direct_pay_rate > 1.0 else (1.0 / raw_r)
+                        else:
+                            pay_rate = raw_r
                     else:
-                        sys_rate = self._get_direct_rate(env, curr_rec.id, tenant)
-                        if not sys_rate or sys_rate <= 0:
-                            today_date = fields.Date.context_today(env.user)
-                            try:
-                                sys_rate = curr_rec._get_conversion_rate(base_curr, curr_rec, env.company, today_date)
-                            except Exception:
-                                sys_rate = getattr(curr_rec, 'rate', None) or 1.0
-                        pay_rate = float(sys_rate) if sys_rate and float(sys_rate) > 0 else (float(p_rate_raw) if p_rate_raw and float(p_rate_raw) > 0 else 1.0)
+                        pay_rate = float(direct_pay_rate) if direct_pay_rate and float(direct_pay_rate) > 0 else 1.0
 
                 # 3. Calculate amount in base currency and document currency:
                 p_amount_base = p_amount / pay_rate if pay_rate and pay_rate != 0 else p_amount
@@ -4311,8 +4385,17 @@ class HavanoPOSDeskAPI(http.Controller):
                 real_sum_base += p_amount_base
                 real_sum_doc += p_amount_doc
 
+            def _is_diff_curr(c1_id, c2_id):
+                if not c1_id or not c2_id:
+                    return c1_id != c2_id
+                if c1_id == c2_id:
+                    return False
+                c1 = env['res.currency'].sudo().browse(c1_id)
+                c2 = env['res.currency'].sudo().browse(c2_id)
+                return (c1.name or '').strip().upper() != (c2.name or '').strip().upper()
+
             is_cross_currency = any(
-                cmd[2].get('currency_id') != (doc_currency.id if doc_currency else False)
+                _is_diff_curr(cmd[2].get('currency_id'), doc_currency.id if doc_currency else False)
                 for cmd in payment_commands
             )
             payment_policy = 'multi' if (len(payment_commands) > 1 or is_cross_currency) else 'single'
@@ -5556,7 +5639,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "is_stock_item": 1 if (p.track_qty and not p.is_bundle) else 0,
                     "is_sales_item": 1,
                     "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
-                    "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0
+                    "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
+                    "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0
                 })
             return self._make_json_response({"data": result})
         finally:
@@ -5623,6 +5707,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 vals['is_active'] = not bool(data['disabled'])
             if 'sellbyprice' in data or 'sell_by_price' in data:
                 vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
+            if 'print_after_order' in data:
+                vals['print_after_order'] = bool(data.get('print_after_order'))
 
             # Resolve sale_tax_ids
             tax_ids = []
@@ -7025,6 +7111,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         "maintainstock": 1 if product.track_qty else 0,
                         "sellbyprice": 1 if getattr(product, 'sellbyprice', False) else 0,
                         "sell_by_price": 1 if getattr(product, 'sellbyprice', False) else 0,
+                        "print_after_order": 1 if getattr(product, 'print_after_order', False) else 0,
                         "uom": product.uom_id.name or "Nos",
                         "prices": [
                             {"priceName": "Standard Selling", "price": product.selling_price or 0.0, "type": "selling"},

@@ -16,6 +16,7 @@
                     <field name="buying_price" optional="hide" widget="monetary" />
                     <field name="selling_price" string="Sell price" widget="monetary" />
                     <field name="sellbyprice" optional="show" widget="boolean" string="Sell by Price" />
+                    <field name="print_after_order" optional="hide" widget="boolean" string="Print After Order" />
                     <field name="track_qty" />
                     <field name="on_hand_qty" string="QTY" />
                     <field name="not_for_sale" optional="hide" />
@@ -144,6 +145,7 @@
                                             </group>
                                         </group>
                                         <field name="is_active" string="Active" class="border-bottom border-dark" />
+                                        <field name="print_after_order" string="Print After Order" class="border-bottom border-dark" />
                                         <field name="internal_notes" class="border-bottom border-dark" />
                                     </group>
                                 </group>
@@ -218,6 +220,7 @@
                     <filter string="Store" name="filter_store" domain="[('store_ids', '!=', False)]" />
                     <filter string="Track QTY" name="filter_track_qty" domain="[('track_qty', '=', True)]" />
                     <filter string="Product Name" name="filter_name" domain="[('name', '!=', False)]" />
+                    <filter string="Print After Order" name="filter_print_after_order" domain="[('print_after_order', '=', True)]" />
                     <group>
                         <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}" />
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}" />
