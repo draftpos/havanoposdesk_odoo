@@ -968,9 +968,15 @@ class Sale(models.Model):
                 from ...core.models.fiscal_service import get_zimra_service
                 service = get_zimra_service(self.env)
                 res = service.process_sale_fiscalization(sale)
-                if res.get('status') in ('fiscalized', 'PENDING_SYNC'):
+                status = res.get('status')
+                if status == 'not_required':
                     sale.write({
-                        'fiscal_status': res.get('status'),
+                        'fiscal_status': 'not_required',
+                        'fiscal_error': False,
+                    })
+                elif status in ('fiscalized', 'PENDING_SYNC'):
+                    sale.write({
+                        'fiscal_status': status,
                         'fiscal_qr_code': res.get('qr_code', ''),
                         'fiscal_verification_code': res.get('verification_code', ''),
                         'fiscal_receipt_counter': res.get('receipt_counter', 0),
@@ -1007,13 +1013,36 @@ class Sale(models.Model):
 
     @api.model
     def cron_retry_pending_fiscalization(self):
+        # Retry PENDING_SYNC or failed sales, limited to 50 per batch
         pending_sales = self.sudo().search([
             ('state', '=', 'done'),
             ('fiscal_status', 'in', ['PENDING_SYNC', 'failed'])
-        ], limit=50)
+        ], order='id desc', limit=50)
+
+        if not pending_sales:
+            return
+
         _logger.info("[ZIMRA CRON] Retrying fiscalization for %s pending sales", len(pending_sales))
+        skipped_configs = set()
+
         for sale in pending_sales:
+            config_key = (sale.tenant_id.id, sale.store_id.id if sale.store_id else 0)
+            if config_key in skipped_configs:
+                continue
+
+            # Skip sales that permanently failed due to missing credentials or authentication error
+            if sale.fiscal_status == 'failed' and sale.fiscal_error and any(err in sale.fiscal_error for err in [
+                'Authentication Error', 'API Key and API Secret are required', 'Base URL and Device Serial Number', 'required'
+            ]):
+                continue
+
             sale._trigger_fiscalization()
+
+            # If failed due to configuration or auth error, skip other sales for this store/tenant in this batch
+            if sale.fiscal_status == 'failed' and sale.fiscal_error and any(err in sale.fiscal_error for err in [
+                'Authentication Error', 'API Key and API Secret are required', 'Base URL and Device Serial Number', 'required'
+            ]):
+                skipped_configs.add(config_key)
 
 
     def action_cancel(self):
