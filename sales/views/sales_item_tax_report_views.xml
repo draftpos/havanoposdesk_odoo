@@ -57,8 +57,11 @@
                     <field name="store_id" string="Store"/>
                     <field name="date" string="Date"/>
                     <separator/>
-                    <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]"/>
+                    <filter string="Today" name="today" domain="[('date', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                    <filter string="Yesterday" name="yesterday" domain="[('date', '=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
+                    <filter string="This Week" name="this_week" domain="[('date', '&gt;=', '=week_start'), ('date', '&lt;', '=week_start +1w')]"/>
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
+                    <filter string="This Year" name="this_year" domain="[('date', '&gt;=', context_today().strftime('%Y-01-01'))]"/>
                     <separator/>
                     <filter string="Has HS Code" name="has_hs_code" domain="[('hs_code', '!=', False), ('hs_code', '!=', '')]"/>
                     <filter string="Missing HS Code" name="missing_hs_code" domain="['|', ('hs_code', '=', False), ('hs_code', '=', '')]"/>
@@ -71,7 +74,9 @@
                         <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
                         <filter string="Currency (Base)" name="group_by_currency" context="{'group_by':'currency_id'}"/>
                         <filter string="Date" name="group_by_date" context="{'group_by':'date:day'}"/>
+                        <filter string="Week" name="group_by_week" context="{'group_by':'date:week'}"/>
                         <filter string="Month" name="group_by_month" context="{'group_by':'date:month'}"/>
+                        <filter string="Year" name="group_by_year" context="{'group_by':'date:year'}"/>
                     </group>
                 </search>
             </field>
