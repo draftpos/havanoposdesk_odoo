@@ -59,5 +59,16 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- Cron job for automatic expiration of passed subscriptions -->
+        <record id="ir_cron_check_expired_subscriptions" model="ir.cron">
+            <field name="name">Havano POS Desk: Check and Set Expired Subscriptions</field>
+            <field name="model_id" ref="model_havanoposdesk_tenant"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_check_expired_subscriptions()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

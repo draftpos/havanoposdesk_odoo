@@ -297,6 +297,18 @@ def post_migrate(env):
     except Exception:
         pass
 
+    # Auto-expire any tenants whose subscription_end_date has passed
+    try:
+        env.cr.execute("""
+            UPDATE havanoposdesk_tenant
+            SET subscription_state = 'expired'
+            WHERE subscription_end_date IS NOT NULL
+              AND subscription_end_date < CURRENT_DATE
+              AND subscription_state NOT IN ('expired', 'cancelled');
+        """)
+    except Exception:
+        pass
+
     env.registry.clear_cache()
 
 

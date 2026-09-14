@@ -543,6 +543,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     days_left = None
                     if tenant.subscription_end_date:
                         today = odoo_fields.Date.context_today(tenant)
+                        if tenant.subscription_end_date < today and tenant.subscription_state not in ('expired', 'cancelled'):
+                            tenant.sudo().with_context(bypass_subscription_check=True).write({'subscription_state': 'expired'})
                         days_left = (tenant.subscription_end_date - today).days
                     is_expiring_soon = days_left is not None and days_left <= warning_days
                     is_expired = tenant.subscription_state in ('expired', 'cancelled')
@@ -1156,6 +1158,8 @@ class HavanoPOSDeskAPI(http.Controller):
         days_left = None
         if tenant.subscription_end_date:
             today = odoo_fields.Date.context_today(tenant)
+            if tenant.subscription_end_date < today and tenant.subscription_state not in ('expired', 'cancelled'):
+                tenant.sudo().with_context(bypass_subscription_check=True).write({'subscription_state': 'expired'})
             days_left = (tenant.subscription_end_date - today).days
         is_expiring_soon = days_left is not None and days_left <= warning_days
         is_expired = tenant.subscription_state in ('expired', 'cancelled')

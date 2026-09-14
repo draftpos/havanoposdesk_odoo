@@ -332,13 +332,19 @@ class HavanoposdeskTenant(models.Model):
 
     def check_subscription_active(self):
         self.ensure_one()
+        today = fields.Date.context_today(self)
+        if self.subscription_end_date and self.subscription_end_date < today:
+            if self.subscription_state not in ('expired', 'cancelled'):
+                self.sudo().with_context(bypass_subscription_check=True).write({
+                    'subscription_state': 'expired'
+                })
         if self.subscription_state not in ('expired', 'cancelled', 'pending'):
             return True
             
         if self.subscription_state == 'expired' and self.subscription_end_date:
             grace_days = int(self.env['ir.config_parameter'].sudo().get_param('havanoposdesk.subscription_grace_days', '5'))
             expiry_with_grace = self.subscription_end_date + relativedelta(days=grace_days)
-            if fields.Date.context_today(self) <= expiry_with_grace:
+            if today <= expiry_with_grace:
                 return True
                 
         return False
@@ -353,12 +359,18 @@ class HavanoposdeskTenant(models.Model):
         if not tenant:
             return {'show_banner': False}
 
+        today = fields.Date.context_today(self)
+        if tenant.subscription_end_date and tenant.subscription_end_date < today:
+            if tenant.subscription_state not in ('expired', 'cancelled'):
+                tenant.sudo().with_context(bypass_subscription_check=True).write({
+                    'subscription_state': 'expired'
+                })
+
         warning_days = int(self.env['ir.config_parameter'].sudo().get_param(
             'havanoposdesk.subscription_expiry_warning_days', '3'))
 
         days_left = None
         if tenant.subscription_end_date:
-            today = fields.Date.context_today(self)
             days_left = (tenant.subscription_end_date - today).days
 
         is_expiring_soon = days_left is not None and days_left <= warning_days
@@ -526,7 +538,11 @@ class HavanoposdeskTenant(models.Model):
                 vals['subscription_end_date'] = fields.Date.context_today(self) + relativedelta(days=duration)
             if not vals.get('payment_status'):
                 vals['payment_status'] = 'paid'
-            if not vals.get('subscription_state'):
+            today = fields.Date.context_today(self)
+            if vals.get('subscription_end_date') and fields.Date.to_date(vals['subscription_end_date']) < today:
+                if vals.get('subscription_state') != 'cancelled':
+                    vals['subscription_state'] = 'expired'
+            elif not vals.get('subscription_state'):
                 vals['subscription_state'] = 'active'
                 
         tenants = super().create(vals_list)
@@ -1054,6 +1070,15 @@ class HavanoposdeskTenant(models.Model):
             if restricted_fields.intersection(vals.keys()):
                 if not self.env.context.get('bypass_subscription_check'):
                     raise ValidationError('You cannot modify subscription details or payment status directly. Please use the "Change/Upgrade Plan" or "Pay & Activate Plan" buttons.')
+
+        # If subscription_end_date is being set in the past, auto-set state to expired unless explicitly cancelled
+        if 'subscription_end_date' in vals and vals['subscription_end_date']:
+            today = fields.Date.context_today(self)
+            end_date = fields.Date.to_date(vals['subscription_end_date'])
+            if end_date and end_date < today:
+                if vals.get('subscription_state') != 'cancelled':
+                    vals['subscription_state'] = 'expired'
+
         return super().write(vals)
 
     def action_open_delete_wizard(self):
@@ -1258,6 +1283,27 @@ class HavanoposdeskTenant(models.Model):
     def unlink(self):
         # Automatically cascade-delete child records cleanly to prevent FK constraint failures
         return self.action_hard_delete_tenant_data()
+
+    @api.model
+    def cron_check_expired_subscriptions(self):
+        """
+        Scheduled action to automatically set tenant subscription_state to 'expired'
+        when subscription_end_date has passed (< today).
+        """
+        today = fields.Date.context_today(self)
+        expired_tenants = self.sudo().search([
+            ('subscription_end_date', '!=', False),
+            ('subscription_end_date', '<', today),
+            ('subscription_state', 'not in', ('expired', 'cancelled')),
+        ])
+        if expired_tenants:
+            _logger.info("cron_check_expired_subscriptions: Auto-expiring %s tenant(s) whose end date has passed (< %s)", len(expired_tenants), today)
+            expired_tenants.with_context(bypass_subscription_check=True).write({
+                'subscription_state': 'expired'
+            })
+        else:
+            _logger.info("cron_check_expired_subscriptions: No unexpired tenants with passed subscription end date.")
+        return True
 
     @api.model
     def cron_cleanup_expired_trial_tenants(self):
