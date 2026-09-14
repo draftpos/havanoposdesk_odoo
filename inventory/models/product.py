@@ -13,6 +13,7 @@ class HavanoposdeskProduct(models.Model):
         try:
             with cr.savepoint():
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS hs_code VARCHAR;")
         except Exception:
             pass
         return res
@@ -26,6 +27,8 @@ class HavanoposdeskProduct(models.Model):
     name = fields.Char(string='Product Name', required=True)
     item_code = fields.Char(string='Product Code', required=False, copy=False, default=lambda self: 'New')
     allow_edit_item_code = fields.Boolean(related='tenant_id.allow_edit_item_code', string="Allow Edit Item Code")
+    hs_code = fields.Char(string='HS Code', copy=False)
+    is_hs_code_enabled = fields.Boolean(related='tenant_id.enable_hs_code', string="HS Code Enabled")
     barcode = fields.Char(string='Barcode', copy=False)
     is_barcode_enabled = fields.Boolean(related='tenant_id.enable_barcode', string="Barcode Enabled")
     sellbyprice = fields.Boolean(

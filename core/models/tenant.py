@@ -25,6 +25,7 @@ class HavanoposdeskTenant(models.Model):
             ("effective_max_stores", "INTEGER DEFAULT 0"),
             ("effective_max_terminals", "INTEGER DEFAULT 0"),
             ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
+            ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
             ("allow_negative_stock", "BOOLEAN DEFAULT TRUE"),
             ("enable_tax", "BOOLEAN DEFAULT FALSE"),
             ("enable_barcode", "BOOLEAN DEFAULT FALSE"),
@@ -471,6 +472,7 @@ class HavanoposdeskTenant(models.Model):
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
     allow_edit_item_code = fields.Boolean(string='Allow Editing Item Code', default=False)
+    enable_hs_code = fields.Boolean(string='Enable HS Code', default=False)
     stock_decimal_places = fields.Integer(string='Stock Decimal Places', default=3, help='Number of decimal places (minimum 1)')
     do_not_round_stock = fields.Boolean(string='Do Not Round Stock (Truncate)', default=False, help='If checked, values are truncated without rounding, e.g., 1.67 with 1 decimal place becomes 1.6.')
     expenses_require_approval = fields.Boolean(string='Expenses Require Approval', default=False, help='If enabled, expenses submitted by cashiers will require manager approval before they are posted and deduct cash.')

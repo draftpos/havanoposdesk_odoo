@@ -32,6 +32,7 @@ class IrHttp(models.AbstractModel):
                         ("effective_max_stores", "INTEGER DEFAULT 0"),
                         ("effective_max_terminals", "INTEGER DEFAULT 0"),
                         ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
+                        ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
                         ("allow_negative_stock", "BOOLEAN DEFAULT TRUE"),
                         ("enable_tax", "BOOLEAN DEFAULT FALSE"),
                         ("enable_barcode", "BOOLEAN DEFAULT FALSE"),

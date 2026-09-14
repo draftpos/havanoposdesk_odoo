@@ -9,6 +9,7 @@
                 <list string="Products">
                     <field name="currency_id" column_invisible="True" />
                     <field name="item_code" string="Product Code" />
+                    <field name="hs_code" string="HS Code" optional="hide" />
                     <field name="name" />
                     <field name="category_id" string="Category" />
                     <field name="uom_id" optional="hide" />
@@ -44,6 +45,8 @@
                                     <group string="Product information">
                                         <field name="allow_edit_item_code" invisible="1" />
                                         <field name="item_code" class="border-bottom border-dark" readonly="not allow_edit_item_code" force_save="1" />
+                                        <field name="is_hs_code_enabled" invisible="1" />
+                                        <field name="hs_code" invisible="not is_hs_code_enabled" class="border-bottom border-dark" />
                                         <field name="is_barcode_enabled" invisible="1" />
                                         <field name="barcode" invisible="is_barcode_enabled == False" widget="barcode" class="border-bottom border-dark" />
                                         <field name="name" class="border-bottom border-dark" />

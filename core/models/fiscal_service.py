@@ -110,7 +110,7 @@ class HavanoZimraCloudService:
             product = line.product_id
             item_name = str(product.name if product else "Item")[:100]
 
-            code_val = (product and (product.item_code or product.part_no)) or ""
+            code_val = (product and (getattr(product, 'hs_code', None) or product.item_code or getattr(product, 'part_no', None))) or ""
             raw_code = ''.join(c for c in str(code_val) if c.isdigit())
             if len(raw_code) == 8:
                 item_code = raw_code
