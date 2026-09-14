@@ -2019,18 +2019,15 @@ class HavanoPOSDeskAPI(http.Controller):
             if not tenant:
                 tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
                 
-        # Resolve POS terminal / profile
-        terminal_name = data.get('pos_profile')
-        terminal = False
-        if terminal_name:
-            terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
-                ('tenant_id', '=', tenant.id),
-                ('name', '=', terminal_name)
-            ], limit=1)
-        if not terminal and user:
-            terminal = user.selected_terminal_id
-            
         store = self._get_current_store(user, tenant, data)
+        cashier_email = data.get('cashier') or data.get('sales_person') or data.get('owner')
+        cashier_user = None
+        if cashier_email:
+            cashier_user = request.env['res.users'].sudo().search([('login', '=', cashier_email)], limit=1)
+
+        terminal, term_err = self._resolve_sale_terminal(request.env, tenant, store, user, data, sale_user=cashier_user)
+        if term_err:
+            return request.make_response(json.dumps({'error': term_err}), headers=[('Content-Type', 'application/json')], status=400)
         if not store and terminal:
             store = terminal.store_id
             
@@ -3171,7 +3168,6 @@ class HavanoPOSDeskAPI(http.Controller):
             if not customer:
                 return self._make_json_response({"error": f"Customer '{customer_name}' not found for store '{store.name}'"}, status=400)
 
-            terminal = user.selected_terminal_id
             sale_user_email = params.get('cashier') or params.get('sales_person') or params.get('owner') or params.get('user')
             sale_user = None
             if sale_user_email:
@@ -3180,6 +3176,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     sale_user = cashier_user
             if not sale_user:
                 sale_user = user
+
+            terminal, term_err = self._resolve_sale_terminal(env, tenant, store, user, params, sale_user=sale_user)
+            if term_err and (params.get('is_pos') or params.get('pos_profile') or params.get('terminal_id') or params.get('terminal')):
+                return self._make_json_response({"error": term_err}, status=400)
+            if not store and terminal:
+                store = terminal.store_id
 
             doc_currency, doc_exchange_rate = self._resolve_sale_currency_and_rate(env, tenant, store, customer, params, sale_user=sale_user)
             base_curr = tenant.currency_id if tenant else env.company.currency_id
@@ -3867,7 +3869,10 @@ class HavanoPOSDeskAPI(http.Controller):
 
                             lines.append((0, 0, line_vals))
 
-                        terminal = user.selected_terminal_id
+                        terminal, term_err = self._resolve_sale_terminal(env, tenant, store, user, sale_data, sale_user=sale_user)
+                        if term_err and (sale_data.get('is_pos') or sale_data.get('pos_profile') or sale_data.get('terminal_id') or sale_data.get('terminal')):
+                            responses.append({"error": term_err, "local_invoice_id": local_invoice_id})
+                            continue
                         payment_method_name = sale_data.get('payment_method')
                         account_id = False
                         has_payments = isinstance(sale_data.get('payments'), list) and any(isinstance(p, dict) for p in sale_data.get('payments'))
@@ -4037,6 +4042,38 @@ class HavanoPOSDeskAPI(http.Controller):
             if account:
                 return account
         return Account.browse()
+
+    def _resolve_sale_terminal(self, env, tenant, store, user, sale_data, sale_user=None):
+        """Resolve the POS terminal for a sale order.
+        Returns (terminal_record, error_message).
+        If terminal is resolved successfully, error_message is None.
+        If required/passed but not found or not passed, returns (False, error_message).
+        """
+        term_param = sale_data.get('terminal_id') or sale_data.get('terminal') or sale_data.get('pos_profile')
+        if not term_param:
+            return False, "POS Terminal is required (please provide pos_profile or terminal_id)"
+
+        terminal = False
+        if isinstance(term_param, int) or (isinstance(term_param, str) and str(term_param).strip().isdigit()):
+            terminal = env['havanoposdesk.pos.terminal'].sudo().browse(int(term_param))
+            if not terminal.exists() or (tenant and terminal.tenant_id.id != tenant.id):
+                terminal = False
+        if not terminal:
+            term_str = str(term_param).strip()
+            if store:
+                terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('store_id', '=', store.id),
+                    '|', ('name', '=ilike', term_str), ('name', '=', term_str)
+                ], limit=1)
+            if not terminal:
+                terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    '|', ('name', '=ilike', term_str), ('name', '=', term_str)
+                ], limit=1)
+        if not terminal:
+            return False, f"POS Terminal '{term_param}' not found"
+        return terminal, None
 
     def _resolve_sale_currency_and_rate(self, env, tenant, store, customer, sale_data, sale_user=None):
         """Resolve the sale document currency and exchange rate.
