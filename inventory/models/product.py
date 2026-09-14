@@ -15,6 +15,8 @@ class HavanoposdeskProduct(models.Model):
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS hs_code VARCHAR;")
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS print_after_order BOOLEAN DEFAULT FALSE;")
+                for i in range(1, 8):
+                    cr.execute(f"ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS kitchen_order_{i} BOOLEAN DEFAULT FALSE;")
         except Exception:
             pass
         return res

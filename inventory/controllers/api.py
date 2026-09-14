@@ -402,13 +402,13 @@ class HavanoPOSDeskAPI(http.Controller):
                     "stock_uom": str(p.uom_id.name) if p.uom_id and p.uom_id.name else "Pieces",
                     "actual_qty": qty,
                     "projected_qty": qty,
-                    "custom_is_order_item_1": int(p.kitchen_order_1),
-                    "custom_is_order_item_2": int(p.kitchen_order_2),
-                    "custom_is_order_item_3": int(p.kitchen_order_3),
-                    "custom_is_order_item_4": int(p.kitchen_order_4),
-                    "custom_is_order_item_5": int(p.kitchen_order_5),
-                    "custom_is_order_item_6": int(p.kitchen_order_6),
-                    "custom_is_order_item_7": int(p.kitchen_order_7),
+                    "kitchen_order_1": int(p.kitchen_order_1),
+                    "kitchen_order_2": int(p.kitchen_order_2),
+                    "kitchen_order_3": int(p.kitchen_order_3),
+                    "kitchen_order_4": int(p.kitchen_order_4),
+                    "kitchen_order_5": int(p.kitchen_order_5),
+                    "kitchen_order_6": int(p.kitchen_order_6),
+                    "kitchen_order_7": int(p.kitchen_order_7),
                     "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
                     "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
                     "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0,
@@ -651,6 +651,13 @@ class HavanoPOSDeskAPI(http.Controller):
                     'sellbyprice': 1 if getattr(p, 'sellbyprice', False) else 0,
                     'sell_by_price': 1 if getattr(p, 'sellbyprice', False) else 0,
                     'print_after_order': 1 if getattr(p, 'print_after_order', False) else 0,
+                    'kitchen_order_1': 1 if getattr(p, 'kitchen_order_1', False) else 0,
+                    'kitchen_order_2': 1 if getattr(p, 'kitchen_order_2', False) else 0,
+                    'kitchen_order_3': 1 if getattr(p, 'kitchen_order_3', False) else 0,
+                    'kitchen_order_4': 1 if getattr(p, 'kitchen_order_4', False) else 0,
+                    'kitchen_order_5': 1 if getattr(p, 'kitchen_order_5', False) else 0,
+                    'kitchen_order_6': 1 if getattr(p, 'kitchen_order_6', False) else 0,
+                    'kitchen_order_7': 1 if getattr(p, 'kitchen_order_7', False) else 0,
                     'category': p.category_id.id if p.category_id else None,
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
@@ -723,6 +730,15 @@ class HavanoPOSDeskAPI(http.Controller):
                 'tenant_id': tenant_id,
                 'store_id': store_id,
             }
+            for i in range(1, 8):
+                k_val = data.get(f'kitchen_order_{i}')
+                if k_val is None:
+                    k_val = data.get(f'order_{i}')
+                if k_val is None:
+                    k_val = data.get(f'custom_is_order_item_{i}')
+                if k_val is not None:
+                    vals[f'kitchen_order_{i}'] = bool(k_val)
+
             tax_cat = data.get('item_tax') or data.get('tax_category') or data.get('item_tax_template')
             tax_ids = data.get('tax_ids') or data.get('sale_tax_ids')
             if tax_ids and isinstance(tax_ids, list):
@@ -752,18 +768,18 @@ class HavanoPOSDeskAPI(http.Controller):
                 vals['uom_id'] = data['uom']
                 
             # Handle Product Variants
-            variants_input = data.get('variants') or data.get('variant_ids') or []
             variant_commands = []
-            if isinstance(variants_input, list):
+            variants_input = data.get('variants') or data.get('variant_ids')
+            if variants_input and isinstance(variants_input, list):
                 for v in variants_input:
                     if isinstance(v, dict):
-                        v_name = v.get('name') or v.get('variant_name')
-                        if v_name:
+                        variant_name = v.get('name') or v.get('variant_name')
+                        if variant_name:
                             variant_commands.append((0, 0, {
-                                'name': v_name,
-                                'cost_price': float(v.get('cost_price') or v.get('buying_price') or vals.get('buying_price') or 0.0),
-                                'selling_price': float(v.get('selling_price') or v.get('sell_price') or vals.get('selling_price') or 0.0),
-                                'allocate_qty': float(v.get('allocate_qty') or v.get('initial_qty') or v.get('on_hand_qty') or v.get('qty') or 0.0),
+                                'name': variant_name,
+                                'cost_price': float(v.get('cost_price') or v.get('buying_price') or vals.get('buying_price', 0.0)),
+                                'selling_price': float(v.get('selling_price') or v.get('sell_price') or vals.get('selling_price', 0.0)),
+                                'on_hand_qty': float(v.get('on_hand_qty') or v.get('qty') or 0.0),
                                 'tenant_id': tenant_id,
                             }))
             
@@ -787,6 +803,13 @@ class HavanoPOSDeskAPI(http.Controller):
                 'sellbyprice': 1 if getattr(product, 'sellbyprice', False) else 0,
                 'sell_by_price': 1 if getattr(product, 'sellbyprice', False) else 0,
                 'print_after_order': 1 if getattr(product, 'print_after_order', False) else 0,
+                'kitchen_order_1': 1 if getattr(product, 'kitchen_order_1', False) else 0,
+                'kitchen_order_2': 1 if getattr(product, 'kitchen_order_2', False) else 0,
+                'kitchen_order_3': 1 if getattr(product, 'kitchen_order_3', False) else 0,
+                'kitchen_order_4': 1 if getattr(product, 'kitchen_order_4', False) else 0,
+                'kitchen_order_5': 1 if getattr(product, 'kitchen_order_5', False) else 0,
+                'kitchen_order_6': 1 if getattr(product, 'kitchen_order_6', False) else 0,
+                'kitchen_order_7': 1 if getattr(product, 'kitchen_order_7', False) else 0,
                 'category': product.category_id.id if product.category_id else None,
                 'uom': product.uom_id.id if product.uom_id else None,
                 'tenant_id': product.tenant_id.id,
@@ -2094,20 +2117,17 @@ class HavanoPOSDeskAPI(http.Controller):
                     'all_stores': True,
                 })
 
-            if rate and float(rate) > 0:
-                final_rate = float(rate)
+            base_rate = float(rate) if (rate and float(rate) > 0) else (product.selling_price or 1.0)
+            base_curr = tenant.currency_id if tenant else request.env.company.currency_id
+            is_base = (doc_currency == base_curr) or (
+                doc_currency and base_curr and
+                doc_currency.name and base_curr.name and
+                doc_currency.name.strip().upper() == base_curr.name.strip().upper()
+            )
+            if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
+                final_rate = base_rate * doc_exchange_rate
             else:
-                base_rate = product.selling_price or 1.0
-                base_curr = tenant.currency_id if tenant else request.env.company.currency_id
-                is_base = (doc_currency == base_curr) or (
-                    doc_currency and base_curr and
-                    doc_currency.name and base_curr.name and
-                    doc_currency.name.strip().upper() == base_curr.name.strip().upper()
-                )
-                if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
-                    final_rate = base_rate * doc_exchange_rate
-                else:
-                    final_rate = base_rate
+                final_rate = base_rate
 
             line_vals = {
                 'product_id': product.id,
@@ -2408,11 +2428,33 @@ class HavanoPOSDeskAPI(http.Controller):
                 product_vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
             if 'print_after_order' in data:
                 product_vals['print_after_order'] = bool(data.get('print_after_order'))
+            for i in range(1, 8):
+                val = data.get(f'kitchen_order_{i}')
+                if val is None:
+                    val = data.get(f'order_{i}')
+                if val is None:
+                    val = data.get(f'custom_is_order_item_{i}')
+                if val is not None:
+                    product_vals[f'kitchen_order_{i}'] = bool(val)
             if tax_ids:
                 product_vals['sale_tax_ids'] = [(6, 0, tax_ids)]
             product = request.env['havanoposdesk.product'].sudo().create(product_vals)
-        elif tax_ids:
-            product.sudo().write({'sale_tax_ids': [(6, 0, tax_ids)]})
+        else:
+            update_vals = {}
+            if tax_ids:
+                update_vals['sale_tax_ids'] = [(6, 0, tax_ids)]
+            if 'print_after_order' in data:
+                update_vals['print_after_order'] = bool(data.get('print_after_order'))
+            for i in range(1, 8):
+                val = data.get(f'kitchen_order_{i}')
+                if val is None:
+                    val = data.get(f'order_{i}')
+                if val is None:
+                    val = data.get(f'custom_is_order_item_{i}')
+                if val is not None:
+                    update_vals[f'kitchen_order_{i}'] = bool(val)
+            if update_vals:
+                product.sudo().write(update_vals)
 
         # Handle Variants
         variants_input = data.get('variants') or data.get('variant_ids')
@@ -2892,7 +2934,14 @@ class HavanoPOSDeskAPI(http.Controller):
                 "cumulative": cumulative,
                 "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
                 "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
-                "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0
+                "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0,
+                "kitchen_order_1": 1 if getattr(p, 'kitchen_order_1', False) else 0,
+                "kitchen_order_2": 1 if getattr(p, 'kitchen_order_2', False) else 0,
+                "kitchen_order_3": 1 if getattr(p, 'kitchen_order_3', False) else 0,
+                "kitchen_order_4": 1 if getattr(p, 'kitchen_order_4', False) else 0,
+                "kitchen_order_5": 1 if getattr(p, 'kitchen_order_5', False) else 0,
+                "kitchen_order_6": 1 if getattr(p, 'kitchen_order_6', False) else 0,
+                "kitchen_order_7": 1 if getattr(p, 'kitchen_order_7', False) else 0
             })
             
         import math
@@ -3229,19 +3278,16 @@ class HavanoPOSDeskAPI(http.Controller):
                         'all_stores': True,
                     })
 
-                if price and float(price) > 0:
-                    final_rate = float(price)
+                base_rate = float(price) if (price and float(price) > 0) else (product.selling_price or 1.0)
+                is_base = (doc_currency == base_curr) or (
+                    doc_currency and base_curr and
+                    doc_currency.name and base_curr.name and
+                    doc_currency.name.strip().upper() == base_curr.name.strip().upper()
+                )
+                if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
+                    final_rate = base_rate * doc_exchange_rate
                 else:
-                    base_rate = product.selling_price or 1.0
-                    is_base = (doc_currency == base_curr) or (
-                        doc_currency and base_curr and
-                        doc_currency.name and base_curr.name and
-                        doc_currency.name.strip().upper() == base_curr.name.strip().upper()
-                    )
-                    if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
-                        final_rate = base_rate * doc_exchange_rate
-                    else:
-                        final_rate = base_rate
+                    final_rate = base_rate
 
                 line_vals = {
                     'product_id': product.id,
@@ -3419,6 +3465,18 @@ class HavanoPOSDeskAPI(http.Controller):
                     vals['print_after_order'] = pao_raw.lower() in ['yes', 'true', '1']
                 else:
                     vals['print_after_order'] = bool(pao_raw)
+
+            for i in range(1, 8):
+                k_val = params.get(f'kitchen_order_{i}')
+                if k_val is None:
+                    k_val = params.get(f'order_{i}')
+                if k_val is None:
+                    k_val = params.get(f'custom_is_order_item_{i}')
+                if k_val is not None:
+                    if isinstance(k_val, str):
+                        vals[f'kitchen_order_{i}'] = k_val.lower() in ['yes', 'true', '1']
+                    else:
+                        vals[f'kitchen_order_{i}'] = bool(k_val)
 
             product.write(vals)
 
@@ -3867,7 +3925,7 @@ class HavanoPOSDeskAPI(http.Controller):
                                     line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
 
                             if raw_rate is not None and float(raw_rate) > 0:
-                                rate = float(raw_rate)
+                                base_rate = float(raw_rate)
                             else:
                                 base_rate = product.selling_price or 1.0
                                 if pricelist_id and line_vals.get('uom_id'):
@@ -3879,16 +3937,16 @@ class HavanoPOSDeskAPI(http.Controller):
                                     if pl_price_rec and pl_price_rec.price:
                                         base_rate = pl_price_rec.price
 
-                                base_curr = tenant.currency_id if tenant else env.company.currency_id
-                                is_base = (doc_currency == base_curr) or (
-                                    doc_currency and base_curr and
-                                    doc_currency.name and base_curr.name and
-                                    doc_currency.name.strip().upper() == base_curr.name.strip().upper()
-                                )
-                                if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
-                                    rate = base_rate * doc_exchange_rate
-                                else:
-                                    rate = base_rate
+                            base_curr = tenant.currency_id if tenant else env.company.currency_id
+                            is_base = (doc_currency == base_curr) or (
+                                doc_currency and base_curr and
+                                doc_currency.name and base_curr.name and
+                                doc_currency.name.strip().upper() == base_curr.name.strip().upper()
+                            )
+                            if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
+                                rate = base_rate * doc_exchange_rate
+                            else:
+                                rate = base_rate
 
                             line_vals['rate'] = rate
 
@@ -5640,7 +5698,14 @@ class HavanoPOSDeskAPI(http.Controller):
                     "is_sales_item": 1,
                     "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
                     "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
-                    "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0
+                    "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0,
+                    "kitchen_order_1": 1 if getattr(p, 'kitchen_order_1', False) else 0,
+                    "kitchen_order_2": 1 if getattr(p, 'kitchen_order_2', False) else 0,
+                    "kitchen_order_3": 1 if getattr(p, 'kitchen_order_3', False) else 0,
+                    "kitchen_order_4": 1 if getattr(p, 'kitchen_order_4', False) else 0,
+                    "kitchen_order_5": 1 if getattr(p, 'kitchen_order_5', False) else 0,
+                    "kitchen_order_6": 1 if getattr(p, 'kitchen_order_6', False) else 0,
+                    "kitchen_order_7": 1 if getattr(p, 'kitchen_order_7', False) else 0
                 })
             return self._make_json_response({"data": result})
         finally:
@@ -5709,6 +5774,14 @@ class HavanoPOSDeskAPI(http.Controller):
                 vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
             if 'print_after_order' in data:
                 vals['print_after_order'] = bool(data.get('print_after_order'))
+            for i in range(1, 8):
+                k_val = data.get(f'kitchen_order_{i}')
+                if k_val is None:
+                    k_val = data.get(f'order_{i}')
+                if k_val is None:
+                    k_val = data.get(f'custom_is_order_item_{i}')
+                if k_val is not None:
+                    vals[f'kitchen_order_{i}'] = bool(k_val)
 
             # Resolve sale_tax_ids
             tax_ids = []
