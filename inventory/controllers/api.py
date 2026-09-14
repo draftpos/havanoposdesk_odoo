@@ -2077,7 +2077,7 @@ class HavanoPOSDeskAPI(http.Controller):
             item_code = item.get('item_code')
             item_name = item.get('item_name') or item_code
             qty = float(item.get('qty', 1))
-            rate = float(item.get('rate') or item.get('standard_rate') or 0.0)
+            rate = float(item.get('rate') or item.get('standard_rate') or item.get('price_list_rate') or item.get('price') or 0.0)
             uom_name = item.get('uom') or item.get('stock_uom') or item.get('uom_name')
 
             product = request.env['havanoposdesk.product'].sudo().search([
@@ -2093,7 +2093,13 @@ class HavanoPOSDeskAPI(http.Controller):
                     'all_stores': True,
                 })
 
-            final_rate = rate or product.selling_price or 1.0
+            base_rate = rate or product.selling_price or 1.0
+            base_curr = tenant.currency_id if tenant else request.env.company.currency_id
+            if doc_currency != base_curr and doc_exchange_rate and doc_exchange_rate != 1.0:
+                final_rate = base_rate * doc_exchange_rate
+            else:
+                final_rate = base_rate
+
             line_vals = {
                 'product_id': product.id,
                 'accepted_qty': qty,
@@ -3165,13 +3171,26 @@ class HavanoPOSDeskAPI(http.Controller):
             if not customer:
                 return self._make_json_response({"error": f"Customer '{customer_name}' not found for store '{store.name}'"}, status=400)
 
+            terminal = user.selected_terminal_id
+            sale_user_email = params.get('cashier') or params.get('sales_person') or params.get('owner') or params.get('user')
+            sale_user = None
+            if sale_user_email:
+                cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
+                if cashier_user:
+                    sale_user = cashier_user
+            if not sale_user:
+                sale_user = user
+
+            doc_currency, doc_exchange_rate = self._resolve_sale_currency_and_rate(env, tenant, store, customer, params, sale_user=sale_user)
+            base_curr = tenant.currency_id if tenant else env.company.currency_id
+
             sale_lines = []
             for line in lines:
                 item_code = line.get('item_code') or line.get('itemname') or line.get('item_name')
                 qty_val = line.get('qty') or line.get('quantity')
                 qty = float(qty_val) if qty_val is not None else 1.0
 
-                price_val = line.get('price') or line.get('rate')
+                price_val = line.get('price') or line.get('rate') or line.get('price_list_rate')
                 price = float(price_val) if price_val is not None else 0.0
 
                 uom_name = line.get('uom') or line.get('stock_uom') or line.get('uom_name')
@@ -3193,10 +3212,16 @@ class HavanoPOSDeskAPI(http.Controller):
                         'all_stores': True,
                     })
 
+                base_rate = price or product.selling_price or 1.0
+                if doc_currency != base_curr and doc_exchange_rate and doc_exchange_rate != 1.0:
+                    final_rate = base_rate * doc_exchange_rate
+                else:
+                    final_rate = base_rate
+
                 line_vals = {
                     'product_id': product.id,
                     'accepted_qty': qty,
-                    'rate': price or product.selling_price or 1.0,
+                    'rate': final_rate,
                 }
                 if uom_name:
                     uom_rec = env['havanoposdesk.uom'].search([
@@ -3229,18 +3254,6 @@ class HavanoPOSDeskAPI(http.Controller):
                     line_vals['tax_ids'] = [(6, 0, product.sale_tax_ids.ids)]
 
                 sale_lines.append((0, 0, line_vals))
-
-            terminal = user.selected_terminal_id
-            sale_user_email = params.get('cashier') or params.get('sales_person') or params.get('owner') or params.get('user')
-            sale_user = None
-            if sale_user_email:
-                cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
-                if cashier_user:
-                    sale_user = cashier_user
-            if not sale_user:
-                sale_user = user
-
-            doc_currency, doc_exchange_rate = self._resolve_sale_currency_and_rate(env, tenant, store, customer, params, sale_user=sale_user)
 
             payment_method_name = params.get('payment_method')
             account_id = False
@@ -3821,9 +3834,9 @@ class HavanoPOSDeskAPI(http.Controller):
                                     line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
 
                             if raw_rate is not None and float(raw_rate) > 0:
-                                rate = float(raw_rate)
+                                base_rate = float(raw_rate)
                             else:
-                                rate = product.selling_price or 1.0
+                                base_rate = product.selling_price or 1.0
                                 if pricelist_id and line_vals.get('uom_id'):
                                     pl_price_rec = env['havanoposdesk.product.uom.price'].search([
                                         ('product_id', '=', product.id),
@@ -3831,9 +3844,13 @@ class HavanoPOSDeskAPI(http.Controller):
                                         ('uom_id', '=', line_vals['uom_id'])
                                     ], limit=1)
                                     if pl_price_rec and pl_price_rec.price:
-                                        rate = pl_price_rec.price
-                                elif doc_currency != tenant.currency_id and doc_exchange_rate and doc_exchange_rate != 1.0:
-                                    rate = rate * doc_exchange_rate
+                                        base_rate = pl_price_rec.price
+
+                            base_curr = tenant.currency_id if tenant else env.company.currency_id
+                            if doc_currency != base_curr and doc_exchange_rate and doc_exchange_rate != 1.0:
+                                rate = base_rate * doc_exchange_rate
+                            else:
+                                rate = base_rate
 
                             line_vals['rate'] = rate
 
@@ -4118,10 +4135,12 @@ class HavanoPOSDeskAPI(http.Controller):
                 invoice_lines = sale_data.get('items') or sale_data.get('lines') or []
                 invoice_total = sum(
                     float(item.get('qty') or item.get('quantity') or 1.0)
-                    * float(item.get('rate') or item.get('price') or 0.0)
+                    * float(item.get('rate') or item.get('price') or item.get('price_list_rate') or 0.0)
                     for item in invoice_lines
                     if isinstance(item, dict)
                 )
+                if doc_currency != base_curr and doc_exchange_rate and doc_exchange_rate != 1.0:
+                    invoice_total = invoice_total * doc_exchange_rate
 
             invoice_total_base = invoice_total / doc_exchange_rate if (doc_exchange_rate and doc_exchange_rate != 0) else invoice_total
 
