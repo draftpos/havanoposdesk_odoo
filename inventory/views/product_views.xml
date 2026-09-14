@@ -128,25 +128,21 @@
                                 </field>
                             </page>
                             <page string="Other">
+                                <field name="kitchen_settings_enabled" invisible="1" />
                                 <group>
-                                    <group>
-                                        <field name="kitchen_settings_enabled" invisible="1" />
-                                        <group invisible="not kitchen_settings_enabled">
-                                            <group>
-                                                <field name="kitchen_order_1" string="Order 1" />
-                                                <field name="kitchen_order_2" string="Order 2" />
-                                                <field name="kitchen_order_3" string="Order 3" />
-                                                <field name="kitchen_order_4" string="Order 4" />
-                                            </group>
-                                            <group>
-                                                <field name="kitchen_order_5" string="Order 5" />
-                                                <field name="kitchen_order_6" string="Order 6" />
-                                                <field name="kitchen_order_7" string="Order 7" />
-                                            </group>
-                                        </group>
+                                    <group string="General Settings">
                                         <field name="is_active" string="Active" class="border-bottom border-dark" />
                                         <field name="print_after_order" string="Print After Order" class="border-bottom border-dark" />
                                         <field name="internal_notes" class="border-bottom border-dark" />
+                                    </group>
+                                    <group string="Kitchen Orders" invisible="not kitchen_settings_enabled">
+                                        <field name="kitchen_order_1" string="Order 1" />
+                                        <field name="kitchen_order_2" string="Order 2" />
+                                        <field name="kitchen_order_3" string="Order 3" />
+                                        <field name="kitchen_order_4" string="Order 4" />
+                                        <field name="kitchen_order_5" string="Order 5" />
+                                        <field name="kitchen_order_6" string="Order 6" />
+                                        <field name="kitchen_order_7" string="Order 7" />
                                     </group>
                                 </group>
                                 <group string="Other Pricing Settings">
