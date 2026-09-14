@@ -4024,39 +4024,35 @@ class HavanoPOSDeskAPI(http.Controller):
     def _resolve_sale_currency_and_rate(self, env, tenant, store, customer, sale_data, sale_user=None):
         """Resolve the sale document currency and exchange rate.
         Order of priority:
-        1. Store currency (store.currency_id) or Store default pricelist currency
-        2. Sale data currency (if it matches a real res.currency and is NOT an account name)
+        1. Explicit currency parameter from payload (highest priority: respect client-specified currency)
+        2. Store currency (store.currency_id) or Store default pricelist currency (fallback)
         3. Customer currency -> Tenant currency -> Company currency
         """
         doc_currency = False
         base_curr = tenant.currency_id if tenant else env.company.currency_id
 
-        # 1. Store currency / store pricelist currency
-        if store:
+        # 1. Currency parameter from payload (highest priority: respect client-specified currency)
+        currency_param = sale_data.get('currency') or sale_data.get('currency_id')
+        if currency_param:
+            if isinstance(currency_param, int):
+                doc_currency = env['res.currency'].sudo().browse(currency_param)
+            else:
+                curr_name = str(currency_param).strip()
+                doc_currency = env['res.currency'].sudo().search(
+                    self._tenant_currency_domain(tenant) + [('name', '=ilike', curr_name)],
+                    limit=1
+                )
+                if not doc_currency:
+                    doc_currency = env['res.currency'].sudo().search([('name', '=ilike', curr_name)], limit=1)
+
+        # 2. Store currency / store pricelist currency (fallback if no explicit currency in payload)
+        if not doc_currency and store:
             if store.currency_id:
                 doc_currency = store.currency_id
             elif store.pricelist_id and store.pricelist_id.currency_id:
                 doc_currency = store.pricelist_id.currency_id
 
-        # 2. Currency parameter from payload (if valid currency and not an account name)
-        currency_param = sale_data.get('currency') or sale_data.get('currency_id')
-        if not doc_currency and currency_param:
-            if isinstance(currency_param, int):
-                doc_currency = env['res.currency'].sudo().browse(currency_param)
-            else:
-                curr_name = str(currency_param).strip()
-                # Check if this name matches an account name (e.g. "Cash ZIG") - if so, don't use it as doc currency name
-                is_account = env['havanoposdesk.account'].sudo().search([
-                    ('tenant_id', '=', tenant.id),
-                    ('name', '=ilike', curr_name)
-                ], limit=1)
-                if not is_account:
-                    doc_currency = env['res.currency'].sudo().search(
-                        self._tenant_currency_domain(tenant) + [('name', '=ilike', curr_name)],
-                        limit=1
-                    )
-
-        # 3. Fallback to customer or tenant
+        # 3. Fallback to customer or tenant base currency
         if not doc_currency:
             doc_currency = (customer.currency_id if customer else False) or base_curr or env.company.currency_id
 
@@ -4067,7 +4063,20 @@ class HavanoPOSDeskAPI(http.Controller):
         if doc_currency == base_curr:
             doc_exchange_rate = 1.0
         else:
-            rate_val = float(sale_data.get('exchange_rate') or 0.0)
+            # Check explicit rate in payload (exchange_rate or conversion_rate)
+            rate_val = float(sale_data.get('exchange_rate') or sale_data.get('conversion_rate') or 0.0)
+
+            # If rate_val is not set or default 1.0 for a non-base currency, check if payments specify rate for this currency
+            if (not rate_val or rate_val == 1.0) and isinstance(sale_data.get('payments'), list):
+                for p in sale_data['payments']:
+                    if isinstance(p, dict):
+                        p_curr_str = str(p.get('currency') or '').strip().upper()
+                        if p_curr_str and doc_currency and p_curr_str == (doc_currency.name or '').strip().upper():
+                            p_rate = float(p.get('exchange_rate') or p.get('conversion_rate') or 0.0)
+                            if p_rate > 0 and p_rate != 1.0:
+                                rate_val = p_rate
+                                break
+
             if rate_val > 0 and rate_val != 1.0:
                 doc_exchange_rate = rate_val
             else:
@@ -4078,7 +4087,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         rate = doc_currency._get_conversion_rate(base_curr, doc_currency, env.company, today_date)
                     except Exception:
                         rate = getattr(doc_currency, 'rate', None) or 1.0
-                doc_exchange_rate = float(rate) if rate and float(rate) > 0 else 1.0
+                doc_exchange_rate = float(rate) if rate and float(rate) > 0 else (rate_val if rate_val > 0 else 1.0)
 
         return doc_currency, doc_exchange_rate
 
