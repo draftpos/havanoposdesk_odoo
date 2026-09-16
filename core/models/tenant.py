@@ -1055,8 +1055,12 @@ class HavanoposdeskTenant(models.Model):
             else:
                 break
         
-        # Increment and update without triggering audit logging
-        self.with_context(skip_audit_log=True).write({next_field: next_val + 1})
+        # Direct SQL update avoids concurrent write serialization conflicts and write_date churn
+        self.env.cr.execute(
+            f'UPDATE havanoposdesk_tenant SET "{next_field}" = %s WHERE id = %s',
+            (next_val + 1, self.id)
+        )
+        self.invalidate_recordset([next_field])
         
         return formatted_seq
 

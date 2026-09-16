@@ -3494,7 +3494,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'local_invoice_id': local_invoice_id,
                     'date': fields.Date.context_today(env.user),
                     'line_ids': sale_lines,
-                    'state': 'posted',
+                    'state': 'confirmed',
                     'shift_id': shift_id if shift_id else False,
                 }
 
@@ -3948,7 +3948,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         "account": sale.account_id.name if sale.account_id else "",
                         "created_by": created_by,
                         "last_modified_by": created_by,
-                        "docstatus": 1 if sale.state == 'posted' else 0,
+                        "docstatus": 1 if sale.state in ['posted', 'confirmed', 'done'] else 0,
                         "status": sale.state,
                     })
 

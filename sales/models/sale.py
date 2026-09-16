@@ -311,6 +311,7 @@ class Sale(models.Model):
     state = fields.Selection([
         ('draft', 'Draft'),
         ('confirmed', 'Confirmed'),
+        ('posted', 'Posted'),
         ('done', 'Done'),
         ('cancelled', 'Cancelled')
     ], string='Status', default='draft', required=True)
@@ -504,6 +505,9 @@ class Sale(models.Model):
             if not vals.get('payment_status'):
                 vals['payment_status'] = self._default_payment_status() or 'cash'
 
+            if vals.get('state') == 'posted':
+                vals['state'] = 'confirmed'
+
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             if tenant_id:
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
@@ -623,7 +627,7 @@ class Sale(models.Model):
         
         for sale in sales:
             # Mobile app syncs often include pos_payment_id. If present, or explicitly confirmed, auto-post.
-            if sale.state in ['confirmed', 'done'] or sale.pos_payment_id or self.env.context.get('auto_post_sale'):
+            if sale.state in ['confirmed', 'done', 'posted'] or sale.pos_payment_id or self.env.context.get('auto_post_sale'):
                 # Set to draft temporarily to let action_post execute
                 sale.state = 'draft'
                 sale.action_post()
