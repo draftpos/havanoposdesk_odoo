@@ -154,7 +154,7 @@ class HavanoPOSDeskAPI(http.Controller):
         except Exception:
             return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
         
-        db = data.get('db') or request.db or 'odoo_db_com'
+        db = data.get('db') or request.db or 'saas'
         login = data.get('usr') or data.get('username') or data.get('login')
         password = data.get('pwd') or data.get('password')
         timezone = data.get('timezone')
@@ -597,7 +597,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"error": "Invalid JSON body"}, status=400)
 
             login = data.get('login') or data.get('email') or data.get('username')
-            db = data.get('db') or request.db or 'odoo_db_com'
+            db = data.get('db') or request.db or 'saas'
 
             if not login:
                 return self._make_json_response({"error": "Email/Login is required"}, status=400)
@@ -3027,7 +3027,7 @@ class HavanoPOSDeskAPI(http.Controller):
     def _check_credentials(self, db, username, password):
         import odoo
         if not db:
-            db = 'odoo_db_com'
+            db = 'saas'
         if request.env and request.db == db:
             try:
                 credential = {'login': username, 'password': password, 'type': 'password'}
@@ -3065,7 +3065,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 except ValueError:
                     username = parts[0]
                     password = parts[1]
-                    db = request.db or 'odoo_db_com'
+                    db = request.db or 'saas'
                     uid_res = self._check_credentials(db, username, password)
                     if uid_res:
                         return int(uid_res), username
@@ -3090,7 +3090,7 @@ class HavanoPOSDeskAPI(http.Controller):
             token_str = token_bytes.decode('utf-8')
             if ':' in token_str:
                 username, password = token_str.split(':', 1)
-                db = request.db or 'odoo_db_com'
+                db = request.db or 'saas'
                 uid_res = self._check_credentials(db, username, password)
                 if uid_res:
                     return int(uid_res), username
