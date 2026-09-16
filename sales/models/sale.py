@@ -399,11 +399,12 @@ class Sale(models.Model):
     def _inverse_payment_status_display(self):
         for record in self:
             if not record.payment_status_display:
-                record.payment_status = False
+                if not record.payment_status:
+                    record.payment_status = record._default_payment_status() or 'cash'
             elif record.payment_status == 'partial' and record.payment_status_display == 'account':
                 continue
             else:
-                record.payment_status = record.payment_status_display
+                record.payment_status = record.payment_status_display or 'cash'
 
     @api.depends(
         'payment_ids.amount', 'payment_ids.amount_base', 'payment_ids.state',
@@ -499,6 +500,9 @@ class Sale(models.Model):
                 open_shift = self.env['havanoposdesk.shift'].search(shift_domain, limit=1)
                 if open_shift:
                     vals['shift_id'] = open_shift.id
+
+            if not vals.get('payment_status'):
+                vals['payment_status'] = self._default_payment_status() or 'cash'
 
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             if tenant_id:
@@ -627,6 +631,8 @@ class Sale(models.Model):
 
     def write(self, vals):
         from odoo.exceptions import ValidationError
+        if 'payment_status' in vals and not vals.get('payment_status'):
+            vals['payment_status'] = 'cash'
         allowed_post_fields = [
             'state', 'fiscal_status', 'fiscal_qr_code', 'fiscal_verification_code',
             'fiscal_receipt_counter', 'fiscal_global_no', 'fiscal_device_id',

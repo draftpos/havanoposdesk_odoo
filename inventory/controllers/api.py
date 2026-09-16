@@ -3825,11 +3825,16 @@ class HavanoPOSDeskAPI(http.Controller):
     @http.route([
         '/api/resource/Sales Invoice',
         '/api/resource/Sales%20Invoice',
+        '/api/resource/Sales Invoice/<string:docname>',
+        '/api/resource/Sales%20Invoice/<string:docname>',
         '/api/resource/Sales Order',
         '/api/resource/Sales%20Order',
-        '/api/resource/Quotation'
+        '/api/resource/Sales Order/<string:docname>',
+        '/api/resource/Sales%20Order/<string:docname>',
+        '/api/resource/Quotation',
+        '/api/resource/Quotation/<string:docname>'
     ], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
-    def api_sales_invoice(self, **kwargs):
+    def api_sales_invoice(self, docname=None, **kwargs):
         is_quotation = 'Quotation' in request.httprequest.path
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
@@ -3858,34 +3863,39 @@ class HavanoPOSDeskAPI(http.Controller):
                     user = env['res.users'].browse(uid)
                 tenant = user.tenant_id
 
-                domain = []
-                if user.havano_role != 'super_admin' and tenant:
-                    domain.append(('tenant_id', '=', tenant.id))
-                    if user.store_ids:
-                        domain.append(('store_id', 'in', user.store_ids.ids))
-                    elif user.default_store_id:
-                        domain.append(('store_id', '=', user.default_store_id.id))
-
-                if is_quotation:
-                    domain.append(('is_quotation', '=', True))
+                if docname:
+                    domain = [('name', '=', str(docname).strip())]
+                    if user.havano_role != 'super_admin' and tenant:
+                        domain.append(('tenant_id', '=', tenant.id))
                 else:
-                    domain.append(('is_quotation', '=', False))
+                    domain = []
+                    if user.havano_role != 'super_admin' and tenant:
+                        domain.append(('tenant_id', '=', tenant.id))
+                        if user.store_ids:
+                            domain.append(('store_id', 'in', user.store_ids.ids))
+                        elif user.default_store_id:
+                            domain.append(('store_id', '=', user.default_store_id.id))
 
-                date_from = params.get('date_from') or params.get('from_date')
-                date_to = params.get('date_to') or params.get('to_date')
-                customer_filter = params.get('customer') or params.get('customer_name')
-                invoice_name = params.get('name') or params.get('invoice_name')
+                    if is_quotation:
+                        domain.append(('is_quotation', '=', True))
+                    else:
+                        domain.append(('is_quotation', '=', False))
 
-                if date_from:
-                    domain.append(('posting_date', '>=', date_from))
-                if date_to:
-                    domain.append(('posting_date', '<=', date_to))
-                if customer_filter:
-                    domain.append(('customer.name', 'ilike', customer_filter))
-                if invoice_name:
-                    domain.append(('name', 'ilike', invoice_name))
+                    date_from = params.get('date_from') or params.get('from_date')
+                    date_to = params.get('date_to') or params.get('to_date')
+                    customer_filter = params.get('customer') or params.get('customer_name')
+                    invoice_name = params.get('name') or params.get('invoice_name')
 
-                limit = int(params.get('limit', 100))
+                    if date_from:
+                        domain.append(('posting_date', '>=', date_from))
+                    if date_to:
+                        domain.append(('posting_date', '<=', date_to))
+                    if customer_filter:
+                        domain.append(('customer.name', 'ilike', customer_filter))
+                    if invoice_name:
+                        domain.append(('name', 'ilike', invoice_name))
+
+                limit = int(params.get('limit', 100)) if not docname else 1
                 sales = env['havanoposdesk.sale'].search(domain, limit=limit, order='date desc, id desc')
 
                 result = []
@@ -3938,8 +3948,14 @@ class HavanoPOSDeskAPI(http.Controller):
                         "account": sale.account_id.name if sale.account_id else "",
                         "created_by": created_by,
                         "last_modified_by": created_by,
+                        "docstatus": 1 if sale.state == 'posted' else 0,
+                        "status": sale.state,
                     })
 
+                if docname:
+                    if result:
+                        return self._make_json_response({"data": result[0]})
+                    return self._make_json_response({"message": f"{docname} not found"}, status=404)
                 return self._make_json_response({"data": result})
             finally:
                 if custom_cr:
