@@ -4377,7 +4377,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 pm_name = p.get('payment_method') or p.get('method') or p.get('mode_of_payment')
                 p_amount = float(p.get('amount') or p.get('base_amount') or p.get('paid_amount') or 0.0)
                 p_curr = p.get('currency')
-                p_rate_raw = p.get('exchange_rate') or p.get('conversion_rate')
+                p_rate_raw = p.get('exchange_rate') or p.get('conversion_rate') or p.get('rate')
                 p_ref = p.get('reference') or p.get('memo')
 
                 account_ref = dict(p)
