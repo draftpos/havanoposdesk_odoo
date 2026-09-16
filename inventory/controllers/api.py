@@ -242,11 +242,19 @@ class HavanoPOSDeskAPI(http.Controller):
                     ('tenant_id', '=', user.tenant_id.id),
                 ], limit=1)
                 if login_terminal:
-                    login_terminal.write({
-                        'app_version': str(app_version),
-                        'last_seen': fields.Datetime.now(),
-                        'last_logged_in_user_id': user.id,
-                    })
+                    term_upd = {}
+                    if login_terminal.app_version != str(app_version):
+                        term_upd['app_version'] = str(app_version)
+                    if not login_terminal.last_logged_in_user_id or login_terminal.last_logged_in_user_id.id != user.id:
+                        term_upd['last_logged_in_user_id'] = user.id
+                    now = fields.Datetime.now()
+                    if not login_terminal.last_seen or (now - login_terminal.last_seen).total_seconds() > 60:
+                        term_upd['last_seen'] = now
+                    if term_upd:
+                        try:
+                            login_terminal.with_context(skip_audit_log=True).write(term_upd)
+                        except Exception:
+                            pass
                     
             # Split full name into first and last name
             names = (user.name or "").split(' ', 1)
@@ -1912,7 +1920,9 @@ class HavanoPOSDeskAPI(http.Controller):
     # 2. GET CUSTOMERS
     @http.route([
         '/api/method/saas_api.www.api.get_customers',
-        '/api/method/havano_pos_integration.api.get_customers'
+        '/api/method/saas_api.www.api.get_customer',
+        '/api/method/havano_pos_integration.api.get_customers',
+        '/api/method/havano_pos_integration.api.get_customer'
     ], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_customers(self, **kw):
         if request.httprequest.method == 'OPTIONS':
@@ -2713,8 +2723,14 @@ class HavanoPOSDeskAPI(http.Controller):
 
 
     # 10. GET PRODUCTS
-    @http.route('/api/method/havano_pos_integration.api.get_products', auth='public', methods=['GET', 'POST'], type='http', csrf=False, cors='*')
+    @http.route([
+        '/api/method/havano_pos_integration.api.get_products',
+        '/api/method/saas_api.www.api.get_products',
+        '/api/method/saas_api.www.api.get_my_products'
+    ], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_products(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
         params = request.params or {}
         if request.httprequest.method == 'POST':
             try:
@@ -5658,6 +5674,51 @@ class HavanoPOSDeskAPI(http.Controller):
         finally:
             if custom_cr:
                 custom_cr.close()
+
+    @http.route([
+        '/api/resource/Price List',
+        '/api/resource/Price%20List',
+        '/api/resource/Price List/<string:pricelist_name>',
+        '/api/resource/Price%20List/<string:pricelist_name>'
+    ], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_resource_price_list(self, pricelist_name=None, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id if user else None
+        
+        env = request.env(user=uid or odoo.SUPERUSER_ID)
+        user = env['res.users'].browse(uid) if uid else False
+        tenant = user.tenant_id if user else False
+        
+        domain = []
+        if tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+        if pricelist_name:
+            domain.append(('name', '=ilike', str(pricelist_name).strip()))
+            
+        pl = env['havanoposdesk.pricelist'].sudo().search(domain, limit=1)
+        if not pl and tenant:
+            pl = env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+        if not pl:
+            pl = env['havanoposdesk.pricelist'].sudo().search([], limit=1)
+            
+        curr_name = pl.currency_id.name if (pl and pl.currency_id) else (tenant.currency_id.name if (tenant and tenant.currency_id) else 'USD')
+        pl_name = pl.name if pl else (pricelist_name or 'Standard Selling')
+        
+        return self._make_json_response({
+            "data": {
+                "name": pl_name,
+                "price_list_name": pl_name,
+                "currency": curr_name,
+                "selling": 1,
+                "buying": 0,
+                "enabled": 1
+            }
+        })
 
     @http.route([
         '/api/resource/Item Price',
