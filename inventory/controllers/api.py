@@ -2,14 +2,32 @@ from datetime import datetime, time
 from odoo.orm import environments
 import odoo.orm.environments
 from odoo import http, fields
-from odoo.http import request
+from odoo.http import request, Response
 import json
 import logging
 import random
 import string
 from odoo.exceptions import ValidationError, UserError
+import werkzeug.exceptions
 
 _logger = logging.getLogger(__name__)
+
+class UnauthorizedJSON(werkzeug.exceptions.Unauthorized):
+    def __init__(self, description="Authentication required. Please provide a valid Authorization token."):
+        super().__init__(description=description)
+
+    def get_response(self, environ=None):
+        headers = [
+            ('Content-Type', 'application/json'),
+            ('Access-Control-Allow-Origin', '*'),
+            ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'),
+            ('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Auth-Token, token'),
+        ]
+        body = json.dumps({
+            'error': 'Unauthorized',
+            'message': self.description or 'Authentication required.'
+        })
+        return Response(body, status=401, headers=headers)
 
 class HavanoPOSDeskAPI(http.Controller):
     def _get_direct_rate(self, env, currency_id, tenant=None):
@@ -1644,39 +1662,45 @@ class HavanoPOSDeskAPI(http.Controller):
             }), headers=[('Content-Type', 'application/json')])
 
 
-    # HELPER METHOD TO GET AUTHENTICATED USER OR FALLBACK
-    def _get_user(self):
-        user = None
+    # HELPER METHOD TO GET AUTHENTICATED USER OR REJECT WITH 401
+    def _get_user(self, required=True):
+        if request.httprequest.method == 'OPTIONS':
+            return None
+
+        auth_token = (
+            request.httprequest.headers.get('Authorization')
+            or request.httprequest.headers.get('X-Auth-Token')
+            or request.httprequest.headers.get('token')
+            or request.httprequest.args.get('token')
+            or (getattr(request, 'params', None) and request.params.get('token'))
+        )
+
+        if auth_token:
+            uid_res, login_res = self._verify_token(auth_token)
+            if uid_res:
+                user = request.env['res.users'].sudo().browse(uid_res)
+                if user.exists() and user.active:
+                    return user
+            # Explicit token was passed but failed verification (expired, malformed, or invalid)
+            if required:
+                raise UnauthorizedJSON("Invalid, expired or malformed authentication token.")
+            return None
+
+        # Fallback to active browser session if cookie is present and belongs to a real logged-in user
         uid = request.session.uid
         if uid:
             user = request.env['res.users'].sudo().browse(uid)
-            
-        if not user or not user.exists():
-            auth_header = request.httprequest.headers.get('Authorization')
-            if auth_header:
-                uid_res, login_res = self._verify_token(auth_header)
-                if uid_res:
-                    user = request.env['res.users'].sudo().browse(uid_res)
-                    
-        if (not user or not user.exists()) and request.env.user and request.env.user.id != request.env.ref('base.public_user').id:
-            user = request.env.user
-            
-        if not user or not user.exists():
-            # Fallback for testing on localhost
-            admin_user = request.env['res.users'].sudo().search([('havano_role', '=', 'admin')], limit=1)
-            if admin_user:
-                user = admin_user
-            else:
-                user = request.env['res.users'].sudo().search([('id', '=', 2)], limit=1) or request.env.user
+            if user.exists() and user.active and user.id != request.env.ref('base.public_user').id:
+                return user
 
-        # Self-healing on API requests commented out:
-        # if user and getattr(user, 'tenant_id', None) and user.tenant_id:
-        #     try:
-        #         user.tenant_id._seed_default_data()
-        #     except Exception:
-        #         pass
+        # Fallback to request.env.user if already authenticated in Odoo
+        if request.env and request.env.user and request.env.user.id != request.env.ref('base.public_user').id:
+            return request.env.user
 
-        return user
+        # No authentication credentials provided
+        if required:
+            raise UnauthorizedJSON("Authentication required. Please provide a valid Authorization token.")
+        return None
 
 
     # HELPER METHOD TO GET CURRENT STORE FROM REQUEST PARAMS OR USER CONTEXT (NO FALLBACKS)
@@ -2690,7 +2714,12 @@ class HavanoPOSDeskAPI(http.Controller):
             offset = 0
             
         user = self._get_user()
+        if not user:
+            return self._make_json_response({'error': 'Unauthorized', 'message': 'Authentication required. Missing, expired, or invalid token.'}, status=401)
+
         tenant = user.tenant_id
+        if user.havano_role != 'super_admin' and not tenant:
+            return self._make_json_response({'error': 'Unauthorized', 'message': 'User is not assigned to any tenant.'}, status=401)
         
         product_domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
         
@@ -2707,7 +2736,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if t_rec and (user.havano_role == 'super_admin' or (tenant and tenant.id == t_rec.id)):
                     resolved_tenant_id = t_rec.id
                     
-        if not resolved_tenant_id and user.havano_role != 'super_admin' and tenant:
+        if not resolved_tenant_id and tenant:
             resolved_tenant_id = tenant.id
             
         if resolved_tenant_id:
