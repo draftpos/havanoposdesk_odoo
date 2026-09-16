@@ -29,6 +29,18 @@ class UnauthorizedJSON(werkzeug.exceptions.Unauthorized):
         })
         return Response(body, status=401, headers=headers)
 
+def is_serialization_error(exc):
+    if not exc:
+        return False
+    msg = str(exc).lower()
+    return any(err in msg for err in [
+        'could not serialize access',
+        'serialization_failure',
+        'deadlock detected',
+        'concurrent update',
+        'current transaction is aborted'
+    ])
+
 class HavanoPOSDeskAPI(http.Controller):
     def _get_direct_rate(self, env, currency_id, tenant=None):
         """Return the company_rate for the given currency — i.e. 'units of this currency
@@ -3196,21 +3208,31 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
-    @http.route('/saas_api/make_sale', type='http', auth='public', methods=['POST', 'OPTIONS'], csrf=False, cors='*')
+    @http.route([
+        '/saas_api/make_sale',
+        '/api/method/saas_api.www.api.make_sale',
+        '/api/method/saas_api.www.api.create_sale',
+        '/api/method/saas_api.www.api.create_invoice',
+        '/api/method/saas_api.www.api.create_sales_invoice'
+    ], type='http', auth='public', methods=['POST', 'OPTIONS'], csrf=False, cors='*')
     def saas_make_sale(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
 
         token = request.httprequest.headers.get('Authorization')
-        params = self._get_request_json()
+        raw_params = self._get_request_json() or {}
+        params = raw_params
+        if isinstance(params, dict):
+            params = params.get('doc') or params.get('data') or params
+
         if not token:
-            token = params.get('token')
+            token = params.get('token') or raw_params.get('token')
 
         uid, login = self._verify_token(token)
         if not uid:
             return self._make_json_response({"error": "Unauthorized"}, status=401)
 
-        customer_name = params.get('customer') or "Walk-in Customer"
+        customer_name = params.get('customer') or params.get('customer_name') or "Walk-in Customer"
         lines = params.get('lines')
         if lines is None:
             lines = params.get('items')
@@ -3220,204 +3242,231 @@ class HavanoPOSDeskAPI(http.Controller):
         if not lines:
             return self._make_json_response({"error": "No items in sale"}, status=400)
 
-        env, custom_cr = self._get_env(user_id=uid)
-        try:
-            user = env['res.users'].browse(uid)
-            tenant = user.tenant_id
-            
-            # Deduplication check
-            local_invoice_id = params.get('reference_number') or params.get('local_invoice_id')
-            if not local_invoice_id:
-                return self._make_json_response({"error": "reference_number is required when making a sale"}, status=400)
+        local_invoice_id = (
+            params.get('reference_number')
+            or params.get('local_invoice_id')
+            or params.get('invoice_number')
+            or params.get('offline_id')
+            or params.get('name')
+        )
+        if not local_invoice_id:
+            import time
+            local_invoice_id = f"POS-{int(time.time()*1000)}"
 
-            existing_sale = env['havanoposdesk.sale'].search([
-                ('tenant_id', '=', tenant.id),
-                ('local_invoice_id', '=', local_invoice_id)
-            ], limit=1)
-            if existing_sale:
-                if custom_cr:
-                    custom_cr.commit()
-                return self._make_json_response({
-                    "message": "Sale created successfully",
-                    "sale_order_id": existing_sale.id,
-                    "sale_order_name": existing_sale.name,
-                    "data": {
-                        "name": existing_sale.name
-                    }
-                })
-
-            store = self._get_current_store(user, tenant, params)
-            if not store:
-                return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
-
-            tz_valid, tz_err = self._validate_store_timezone(store, params, user)
-            if not tz_valid:
-                return self._make_json_response({"error": tz_err}, status=400)
-
-            customer = env['havanoposdesk.customer'].search([
-                ('name', '=', customer_name),
-                ('store_ids', 'in', [store.id])
-            ], limit=1)
-            if not customer:
-                return self._make_json_response({"error": f"Customer '{customer_name}' not found for store '{store.name}'"}, status=400)
-
-            sale_user_email = params.get('cashier') or params.get('sales_person') or params.get('owner') or params.get('user')
-            sale_user = None
-            if sale_user_email:
-                cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
-                if cashier_user:
-                    sale_user = cashier_user
-            if not sale_user:
-                sale_user = user
-
-            terminal, term_err = self._resolve_sale_terminal(env, tenant, store, user, params, sale_user=sale_user)
-            if term_err and (params.get('is_pos') or params.get('pos_profile') or params.get('terminal_id') or params.get('terminal')):
-                return self._make_json_response({"error": term_err}, status=400)
-            if not store and terminal:
-                store = terminal.store_id
-
-            doc_currency, doc_exchange_rate = self._resolve_sale_currency_and_rate(env, tenant, store, customer, params, sale_user=sale_user)
-            base_curr = tenant.currency_id if tenant else env.company.currency_id
-
-            sale_lines = []
-            for line in lines:
-                item_code = line.get('item_code') or line.get('itemname') or line.get('item_name')
-                qty_val = line.get('qty') or line.get('quantity')
-                qty = float(qty_val) if qty_val is not None else 1.0
-
-                price_val = line.get('price') or line.get('rate') or line.get('price_list_rate')
-                price = float(price_val) if price_val is not None else 0.0
-
-                uom_name = line.get('uom') or line.get('stock_uom') or line.get('uom_name')
-
-                product = env['havanoposdesk.product'].search([
+        for attempt in range(4):
+            env, custom_cr = self._get_env(user_id=uid)
+            try:
+                user = env['res.users'].browse(uid)
+                tenant = user.tenant_id
+                
+                # Deduplication check
+                existing_sale = env['havanoposdesk.sale'].search([
                     ('tenant_id', '=', tenant.id),
-                    '|', ('item_code', '=', item_code), ('name', '=', item_code)
+                    ('local_invoice_id', '=', local_invoice_id)
                 ], limit=1)
-
-                if not product:
-                    product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
-
-                if not product:
-                    product = env['havanoposdesk.product'].create({
-                        'name': item_code,
-                        'item_code': item_code or 'New',
-                        'selling_price': price,
-                        'tenant_id': tenant.id,
-                        'all_stores': True,
+                if existing_sale:
+                    if custom_cr:
+                        custom_cr.commit()
+                    return self._make_json_response({
+                        "message": "Sale created successfully",
+                        "sale_order_id": existing_sale.id,
+                        "sale_order_name": existing_sale.name,
+                        "data": {
+                            "name": existing_sale.name
+                        }
                     })
 
-                base_rate = float(price) if (price and float(price) > 0) else (product.selling_price or 1.0)
-                is_base = (doc_currency == base_curr) or (
-                    doc_currency and base_curr and
-                    doc_currency.name and base_curr.name and
-                    doc_currency.name.strip().upper() == base_curr.name.strip().upper()
-                )
-                if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
-                    final_rate = base_rate * doc_exchange_rate
-                else:
-                    final_rate = base_rate
+                store = self._get_current_store(user, tenant, params)
+                if not store:
+                    return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
 
-                line_vals = {
-                    'product_id': product.id,
-                    'accepted_qty': qty,
-                    'rate': final_rate,
-                }
-                if uom_name:
-                    uom_rec = env['havanoposdesk.uom'].search([
-                        ('tenant_id', '=', tenant.id),
-                        ('name', '=ilike', str(uom_name).strip())
-                    ], limit=1)
-                    if uom_rec:
-                        line_vals['uom_id'] = uom_rec.id
+                tz_valid, tz_err = self._validate_store_timezone(store, params, user)
+                if not tz_valid:
+                    return self._make_json_response({"error": tz_err}, status=400)
 
-                if not line_vals.get('uom_id') and product.uom_id:
-                    line_vals['uom_id'] = product.uom_id.id
-
-                if line_vals.get('uom_id'):
-                    price_rec = env['havanoposdesk.product.uom.price'].search([
-                        ('product_id', '=', product.id),
-                        ('uom_id', '=', line_vals['uom_id']),
-                    ], limit=1)
-                    if price_rec and price_rec.qty_to_be_sold:
-                        line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
-
-                item_tax = line.get('item_tax') or line.get('tax_category') or line.get('item_tax_template')
-                if item_tax:
-                    matching_tax = env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
-                        ('tax_type', '=', 'Sales'),
-                        '|', ('name', 'ilike', str(item_tax).strip()), ('name', '=', str(item_tax).strip())
-                    ], limit=1)
-                    if matching_tax:
-                        line_vals['tax_ids'] = [(6, 0, [matching_tax.id])]
-                if ('tax_ids' not in line_vals or not line_vals.get('tax_ids')) and product.sale_tax_ids:
-                    line_vals['tax_ids'] = [(6, 0, product.sale_tax_ids.ids)]
-
-                sale_lines.append((0, 0, line_vals))
-
-            payment_method_name = params.get('payment_method')
-            account_id = False
-            has_payments = isinstance(params.get('payments'), list) and any(isinstance(p, dict) for p in params.get('payments'))
-            if payment_method_name and not has_payments:
-                acc = env['havanoposdesk.account'].sudo().search([
-                    ('tenant_id', '=', tenant.id), 
-                    ('name', 'ilike', payment_method_name),
-                    ('active', '=', True)
+                customer = env['havanoposdesk.customer'].search([
+                    ('name', '=', customer_name),
+                    ('store_ids', 'in', [store.id])
                 ], limit=1)
-                if acc:
-                    account_id = acc.id
+                if not customer:
+                    customer = env['havanoposdesk.customer'].search([
+                        ('tenant_id', '=', tenant.id),
+                        ('name', '=ilike', str(customer_name).strip())
+                    ], limit=1)
+                if not customer:
+                    customer = env['havanoposdesk.customer'].search([
+                        ('tenant_id', '=', tenant.id),
+                        '|', ('name', 'ilike', 'walk-in'), ('is_cash_customer', '=', True)
+                    ], limit=1)
+                if not customer:
+                    customer = env['havanoposdesk.customer'].sudo().create({
+                        'name': customer_name or 'Walk-in Customer',
+                        'tenant_id': tenant.id,
+                        'store_ids': [(4, store.id)],
+                        'is_cash_customer': True,
+                    })
 
-            payment_vals = self._prepare_payment_vals(
-                env, tenant, customer, params, 
-                default_account_id=account_id, store=store, 
-                doc_currency=doc_currency, doc_exchange_rate=doc_exchange_rate
-            )
-            if payment_vals['payment_status'] != 'cash' and tenant and not tenant.allow_credit_sales:
-                return self._make_json_response({"error": "Oops! Creating sales on credit is disabled."}, status=400)
+                sale_user_email = params.get('cashier') or params.get('sales_person') or params.get('owner') or params.get('user')
+                sale_user = None
+                if sale_user_email:
+                    cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
+                    if cashier_user:
+                        sale_user = cashier_user
+                if not sale_user:
+                    sale_user = user
 
-            sale_vals = {
-                'customer': customer.id,
-                'store': store.name,
-                'store_id': store.id,
-                'tenant_id': tenant.id,
-                'terminal_id': terminal.id if terminal else False,
-                'currency_id': doc_currency.id if doc_currency else False,
-                'exchange_rate': doc_exchange_rate,
-                'line_ids': sale_lines,
-                'date': self._get_sale_date(params, sale_user, store),
-                'state': 'done',
-                'salesperson_id': sale_user.id,
-                'payment_status': payment_vals['payment_status'],
-                'payment_policy': payment_vals['payment_policy'],
-                'local_invoice_id': local_invoice_id,
-            }
-            if payment_vals.get('account_id'):
-                sale_vals['account_id'] = payment_vals['account_id']
-            if payment_vals.get('single_payment_amount') is not None:
-                sale_vals['single_payment_amount'] = payment_vals['single_payment_amount']
-            if payment_vals.get('payment_commands'):
-                sale_vals['payment_ids'] = payment_vals['payment_commands']
+                terminal, term_err = self._resolve_sale_terminal(env, tenant, store, user, params, sale_user=sale_user)
+                if term_err and (params.get('is_pos') or params.get('pos_profile') or params.get('terminal_id') or params.get('terminal')):
+                    return self._make_json_response({"error": term_err}, status=400)
+                if not store and terminal:
+                    store = terminal.store_id
 
-            sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
+                doc_currency, doc_exchange_rate = self._resolve_sale_currency_and_rate(env, tenant, store, customer, params, sale_user=sale_user)
+                base_curr = tenant.currency_id if tenant else env.company.currency_id
 
-            if custom_cr:
-                custom_cr.commit()
+                sale_lines = []
+                for line in lines:
+                    item_code = line.get('item_code') or line.get('itemname') or line.get('item_name')
+                    qty_val = line.get('qty') or line.get('quantity')
+                    qty = float(qty_val) if qty_val is not None else 1.0
 
-            return self._make_json_response({
-                "message": "Sale created successfully",
-                "sale_order_id": sale.id,
-                "sale_order_name": sale.name,
-                "data": {
-                    "name": sale.name
+                    price_val = line.get('price') or line.get('rate') or line.get('price_list_rate')
+                    price = float(price_val) if price_val is not None else 0.0
+
+                    uom_name = line.get('uom') or line.get('stock_uom') or line.get('uom_name')
+
+                    product = env['havanoposdesk.product'].search([
+                        ('tenant_id', '=', tenant.id),
+                        '|', ('item_code', '=', item_code), ('name', '=', item_code)
+                    ], limit=1)
+
+                    if not product:
+                        product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
+
+                    if not product:
+                        product = env['havanoposdesk.product'].create({
+                            'name': item_code,
+                            'item_code': item_code or 'New',
+                            'selling_price': price,
+                            'tenant_id': tenant.id,
+                            'all_stores': True,
+                        })
+
+                    base_rate = float(price) if (price and float(price) > 0) else (product.selling_price or 1.0)
+                    is_base = (doc_currency == base_curr) or (
+                        doc_currency and base_curr and
+                        doc_currency.name and base_curr.name and
+                        doc_currency.name.strip().upper() == base_curr.name.strip().upper()
+                    )
+                    if not is_base and doc_exchange_rate and doc_exchange_rate != 1.0:
+                        final_rate = base_rate * doc_exchange_rate
+                    else:
+                        final_rate = base_rate
+
+                    line_vals = {
+                        'product_id': product.id,
+                        'accepted_qty': qty,
+                        'rate': final_rate,
+                    }
+                    if uom_name:
+                        uom_rec = env['havanoposdesk.uom'].search([
+                            ('tenant_id', '=', tenant.id),
+                            ('name', '=ilike', str(uom_name).strip())
+                        ], limit=1)
+                        if uom_rec:
+                            line_vals['uom_id'] = uom_rec.id
+
+                    if not line_vals.get('uom_id') and product.uom_id:
+                        line_vals['uom_id'] = product.uom_id.id
+
+                    if line_vals.get('uom_id'):
+                        price_rec = env['havanoposdesk.product.uom.price'].search([
+                            ('product_id', '=', product.id),
+                            ('uom_id', '=', line_vals['uom_id']),
+                        ], limit=1)
+                        if price_rec and price_rec.qty_to_be_sold:
+                            line_vals['uom_qty_multiplier'] = price_rec.qty_to_be_sold
+
+                    item_tax = line.get('item_tax') or line.get('tax_category') or line.get('item_tax_template')
+                    if item_tax:
+                        matching_tax = env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
+                            ('tax_type', '=', 'Sales'),
+                            '|', ('name', 'ilike', str(item_tax).strip()), ('name', '=', str(item_tax).strip())
+                        ], limit=1)
+                        if matching_tax:
+                            line_vals['tax_ids'] = [(6, 0, [matching_tax.id])]
+                    if ('tax_ids' not in line_vals or not line_vals.get('tax_ids')) and product.sale_tax_ids:
+                        line_vals['tax_ids'] = [(6, 0, product.sale_tax_ids.ids)]
+
+                    sale_lines.append((0, 0, line_vals))
+
+                payment_method_name = params.get('payment_method')
+                account_id = False
+                has_payments = isinstance(params.get('payments'), list) and any(isinstance(p, dict) for p in params.get('payments'))
+
+                # Resolve Shift
+                shift_id = params.get('shift_id')
+                if not shift_id:
+                    shift_dom = [
+                        ('user_id', '=', sale_user.id),
+                        ('state', '=', 'open')
+                    ]
+                    if tenant:
+                        shift_dom.append(('tenant_id', '=', tenant.id))
+                    open_shift = env['havanoposdesk.shift'].sudo().search(shift_dom, limit=1)
+                    if open_shift:
+                        shift_id = open_shift.id
+
+                sale_vals = {
+                    'customer': customer.id,
+                    'store_id': store.id,
+                    'tenant_id': tenant.id if tenant else False,
+                    'terminal_id': terminal.id if terminal else False,
+                    'local_invoice_id': local_invoice_id,
+                    'date': fields.Date.context_today(env.user),
+                    'line_ids': sale_lines,
+                    'state': 'posted',
+                    'shift_id': shift_id if shift_id else False,
                 }
-            })
-        except Exception as e:
-            if custom_cr:
-                custom_cr.rollback()
-            return self._make_json_response({"error": str(e)}, status=500)
-        finally:
-            if custom_cr:
-                custom_cr.close()
+
+                if doc_currency:
+                    sale_vals['currency_id'] = doc_currency.id
+                    sale_vals['exchange_rate'] = doc_exchange_rate or 1.0
+
+                payment_vals = self._process_sale_payments(env, tenant, store, params, sale_vals)
+                if payment_vals.get('payment_status'):
+                    sale_vals['payment_status'] = payment_vals['payment_status']
+                if payment_vals.get('payment_ids'):
+                    sale_vals['payment_ids'] = payment_vals['payment_ids']
+                if payment_vals.get('account_id'):
+                    sale_vals['account_id'] = payment_vals['account_id']
+                if payment_vals.get('payment_commands'):
+                    sale_vals['payment_ids'] = payment_vals['payment_commands']
+
+                sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
+
+                if custom_cr:
+                    custom_cr.commit()
+
+                return self._make_json_response({
+                    "message": "Sale created successfully",
+                    "sale_order_id": sale.id,
+                    "sale_order_name": sale.name,
+                    "data": {
+                        "name": sale.name
+                    }
+                })
+            except Exception as e:
+                if custom_cr:
+                    custom_cr.rollback()
+                if is_serialization_error(e) and attempt < 3:
+                    import time, random
+                    time.sleep(0.05 * (2 ** attempt) + random.uniform(0.01, 0.05))
+                    continue
+                return self._make_json_response({"error": str(e)}, status=500)
+            finally:
+                if custom_cr:
+                    custom_cr.close()
 
     @http.route('/saas_api/edit_item', type='http', auth='public', methods=['PUT', 'POST', 'OPTIONS'], csrf=False, cors='*')
     def saas_edit_item(self, **kwargs):
@@ -4728,7 +4777,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.close()
 
-    @http.route('/api/resource/Payment Entry', auth='public', methods=['GET', 'POST', 'PUT', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route([
+        '/api/resource/Payment Entry',
+        '/api/method/saas_api.www.api.create_payment_entry'
+    ], auth='public', methods=['GET', 'POST', 'PUT', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_payment_entry(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
@@ -4743,200 +4795,205 @@ class HavanoPOSDeskAPI(http.Controller):
             user = self._get_user()
             uid = user.id
 
-        env, custom_cr = self._get_env(user_id=uid)
-        try:
-            user = env['res.users'].browse(uid)
-            tenant = user.tenant_id
-            tenant_id = tenant.id if tenant else False
+        for attempt in range(4):
+            env, custom_cr = self._get_env(user_id=uid)
+            try:
+                user = env['res.users'].browse(uid)
+                tenant = user.tenant_id
+                tenant_id = tenant.id if tenant else False
 
-            if request.httprequest.method == 'GET':
-                domain = []
-                if user.havano_role != 'super_admin' and tenant_id:
-                    domain.append(('tenant_id', '=', tenant_id))
+                if request.httprequest.method == 'GET':
+                    domain = []
+                    if user.havano_role != 'super_admin' and tenant_id:
+                        domain.append(('tenant_id', '=', tenant_id))
+                    
+                    payments = env['havanoposdesk.payment'].search(domain, order='date desc, id desc', limit=100)
+                    result = []
+                    for p in payments:
+                        result.append({
+                            "name": p.name,
+                            "id": p.id,
+                            "payment_type": "Receive" if p.payment_type == 'receipt' else "Pay",
+                            "party_type": "Customer" if p.partner_type == 'customer' else "Supplier",
+                            "party": p.customer_id.name if p.customer_id else (p.supplier_id.name if p.supplier_id else ""),
+                            "paid_amount": p.amount,
+                            "received_amount": p.amount,
+                            "account": p.account_id.name if p.account_id else "",
+                            "posting_date": str(p.date) if p.date else "",
+                            "status": p.state.capitalize(),
+                            "reference_no": p.reference or "",
+                            "store": p.store_id.name if p.store_id else ""
+                        })
+                    return self._make_json_response({"data": result})
+
+                # POST / PUT: Create or update Payment Entry
+                pay_type_raw = str(params.get('payment_type') or 'Receive').lower()
+                payment_type = 'payment' if 'pay' in pay_type_raw or 'send' in pay_type_raw else 'receipt'
                 
-                payments = env['havanoposdesk.payment'].search(domain, order='date desc, id desc', limit=100)
-                result = []
-                for p in payments:
-                    result.append({
-                        "name": p.name,
-                        "id": p.id,
-                        "payment_type": "Receive" if p.payment_type == 'receipt' else "Pay",
-                        "party_type": "Customer" if p.partner_type == 'customer' else "Supplier",
-                        "party": p.customer_id.name if p.customer_id else (p.supplier_id.name if p.supplier_id else ""),
-                        "paid_amount": p.amount,
-                        "received_amount": p.amount,
-                        "account": p.account_id.name if p.account_id else "",
-                        "posting_date": str(p.date) if p.date else "",
-                        "status": p.state.capitalize(),
-                        "reference_no": p.reference or "",
-                        "store": p.store_id.name if p.store_id else ""
-                    })
-                return self._make_json_response({"data": result})
-
-            # POST / PUT: Create or update Payment Entry
-            pay_type_raw = str(params.get('payment_type') or 'Receive').lower()
-            payment_type = 'payment' if 'pay' in pay_type_raw or 'send' in pay_type_raw else 'receipt'
-            
-            partner_type_raw = str(params.get('party_type') or 'Customer').lower()
-            partner_type = 'supplier' if 'supp' in partner_type_raw else 'customer'
-
-            # Resolve Amount
-            amount = float(
-                params.get('paid_amount') or params.get('received_amount') or
-                params.get('amount') or params.get('paid_amount_after_tax') or 0.0
-            )
-
-            # Resolve Account
-            acc_ref = (
-                params.get('paid_to') if payment_type == 'receipt' else params.get('paid_from')
-            ) or params.get('account') or params.get('account_id') or params.get('paid_to') or params.get('paid_from')
-            
-            account_obj = False
-            if acc_ref:
-                if isinstance(acc_ref, int) or (isinstance(acc_ref, str) and str(acc_ref).isdigit()):
-                    account_obj = env['havanoposdesk.account'].browse(int(acc_ref))
-                else:
-                    a_dom = [('name', '=ilike', str(acc_ref).strip()), ('type', 'in', ['Cash', 'Bank'])]
-                    if tenant_id:
-                        a_dom.append(('tenant_id', '=', tenant_id))
-                    account_obj = env['havanoposdesk.account'].search(a_dom, limit=1)
-                    if not account_obj:
-                        account_obj = env['havanoposdesk.account'].search([('name', '=ilike', str(acc_ref).strip())], limit=1)
-
-            if not account_obj:
-                def_dom = [('type', 'in', ['Cash', 'Bank'])]
-                if tenant_id:
-                    def_dom.append(('tenant_id', '=', tenant_id))
-                account_obj = env['havanoposdesk.account'].search(def_dom, limit=1)
-
-            # Resolve Store
-            store_obj = self._get_current_store(user, tenant, params)
-            if not store_obj:
-                store_obj = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
-
-            # Resolve Customer / Supplier
-            customer_obj = False
-            supplier_obj = False
-            party_ref = params.get('party') or params.get('party_name') or params.get('customer') or params.get('supplier')
-            if partner_type == 'customer' and party_ref:
-                if isinstance(party_ref, int) or (isinstance(party_ref, str) and str(party_ref).isdigit()):
-                    customer_obj = env['havanoposdesk.customer'].browse(int(party_ref))
-                else:
-                    c_dom = [('name', '=ilike', str(party_ref).strip())]
-                    if tenant_id:
-                        c_dom.append(('tenant_id', '=', tenant_id))
-                    customer_obj = env['havanoposdesk.customer'].search(c_dom, limit=1)
-                    if not customer_obj:
-                        customer_obj = env['havanoposdesk.customer'].search([('name', '=ilike', str(party_ref).strip())], limit=1)
-            elif partner_type == 'supplier' and party_ref:
-                if isinstance(party_ref, int) or (isinstance(party_ref, str) and str(party_ref).isdigit()):
-                    supplier_obj = env['havanoposdesk.supplier'].browse(int(party_ref))
-                else:
-                    s_dom = [('name', '=ilike', str(party_ref).strip())]
-                    if tenant_id:
-                        s_dom.append(('tenant_id', '=', tenant_id))
-                    supplier_obj = env['havanoposdesk.supplier'].search(s_dom, limit=1)
-                    if not supplier_obj:
-                        supplier_obj = env['havanoposdesk.supplier'].search([('name', '=ilike', str(party_ref).strip())], limit=1)
-
-            # Resolve Shift
-            shift_id_val = params.get('shift_id')
-            if not shift_id_val:
-                shift_dom = [
-                    ('user_id', '=', uid),
-                    ('state', '=', 'open')
-                ]
-                if tenant:
-                    shift_dom.append(('tenant_id', '=', tenant.id))
-                open_shift = env['havanoposdesk.shift'].sudo().search(shift_dom, limit=1)
-                if open_shift:
-                    shift_id_val = open_shift.id
-
-            # Resolve Sale / Invoice Reference
-            sale_obj = False
-            refs = params.get('references') or []
-            if refs and isinstance(refs, list):
-                for ref_item in refs:
-                    ref_name = ref_item.get('reference_name')
-                    if ref_name:
-                        sale_obj = env['havanoposdesk.sale'].search([('name', '=', str(ref_name).strip())], limit=1)
-                        if sale_obj:
-                            break
-
-            today_date = fields.Date.context_today(env.user)
-            ref_str = params.get('reference_no') or params.get('reference') or params.get('remarks') or 'Payment Entry'
-
-            # Deduplication: If this payment is linked to a sale that already has payments created during POS sync
-            if sale_obj:
-                existing_payments = sale_obj.payment_ids.filtered(lambda p: p.state != 'cancelled')
-                # 1. Exact amount / account match on this sale
-                match = existing_payments.filtered(
-                    lambda p: abs(p.amount - amount) < 0.01 or (account_obj and p.account_id.id == account_obj.id)
+                partner_type_raw = str(params.get('party_type') or 'Customer').lower()
+                partner_type = 'supplier' if 'supp' in partner_type_raw else 'customer'
+    
+                # Resolve Amount
+                amount = float(
+                    params.get('paid_amount') or params.get('received_amount') or
+                    params.get('amount') or params.get('paid_amount_after_tax') or 0.0
                 )
-                if not match and sale_obj.payment_status == 'cash' and existing_payments:
-                    match = existing_payments[:1]
-
-                if match:
-                    payment = match[0]
-                    if ref_str and not payment.reference:
-                        payment.sudo().write({'reference': ref_str})
-                    if custom_cr:
-                        custom_cr.commit()
-                    return self._make_json_response({
-                        "data": {
-                            "name": payment.name,
-                            "id": payment.id,
-                            "status": payment.state,
-                            "amount": payment.amount,
-                            "account": payment.account_id.name if payment.account_id else ""
-                        }
-                    })
-
-            payment_vals = {
-                'payment_type': payment_type,
-                'partner_type': partner_type,
-                'customer_id': customer_obj.id if customer_obj else False,
-                'supplier_id': supplier_obj.id if supplier_obj else False,
-                'account_id': account_obj.id if account_obj else False,
-                'amount': amount,
-                'date': today_date,
-                'reference': ref_str,
-                'store_id': store_obj.id if store_obj else False,
-                'shift_id': shift_id_val if shift_id_val else False,
-                'sale_id': sale_obj.id if sale_obj else False,
-                'tenant_id': tenant_id,
-                'transaction_category': 'customer_receipt' if payment_type == 'receipt' else 'supplier_payment'
-            }
-
-            payment = env['havanoposdesk.payment'].create(payment_vals)
-            
-            # Post the payment if docstatus is 1 or auto-post
-            docstatus = params.get('docstatus', 1)
-            if docstatus in (1, '1', True) and payment.amount > 0 and payment.account_id:
-                try:
-                    payment.action_post()
-                except Exception as post_err:
-                    pass
-
-            if custom_cr:
-                custom_cr.commit()
-
-            return self._make_json_response({
-                "data": {
-                    "name": payment.name,
-                    "id": payment.id,
-                    "status": payment.state,
-                    "amount": payment.amount,
-                    "account": payment.account_id.name if payment.account_id else ""
+    
+                # Resolve Account
+                acc_ref = (
+                    params.get('paid_to') if payment_type == 'receipt' else params.get('paid_from')
+                ) or params.get('account') or params.get('account_id') or params.get('paid_to') or params.get('paid_from')
+                
+                account_obj = False
+                if acc_ref:
+                    if isinstance(acc_ref, int) or (isinstance(acc_ref, str) and str(acc_ref).isdigit()):
+                        account_obj = env['havanoposdesk.account'].browse(int(acc_ref))
+                    else:
+                        a_dom = [('name', '=ilike', str(acc_ref).strip()), ('type', 'in', ['Cash', 'Bank'])]
+                        if tenant_id:
+                            a_dom.append(('tenant_id', '=', tenant_id))
+                        account_obj = env['havanoposdesk.account'].search(a_dom, limit=1)
+                        if not account_obj:
+                            account_obj = env['havanoposdesk.account'].search([('name', '=ilike', str(acc_ref).strip())], limit=1)
+    
+                if not account_obj:
+                    def_dom = [('type', 'in', ['Cash', 'Bank'])]
+                    if tenant_id:
+                        def_dom.append(('tenant_id', '=', tenant_id))
+                    account_obj = env['havanoposdesk.account'].search(def_dom, limit=1)
+    
+                # Resolve Store
+                store_obj = self._get_current_store(user, tenant, params)
+                if not store_obj:
+                    store_obj = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+    
+                # Resolve Customer / Supplier
+                customer_obj = False
+                supplier_obj = False
+                party_ref = params.get('party') or params.get('party_name') or params.get('customer') or params.get('supplier')
+                if partner_type == 'customer' and party_ref:
+                    if isinstance(party_ref, int) or (isinstance(party_ref, str) and str(party_ref).isdigit()):
+                        customer_obj = env['havanoposdesk.customer'].browse(int(party_ref))
+                    else:
+                        c_dom = [('name', '=ilike', str(party_ref).strip())]
+                        if tenant_id:
+                            c_dom.append(('tenant_id', '=', tenant_id))
+                        customer_obj = env['havanoposdesk.customer'].search(c_dom, limit=1)
+                        if not customer_obj:
+                            customer_obj = env['havanoposdesk.customer'].search([('name', '=ilike', str(party_ref).strip())], limit=1)
+                elif partner_type == 'supplier' and party_ref:
+                    if isinstance(party_ref, int) or (isinstance(party_ref, str) and str(party_ref).isdigit()):
+                        supplier_obj = env['havanoposdesk.supplier'].browse(int(party_ref))
+                    else:
+                        s_dom = [('name', '=ilike', str(party_ref).strip())]
+                        if tenant_id:
+                            s_dom.append(('tenant_id', '=', tenant_id))
+                        supplier_obj = env['havanoposdesk.supplier'].search(s_dom, limit=1)
+                        if not supplier_obj:
+                            supplier_obj = env['havanoposdesk.supplier'].search([('name', '=ilike', str(party_ref).strip())], limit=1)
+    
+                # Resolve Shift
+                shift_id_val = params.get('shift_id')
+                if not shift_id_val:
+                    shift_dom = [
+                        ('user_id', '=', uid),
+                        ('state', '=', 'open')
+                    ]
+                    if tenant:
+                        shift_dom.append(('tenant_id', '=', tenant.id))
+                    open_shift = env['havanoposdesk.shift'].sudo().search(shift_dom, limit=1)
+                    if open_shift:
+                        shift_id_val = open_shift.id
+    
+                # Resolve Sale / Invoice Reference
+                sale_obj = False
+                refs = params.get('references') or []
+                if refs and isinstance(refs, list):
+                    for ref_item in refs:
+                        ref_name = ref_item.get('reference_name')
+                        if ref_name:
+                            sale_obj = env['havanoposdesk.sale'].search([('name', '=', str(ref_name).strip())], limit=1)
+                            if sale_obj:
+                                break
+    
+                today_date = fields.Date.context_today(env.user)
+                ref_str = params.get('reference_no') or params.get('reference') or params.get('remarks') or 'Payment Entry'
+    
+                # Deduplication: If this payment is linked to a sale that already has payments created during POS sync
+                if sale_obj:
+                    existing_payments = sale_obj.payment_ids.filtered(lambda p: p.state != 'cancelled')
+                    # 1. Exact amount / account match on this sale
+                    match = existing_payments.filtered(
+                        lambda p: abs(p.amount - amount) < 0.01 or (account_obj and p.account_id.id == account_obj.id)
+                    )
+                    if not match and sale_obj.payment_status == 'cash' and existing_payments:
+                        match = existing_payments[:1]
+    
+                    if match:
+                        payment = match[0]
+                        if ref_str and not payment.reference:
+                            payment.sudo().write({'reference': ref_str})
+                        if custom_cr:
+                            custom_cr.commit()
+                        return self._make_json_response({
+                            "data": {
+                                "name": payment.name,
+                                "id": payment.id,
+                                "status": payment.state,
+                                "amount": payment.amount,
+                                "account": payment.account_id.name if payment.account_id else ""
+                            }
+                        })
+    
+                payment_vals = {
+                    'payment_type': payment_type,
+                    'partner_type': partner_type,
+                    'customer_id': customer_obj.id if customer_obj else False,
+                    'supplier_id': supplier_obj.id if supplier_obj else False,
+                    'account_id': account_obj.id if account_obj else False,
+                    'amount': amount,
+                    'date': today_date,
+                    'reference': ref_str,
+                    'store_id': store_obj.id if store_obj else False,
+                    'shift_id': shift_id_val if shift_id_val else False,
+                    'sale_id': sale_obj.id if sale_obj else False,
+                    'tenant_id': tenant_id,
+                    'transaction_category': 'customer_receipt' if payment_type == 'receipt' else 'supplier_payment'
                 }
-            })
-        except Exception as e:
-            if custom_cr:
-                custom_cr.rollback()
-            return self._make_json_response({"error": str(e)}, status=500)
-        finally:
-            if custom_cr:
-                custom_cr.close()
+    
+                payment = env['havanoposdesk.payment'].create(payment_vals)
+                
+                # Post the payment if docstatus is 1 or auto-post
+                docstatus = params.get('docstatus', 1)
+                if docstatus in (1, '1', True) and payment.amount > 0 and payment.account_id:
+                    try:
+                        payment.action_post()
+                    except Exception as post_err:
+                        pass
+    
+                if custom_cr:
+                    custom_cr.commit()
+    
+                return self._make_json_response({
+                    "data": {
+                        "name": payment.name,
+                        "id": payment.id,
+                        "status": payment.state,
+                        "amount": payment.amount,
+                        "account": payment.account_id.name if payment.account_id else ""
+                    }
+                })
+            except Exception as e:
+                if custom_cr:
+                    custom_cr.rollback()
+                if is_serialization_error(e) and attempt < 3:
+                    import time, random
+                    time.sleep(0.05 * (2 ** attempt) + random.uniform(0.01, 0.05))
+                    continue
+                return self._make_json_response({"error": str(e)}, status=500)
+            finally:
+                if custom_cr:
+                    custom_cr.close()
 
     @http.route('/api/method/saas_api.www.api.get_cashbook', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_cashbook(self, **kwargs):
@@ -9679,44 +9736,61 @@ class HavanoPOSDeskAPI(http.Controller):
         if not uid:
             return self._make_json_response({"error": "Unauthorized"}, status=401)
 
-        env, custom_cr = self._get_env(user_id=uid)
         try:
+            data = json.loads(request.httprequest.data)
+        except Exception:
+            return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+
+        device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
+        terminal_id = data.get('terminal_id')
+
+        if not device_hardware_id and not terminal_id:
+            return self._make_json_response({"error": "terminal_id or device_hardware_id is required"}, status=400)
+
+        domain = []
+        if terminal_id:
+            domain.append(('id', '=', int(terminal_id)))
+        if device_hardware_id:
+            domain.append(('device_hardware_id', '=', device_hardware_id))
+
+        # Retry loop for concurrency / serialization conflicts
+        for attempt in range(4):
+            env, custom_cr = self._get_env(user_id=uid)
             try:
-                data = json.loads(request.httprequest.data)
-            except Exception:
-                return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+                terminal = env['havanoposdesk.pos.terminal'].sudo().search(domain, limit=1)
+                if not terminal.exists():
+                    return self._make_json_response({"error": "Terminal not found"}, status=404)
 
-            device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
-            terminal_id = data.get('terminal_id')
+                from odoo import fields as odoo_fields
+                now = odoo_fields.Datetime.now()
+                term_write_vals = {}
 
-            if not device_hardware_id and not terminal_id:
-                return self._make_json_response({"error": "terminal_id or device_hardware_id is required"}, status=400)
+                # Only update status if it changed
+                if terminal.status != 'online':
+                    term_write_vals['status'] = 'online'
 
-            domain = []
-            if terminal_id:
-                domain.append(('id', '=', int(terminal_id)))
-            if device_hardware_id:
-                domain.append(('device_hardware_id', '=', device_hardware_id))
+                # Throttle last_seen: only update if never set or older than 30 seconds
+                if not terminal.last_seen or (now - terminal.last_seen).total_seconds() > 30:
+                    term_write_vals['last_seen'] = now
 
-            terminal = env['havanoposdesk.pos.terminal'].sudo().search(domain, limit=1)
-            if not terminal.exists():
-                return self._make_json_response({"error": "Terminal not found"}, status=404)
+                # If no write needed, return immediately without any DB write or commit
+                if term_write_vals:
+                    terminal.sudo().with_context(skip_audit_log=True).write(term_write_vals)
+                    if custom_cr:
+                        custom_cr.commit()
 
-            from odoo import fields as odoo_fields
-            terminal.write({
-                'last_seen': odoo_fields.Datetime.now(),
-                'status': 'online'
-            })
-            if custom_cr:
-                custom_cr.commit()
-            return self._make_json_response({"message": "Pong", "status": "online"}, status=200)
-        except Exception as e:
-            if custom_cr:
-                custom_cr.rollback()
-            return self._make_json_response({"error": str(e)}, status=500)
-        finally:
-            if custom_cr:
-                custom_cr.close()
+                return self._make_json_response({"message": "Pong", "status": "online"}, status=200)
+            except Exception as e:
+                if custom_cr:
+                    custom_cr.rollback()
+                if is_serialization_error(e) and attempt < 3:
+                    import time, random
+                    time.sleep(0.04 * (2 ** attempt) + random.uniform(0.01, 0.04))
+                    continue
+                return self._make_json_response({"error": str(e)}, status=500)
+            finally:
+                if custom_cr:
+                    custom_cr.close()
 
     @http.route('/api/user/select-terminal', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_select_terminal(self, **kwargs):
@@ -9730,101 +9804,125 @@ class HavanoPOSDeskAPI(http.Controller):
         if not uid:
             return self._make_json_response({"error": "Unauthorized"}, status=401)
 
-        env, custom_cr = self._get_env(user_id=uid)
         try:
+            data = json.loads(request.httprequest.data)
+        except Exception:
+            return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+
+        terminal_id = data.get('terminal_id')
+        device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
+        app_version = data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version')
+        take_over = data.get('take_over', False)
+
+        if not terminal_id:
+            return self._make_json_response({"error": "terminal_id is required"}, status=400)
+
+        user_email = data.get('user')
+
+        for attempt in range(4):
+            env, custom_cr = self._get_env(user_id=uid)
             try:
-                data = json.loads(request.httprequest.data)
-            except Exception:
-                return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+                user = None
+                if user_email:
+                    cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
+                    if cashier_user:
+                        user = cashier_user
+                    else:
+                        return self._make_json_response({"error": f"User '{user_email}' not found. Please log in again online."}, status=400)
+                if not user:
+                    user = env['res.users'].browse(uid)
 
-            terminal_id = data.get('terminal_id')
-            device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
-            app_version = data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version')
-            take_over = data.get('take_over', False)
+                terminal = env['havanoposdesk.pos.terminal'].sudo().browse(terminal_id)
+                if not terminal.exists() or (user.tenant_id and terminal.tenant_id.id != user.tenant_id.id):
+                    return self._make_json_response({"error": "Terminal does not exist or does not belong to this tenant"}, status=400)
 
-            if not terminal_id:
-                return self._make_json_response({"error": "terminal_id is required"}, status=400)
+                user_stores = self._get_user_assigned_store_ids(user)
+                is_admin = user.havano_role in ('admin', 'super_admin')
+                is_assigned_store = is_admin or not user_stores or not terminal.store_id or terminal.store_id.id in user_stores
+                can_takeover = is_admin or is_assigned_store
 
-            user_email = data.get('user')
-            user = None
-            if user_email:
-                cashier_user = env['res.users'].sudo().search([('login', '=', user_email)], limit=1)
-                if cashier_user:
-                    user = cashier_user
-                else:
-                    return self._make_json_response({"error": f"User '{user_email}' not found. Please log in again online."}, status=400)
-            if not user:
-                user = env['res.users'].browse(uid)
+                # Ensure cashier can only select terminals in their assigned stores
+                if not is_assigned_store:
+                    return self._make_json_response({"error": "Selected terminal does not belong to your assigned store(s). Please contact admin for assistance."}, status=403)
 
-            terminal = env['havanoposdesk.pos.terminal'].sudo().browse(terminal_id)
-            if not terminal.exists() or (user.tenant_id and terminal.tenant_id.id != user.tenant_id.id):
-                return self._make_json_response({"error": "Terminal does not exist or does not belong to this tenant"}, status=400)
-
-            user_stores = self._get_user_assigned_store_ids(user)
-            is_admin = user.havano_role in ('admin', 'super_admin')
-            is_assigned_store = is_admin or not user_stores or not terminal.store_id or terminal.store_id.id in user_stores
-            can_takeover = is_admin or is_assigned_store
-
-            # Ensure cashier can only select terminals in their assigned stores
-            if not is_assigned_store:
-                return self._make_json_response({"error": "Selected terminal does not belong to your assigned store(s). Please contact admin for assistance."}, status=403)
-
-            # Validate hardware device assignment
-            if terminal.device_hardware_id and terminal.device_hardware_id != device_hardware_id:
-                if not take_over:
-                    return self._make_json_response({"error": "Terminal is already assigned to another hardware device. Specify take_over=True to forcefully reassign it."}, status=400)
-                elif not can_takeover:
-                    return self._make_json_response({"error": "Access denied. Only admins or store cashiers can take over a terminal from another hardware device."}, status=403)
-
-            # Validate user assignment (taken_by_user_id)
-            if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
-                if device_hardware_id and terminal.device_hardware_id == device_hardware_id:
-                    pass
-                else:
+                # Validate hardware device assignment
+                if terminal.device_hardware_id and terminal.device_hardware_id != device_hardware_id:
                     if not take_over:
-                        return self._make_json_response({"error": "Terminal is currently in use by another user. Specify take_over=True to forcefully reassign it."}, status=400)
+                        return self._make_json_response({"error": "Terminal is already assigned to another hardware device. Specify take_over=True to forcefully reassign it."}, status=400)
                     elif not can_takeover:
-                        return self._make_json_response({"error": "Access denied. Only admins or store cashiers can take over a terminal in use by another user."}, status=403)
+                        return self._make_json_response({"error": "Access denied. Only admins or store cashiers can take over a terminal from another hardware device."}, status=403)
 
-            # Cashier checks: cashier can only select open, online, or offline terminals
-            if not is_admin:
-                if terminal.status not in ('open', 'online', 'offline') and (not terminal.device_hardware_id or terminal.device_hardware_id != device_hardware_id):
-                    return self._make_json_response({"error": "Selected terminal is not available"}, status=400)
+                # Validate user assignment (taken_by_user_id)
+                if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
+                    if device_hardware_id and terminal.device_hardware_id == device_hardware_id:
+                        pass
+                    else:
+                        if not take_over:
+                            return self._make_json_response({"error": "Terminal is currently in use by another user. Specify take_over=True to forcefully reassign it."}, status=400)
+                        elif not can_takeover:
+                            return self._make_json_response({"error": "Access denied. Only admins or store cashiers can take over a terminal in use by another user."}, status=403)
 
-            # Reassign terminal from old user if taking over
-            if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
-                old_user = terminal.taken_by_user_id
-                old_user.sudo().write({'selected_terminal_id': False})
+                # Cashier checks: cashier can only select open, online, or offline terminals
+                if not is_admin:
+                    if terminal.status not in ('open', 'online', 'offline') and (not terminal.device_hardware_id or terminal.device_hardware_id != device_hardware_id):
+                        return self._make_json_response({"error": "Selected terminal is not available"}, status=400)
 
-            # Generate a unique 4-letter uppercase sale ID prefix for this terminal takeover/selection
-            sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
+                # Reassign terminal from old user if taking over
+                if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
+                    old_user = terminal.taken_by_user_id
+                    old_user.sudo().with_context(skip_audit_log=True).write({'selected_terminal_id': False})
 
-            # Update selected terminal for new user
-            user.sudo().write({'selected_terminal_id': terminal.id})
-            terminal.write({
-                'status': 'online',
-                'device_hardware_id': device_hardware_id,
-                'app_version': str(app_version) if app_version else terminal.app_version,
-                'last_seen': fields.Datetime.now(),
-                'last_logged_in_user_id': user.id,
-                'taken_by_user_id': user.id,
-                'sequence_prefix': sale_id_prefix
-            })
+                # Only update user's selected terminal if it changed
+                if user.selected_terminal_id.id != terminal.id:
+                    user.sudo().with_context(skip_audit_log=True).write({'selected_terminal_id': terminal.id})
 
-            user_data = self._get_user_info_dict(user, env, device_hardware_id=device_hardware_id)
-            user_data['sale_id_prefix'] = sale_id_prefix
-            return self._make_json_response({
-                "message": "Terminal Selected",
-                "sale_id_prefix": sale_id_prefix,
-                "user": user_data
-            }, status=200)
-        except Exception as e:
-            if custom_cr:
-                custom_cr.rollback()
-            return self._make_json_response({"error": str(e)}, status=500)
-        finally:
-            if custom_cr:
-                custom_cr.close()
+                # Retain existing sequence prefix if this terminal was already taken by this user
+                if terminal.taken_by_user_id.id == user.id and terminal.sequence_prefix:
+                    sale_id_prefix = terminal.sequence_prefix
+                else:
+                    sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
+
+                from odoo import fields as odoo_fields
+                now = odoo_fields.Datetime.now()
+                term_vals = {}
+                if terminal.status != 'online':
+                    term_vals['status'] = 'online'
+                if device_hardware_id and terminal.device_hardware_id != device_hardware_id:
+                    term_vals['device_hardware_id'] = device_hardware_id
+                if app_version and terminal.app_version != str(app_version):
+                    term_vals['app_version'] = str(app_version)
+                if terminal.taken_by_user_id.id != user.id:
+                    term_vals['taken_by_user_id'] = user.id
+                if terminal.last_logged_in_user_id.id != user.id:
+                    term_vals['last_logged_in_user_id'] = user.id
+                if terminal.sequence_prefix != sale_id_prefix:
+                    term_vals['sequence_prefix'] = sale_id_prefix
+                if not terminal.last_seen or (now - terminal.last_seen).total_seconds() > 30:
+                    term_vals['last_seen'] = now
+
+                if term_vals:
+                    terminal.sudo().with_context(skip_audit_log=True).write(term_vals)
+                    if custom_cr:
+                        custom_cr.commit()
+
+                user_data = self._get_user_info_dict(user, env, device_hardware_id=device_hardware_id)
+                user_data['sale_id_prefix'] = sale_id_prefix
+                return self._make_json_response({
+                    "message": "Terminal Selected",
+                    "sale_id_prefix": sale_id_prefix,
+                    "user": user_data
+                }, status=200)
+            except Exception as e:
+                if custom_cr:
+                    custom_cr.rollback()
+                if is_serialization_error(e) and attempt < 3:
+                    import time, random
+                    time.sleep(0.05 * (2 ** attempt) + random.uniform(0.01, 0.05))
+                    continue
+                return self._make_json_response({"error": str(e)}, status=500)
+            finally:
+                if custom_cr:
+                    custom_cr.close()
 
     @http.route('/api/user/current-session', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_current_session(self, **kwargs):

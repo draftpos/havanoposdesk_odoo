@@ -9,7 +9,13 @@ AUDIT_IGNORED_FIELDS = {
     '__last_update', 'write_date', 'write_uid', 'create_date', 'create_uid',
     'display_name', 'message_ids', 'activity_ids', 'message_follower_ids',
     'access_token', 'access_token_signature', 'message_partner_ids',
-    'rating_ids', 'website_message_ids', 'message_has_error', 'message_has_sms_error'
+    'rating_ids', 'website_message_ids', 'message_has_error', 'message_has_sms_error',
+    # POS heartbeat and status fields
+    'last_seen', 'status', 'ping_count',
+    # Tenant sequence counter fields
+    'prod_seq_next', 'stock_adj_seq_next', 'sale_seq_next', 'quotation_seq_next',
+    'sale_ret_seq_next', 'purch_seq_next', 'purch_ret_seq_next', 'pay_in_seq_next',
+    'pay_out_seq_next', 'exp_seq_next', 'trn_seq_next', 'cash_trn_seq_next',
 }
 
 

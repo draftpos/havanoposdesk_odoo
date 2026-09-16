@@ -1008,8 +1008,8 @@ class HavanoposdeskTenant(models.Model):
         next_field = f"{seq_type}_seq_next"
         padding_field = f"{seq_type}_seq_padding"
         
-        # Prevent concurrency issues by selecting this tenant row for update
-        self.env.cr.execute("SELECT id FROM havanoposdesk_tenant WHERE id = %s FOR UPDATE", [self.id])
+        # Ensure context skips audit logging for internal sequence advances
+        self = self.with_context(skip_audit_log=True)
         
         prefix = getattr(self, prefix_field) or ''
         next_val = getattr(self, next_field) or 1
@@ -1055,8 +1055,8 @@ class HavanoposdeskTenant(models.Model):
             else:
                 break
         
-        # Increment and update
-        self.write({next_field: next_val + 1})
+        # Increment and update without triggering audit logging
+        self.with_context(skip_audit_log=True).write({next_field: next_val + 1})
         
         return formatted_seq
 
