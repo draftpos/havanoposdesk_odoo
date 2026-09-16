@@ -3822,7 +3822,13 @@ class HavanoPOSDeskAPI(http.Controller):
     # =========================================================================
     # ERPNext Resource API compatibility layer (used by Drift / Dart sync service)
     # =========================================================================
-    @http.route(['/api/resource/Sales Invoice', '/api/resource/Quotation'], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route([
+        '/api/resource/Sales Invoice',
+        '/api/resource/Sales%20Invoice',
+        '/api/resource/Sales Order',
+        '/api/resource/Sales%20Order',
+        '/api/resource/Quotation'
+    ], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_sales_invoice(self, **kwargs):
         is_quotation = 'Quotation' in request.httprequest.path
         if request.httprequest.method == 'OPTIONS':
@@ -5048,7 +5054,10 @@ class HavanoPOSDeskAPI(http.Controller):
                     if match:
                         payment = match[0]
                         if ref_str and not payment.reference:
-                            payment.sudo().write({'reference': ref_str})
+                            try:
+                                payment.sudo().with_context(bypass_payment_check=True, skip_audit_log=True).write({'reference': ref_str})
+                            except Exception:
+                                pass
                         if custom_cr:
                             custom_cr.commit()
                         return self._make_json_response({
