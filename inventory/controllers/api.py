@@ -3502,13 +3502,19 @@ class HavanoPOSDeskAPI(http.Controller):
                     sale_vals['currency_id'] = doc_currency.id
                     sale_vals['exchange_rate'] = doc_exchange_rate or 1.0
 
-                payment_vals = self._process_sale_payments(env, tenant, store, params, sale_vals)
+                payment_vals = self._prepare_payment_vals(
+                    env, tenant, customer, params,
+                    default_account_id=False, store=store,
+                    doc_currency=doc_currency, doc_exchange_rate=doc_exchange_rate
+                )
                 if payment_vals.get('payment_status'):
                     sale_vals['payment_status'] = payment_vals['payment_status']
-                if payment_vals.get('payment_ids'):
-                    sale_vals['payment_ids'] = payment_vals['payment_ids']
+                if payment_vals.get('payment_policy'):
+                    sale_vals['payment_policy'] = payment_vals['payment_policy']
                 if payment_vals.get('account_id'):
                     sale_vals['account_id'] = payment_vals['account_id']
+                if payment_vals.get('single_payment_amount') is not None:
+                    sale_vals['single_payment_amount'] = payment_vals['single_payment_amount']
                 if payment_vals.get('payment_commands'):
                     sale_vals['payment_ids'] = payment_vals['payment_commands']
 
@@ -4411,6 +4417,21 @@ class HavanoPOSDeskAPI(http.Controller):
                 doc_exchange_rate = float(direct_sys_rate) if direct_sys_rate and float(direct_sys_rate) > 0 else 1.0
 
         return doc_currency, doc_exchange_rate
+
+    def _process_sale_payments(self, env, tenant, store, sale_data, sale_vals=None):
+        customer = None
+        if sale_vals and isinstance(sale_vals, dict):
+            cust_id = sale_vals.get('customer')
+            if cust_id:
+                customer = env['havanoposdesk.customer'].browse(cust_id)
+        doc_curr = sale_vals.get('currency_id') if isinstance(sale_vals, dict) else None
+        if doc_curr and isinstance(doc_curr, int):
+            doc_curr = env['res.currency'].browse(doc_curr)
+        doc_rate = sale_vals.get('exchange_rate', 1.0) if isinstance(sale_vals, dict) else 1.0
+        return self._prepare_payment_vals(
+            env, tenant, customer, sale_data,
+            store=store, doc_currency=doc_curr, doc_exchange_rate=doc_rate
+        )
 
     def _prepare_payment_vals(self, env, tenant, customer, sale_data, default_account_id=False, store=None, doc_currency=None, doc_exchange_rate=1.0):
         empty = {
