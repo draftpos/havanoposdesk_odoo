@@ -460,14 +460,8 @@ class Sale(models.Model):
                     rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
                     record.amount_paid_base = payment_amount / rate
 
-            if target_total > 0 and abs(record.amount_paid - target_total) < 0.005:
-                record.amount_paid = target_total
-                record.amount_balance = 0.0
-                record.amount_paid_base = target_total_base
-                record.amount_balance_base = 0.0
-            else:
-                record.amount_balance_base = max(target_total_base - record.amount_paid_base, 0.0)
-                record.amount_balance = max(target_total - record.amount_paid, 0.0)
+            record.amount_balance_base = max(target_total_base - record.amount_paid_base, 0.0)
+            record.amount_balance = max(target_total - record.amount_paid, 0.0)
 
     @api.depends('amount_total', 'payment_policy', 'payment_status', 'is_return')
     def _compute_single_payment_amount(self):
