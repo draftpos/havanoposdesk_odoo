@@ -1775,8 +1775,14 @@ class HavanoPOSDeskAPI(http.Controller):
         if not store:
             return True, None
         
-        store_tz = getattr(store, 'tz', False) or (user.tz if user else None) or 'UTC'
+        store_tz = getattr(store, 'tz', False)
+        if not store_tz:
+            # If the store has no explicit timezone set, do not block checkout
+            return True, None
+        
         store_tz_str = str(store_tz).strip()
+        if not store_tz_str or store_tz_str.upper() in ('UTC', 'GMT'):
+            return True, None
 
         data_or_params = data_or_params or {}
         client_tz = (
@@ -1797,6 +1803,7 @@ class HavanoPOSDeskAPI(http.Controller):
         if client_tz:
             client_tz_str = str(client_tz).strip()
             if client_tz_str and client_tz_str.lower() != store_tz_str.lower():
+                _logger.warning("Store '%s' timezone is '%s' but device reports '%s'", store.name, store_tz_str, client_tz_str)
                 return False, f"Incorrect date and time settings. Store '{store.name}' operates under timezone '{store_tz_str}', but your device is set to '{client_tz_str}'. Please correct your device date and time settings before making a sale."
 
         return True, None
@@ -1903,8 +1910,13 @@ class HavanoPOSDeskAPI(http.Controller):
 
 
     # 2. GET CUSTOMERS
-    @http.route('/api/method/saas_api.www.api.get_customers', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
+    @http.route([
+        '/api/method/saas_api.www.api.get_customers',
+        '/api/method/havano_pos_integration.api.get_customers'
+    ], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_customers(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
         user = self._get_user()
         tenant = user.tenant_id
         
@@ -3221,25 +3233,60 @@ class HavanoPOSDeskAPI(http.Controller):
 
         token = request.httprequest.headers.get('Authorization')
         raw_params = self._get_request_json() or {}
+        if not raw_params:
+            try:
+                if request.httprequest.form:
+                    raw_params = dict(request.httprequest.form)
+            except Exception:
+                pass
+        if not raw_params and request.params:
+            raw_params = dict(request.params)
+
         params = raw_params
         if isinstance(params, dict):
-            params = params.get('doc') or params.get('data') or params
+            for k in ('doc', 'data', 'payload'):
+                val = params.get(k)
+                if isinstance(val, str):
+                    try:
+                        params = json.loads(val)
+                        break
+                    except Exception:
+                        pass
+                elif isinstance(val, dict):
+                    params = val
+                    break
+
+        if not isinstance(params, dict):
+            params = {}
 
         if not token:
             token = params.get('token') or raw_params.get('token')
 
         uid, login = self._verify_token(token)
         if not uid:
-            return self._make_json_response({"error": "Unauthorized"}, status=401)
+            user = self._get_user()
+            uid = user.id if user else None
+            if not uid:
+                return self._make_json_response({"error": "Unauthorized"}, status=401)
 
         customer_name = params.get('customer') or params.get('customer_name') or "Walk-in Customer"
-        lines = params.get('lines')
-        if lines is None:
-            lines = params.get('items')
+        lines = (
+            params.get('lines')
+            or params.get('items')
+            or params.get('sales_invoice_item')
+            or params.get('products')
+            or params.get('cart')
+        )
+        if isinstance(lines, str):
+            try:
+                lines = json.loads(lines)
+            except Exception:
+                lines = []
         if lines is None:
             lines = []
 
         if not lines:
+            _logger.warning("saas_make_sale 400 No items in sale. raw_params=%s params=%s", raw_params, params)
             return self._make_json_response({"error": "No items in sale"}, status=400)
 
         local_invoice_id = (
@@ -3278,10 +3325,16 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 store = self._get_current_store(user, tenant, params)
                 if not store:
+                    store = user.default_store_id or (user.store_ids and user.store_ids[0])
+                if not store and tenant:
+                    store = env['havanoposdesk.store'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
+                if not store:
+                    _logger.warning("saas_make_sale 400: Store/Warehouse is required for user %s", user.login)
                     return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
 
                 tz_valid, tz_err = self._validate_store_timezone(store, params, user)
                 if not tz_valid:
+                    _logger.warning("saas_make_sale 400 tz_err: %s", tz_err)
                     return self._make_json_response({"error": tz_err}, status=400)
 
                 customer = env['havanoposdesk.customer'].search([
@@ -3457,6 +3510,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     }
                 })
             except Exception as e:
+                _logger.exception("Error in saas_make_sale: %s", e)
                 if custom_cr:
                     custom_cr.rollback()
                 if is_serialization_error(e) and attempt < 3:
@@ -4786,9 +4840,34 @@ class HavanoPOSDeskAPI(http.Controller):
             return self._make_json_response({}, status=200)
 
         token = request.httprequest.headers.get('Authorization')
-        params = self._get_request_json() if request.httprequest.method in ['POST', 'PUT'] else {}
+        raw_params = self._get_request_json() if request.httprequest.method in ['POST', 'PUT'] else {}
+        if not raw_params:
+            try:
+                if request.httprequest.form:
+                    raw_params = dict(request.httprequest.form)
+            except Exception:
+                pass
+        if not raw_params and request.params:
+            raw_params = dict(request.params)
+
+        params = raw_params
+        if isinstance(params, dict):
+            for k in ('doc', 'data', 'payload'):
+                val = params.get(k)
+                if isinstance(val, str):
+                    try:
+                        params = json.loads(val)
+                        break
+                    except Exception:
+                        pass
+                elif isinstance(val, dict):
+                    params = val
+                    break
+        if not isinstance(params, dict):
+            params = {}
+
         if not token:
-            token = params.get('token') or request.params.get('token')
+            token = params.get('token') or raw_params.get('token') or request.params.get('token')
 
         uid, login = self._verify_token(token)
         if not uid:
@@ -4945,12 +5024,33 @@ class HavanoPOSDeskAPI(http.Controller):
                             }
                         })
     
+                # Resolve Currency
+                currency = False
+                curr_param = params.get('currency') or params.get('currency_id')
+                if curr_param:
+                    if isinstance(curr_param, int) or (isinstance(curr_param, str) and curr_param.isdigit()):
+                        currency = env['res.currency'].browse(int(curr_param))
+                    else:
+                        currency = env['res.currency'].search([
+                            '|', ('name', '=ilike', str(curr_param).strip()),
+                            ('symbol', '=', str(curr_param).strip())
+                        ], limit=1)
+                if not currency and account_obj and account_obj.currency_id:
+                    currency = account_obj.currency_id
+                if not currency and sale_obj and sale_obj.currency_id:
+                    currency = sale_obj.currency_id
+                if not currency and tenant and tenant.currency_id:
+                    currency = tenant.currency_id
+                if not currency:
+                    currency = user.company_id.currency_id or env.ref('base.USD', raise_if_not_found=False)
+
                 payment_vals = {
                     'payment_type': payment_type,
                     'partner_type': partner_type,
                     'customer_id': customer_obj.id if customer_obj else False,
                     'supplier_id': supplier_obj.id if supplier_obj else False,
                     'account_id': account_obj.id if account_obj else False,
+                    'currency_id': currency.id if currency else False,
                     'amount': amount,
                     'date': today_date,
                     'reference': ref_str,
@@ -4969,7 +5069,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     try:
                         payment.action_post()
                     except Exception as post_err:
-                        pass
+                        _logger.warning("Failed to auto-post payment: %s", post_err)
     
                 if custom_cr:
                     custom_cr.commit()
@@ -4984,6 +5084,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     }
                 })
             except Exception as e:
+                _logger.exception("Error in Payment Entry endpoint: %s", e)
                 if custom_cr:
                     custom_cr.rollback()
                 if is_serialization_error(e) and attempt < 3:
