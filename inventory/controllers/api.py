@@ -3536,7 +3536,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.rollback()
                 if is_serialization_error(e) and attempt < 3:
-                    import time, random
+                    import time
                     time.sleep(0.05 * (2 ** attempt) + random.uniform(0.01, 0.05))
                     continue
                 return self._make_json_response({"error": str(e)}, status=500)
@@ -5150,7 +5150,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.rollback()
                 if is_serialization_error(e) and attempt < 3:
-                    import time, random
+                    import time
                     time.sleep(0.05 * (2 ** attempt) + random.uniform(0.01, 0.05))
                     continue
                 return self._make_json_response({"error": str(e)}, status=500)
@@ -9992,7 +9992,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.rollback()
                 if is_serialization_error(e) and attempt < 3:
-                    import time, random
+                    import time
                     time.sleep(0.04 * (2 ** attempt) + random.uniform(0.01, 0.04))
                     continue
                 return self._make_json_response({"error": str(e)}, status=500)
@@ -10124,7 +10124,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 if custom_cr:
                     custom_cr.rollback()
                 if is_serialization_error(e) and attempt < 3:
-                    import time, random
+                    import time
                     time.sleep(0.05 * (2 ** attempt) + random.uniform(0.01, 0.05))
                     continue
                 return self._make_json_response({"error": str(e)}, status=500)
