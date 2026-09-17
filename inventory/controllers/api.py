@@ -2413,29 +2413,65 @@ class HavanoPOSDeskAPI(http.Controller):
         
         # Resolve sale_tax_ids
         tax_ids = []
-        tax_cat = data.get('item_tax') or data.get('tax_category') or data.get('item_tax_template')
-        if tax_cat:
+        candidate_taxes = []
+        if data.get('item_tax'):
+            candidate_taxes.append(str(data.get('item_tax')).strip())
+        if data.get('tax_category'):
+            candidate_taxes.append(str(data.get('tax_category')).strip())
+        if data.get('item_tax_template'):
+            candidate_taxes.append(str(data.get('item_tax_template')).strip())
+        if isinstance(data.get('taxes'), list):
+            for t_entry in data.get('taxes'):
+                if isinstance(t_entry, dict):
+                    if t_entry.get('tax_category'):
+                        candidate_taxes.append(str(t_entry.get('tax_category')).strip())
+                    if t_entry.get('item_tax_template'):
+                        candidate_taxes.append(str(t_entry.get('item_tax_template')).strip())
+                elif isinstance(t_entry, str) and t_entry.strip():
+                    candidate_taxes.append(t_entry.strip())
+        if data.get('tax_ids') and isinstance(data.get('tax_ids'), list):
+            for tid in data.get('tax_ids'):
+                if isinstance(tid, int):
+                    tax_ids.append(tid)
+        if data.get('sale_tax_ids') and isinstance(data.get('sale_tax_ids'), list):
+            for tid in data.get('sale_tax_ids'):
+                if isinstance(tid, int):
+                    tax_ids.append(tid)
+
+        seen_cand = set()
+        for tax_cat in candidate_taxes:
+            if not tax_cat or tax_cat in seen_cand:
+                continue
+            seen_cand.add(tax_cat)
             matching_tax = request.env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
                 ('tax_type', '=', 'Sales'),
                 ('tenant_id', '=', tenant.id),
-                '|', ('name', 'ilike', str(tax_cat).strip()), ('name', '=', str(tax_cat).strip())
+                '|', ('name', '=ilike', tax_cat), ('name', '=', tax_cat)
             ], limit=1)
             if not matching_tax:
                 matching_tax = request.env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
                     ('tax_type', '=', 'Sales'),
-                    '|', ('name', 'ilike', str(tax_cat).strip()), ('name', '=', str(tax_cat).strip())
+                    '|', ('name', '=ilike', tax_cat), ('name', '=', tax_cat)
                 ], limit=1)
             if not matching_tax:
-                rate = 15.5 if 'VAT' in str(tax_cat).upper() else 0.0
+                matching_tax = request.env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
+                    ('tenant_id', '=', tenant.id),
+                    '|', ('name', '=ilike', tax_cat), ('name', '=', tax_cat)
+                ], limit=1)
+            if not matching_tax:
+                rate = 15.5 if 'VAT' in tax_cat.upper() else 0.0
                 matching_tax = request.env['havanoposdesk.tax'].sudo().create({
-                    'name': str(tax_cat).strip(),
+                    'name': tax_cat,
                     'tax_type': 'Sales',
                     'rate': rate,
                     'active': True,
                     'tenant_id': tenant.id
                 })
             if matching_tax:
-                tax_ids.append(matching_tax.id)
+                if not matching_tax.active:
+                    matching_tax.sudo().write({'active': True})
+                if matching_tax.id not in tax_ids:
+                    tax_ids.append(matching_tax.id)
 
         if data.get('food_and_tourism_tax') == 1 or data.get('food_tax') == 1 or data.get('tourism_tax') == 1:
             extra_names = []
@@ -2448,7 +2484,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     extra_names.append(('Tourism Tax', 2.0))
             for extra_tax_name, rate in extra_names:
                 extra_tax = request.env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
-                    ('name', 'ilike', extra_tax_name),
+                    ('name', '=ilike', extra_tax_name),
                     ('tax_type', '=', 'Sales'),
                     ('tenant_id', '=', tenant.id)
                 ], limit=1)
@@ -2460,6 +2496,8 @@ class HavanoPOSDeskAPI(http.Controller):
                         'active': True,
                         'tenant_id': tenant.id
                     })
+                if not extra_tax.active:
+                    extra_tax.sudo().write({'active': True})
                 if extra_tax.id not in tax_ids:
                     tax_ids.append(extra_tax.id)
 
@@ -2494,12 +2532,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     val = data.get(f'custom_is_order_item_{i}')
                 if val is not None:
                     product_vals[f'kitchen_order_{i}'] = bool(val)
-            if tax_ids:
+            if tax_ids or any(k in data for k in ['item_tax', 'taxes', 'tax_category', 'sale_tax_ids']):
                 product_vals['sale_tax_ids'] = [(6, 0, tax_ids)]
             product = request.env['havanoposdesk.product'].sudo().create(product_vals)
         else:
             update_vals = {}
-            if tax_ids:
+            if tax_ids or any(k in data for k in ['item_tax', 'taxes', 'tax_category', 'sale_tax_ids']):
                 update_vals['sale_tax_ids'] = [(6, 0, tax_ids)]
             if 'print_after_order' in data:
                 update_vals['print_after_order'] = bool(data.get('print_after_order'))
@@ -2613,6 +2651,11 @@ class HavanoPOSDeskAPI(http.Controller):
                 'message': f"Item '{product.name}' created successfully.",
                 'item_code': product.item_code,
                 'item_name': product.name
+            },
+            'data': {
+                'item_code': product.item_code,
+                'item_name': product.name,
+                'name': product.name
             }
         }
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
@@ -2911,69 +2954,22 @@ class HavanoPOSDeskAPI(http.Controller):
             
             if p.sale_tax_ids:
                 for tax in p.sale_tax_ids:
-                    tax_name_upper = (tax.name or '').upper()
-                    if 'EXEMPT' in tax_name_upper:
-                        tax_cat = 'EXEMPT'
-                    elif 'FOOD' in tax_name_upper:
-                        tax_cat = 'Food Tax'
+                    tax_name = tax.name or ''
+                    tax_name_upper = tax_name.upper()
+                    if 'FOOD' in tax_name_upper:
                         food_tax = 1
-                    elif 'TOURISM' in tax_name_upper:
-                        tax_cat = 'Tourism Tax'
+                    if 'TOURISM' in tax_name_upper:
                         tourism_tax = 1
-                    elif 'VAT' in tax_name_upper or tax.rate == 15.5:
-                        tax_cat = 'VAT'
-                    else:
-                        tax_cat = tax.name or 'VAT'
                     
                     taxes_data.append({
-                        "item_tax_template": "Zimbabwe Tax - AT",
-                        "tax_category": tax_cat,
-                        "valid_from": "2026-02-11" if tax_cat in ["VAT", "Food Tax", "Tourism Tax"] else None,
+                        "item_tax_template": tax_name,
+                        "tax_category": tax_name,
+                        "valid_from": None,
                         "minimum_net_rate": tax.rate,
                         "maximum_net_rate": tax.rate
                     })
                 if food_tax or tourism_tax:
                     food_and_tourism_tax = 1
-            else:
-                if "sweet" in (p.name or "").lower():
-                    taxes_data.append({
-                        "item_tax_template": "Zimbabwe Tax - AT",
-                        "tax_category": "VAT",
-                        "valid_from": None,
-                        "minimum_net_rate": 0.0,
-                        "maximum_net_rate": 0.0
-                    })
-                elif "vatproduct2" in (p.name or "").lower():
-                    taxes_data.append({
-                        "item_tax_template": "Zimbabwe Tax - AT",
-                        "tax_category": "EXEMPT",
-                        "valid_from": None,
-                        "minimum_net_rate": 0.0,
-                        "maximum_net_rate": 0.0
-                    })
-                elif "vatproduct1" in (p.name or "").lower() or p.tax_percentage == 15.5 or p.tax_percentage == 17.5:
-                    taxes_data.append({
-                        "item_tax_template": "Zimbabwe Tax - AT",
-                        "tax_category": "VAT",
-                        "valid_from": "2026-02-11",
-                        "minimum_net_rate": 15.5,
-                        "maximum_net_rate": 15.5
-                    })
-                    taxes_data.append({
-                        "item_tax_template": "Zimbabwe Tax - AT",
-                        "tax_category": "Food Tax",
-                        "valid_from": "2026-02-11",
-                        "minimum_net_rate": 2.0,
-                        "maximum_net_rate": 2.0
-                    })
-                elif p.tax_percentage > 0.0:
-                    taxes_data.append({
-                        "item_tax_template": "Zimbabwe Tax - AT",
-                        "tax_category": "VAT",
-                        "valid_from": None,
-                        "minimum_net_rate": p.tax_percentage,
-                        "maximum_net_rate": p.tax_percentage
-                    })
                 
             # Simple code logic
             simple_code = None
@@ -5956,10 +5952,12 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
-    @http.route('/api/resource/Item', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route('/api/resource/Item', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_resource_item(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
+        if request.httprequest.method == 'POST':
+            return self.api_create_item(**kwargs)
 
         token = request.httprequest.headers.get('Authorization')
         uid, login = self._verify_token(token)
@@ -6079,41 +6077,95 @@ class HavanoPOSDeskAPI(http.Controller):
 
             # Resolve sale_tax_ids
             tax_ids = []
-            if 'item_tax' in data and data['item_tax']:
-                tax_cat = data['item_tax']
-                tax = env['havanoposdesk.tax'].with_context(active_test=False).search([
-                    ('name', 'ilike', tax_cat),
-                    ('tax_type', '=', 'Sales')
+            candidate_taxes = []
+            if data.get('item_tax'):
+                candidate_taxes.append(str(data.get('item_tax')).strip())
+            if data.get('tax_category'):
+                candidate_taxes.append(str(data.get('tax_category')).strip())
+            if data.get('item_tax_template'):
+                candidate_taxes.append(str(data.get('item_tax_template')).strip())
+            if isinstance(data.get('taxes'), list):
+                for t_entry in data.get('taxes'):
+                    if isinstance(t_entry, dict):
+                        if t_entry.get('tax_category'):
+                            candidate_taxes.append(str(t_entry.get('tax_category')).strip())
+                        if t_entry.get('item_tax_template'):
+                            candidate_taxes.append(str(t_entry.get('item_tax_template')).strip())
+                    elif isinstance(t_entry, str) and t_entry.strip():
+                        candidate_taxes.append(t_entry.strip())
+            if data.get('tax_ids') and isinstance(data.get('tax_ids'), list):
+                for tid in data.get('tax_ids'):
+                    if isinstance(tid, int):
+                        tax_ids.append(tid)
+            if data.get('sale_tax_ids') and isinstance(data.get('sale_tax_ids'), list):
+                for tid in data.get('sale_tax_ids'):
+                    if isinstance(tid, int):
+                        tax_ids.append(tid)
+
+            seen_cand = set()
+            for tax_cat in candidate_taxes:
+                if not tax_cat or tax_cat in seen_cand:
+                    continue
+                seen_cand.add(tax_cat)
+                tax = env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
+                    ('tax_type', '=', 'Sales'),
+                    ('tenant_id', '=', tenant.id),
+                    '|', ('name', '=ilike', tax_cat), ('name', '=', tax_cat)
                 ], limit=1)
                 if not tax:
-                    tax = env['havanoposdesk.tax'].create({
+                    tax = env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
+                        ('tax_type', '=', 'Sales'),
+                        '|', ('name', '=ilike', tax_cat), ('name', '=', tax_cat)
+                    ], limit=1)
+                if not tax:
+                    tax = env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
+                        ('tenant_id', '=', tenant.id),
+                        '|', ('name', '=ilike', tax_cat), ('name', '=', tax_cat)
+                    ], limit=1)
+                if not tax:
+                    tax = env['havanoposdesk.tax'].sudo().create({
                         'name': tax_cat,
                         'tax_type': 'Sales',
-                        'rate': 15.5 if tax_cat == 'VAT' else 0.0,
-                        'active': False,
+                        'rate': 15.5 if 'VAT' in tax_cat.upper() else 0.0,
+                        'active': True,
                         'tenant_id': tenant.id if tenant else False
                     })
-                tax_ids.append(tax.id)
+                if tax:
+                    if not tax.active:
+                        tax.sudo().write({'active': True})
+                    if tax.id not in tax_ids:
+                        tax_ids.append(tax.id)
 
-            if data.get('food_and_tourism_tax') == 1:
+            if data.get('food_and_tourism_tax') == 1 or data.get('food_tax') == 1 or data.get('tourism_tax') == 1:
                 # Ensure Food Tax and Tourism Tax are linked
-                for extra_tax_name, rate in [('Food Tax', 2.0), ('Tourism Tax', 2.0)]:
-                    extra_tax = env['havanoposdesk.tax'].with_context(active_test=False).search([
-                        ('name', 'ilike', extra_tax_name),
-                        ('tax_type', '=', 'Sales')
+                extra_names = []
+                if data.get('food_and_tourism_tax') == 1:
+                    extra_names = [('Food Tax', 2.0), ('Tourism Tax', 2.0)]
+                else:
+                    if data.get('food_tax') == 1:
+                        extra_names.append(('Food Tax', 2.0))
+                    if data.get('tourism_tax') == 1:
+                        extra_names.append(('Tourism Tax', 2.0))
+                for extra_tax_name, rate in extra_names:
+                    extra_tax = env['havanoposdesk.tax'].sudo().with_context(active_test=False).search([
+                        ('name', '=ilike', extra_tax_name),
+                        ('tax_type', '=', 'Sales'),
+                        ('tenant_id', '=', tenant.id)
                     ], limit=1)
                     if not extra_tax:
-                        extra_tax = env['havanoposdesk.tax'].create({
+                        extra_tax = env['havanoposdesk.tax'].sudo().create({
                             'name': extra_tax_name,
                             'tax_type': 'Sales',
                             'rate': rate,
-                            'active': False,
+                            'active': True,
                             'tenant_id': tenant.id if tenant else False
                         })
+                    if not extra_tax.active:
+                        extra_tax.sudo().write({'active': True})
                     if extra_tax.id not in tax_ids:
                         tax_ids.append(extra_tax.id)
             
-            if 'item_tax' in data or 'food_and_tourism_tax' in data:
+            if any(k in data for k in ['item_tax', 'taxes', 'tax_category', 'item_tax_template', 'food_and_tourism_tax', 'food_tax', 'tourism_tax', 'sale_tax_ids', 'tax_ids']):
                 vals['sale_tax_ids'] = [(6, 0, tax_ids)]
 
             product.write(vals)
@@ -7281,6 +7333,9 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id if user else None
 
             domain = [('active', '=', True)]
+            target_tax_type = params.get('tax_type') or params.get('type') or 'Sales'
+            if target_tax_type.lower() != 'all':
+                domain.append(('tax_type', '=', target_tax_type))
             if user and user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
 
@@ -7299,23 +7354,10 @@ class HavanoPOSDeskAPI(http.Controller):
                         "tax_type": tax.tax_type
                     })
 
-            # Backward compatibility: if no taxes found in DB (e.g. non-SaaS or unseeded tenant)
-            if not result:
-                result = [
-                    {"name": "VAT", "title": "VAT", "rate": 15.5, "is_inclusive": False, "tax_type": "Sales"},
-                    {"name": "EXEMPT", "title": "EXEMPT", "rate": 0.0, "is_inclusive": False, "tax_type": "Sales"},
-                    {"name": "Food Tax", "title": "Food Tax", "rate": 2.0, "is_inclusive": False, "tax_type": "Sales"}
-                ]
-
             return self._make_json_response({"data": result})
         except Exception as e:
             _logger.exception("Error fetching tax categories: %s", e)
-            fallback = [
-                {"name": "VAT", "title": "VAT", "rate": 15.5, "is_inclusive": False, "tax_type": "Sales"},
-                {"name": "EXEMPT", "title": "EXEMPT", "rate": 0.0, "is_inclusive": False, "tax_type": "Sales"},
-                {"name": "Food Tax", "title": "Food Tax", "rate": 2.0, "is_inclusive": False, "tax_type": "Sales"}
-            ]
-            return self._make_json_response({"data": fallback})
+            return self._make_json_response({"data": []})
         finally:
             if custom_cr:
                 custom_cr.close()
@@ -7350,6 +7392,9 @@ class HavanoPOSDeskAPI(http.Controller):
             tenant = user.tenant_id if user else None
 
             domain = [('active', '=', True)]
+            target_tax_type = params.get('tax_type') or params.get('type') or 'Sales'
+            if target_tax_type.lower() != 'all':
+                domain.append(('tax_type', '=', target_tax_type))
             if user and user.havano_role != 'super_admin' and tenant:
                 domain.append(('tenant_id', '=', tenant.id))
 
@@ -7367,27 +7412,15 @@ class HavanoPOSDeskAPI(http.Controller):
                     "tenant_id": tax.tenant_id.id if tax.tenant_id else None
                 })
 
-            if not result:
-                result = [
-                    {"id": 1, "name": "VAT", "title": "VAT", "tax_type": "Sales", "rate": 15.5, "is_inclusive": False, "active": True},
-                    {"id": 2, "name": "EXEMPT", "title": "EXEMPT", "tax_type": "Sales", "rate": 0.0, "is_inclusive": False, "active": True},
-                    {"id": 3, "name": "Food Tax", "title": "Food Tax", "tax_type": "Sales", "rate": 2.0, "is_inclusive": False, "active": True}
-                ]
-
             return self._make_json_response({
                 "data": result,
                 "message": result
             })
         except Exception as e:
             _logger.exception("Error fetching taxes: %s", e)
-            fallback = [
-                {"id": 1, "name": "VAT", "title": "VAT", "tax_type": "Sales", "rate": 15.5, "is_inclusive": False, "active": True},
-                {"id": 2, "name": "EXEMPT", "title": "EXEMPT", "tax_type": "Sales", "rate": 0.0, "is_inclusive": False, "active": True},
-                {"id": 3, "name": "Food Tax", "title": "Food Tax", "tax_type": "Sales", "rate": 2.0, "is_inclusive": False, "active": True}
-            ]
             return self._make_json_response({
-                "data": fallback,
-                "message": fallback
+                "data": [],
+                "message": []
             })
         finally:
             if custom_cr:
