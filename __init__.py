@@ -309,12 +309,13 @@ def post_migrate(env):
     except Exception:
         pass
 
-    # Clean up any leftover views referencing sync_to_frappe if frappe_odoo_sync is not on disk
+    # Clean up any leftover views and fields referencing sync_to_frappe / frappe_odoo_sync if not on disk
     try:
         import odoo.modules.module
         if not odoo.modules.module.get_module_path('frappe_odoo_sync'):
             env.cr.execute("""
                 DELETE FROM ir_ui_view WHERE id IN (SELECT res_id FROM ir_model_data WHERE module = 'frappe_odoo_sync' AND model = 'ir.ui.view');
+                DELETE FROM ir_model_fields WHERE model = 'havanoposdesk.product' AND (name LIKE 'frappe_%' OR name LIKE 'sync_%');
                 DELETE FROM ir_model_data WHERE module = 'frappe_odoo_sync';
                 UPDATE ir_module_module SET state = 'uninstalled' WHERE name = 'frappe_odoo_sync' AND state != 'uninstalled';
             """)

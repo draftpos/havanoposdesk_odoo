@@ -10,9 +10,18 @@ class IrHttp(models.AbstractModel):
     def _dispatch(cls, endpoint):
         global _DB_COLUMNS_CHECKED
         if not _DB_COLUMNS_CHECKED and request and getattr(request, 'db', None):
-            _DB_COLUMNS_CHECKED = True  # Ensure we only try this once per worker lifetime
             cr = request.env.cr
             try:
+                # 1. Clean up orphaned fields from uninstalled/legacy modules (like frappe_odoo_sync)
+                try:
+                    cr.execute("""
+                        DELETE FROM ir_model_fields 
+                        WHERE model = 'havanoposdesk.product' 
+                          AND (name LIKE 'frappe_%' OR name LIKE 'sync_%');
+                    """)
+                except Exception:
+                    pass
+
                 # Check table existence first
                 cr.execute("SELECT 1 FROM information_schema.tables WHERE table_name = 'havanoposdesk_tenant'")
                 has_tenant = bool(cr.fetchone())
@@ -74,6 +83,7 @@ class IrHttp(models.AbstractModel):
                         ("is_variant", "BOOLEAN DEFAULT FALSE"),
                         ("has_variants", "BOOLEAN DEFAULT FALSE"),
                         ("template_id", "INTEGER"),
+                        ("frappe_variant_of", "VARCHAR"),
                         ("sellbyprice", "BOOLEAN DEFAULT FALSE"),
                         ("hs_code", "VARCHAR"),
                         ("print_after_order", "BOOLEAN DEFAULT FALSE"),
@@ -116,6 +126,9 @@ class IrHttp(models.AbstractModel):
                                     cr.execute(f'ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS "{field_name}" {sql_type};')
                             except Exception:
                                 pass
+
+                cr.commit()
+                _DB_COLUMNS_CHECKED = True
             except Exception as e:
                 import traceback
                 import os

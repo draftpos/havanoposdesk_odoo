@@ -18,6 +18,8 @@ class HavanoposdeskProduct(models.Model):
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS is_variant BOOLEAN DEFAULT FALSE;")
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS has_variants BOOLEAN DEFAULT FALSE;")
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS template_id INTEGER;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS frappe_variant_of VARCHAR;")
+                cr.execute("DELETE FROM ir_model_fields WHERE model = 'havanoposdesk.product' AND (name LIKE 'frappe_%' OR name LIKE 'sync_%');")
                 cr.execute("UPDATE havanoposdesk_product SET has_variants = is_variant WHERE has_variants IS NULL OR has_variants != is_variant;")
                 cr.execute("UPDATE havanoposdesk_product SET is_variant = has_variants WHERE is_variant IS NULL OR is_variant != has_variants;")
                 for i in range(1, 8):
