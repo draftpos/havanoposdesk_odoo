@@ -64,6 +64,58 @@ class IrHttp(models.AbstractModel):
                     existing_cols = {row[0] for row in cr.fetchall()}
                     if "initial_stock" not in existing_cols:
                         cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN initial_stock DOUBLE PRECISION DEFAULT 0.0;")
+
+                cr.execute("SELECT 1 FROM information_schema.tables WHERE table_name = 'havanoposdesk_product'")
+                has_product = bool(cr.fetchone())
+                if has_product:
+                    cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'havanoposdesk_product'")
+                    existing_prod_cols = {row[0] for row in cr.fetchall()}
+                    prod_cols = [
+                        ("is_variant", "BOOLEAN DEFAULT FALSE"),
+                        ("has_variants", "BOOLEAN DEFAULT FALSE"),
+                        ("template_id", "INTEGER"),
+                        ("sellbyprice", "BOOLEAN DEFAULT FALSE"),
+                        ("hs_code", "VARCHAR"),
+                        ("print_after_order", "BOOLEAN DEFAULT FALSE"),
+                        ("use_ingredients", "BOOLEAN DEFAULT FALSE"),
+                        ("bom_id", "INTEGER"),
+                    ]
+                    for i in range(1, 8):
+                        prod_cols.append((f"kitchen_order_{i}", "BOOLEAN DEFAULT FALSE"))
+                    for col_name, col_type in prod_cols:
+                        if col_name not in existing_prod_cols:
+                            cr.execute(f"ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+
+                    # Also auto-heal any stored field defined in ir_model_fields for havanoposdesk.product
+                    cr.execute("""
+                        SELECT name, ttype 
+                        FROM ir_model_fields 
+                        WHERE model = 'havanoposdesk.product' 
+                          AND store = TRUE;
+                    """)
+                    for field_name, ttype in cr.fetchall():
+                        if field_name not in existing_prod_cols:
+                            if ttype in ('boolean',):
+                                sql_type = "BOOLEAN DEFAULT FALSE"
+                            elif ttype in ('integer', 'many2one'):
+                                sql_type = "INTEGER"
+                            elif ttype in ('float', 'monetary'):
+                                sql_type = "DOUBLE PRECISION DEFAULT 0.0"
+                            elif ttype in ('datetime',):
+                                sql_type = "TIMESTAMP"
+                            elif ttype in ('date',):
+                                sql_type = "DATE"
+                            elif ttype in ('text', 'html'):
+                                sql_type = "TEXT"
+                            elif ttype in ('many2many', 'one2many'):
+                                continue
+                            else:
+                                sql_type = "VARCHAR"
+                            try:
+                                with cr.savepoint():
+                                    cr.execute(f'ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS "{field_name}" {sql_type};')
+                            except Exception:
+                                pass
             except Exception as e:
                 import traceback
                 import os

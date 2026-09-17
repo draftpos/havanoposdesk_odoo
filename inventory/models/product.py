@@ -17,6 +17,7 @@ class HavanoposdeskProduct(models.Model):
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS print_after_order BOOLEAN DEFAULT FALSE;")
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS is_variant BOOLEAN DEFAULT FALSE;")
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS has_variants BOOLEAN DEFAULT FALSE;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS template_id INTEGER;")
                 cr.execute("UPDATE havanoposdesk_product SET has_variants = is_variant WHERE has_variants IS NULL OR has_variants != is_variant;")
                 cr.execute("UPDATE havanoposdesk_product SET is_variant = has_variants WHERE is_variant IS NULL OR is_variant != has_variants;")
                 for i in range(1, 8):
@@ -107,6 +108,7 @@ class HavanoposdeskProduct(models.Model):
         store=True,
         default=False,
     )
+    template_id = fields.Many2one('havanoposdesk.product', string='Template', index=True)
     variant_ids = fields.One2many('havanoposdesk.product.variant', 'product_id', string='Variants')
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
