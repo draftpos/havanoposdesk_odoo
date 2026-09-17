@@ -700,14 +700,15 @@ class HavanoPOSDeskAPI(http.Controller):
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
                     'store_id': p.store_ids[0].id if p.store_ids else None,
-                    'is_variant': 1 if p.is_variant else 0,
+                    'is_variant': 1 if (p.is_variant or getattr(p, 'has_variants', False)) else 0,
+                    'has_variants': 1 if (p.is_variant or getattr(p, 'has_variants', False)) else 0,
                     'variants': [{
                         'id': v.id,
                         'name': v.name,
                         'cost_price': v.cost_price,
                         'selling_price': v.selling_price,
                         'on_hand_qty': v.on_hand_qty,
-                    } for v in p.variant_ids] if p.is_variant else [],
+                    } for v in p.variant_ids] if (p.is_variant or getattr(p, 'has_variants', False)) else [],
                 })
             return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
         
@@ -821,8 +822,9 @@ class HavanoPOSDeskAPI(http.Controller):
                                 'tenant_id': tenant_id,
                             }))
             
-            is_variant_flag = bool(data.get('is_variant')) or bool(data.get('is_variant_')) or bool(variant_commands)
+            is_variant_flag = bool(data.get('is_variant')) or bool(data.get('has_variants')) or bool(data.get('is_variant_')) or bool(variant_commands)
             vals['is_variant'] = is_variant_flag
+            vals['has_variants'] = is_variant_flag
             if variant_commands:
                 vals['variant_ids'] = variant_commands
                 
@@ -852,14 +854,15 @@ class HavanoPOSDeskAPI(http.Controller):
                 'uom': product.uom_id.id if product.uom_id else None,
                 'tenant_id': product.tenant_id.id,
                 'store_id': product.store_ids[0].id if product.store_ids else None,
-                'is_variant': 1 if product.is_variant else 0,
+                'is_variant': 1 if (product.is_variant or getattr(product, 'has_variants', False)) else 0,
+                'has_variants': 1 if (product.is_variant or getattr(product, 'has_variants', False)) else 0,
                 'variants': [{
                     'id': v.id,
                     'name': v.name,
                     'cost_price': v.cost_price,
                     'selling_price': v.selling_price,
                     'on_hand_qty': v.on_hand_qty,
-                } for v in product.variant_ids] if product.is_variant else [],
+                } for v in product.variant_ids] if (product.is_variant or getattr(product, 'has_variants', False)) else [],
             }
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')], status=201)
 
@@ -2582,7 +2585,7 @@ class HavanoPOSDeskAPI(http.Controller):
                                 'allocate_qty': v_qty,
                                 'tenant_id': tenant.id,
                             })
-            product.write({'is_variant': True})
+            product.write({'is_variant': True, 'has_variants': True})
 
         store_prices = data.get('store_prices') or data.get('advanced_prices') or data.get('prices')
         if store_prices and isinstance(store_prices, list):
@@ -3006,7 +3009,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 "kitchen_order_4": 1 if getattr(p, 'kitchen_order_4', False) else 0,
                 "kitchen_order_5": 1 if getattr(p, 'kitchen_order_5', False) else 0,
                 "kitchen_order_6": 1 if getattr(p, 'kitchen_order_6', False) else 0,
-                "kitchen_order_7": 1 if getattr(p, 'kitchen_order_7', False) else 0
+                "kitchen_order_7": 1 if getattr(p, 'kitchen_order_7', False) else 0,
+                "is_variant": 1 if (getattr(p, 'is_variant', False) or getattr(p, 'has_variants', False)) else 0,
+                "has_variants": 1 if (getattr(p, 'is_variant', False) or getattr(p, 'has_variants', False)) else 0
             })
             
         import math
@@ -6062,6 +6067,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 vals['track_qty'] = bool(data['maintain_stock'])
             if 'disabled' in data:
                 vals['is_active'] = not bool(data['disabled'])
+            if 'is_variant' in data or 'has_variants' in data:
+                v_flag = bool(data.get('is_variant') or data.get('has_variants'))
+                vals['is_variant'] = v_flag
+                vals['has_variants'] = v_flag
             if 'sellbyprice' in data or 'sell_by_price' in data:
                 vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
             if 'print_after_order' in data:
