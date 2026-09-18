@@ -122,7 +122,10 @@ class HavanoposdeskProduct(models.Model):
 
     def _set_has_variants(self):
         for record in self:
-            record.is_variant = record.has_variants
+            if record.is_variant != record.has_variants:
+                super(HavanoposdeskProduct, record.with_context(skip_variant_sync=True)).write({
+                    'is_variant': record.has_variants
+                })
 
     def _search_has_variants(self, operator, value):
         return ['|', ('is_variant', operator, value), ('has_variants', operator, value)]
@@ -276,8 +279,6 @@ class HavanoposdeskProduct(models.Model):
             # Sync has_variants and is_variant
             if 'has_variants' in vals and 'is_variant' not in vals:
                 vals['is_variant'] = vals['has_variants']
-            elif 'is_variant' in vals and 'has_variants' not in vals:
-                vals['has_variants'] = vals['is_variant']
 
             # Set store_ids to all stores if all_stores is True (either by default or explicitly)
             if (vals.get('all_stores', True) and 'store_ids' not in vals) or vals.get('all_stores') is True:
@@ -289,8 +290,10 @@ class HavanoposdeskProduct(models.Model):
         
         for product in products:
             if product.variant_ids and not (product.is_variant or product.has_variants):
-                product.is_variant = True
-                product.has_variants = True
+                super(HavanoposdeskProduct, product.with_context(skip_variant_sync=True)).write({
+                    'is_variant': True,
+                    'has_variants': True,
+                })
             if product.use_ingredients and not product.bom_id:
                 bom = self.env['havanoposdesk.manufacturing.bom'].create({
                     'name': f"BOM for {product.name}",
@@ -343,10 +346,9 @@ class HavanoposdeskProduct(models.Model):
 
     def write(self, vals):
         # Sync has_variants and is_variant
-        if 'has_variants' in vals and 'is_variant' not in vals:
-            vals['is_variant'] = vals['has_variants']
-        elif 'is_variant' in vals and 'has_variants' not in vals:
-            vals['has_variants'] = vals['is_variant']
+        if not self.env.context.get('skip_variant_sync'):
+            if 'has_variants' in vals and 'is_variant' not in vals:
+                vals['is_variant'] = vals['has_variants']
 
         # Map store_id to store_ids if present and pop it to prevent invalid field exception
         if 'store_id' in vals:
@@ -370,7 +372,10 @@ class HavanoposdeskProduct(models.Model):
         if 'variant_ids' in vals and vals['variant_ids']:
             for product in self:
                 if not (product.is_variant or product.has_variants):
-                    super(HavanoposdeskProduct, product).write({'is_variant': True, 'has_variants': True})
+                    super(HavanoposdeskProduct, product.with_context(skip_variant_sync=True)).write({
+                        'is_variant': True,
+                        'has_variants': True
+                    })
 
         if vals.get('all_stores'):
             for product in self:
