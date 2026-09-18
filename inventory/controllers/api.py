@@ -2895,28 +2895,6 @@ class HavanoPOSDeskAPI(http.Controller):
                 
             # Map prices
             prices_data = []
-            if p.buying_price > 0.0:
-                prices_data.append({
-                    "priceName": "Standard Buying",
-                    "price": p.buying_price,
-                    "uom": p.uom_id.name or "Nos",
-                    "type": "buying",
-                    "store": None,
-                    "warehouse": None,
-                    "qty_to_be_sold": 1.0,
-                    "qtyOnHand": p.on_hand_qty,
-                })
-            if p.selling_price > 0.0:
-                prices_data.append({
-                    "priceName": "Standard Selling",
-                    "price": p.selling_price,
-                    "uom": p.uom_id.name or "Nos",
-                    "type": "selling",
-                    "store": None,
-                    "warehouse": None,
-                    "qty_to_be_sold": 1.0,
-                    "qtyOnHand": p.on_hand_qty,
-                })
                 
             uom_name = p.uom_id.name or "Nos"
             uom_conversions = [{
