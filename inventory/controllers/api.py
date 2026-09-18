@@ -1998,7 +1998,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'custom_warehouse': warehouse,
                 'gender': None,
                 'customer_pos_id': None,
-                'default_price_list': 'Standard Selling',
+                'default_price_list': '',
                 'balance': {
                     'status': 'success',
                     'customer': c.name,
@@ -5732,7 +5732,7 @@ class HavanoPOSDeskAPI(http.Controller):
             pl = env['havanoposdesk.pricelist'].sudo().search([], limit=1)
             
         curr_name = pl.currency_id.name if (pl and pl.currency_id) else (tenant.currency_id.name if (tenant and tenant.currency_id) else 'USD')
-        pl_name = pl.name if pl else (pricelist_name or 'Standard Selling')
+        pl_name = pl.name if pl else (pricelist_name or '')
         
         return self._make_json_response({
             "data": {
@@ -5792,22 +5792,6 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 result = []
                 for p in products:
-                    if not target_price_list or target_price_list == 'Standard Selling':
-                        result.append({
-                            "name": f"{p.item_code}_selling",
-                            "item_code": p.item_code,
-                            "price_list": "Standard Selling",
-                            "price_list_rate": p.selling_price or 0.0,
-                            "currency": "USD"
-                        })
-                    if not target_price_list or target_price_list == 'Standard Buying':
-                        result.append({
-                            "name": f"{p.item_code}_buying",
-                            "item_code": p.item_code,
-                            "price_list": "Standard Buying",
-                            "price_list_rate": p.buying_price or 0.0,
-                            "currency": "USD"
-                        })
                     for ap in p.advanced_price_ids:
                         if target_price_list and ap.pricelist_id.name and target_price_list.lower() not in ap.pricelist_id.name.lower():
                             continue
@@ -5846,10 +5830,10 @@ class HavanoPOSDeskAPI(http.Controller):
                     if not item_code:
                         if '_buying' in price_id:
                             item_code = price_id.replace('_buying', '')
-                            price_list = 'Standard Buying'
+                            price_list = 'buying'
                         elif '_selling' in price_id:
                             item_code = price_id.replace('_selling', '')
-                            price_list = 'Standard Selling'
+                            price_list = 'selling'
 
                 if not item_code or rate is None:
                     return self._make_json_response({"error": "item_code and price_list_rate/price are required"}, status=400)
@@ -5911,9 +5895,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     })
 
                 vals = {}
-                if price_list == 'Standard Selling':
+                if price_list == 'selling':
                     vals['selling_price'] = float(rate)
-                elif price_list == 'Standard Buying':
+                elif price_list == 'buying':
                     vals['buying_price'] = float(rate)
                 else:
                     vals['selling_price'] = float(rate)
@@ -5921,12 +5905,12 @@ class HavanoPOSDeskAPI(http.Controller):
                 if vals:
                     product.write(vals)
 
-                price_name = f"{item_code}_buying" if price_list == 'Standard Buying' else f"{item_code}_selling"
+                price_name = f"{item_code}_buying" if price_list == 'buying' else f"{item_code}_selling"
                 return self._make_json_response({
                     "data": {
                         "name": price_name,
                         "item_code": item_code,
-                        "price_list": price_list or 'Standard Selling',
+                        "price_list": price_list or '',
                         "price_list_rate": rate,
                         "currency": data.get('currency', 'USD')
                     }
@@ -6289,7 +6273,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if not currency_rec:
                 currency_rec = env['res.currency'].sudo().search([], limit=1)
 
-            pricelist_name = params.get('price_list') or params.get('pricelist') or 'Standard Selling'
+            pricelist_name = params.get('price_list') or params.get('pricelist') or ''
             pricelist = env['havanoposdesk.pricelist'].sudo().search([('name', '=', pricelist_name)], limit=1)
             if not pricelist and tenant:
                 pricelist = env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', tenant.id), ('type', '=', 'selling')], limit=1)
@@ -7501,8 +7485,15 @@ class HavanoPOSDeskAPI(http.Controller):
                         "print_after_order": 1 if getattr(product, 'print_after_order', False) else 0,
                         "uom": product.uom_id.name or "Nos",
                         "prices": [
-                            {"priceName": "Standard Selling", "price": product.selling_price or 0.0, "type": "selling"},
-                            {"priceName": "Standard Buying", "price": product.buying_price or 0.0, "type": "buying"}
+                            {
+                                "priceName": ap.pricelist_id.name if ap.pricelist_id else "Retail",
+                                "price": ap.price,
+                                "uom": ap.uom_id.name or "Nos",
+                                "type": "selling",
+                                "store": ap.store_id.name if ap.store_id else None,
+                                "qty_to_be_sold": ap.qty_to_be_sold or 1.0,
+                                "qtyOnHand": ap.on_hand_qty,
+                            } for ap in product.advanced_price_ids if ap.price > 0.0
                         ]
                     }
                 }
@@ -11840,7 +11831,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if not currency_rec:
                 currency_rec = env['res.currency'].sudo().search([], limit=1)
 
-            pricelist_name = params.get('price_list') or params.get('pricelist') or 'Standard Selling'
+            pricelist_name = params.get('price_list') or params.get('pricelist') or ''
             pricelist = env['havanoposdesk.pricelist'].sudo().search([('name', '=', pricelist_name)], limit=1)
             if not pricelist and tenant:
                 pricelist = env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', tenant.id), ('type', '=', 'selling')], limit=1)
