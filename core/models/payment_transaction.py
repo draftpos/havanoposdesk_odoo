@@ -15,7 +15,7 @@ class PaymentTransaction(models.Model):
                 sub_pay = tx.subscription_payment_id
                 sub_pay.write({
                     'state': 'done', 
-                    'transaction_reference': tx.reference
+                    'transaction_reference': tx.provider_reference or tx.reference
                 })
                 tenant = sub_pay.tenant_id
                 if sub_pay.payment_type == 'topup':
