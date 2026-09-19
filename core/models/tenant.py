@@ -254,18 +254,15 @@ class HavanoposdeskTenant(models.Model):
             if not plan:
                 tenant.subscription_total_amount = 0.0
                 continue
-            if plan.is_custom:
-                stores_per_term = plan.stores_per_terminal or 3
-                base_term = plan.max_terminals or 1
-                extra_term = max(0, tenant.additional_terminals or 0)
-                if extra_term == 0 and tenant.additional_stores > 0:
-                    calculated_total_terms = tenant.additional_stores // stores_per_term
-                    if calculated_total_terms > base_term:
-                        extra_term = calculated_total_terms - base_term
-                extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
-            else:
-                m_rate = plan.price or 0.0
+            stores_per_term = plan.stores_per_terminal or 3
+            base_term = plan.max_terminals or 1
+            extra_term = max(0, tenant.additional_terminals or 0)
+            if extra_term == 0 and tenant.additional_stores > 0:
+                calculated_total_terms = tenant.additional_stores // stores_per_term
+                if calculated_total_terms > base_term:
+                    extra_term = calculated_total_terms - base_term
+            extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
+            m_rate = (plan.price or 0.0) + (extra_term * extra_price)
             
             months = max(1, tenant.duration_months or 1)
             if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
@@ -281,18 +278,15 @@ class HavanoposdeskTenant(models.Model):
             if not plan:
                 tenant.pending_subscription_total_amount = 0.0
                 continue
-            if plan.is_custom:
-                stores_per_term = plan.stores_per_terminal or 3
-                base_term = plan.max_terminals or 1
-                extra_term = max(0, tenant.pending_additional_terminals or 0)
-                if extra_term == 0 and tenant.pending_additional_stores > 0:
-                    calculated_total_terms = tenant.pending_additional_stores // stores_per_term
-                    if calculated_total_terms > base_term:
-                        extra_term = calculated_total_terms - base_term
-                extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
-            else:
-                m_rate = plan.price or 0.0
+            stores_per_term = plan.stores_per_terminal or 3
+            base_term = plan.max_terminals or 1
+            extra_term = max(0, tenant.pending_additional_terminals or 0)
+            if extra_term == 0 and tenant.pending_additional_stores > 0:
+                calculated_total_terms = tenant.pending_additional_stores // stores_per_term
+                if calculated_total_terms > base_term:
+                    extra_term = calculated_total_terms - base_term
+            extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
+            m_rate = (plan.price or 0.0) + (extra_term * extra_price)
             
             months = max(1, tenant.pending_duration_months or 1)
             if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
@@ -1417,12 +1411,9 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
                 wizard.monthly_price = 0.0
                 wizard.computed_total_price = 0.0
                 continue
-            if plan.is_custom:
-                extra = max(0, wizard.additional_terminals or 0)
-                extra_price = plan.extra_terminal_price or 12.0
-                m_rate = (plan.price or 12.0) + (extra * extra_price)
-            else:
-                m_rate = plan.price or 0.0
+            extra = max(0, wizard.additional_terminals or 0)
+            extra_price = plan.extra_terminal_price or 12.0
+            m_rate = (plan.price or 0.0) + (extra * extra_price)
 
             wizard.monthly_price = m_rate
             months = max(1, wizard.duration_months or 1)

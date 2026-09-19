@@ -95,10 +95,10 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
                 continue
 
             # Monthly base calculation
-            if plan.is_custom and tenant:
+            if tenant:
                 extra_terms = tenant.pending_additional_terminals if tenant.pending_subscription_plan_id else (tenant.additional_terminals or 0)
                 extra_price = plan.extra_terminal_price or 12.0
-                m_rate = (plan.price or 12.0) + (extra_terms * extra_price)
+                m_rate = (plan.price or 0.0) + (extra_terms * extra_price)
             else:
                 m_rate = plan.price or 0.0
 
