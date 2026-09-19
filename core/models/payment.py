@@ -195,16 +195,18 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
             tx.paynow_poll_url = mobile_res['pollurl']
             tx._set_pending()
 
+            # Ensure the transaction is monitored by the /payment/status page
+            from odoo.http import request
+            if request and hasattr(request, 'session'):
+                monitored_tx_ids = request.session.get('__payment_monitored_tx_ids__', [])
+                if tx.id not in monitored_tx_ids:
+                    monitored_tx_ids.append(tx.id)
+                    request.session['__payment_monitored_tx_ids__'] = monitored_tx_ids
+
             return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'EcoCash Payment Initiated',
-                    'message': mobile_res.get('instructions') or 'A prompt was sent to your phone. Please enter your PIN to authorize payment.',
-                    'type': 'success',
-                    'sticky': True,
-                    'next': {'type': 'ir.actions.act_window_close'},
-                }
+                'type': 'ir.actions.act_url',
+                'url': '/payment/status',
+                'target': 'self',
             }
         else:
             return_url = f"{base_url}/payment/havano_payments/return?reference={reference}"
@@ -367,16 +369,18 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
             tx.paynow_poll_url = mobile_res['pollurl']
             tx._set_pending()
 
+            # Ensure the transaction is monitored by the /payment/status page
+            from odoo.http import request
+            if request and hasattr(request, 'session'):
+                monitored_tx_ids = request.session.get('__payment_monitored_tx_ids__', [])
+                if tx.id not in monitored_tx_ids:
+                    monitored_tx_ids.append(tx.id)
+                    request.session['__payment_monitored_tx_ids__'] = monitored_tx_ids
+
             return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'EcoCash Payment Initiated',
-                    'message': mobile_res.get('instructions') or 'A prompt was sent to your phone. Please enter your PIN to complete top-up.',
-                    'type': 'success',
-                    'sticky': True,
-                    'next': {'type': 'ir.actions.act_window_close'},
-                }
+                'type': 'ir.actions.act_url',
+                'url': '/payment/status',
+                'target': 'self',
             }
         else:
             return_url = f"{base_url}/payment/havano_payments/return?reference={reference}"
