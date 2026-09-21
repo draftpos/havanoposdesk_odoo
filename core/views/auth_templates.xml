@@ -13,7 +13,8 @@
                 <link rel="preconnect" href="https://fonts.googleapis.com"/>
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
                 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
-                <link rel="stylesheet" href="/web/static/src/libs/fontawesome/css/font-awesome.css"/>
+                <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin="anonymous"/>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
                 <!-- Select2 for searchable country dropdown -->
                 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" media="print" onload="this.media='all'"/>
                 <script defer="defer" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
