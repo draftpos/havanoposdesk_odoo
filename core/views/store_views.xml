@@ -102,20 +102,49 @@
                                     </group>
                                 </group>
                             </page>
-                            <page string="Subscription Management">
-                                <div class="alert alert-info" role="alert">
-                                    Manage the subscription plan for this store's tenant account.
+                            <page string="Subscription Management" name="subscription_page">
+                                <field name="payment_status" invisible="1"/>
+                                <field name="pending_subscription_plan_id" invisible="1"/>
+                                
+                                <div class="alert alert-warning d-flex justify-content-between align-items-center" role="alert" invisible="payment_status != 'unpaid' and subscription_state != 'pending'">
+                                    <div>
+                                        <i class="fa fa-exclamation-triangle me-2"/>
+                                        <strong>Payment Pending:</strong> Your subscription payment is pending. Please complete payment or pay from balance to activate.
+                                    </div>
+                                    <div>
+                                        <button name="action_pay_subscription_wizard" string="Pay Online (Paynow/EcoCash)" type="object" class="btn btn-primary btn-sm me-2" icon="fa-credit-card"/>
+                                        <button name="action_pay_from_balance" string="Pay from Balance" type="object" class="btn btn-success btn-sm" icon="fa-check-circle"/>
+                                    </div>
                                 </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h5 class="mb-0 text-primary fw-bold">Business Subscription &amp; Prepaid Wallet</h5>
+                                        <span class="text-muted small">Subscription status and balance are managed at the tenant account level.</span>
+                                    </div>
+                                    <div>
+                                        <button name="action_open_subscription" string="Open Full Subscription Page" type="object" class="btn btn-outline-primary" icon="fa-external-link"/>
+                                    </div>
+                                </div>
+
                                 <group>
-                                    <group>
-                                        <field name="subscription_plan_id"/>
-                                        <field name="subscription_state" decoration-success="subscription_state == 'active'" decoration-danger="subscription_state == 'expired'" decoration-warning="subscription_state == 'pending'" widget="badge"/>
+                                    <group string="Subscription Details">
+                                        <field name="subscription_plan_id" options="{'no_open': False}"/>
+                                        <field name="subscription_state" decoration-success="subscription_state == 'active'" decoration-danger="subscription_state in ('expired', 'cancelled')" decoration-warning="subscription_state == 'pending'" widget="badge"/>
+                                        <field name="payment_status" widget="badge" decoration-success="payment_status == 'paid'" decoration-warning="payment_status in ('pending', 'unpaid')"/>
+                                        <field name="subscription_start_date"/>
                                         <field name="subscription_end_date"/>
-                                        <field name="account_balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                                     </group>
-                                    <group>
-                                        <button name="action_manage_subscription" string="Upgrade / Change Plan" type="object" class="btn-primary" icon="fa-credit-card"/>
-                                        <button name="action_topup_account" string="Top Up Account" type="object" class="btn-secondary" icon="fa-money"/>
+                                    <group string="Billing &amp; Actions">
+                                        <field name="account_balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                        <field name="subscription_total_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                        <div class="mt-3">
+                                            <button name="action_pay_subscription_wizard" string="Pay Online (Paynow/EcoCash)" type="object" class="btn btn-primary me-2 mb-2" icon="fa-credit-card" invisible="(subscription_state == 'active' and not pending_subscription_plan_id) or (not subscription_plan_id and not pending_subscription_plan_id)"/>
+                                            <button name="action_pay_from_balance" string="Pay from Balance" type="object" class="btn btn-success me-2 mb-2" icon="fa-check-circle" invisible="(subscription_state == 'active' and not pending_subscription_plan_id) or (not subscription_plan_id and not pending_subscription_plan_id)"/>
+                                            <button name="action_topup_account" string="Top Up Wallet Balance" type="object" class="btn btn-info me-2 mb-2" icon="fa-plus-circle"/>
+                                            <button name="action_manage_subscription" string="Change / Upgrade Plan" type="object" class="btn btn-secondary me-2 mb-2" icon="fa-refresh" invisible="subscription_state == 'pending' or pending_subscription_plan_id"/>
+                                            <button name="action_cancel_pending_subscription" string="Cancel Pending Request" type="object" class="btn btn-outline-danger mb-2" icon="fa-times" invisible="subscription_state != 'pending' and not pending_subscription_plan_id"/>
+                                        </div>
                                     </group>
                                 </group>
                             </page>

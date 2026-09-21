@@ -84,8 +84,27 @@ class HavanoposdeskStore(models.Model):
     # Subscription Management (Related to Tenant)
     subscription_plan_id = fields.Many2one(related='tenant_id.subscription_plan_id', string='Current Plan', readonly=True)
     subscription_state = fields.Selection(related='tenant_id.subscription_state', string='Subscription State', readonly=True)
+    payment_status = fields.Selection(related='tenant_id.payment_status', string='Payment Status', readonly=True)
+    subscription_start_date = fields.Date(related='tenant_id.subscription_start_date', string='Start Date', readonly=True)
     subscription_end_date = fields.Date(related='tenant_id.subscription_end_date', string='Expiry Date', readonly=True)
+    subscription_total_amount = fields.Float(related='tenant_id.subscription_total_amount', string='Plan Amount', readonly=True)
     account_balance = fields.Float(related='tenant_id.account_balance', string='Account Balance', readonly=True)
+    pending_subscription_plan_id = fields.Many2one(related='tenant_id.pending_subscription_plan_id', string='Pending Plan', readonly=True)
+    pending_subscription_total_amount = fields.Float(related='tenant_id.pending_subscription_total_amount', string='Pending Plan Amount', readonly=True)
+
+    def action_open_subscription(self):
+        self.ensure_one()
+        if not self.tenant_id:
+            from odoo.exceptions import UserError
+            raise UserError("No tenant associated with this store.")
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'My Subscription',
+            'res_model': 'havanoposdesk.tenant',
+            'res_id': self.tenant_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
 
     def action_manage_subscription(self):
         self.ensure_one()
@@ -96,7 +115,25 @@ class HavanoposdeskStore(models.Model):
     def action_topup_account(self):
         self.ensure_one()
         if self.tenant_id:
-            return self.tenant_id.action_topup_account()
+            return self.tenant_id.action_topup_wizard()
+        return False
+
+    def action_pay_subscription_wizard(self):
+        self.ensure_one()
+        if self.tenant_id:
+            return self.tenant_id.action_pay_subscription_wizard()
+        return False
+
+    def action_pay_from_balance(self):
+        self.ensure_one()
+        if self.tenant_id:
+            return self.tenant_id.action_pay_from_balance()
+        return False
+
+    def action_cancel_pending_subscription(self):
+        self.ensure_one()
+        if self.tenant_id:
+            return self.tenant_id.action_cancel()
         return False
     def action_ping_zimra_device(self):
         self.ensure_one()
