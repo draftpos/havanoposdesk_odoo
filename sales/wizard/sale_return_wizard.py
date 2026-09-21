@@ -36,20 +36,35 @@ class SaleReturnWizard(models.TransientModel):
             sale = self.env['havanoposdesk.sale'].browse(self.env.context.get('active_id'))
             res['sale_id'] = sale.id
             
+            # Default payment status display based on original sale
+            if sale.payment_status == 'account':
+                res['payment_status_display'] = 'account'
+            else:
+                res['payment_status_display'] = 'cash'
+                if sale.account_id:
+                    res['account_id'] = sale.account_id.id
+                elif sale.payment_ids:
+                    posted_p = sale.payment_ids.filtered(lambda p: p.account_id and p.state != 'cancelled')[:1]
+                    if posted_p:
+                        res['account_id'] = posted_p.account_id.id
+
             # Calculate already returned quantities per product
             returned_qtys = {}
             for ret in sale.return_sale_ids:
                 if ret.state != 'cancel':
                     for rl in ret.line_ids:
-                        returned_qtys[rl.product_id.id] = returned_qtys.get(rl.product_id.id, 0.0) + rl.accepted_qty
+                        key = (rl.product_id.id, rl.variant_id.id if rl.variant_id else False)
+                        returned_qtys[key] = returned_qtys.get(key, 0.0) + rl.accepted_qty
 
             lines = []
             for line in sale.line_ids:
-                remaining_qty = line.accepted_qty - returned_qtys.get(line.product_id.id, 0.0)
+                key = (line.product_id.id, line.variant_id.id if line.variant_id else False)
+                remaining_qty = line.accepted_qty - returned_qtys.get(key, 0.0)
                 if remaining_qty > 0:
                     lines.append((0, 0, {
                         'sale_line_id': line.id,
                         'product_id': line.product_id.id,
+                        'variant_id': line.variant_id.id if line.variant_id else False,
                         'qty_sold': remaining_qty,
                         'qty_returned': 0.0,
                         'rate': line.rate,
@@ -75,16 +90,36 @@ class SaleReturnWizard(models.TransientModel):
             if total_returning < total_remaining:
                 raise ValidationError("You cannot perform multiple partial returns. Please return all remaining items in a single credit note, or create a standalone Credit Note.")
             
+        store_name = self.sale_id.store or (self.sale_id.store_id.name if self.sale_id.store_id else False)
+        
+        acc_id = self.account_id.id if (self.payment_status_display == 'cash' and self.account_id) else False
+        if not acc_id and self.payment_status_display == 'cash':
+            if self.sale_id.account_id:
+                acc_id = self.sale_id.account_id.id
+            else:
+                def_acc = self.env['havanoposdesk.account'].search([
+                    ('tenant_id', '=', self.sale_id.tenant_id.id),
+                    ('type', 'in', ['Cash', 'Bank']),
+                    ('active', '=', True),
+                    ('is_on_account', '=', False)
+                ], limit=1)
+                if def_acc:
+                    acc_id = def_acc.id
+
         sale_vals = {
             'is_return': True,
             'return_id': self.sale_id.id,
             'customer': self.sale_id.customer.id,
-            'store_id': self.sale_id.store_id.id,
+            'store_id': self.sale_id.store_id.id if self.sale_id.store_id else False,
+            'store': store_name,
             'tenant_id': self.sale_id.tenant_id.id,
             'salesperson_id': self.env.user.id,
+            'currency_id': self.sale_id.currency_id.id if self.sale_id.currency_id else False,
+            'exchange_rate': self.sale_id.exchange_rate,
+            'pricelist_id': self.sale_id.pricelist_id.id if self.sale_id.pricelist_id else False,
             'payment_status': 'cash' if self.payment_status_display == 'cash' else 'account',
             'payment_policy': self.payment_policy,
-            'account_id': self.account_id.id if self.payment_status_display == 'cash' and self.payment_policy == 'single' and self.account_id else False,
+            'account_id': acc_id,
             'single_payment_amount': self.single_payment_amount,
             'line_ids': [],
         }
@@ -93,14 +128,25 @@ class SaleReturnWizard(models.TransientModel):
             if rline.qty_returned > rline.qty_sold:
                 raise ValidationError(f"You cannot return more than what was sold for {rline.product_id.name}.")
                 
+            orig_line = rline.sale_line_id
+            variant = rline.variant_id or (orig_line.variant_id if orig_line else False)
+            cost = orig_line.cost_price if orig_line else rline.product_id.buying_price
+            uom = orig_line.uom_id.id if orig_line and orig_line.uom_id else False
+            uom_mult = orig_line.uom_qty_multiplier if orig_line else 1.0
+
             sale_vals['line_ids'].append((0, 0, {
                 'product_id': rline.product_id.id,
+                'variant_id': variant.id if variant else False,
                 'accepted_qty': rline.qty_returned,
                 'rate': rline.rate,
+                'cost_price': cost,
+                'uom_id': uom,
+                'uom_qty_multiplier': uom_mult,
                 'tax_ids': [(6, 0, rline.tax_ids.ids)],
             }))
             
         new_return = self.env['havanoposdesk.sale'].create([sale_vals])
+        new_return.action_post()
         
         return {
             'type': 'ir.actions.act_window',
@@ -118,6 +164,7 @@ class SaleReturnWizardLine(models.TransientModel):
     wizard_id = fields.Many2one('havanoposdesk.sale.return.wizard', string='Wizard', ondelete='cascade')
     sale_line_id = fields.Many2one('havanoposdesk.sale.line', string='Sale Line', ondelete='cascade')
     product_id = fields.Many2one('havanoposdesk.product', string='Product', readonly=True, ondelete='cascade')
+    variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', readonly=True)
     qty_sold = fields.Float(string='Qty Sold', readonly=True)
     qty_returned = fields.Float(string='Return Qty', default=0.0)
     rate = fields.Float(string='Rate', readonly=True)

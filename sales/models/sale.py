@@ -37,7 +37,24 @@ class Sale(models.Model):
     is_quotation = fields.Boolean(string='Is Quotation', default=False)
     return_id = fields.Many2one('havanoposdesk.sale', string='Original Sale')
     return_sale_ids = fields.One2many('havanoposdesk.sale', 'return_id', string='Credit Notes')
+    credit_note_count = fields.Integer(string='Credit Notes Count', compute='_compute_credit_note_count')
     invoice_type = fields.Char(string='Type', compute='_compute_invoice_type', store=True)
+
+    @api.depends('return_sale_ids', 'return_sale_ids.state')
+    def _compute_credit_note_count(self):
+        for sale in self:
+            sale.credit_note_count = len(sale.return_sale_ids.filtered(lambda r: r.state != 'cancelled'))
+
+    def action_view_credit_notes(self):
+        self.ensure_one()
+        action = self.env['ir.actions.act_window']._for_xml_id('havanoposdesk_odoo.action_sales_returns')
+        action['domain'] = [('return_id', '=', self.id)]
+        action['context'] = {'default_return_id': self.id, 'default_is_return': True}
+        if len(self.return_sale_ids) == 1:
+            form_view_id = self.env.ref('havanoposdesk_odoo.view_havanoposdesk_sale_form').id
+            action['views'] = [(form_view_id, 'form')]
+            action['res_id'] = self.return_sale_ids[0].id
+        return action
 
     @api.constrains('local_invoice_id', 'tenant_id')
     def _check_local_invoice_id_uniqueness(self):
@@ -819,148 +836,108 @@ class Sale(models.Model):
             if sale.payment_status != 'account':
                 sale._post_sale_payments()
 
+            store_name = sale.store or (sale.store_id.name if sale.store_id else False)
             for line in sale.line_ids:
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
-                if base_qty > 0:
+                is_item_return = sale.is_return or (base_qty < 0)
+                qty_delta = abs(base_qty)
+
+                if qty_delta <= 0:
+                    continue
+
+                if not is_item_return:
                     # Update price on parent product
-                    if not sale.is_return:
-                        base_rate = line.rate
-                        base_cost = line.cost_price
-                        line.product_id.sudo().write({
-                            'selling_price': base_rate,
-                            'buying_price': (base_cost / line.uom_qty_multiplier) if line.uom_qty_multiplier else base_cost,
+                    base_rate = line.rate
+                    base_cost = line.cost_price
+                    line.product_id.sudo().write({
+                        'selling_price': base_rate,
+                        'buying_price': (base_cost / line.uom_qty_multiplier) if line.uom_qty_multiplier else base_cost,
+                    })
+
+                    # Auto-create and complete Production Order if product uses ingredients
+                    if line.product_id.use_ingredients and line.product_id.bom_id:
+                        raw_materials = []
+                        for bom_line in line.product_id.bom_id.raw_material_ids:
+                            raw_materials.append((0, 0, {
+                                'product_id': bom_line.product_id.id,
+                                'qty': bom_line.qty,
+                                'total_qty': bom_line.qty * qty_delta,
+                            }))
+                        outputs = []
+                        for bom_out in line.product_id.bom_id.output_ids:
+                            outputs.append((0, 0, {
+                                'product_id': bom_out.product_id.id,
+                                'qty': bom_out.qty,
+                                'total_qty': bom_out.qty * qty_delta,
+                            }))
+                        production_order = self.env['havanoposdesk.production.order'].sudo().create({
+                            'bom_id': line.product_id.bom_id.id,
+                            'tenant_id': line.product_id.tenant_id.id,
+                            'qty_to_produce': qty_delta,
+                            'raw_material_ids': raw_materials,
+                            'output_ids': outputs,
                         })
+                        production_order.action_complete()
 
-                        # Auto-create and complete Production Order if product uses ingredients
-                        if line.product_id.use_ingredients and line.product_id.bom_id:
-                            raw_materials = []
-                            for bom_line in line.product_id.bom_id.raw_material_ids:
-                                raw_materials.append((0, 0, {
-                                    'product_id': bom_line.product_id.id,
-                                    'qty': bom_line.qty,
-                                    'total_qty': bom_line.qty * base_qty,
-                                }))
-                            outputs = []
-                            for bom_out in line.product_id.bom_id.output_ids:
-                                outputs.append((0, 0, {
-                                    'product_id': bom_out.product_id.id,
-                                    'qty': bom_out.qty,
-                                    'total_qty': bom_out.qty * base_qty,
-                                }))
-                            production_order = self.env['havanoposdesk.production.order'].sudo().create({
-                                'bom_id': line.product_id.bom_id.id,
-                                'tenant_id': line.product_id.tenant_id.id,
-                                'qty_to_produce': base_qty,
-                                'raw_material_ids': raw_materials,
-                                'output_ids': outputs,
-                            })
-                            production_order.action_complete()
+                # Determine products for inventory changes
+                if line.product_id.is_bundle:
+                    products_to_process = [(comp.product_id, qty_delta * comp.qty, False) for comp in line.product_id.bundle_item_ids]
+                else:
+                    products_to_process = [(line.product_id, qty_delta, line.variant_id.id if line.variant_id else False)]
 
-                    # Determine products for inventory changes
-                    if line.product_id.is_bundle:
-                        products_to_process = [(comp.product_id, base_qty * comp.qty, False) for comp in line.product_id.bundle_item_ids]
+                for product_id, item_qty, item_variant_id in products_to_process:
+                    if not product_id.track_qty:
+                        continue
+
+                    domain = [
+                        ('product_id', '=', product_id.id),
+                    ]
+                    if store_name:
+                        domain.append(('store', '=', store_name))
+                    if sale.tenant_id:
+                        domain.append(('tenant_id', '=', sale.tenant_id.id))
+                    if item_variant_id:
+                        domain.append(('variant_id', '=', item_variant_id))
+
+                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
+                    current_qty = valuation.on_hand_qty if valuation else 0.0
+
+                    if is_item_return:
+                        new_balance = current_qty + item_qty
+                        in_qty = item_qty
+                        out_qty = 0.0
+                        ledger_type = 'Credit Note' if sale.is_return else 'Return'
                     else:
-                        products_to_process = [(line.product_id, base_qty, line.variant_id.id if line.variant_id else False)]
+                        new_balance = current_qty - item_qty
+                        in_qty = 0.0
+                        out_qty = item_qty
+                        ledger_type = 'Sale'
 
-                    for product_id, item_base_qty, item_variant_id in products_to_process:
-                        if not product_id.track_qty:
-                            continue
-                            
-                        domain = [
-                            ('product_id', '=', product_id.id),
-                            ('store', '=', sale.store)
-                        ]
-                        if item_variant_id:
-                            domain.append(('variant_id', '=', item_variant_id))
-                            
-                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
-                        
-                        current_qty = valuation.on_hand_qty if valuation else 0.0
-                        if sale.is_return:
-                            new_balance = current_qty + item_base_qty
-                        else:
-                            new_balance = current_qty - item_base_qty
-
-                        if valuation:
-                            valuation.write({'on_hand_qty': new_balance})
-                        else:
-                            self.env['havanoposdesk.stock.valuation'].sudo().create({
-                                'product_id': product_id.id,
-                                'variant_id': item_variant_id,
-                                'store': sale.store,
-                                'on_hand_qty': new_balance,
-                                'tenant_id': product_id.tenant_id.id,
-                            })
-
-                        if sale.is_return:
-                            # Add back to stock
-                            self.env['havanoposdesk.stock.ledger'].sudo().create({
-                                'product_id': product_id.id,
-                                'variant_id': item_variant_id,
-                                'in_qty': item_base_qty,
-                                'out_qty': 0.0,
-                                'balance_qty': new_balance,
-                                'buying_price': line.cost_price / line.uom_qty_multiplier if line.uom_qty_multiplier else line.cost_price,
-                                'store': sale.store,
-                                'type': 'Credit Note',
-                                'doc_no': sale.name,
-                                'tenant_id': product_id.tenant_id.id,
-                            })
-                        else:
-                            # Create Ledger Entry using sudo()
-                            self.env['havanoposdesk.stock.ledger'].sudo().create({
-                                'product_id': product_id.id,
-                                'variant_id': item_variant_id,
-                                'in_qty': 0.0,
-                                'out_qty': item_base_qty,
-                                'balance_qty': new_balance,
-                                'buying_price': line.cost_price / line.uom_qty_multiplier if line.uom_qty_multiplier else line.cost_price,
-                                'store': sale.store,
-                                'type': 'Sale',
-                                'doc_no': sale.name,
-                                'tenant_id': product_id.tenant_id.id,
-                            })
-                elif base_qty < 0:
-                    if line.product_id.is_bundle:
-                        products_to_process = [(comp.product_id, base_qty * comp.qty) for comp in line.product_id.bundle_item_ids]
+                    if valuation:
+                        valuation.write({'on_hand_qty': new_balance})
                     else:
-                        products_to_process = [(line.product_id, base_qty)]
-
-                    for product_id, item_base_qty in products_to_process:
-                        if not product_id.track_qty:
-                            continue
-                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
-                            ('product_id', '=', product_id.id),
-                            ('store', '=', sale.store)
-                        ], limit=1)
-                        
-                        current_qty = valuation.on_hand_qty if valuation else 0.0
-                        if sale.is_return:
-                            new_balance = current_qty + item_base_qty
-                        else:
-                            new_balance = current_qty - item_base_qty
-
-                        if valuation:
-                            valuation.write({'on_hand_qty': new_balance})
-                        else:
-                            self.env['havanoposdesk.stock.valuation'].sudo().create({
-                                'product_id': product_id.id,
-                                'store': sale.store,
-                                'on_hand_qty': new_balance,
-                                'tenant_id': product_id.tenant_id.id,
-                            })
-
-                        # Return sale: add back to stock
-                        self.env['havanoposdesk.stock.ledger'].sudo().create({
+                        self.env['havanoposdesk.stock.valuation'].sudo().create({
                             'product_id': product_id.id,
-                            'in_qty': abs(item_base_qty),
-                            'out_qty': 0.0,
-                            'balance_qty': new_balance,
-                            'store': sale.store,
-                            'type': 'Return',
-                            'doc_no': sale.name,
+                            'variant_id': item_variant_id,
+                            'store': store_name,
+                            'on_hand_qty': new_balance,
                             'tenant_id': product_id.tenant_id.id,
                         })
+
+                    # Create Stock Ledger Entry
+                    buying_price = (line.cost_price / line.uom_qty_multiplier) if line.uom_qty_multiplier else (line.cost_price or product_id.buying_price)
+                    self.env['havanoposdesk.stock.ledger'].sudo().create({
+                        'product_id': product_id.id,
+                        'variant_id': item_variant_id,
+                        'in_qty': in_qty,
+                        'out_qty': out_qty,
+                        'balance_qty': new_balance,
+                        'buying_price': buying_price,
+                        'store': store_name,
+                        'type': ledger_type,
+                        'doc_no': sale.name,
+                        'tenant_id': product_id.tenant_id.id,
+                    })
             sale.write({'state': 'done'})
             sale._trigger_fiscalization()
 
@@ -1064,16 +1041,44 @@ class Sale(models.Model):
                 sale.write({'state': 'cancelled'})
                 continue
             
+            store_name = sale.store or (sale.store_id.name if sale.store_id else False)
             for line in sale.line_ids:
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
-                if line.product_id.is_bundle:
-                    products_to_process = [(comp.product_id, base_qty * comp.qty, False) for comp in line.product_id.bundle_item_ids]
-                else:
-                    products_to_process = [(line.product_id, base_qty, line.variant_id.id if line.variant_id else False)]
+                qty_delta = abs(base_qty)
+                if qty_delta <= 0:
+                    continue
 
-                for product_id, item_base_qty, item_variant_id in products_to_process:
+                if line.product_id.is_bundle:
+                    products_to_process = [(comp.product_id, qty_delta * comp.qty, False) for comp in line.product_id.bundle_item_ids]
+                else:
+                    products_to_process = [(line.product_id, qty_delta, line.variant_id.id if line.variant_id else False)]
+
+                for product_id, item_qty, item_variant_id in products_to_process:
                     if not product_id.track_qty:
                         continue
+
+                    # Update Valuation Entry using sudo()
+                    val_domain = [
+                        ('product_id', '=', product_id.id),
+                    ]
+                    if store_name:
+                        val_domain.append(('store', '=', store_name))
+                    if sale.tenant_id:
+                        val_domain.append(('tenant_id', '=', sale.tenant_id.id))
+                    if item_variant_id:
+                        val_domain.append(('variant_id', '=', item_variant_id))
+                        
+                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain, limit=1)
+                    current_qty = valuation.on_hand_qty if valuation else 0.0
+
+                    if sale.is_return:
+                        new_balance = current_qty - item_qty
+                    else:
+                        new_balance = current_qty + item_qty
+
+                    if valuation:
+                        valuation.write({'on_hand_qty': new_balance})
+
                     # Create reverse ledger entry using sudo()
                     domain = [
                         ('doc_no', '=', sale.name),
@@ -1084,34 +1089,34 @@ class Sale(models.Model):
                         domain.append(('variant_id', '=', item_variant_id))
                         
                     orig_ledgers = self.env['havanoposdesk.stock.ledger'].sudo().search(domain)
-                    for orig_ledger in orig_ledgers:
+                    if orig_ledgers:
+                        for orig_ledger in orig_ledgers:
+                            self.env['havanoposdesk.stock.ledger'].sudo().create({
+                                'product_id': product_id.id,
+                                'variant_id': item_variant_id,
+                                'in_qty': orig_ledger.out_qty,
+                                'out_qty': orig_ledger.in_qty,
+                                'balance_qty': new_balance,
+                                'buying_price': orig_ledger.buying_price,
+                                'store': store_name,
+                                'type': 'Sale Cancelled',
+                                'doc_no': sale.name,
+                                'tenant_id': product_id.tenant_id.id,
+                            })
+                    else:
+                        buying_price = (line.cost_price / line.uom_qty_multiplier) if line.uom_qty_multiplier else (line.cost_price or product_id.buying_price)
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': product_id.id,
                             'variant_id': item_variant_id,
-                            'in_qty': orig_ledger.out_qty,
-                            'out_qty': orig_ledger.in_qty,
-                            'balance_qty': product_id.opening_stock,
-                            'buying_price': orig_ledger.buying_price,
-                            'store': sale.store,
+                            'in_qty': item_qty if not sale.is_return else 0.0,
+                            'out_qty': item_qty if sale.is_return else 0.0,
+                            'balance_qty': new_balance,
+                            'buying_price': buying_price,
+                            'store': store_name,
                             'type': 'Sale Cancelled',
                             'doc_no': sale.name,
                             'tenant_id': product_id.tenant_id.id,
                         })
-
-                    # Update Valuation Entry using sudo()
-                    val_domain = [
-                        ('product_id', '=', product_id.id),
-                        ('store', '=', sale.store)
-                    ]
-                    if item_variant_id:
-                        val_domain.append(('variant_id', '=', item_variant_id))
-                        
-                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain, limit=1)
-                    if valuation:
-                        if sale.is_return:
-                            valuation.write({'on_hand_qty': valuation.on_hand_qty - item_base_qty})
-                        else:
-                            valuation.write({'on_hand_qty': valuation.on_hand_qty + item_base_qty})
 
 
             # Reverse POS Payment batch amounts and account balances
