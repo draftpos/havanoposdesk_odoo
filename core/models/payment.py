@@ -205,7 +205,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
 
             return {
                 'type': 'ir.actions.act_url',
-                'url': '/payment/status',
+                'url': f'/payment/havano_payments/ecocash_waiting?reference={reference}',
                 'target': 'self',
             }
         else:
@@ -379,7 +379,7 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
 
             return {
                 'type': 'ir.actions.act_url',
-                'url': '/payment/status',
+                'url': f'/payment/havano_payments/ecocash_waiting?reference={reference}',
                 'target': 'self',
             }
         else:
