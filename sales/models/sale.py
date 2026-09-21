@@ -114,6 +114,7 @@ class Sale(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     store_id = fields.Many2one(
@@ -254,7 +255,7 @@ class Sale(models.Model):
         ('confirmed', 'Confirmed'),
         ('done', 'Done'),
         ('cancelled', 'Cancelled')
-    ], string='Status', default='draft', required=True)
+    ], string='Status', default='draft', required=True, index=True)
 
     # ZIMRA Fiscalization Response Fields
     fiscal_status = fields.Selection([
@@ -1004,6 +1005,7 @@ class SaleLine(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     sale_id = fields.Many2one('havanoposdesk.sale', string='Sale', required=True, ondelete='cascade')

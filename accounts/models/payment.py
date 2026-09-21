@@ -12,6 +12,7 @@ class Payment(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     currency_id = fields.Many2one(
@@ -326,7 +327,7 @@ class PaymentLine(models.Model):
     _description = 'Payment Line'
 
     payment_id = fields.Many2one('havanoposdesk.payment', string='Payment Reference', ondelete='cascade', required=True)
-    tenant_id = fields.Many2one(related='payment_id.tenant_id', store=True)
+    tenant_id = fields.Many2one(related='payment_id.tenant_id', store=True, index=True)
     account_id = fields.Many2one('havanoposdesk.account', string='Bank/Cash Account', required=True, domain="[('type', 'in', ['Bank', 'Cash']), ('active', '=', True)]")
     currency_id = fields.Many2one(
         'res.currency', 

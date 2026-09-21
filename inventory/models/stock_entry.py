@@ -12,6 +12,7 @@ class StockEntry(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     stock_entry_type = fields.Char(string='Stock Entry Type', default='Material Transfer')
@@ -24,7 +25,7 @@ class StockEntry(models.Model):
         ('draft', 'Draft'),
         ('submitted', 'Submitted'),
         ('cancelled', 'Cancelled')
-    ], string='Status', required=True, default='draft')
+    ], string='Status', required=True, default='draft', index=True)
     
     total_outgoing_value = fields.Float(
         string='Total Outgoing Value',
@@ -189,6 +190,7 @@ class StockEntryLine(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True)

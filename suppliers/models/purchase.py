@@ -21,6 +21,7 @@ class Purchase(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     def _default_supplier_id(self):
@@ -101,7 +102,7 @@ class Purchase(models.Model):
         ('draft', 'Draft'),
         ('posted', 'Posted'),
         ('cancelled', 'Cancelled')
-    ], string='Status', required=True, default='draft')
+    ], string='Status', required=True, default='draft', index=True)
     is_return = fields.Boolean(string='Is Return (Debit Note)', default=False)
     return_id = fields.Many2one('havanoposdesk.purchase', string='Original Purchase', copy=False)
     return_purchase_ids = fields.One2many('havanoposdesk.purchase', 'return_id', string='Returned Purchases')
@@ -486,6 +487,7 @@ class PurchaseLine(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     purchase_id = fields.Many2one('havanoposdesk.purchase', string='Purchase', required=True, ondelete='cascade')

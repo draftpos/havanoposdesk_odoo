@@ -12,6 +12,7 @@ class RestaurantFloor(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         ondelete='cascade',
         default=lambda self: self.env.user.tenant_id.id if hasattr(self.env.user, 'tenant_id') else False
     )
@@ -37,6 +38,7 @@ class RestaurantTable(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         ondelete='cascade',
         default=lambda self: self.env.user.tenant_id.id if hasattr(self.env.user, 'tenant_id') else False
     )
@@ -54,6 +56,7 @@ class RestaurantWaiter(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         ondelete='cascade',
         default=lambda self: self.env.user.tenant_id.id if hasattr(self.env.user, 'tenant_id') else False
     )
