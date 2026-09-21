@@ -140,3 +140,32 @@
     }
 }
 
+/* Scoped classes to hide actions with zero CPU/rendering overhead */
+.havano-no-create {
+    .o_list_button_add,
+    .o_kanban_button_new,
+    button[data-hotkey="c"],
+    .o_control_panel_actions .btn-primary {
+        display: none !important;
+    }
+}
+
+.havano-no-edit {
+    .o_form_button_edit,
+    .o_form_button_save,
+    button.o_form_button_edit {
+        display: none !important;
+    }
+}
+
+.havano-no-delete {
+    .o_cp_action_menus .dropdown-item[data-section="other"] {
+        display: none !important;
+    }
+}
+
+/* Native CSS brand hiding */
+.o_menu_brand, .o_main_navbar .o_logo_edition {
+    display: none !important;
+}
+

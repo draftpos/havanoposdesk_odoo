@@ -427,7 +427,7 @@ class HavanoposdeskProduct(models.Model):
     category_id = fields.Many2one('havanoposdesk.category', string='Category', default=_default_category_id)
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=_default_uom_id)
     
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
     currency_id = fields.Many2one(related='tenant_id.currency_id', string='Currency', store=False)
     advanced_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='Advanced Prices')
     allow_advanced_pricing = fields.Boolean(related='tenant_id.allow_advanced_pricing', readonly=True)
@@ -674,7 +674,7 @@ class HavanoposdeskProductVariant(models.Model):
     _description = 'Product Variant'
 
     product_id = fields.Many2one('havanoposdesk.product', string='Parent Product', required=True, ondelete='cascade')
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True, default=lambda self: self.env.user.tenant_id)
     name = fields.Char(string='Variant Name', required=True)
     cost_price = fields.Float(string='Cost Price')
     selling_price = fields.Float(string='Sell Price')

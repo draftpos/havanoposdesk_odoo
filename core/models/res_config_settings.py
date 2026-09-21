@@ -27,7 +27,6 @@ class ResConfigSettings(models.TransientModel):
 
     @api.model
     def default_get(self, fields_list):
-        self._ensure_tenant_columns()
         return super().default_get(fields_list)
 
     @api.model

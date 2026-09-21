@@ -16,6 +16,7 @@ class StockAdjustment(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
@@ -26,7 +27,7 @@ class StockAdjustment(models.Model):
         ('draft', 'Draft'),
         ('posted', 'Posted'),
         ('cancelled', 'Cancelled')
-    ], string='Status', required=True, default='draft')
+    ], string='Status', required=True, default='draft', index=True)
     
     fetch_all_data = fields.Boolean(string='Fetch All Items', default=True)
     fetch_category_id = fields.Many2one('havanoposdesk.category', string='Fetch Category Items')
@@ -369,6 +370,7 @@ class StockAdjustmentLine(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     adjustment_id = fields.Many2one('havanoposdesk.stock.adjustment', string='Stock Adjustment', required=True, ondelete='cascade')
