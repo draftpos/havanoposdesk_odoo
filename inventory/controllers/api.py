@@ -2514,8 +2514,9 @@ class HavanoPOSDeskAPI(http.Controller):
             product_vals = {
                 'name': data.get('item_name'),
                 'item_code': item_code,
-                'buying_price': float(data.get('valuation_rate') or 0.0),
-                'selling_price': float(data.get('standard_rate') or data.get('valuation_rate', 0.0) * 1.3 or 10.0),
+                'buying_price': float(data.get('valuation_rate') or data.get('cost_price') or data.get('buying_price') or data.get('cost') or 0.0),
+                'cost_price': float(data.get('valuation_rate') or data.get('cost_price') or data.get('buying_price') or data.get('cost') or 0.0),
+                'selling_price': float(data.get('standard_rate') or data.get('standard_selling') or data.get('selling_price') or data.get('valuation_rate', 0.0) * 1.3 or 10.0),
                 'opening_stock': float(data.get('opening_stock') or 0.0),
                 'category_id': category.id,
                 'uom_id': uom.id,
@@ -3623,7 +3624,7 @@ class HavanoPOSDeskAPI(http.Controller):
         price = params.get('price') or params.get('sales_price') or params.get('list_price')
         price = float(price) if price is not None else None
         
-        buying_price = params.get('buying_price') or params.get('cost') or params.get('standard_price')
+        buying_price = params.get('buying_price') or params.get('cost') or params.get('standard_price') or params.get('cost_price') or params.get('valuation_rate')
         buying_price = float(buying_price) if buying_price is not None else None
         
         barcode = params.get('barcode')
@@ -3649,6 +3650,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 vals['selling_price'] = price
             if buying_price is not None:
                 vals['buying_price'] = buying_price
+                vals['cost_price'] = buying_price
             if barcode:
                 if hasattr(product, 'barcode'):
                     vals['barcode'] = barcode
@@ -5797,35 +5799,80 @@ class HavanoPOSDeskAPI(http.Controller):
         user = env['res.users'].browse(uid) if uid else False
         tenant = user.tenant_id if user else False
         
+        default_curr = tenant.currency_id.name if (tenant and tenant.currency_id) else 'USD'
+        if pricelist_name:
+            domain = []
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+            domain.append(('name', '=ilike', str(pricelist_name).strip()))
+            pl = env['havanoposdesk.pricelist'].sudo().search(domain, limit=1)
+            pl_name = pl.name if pl else str(pricelist_name).strip()
+            curr_name = pl.currency_id.name if (pl and pl.currency_id) else default_curr
+            pl_lower = pl_name.lower()
+            is_buying = (pl and pl.type == 'buying') or ('buying' in pl_lower) or ('cost' in pl_lower)
+            is_selling = (pl and pl.type == 'selling') or ('selling' in pl_lower) or ('retail' in pl_lower) or (not is_buying)
+            return self._make_json_response({
+                "data": {
+                    "name": pl_name,
+                    "price_list_name": pl_name,
+                    "currency": curr_name,
+                    "selling": 1 if is_selling else 0,
+                    "buying": 1 if is_buying else 0,
+                    "enabled": 1
+                }
+            })
+
         domain = []
         if tenant:
             domain.append(('tenant_id', '=', tenant.id))
-        if pricelist_name:
-            domain.append(('name', '=ilike', str(pricelist_name).strip()))
-            
-        pl = env['havanoposdesk.pricelist'].sudo().search(domain, limit=1)
-        if not pl and tenant:
-            pl = env['havanoposdesk.pricelist'].sudo().search([('tenant_id', '=', tenant.id)], limit=1)
-        if not pl:
-            pl = env['havanoposdesk.pricelist'].sudo().search([], limit=1)
-            
-        curr_name = pl.currency_id.name if (pl and pl.currency_id) else (tenant.currency_id.name if (tenant and tenant.currency_id) else 'USD')
-        pl_name = pl.name if pl else (pricelist_name or '')
-        
-        return self._make_json_response({
-            "data": {
-                "name": pl_name,
-                "price_list_name": pl_name,
+        pricelists = env['havanoposdesk.pricelist'].sudo().search(domain)
+        result = []
+        has_buying = False
+        has_selling = False
+        for pl in pricelists:
+            pl_lower = (pl.name or '').lower()
+            is_buying = (pl.type == 'buying') or ('buying' in pl_lower) or ('cost' in pl_lower)
+            is_selling = (pl.type == 'selling') or ('selling' in pl_lower) or ('retail' in pl_lower) or (not is_buying)
+            if is_buying:
+                has_buying = True
+            if is_selling:
+                has_selling = True
+            curr_name = pl.currency_id.name if pl.currency_id else default_curr
+            result.append({
+                "name": pl.name,
+                "price_list_name": pl.name,
                 "currency": curr_name,
+                "selling": 1 if is_selling else 0,
+                "buying": 1 if is_buying else 0,
+                "enabled": 1
+            })
+
+        if not has_buying:
+            result.append({
+                "name": "Standard Buying",
+                "price_list_name": "Standard Buying",
+                "currency": default_curr,
+                "selling": 0,
+                "buying": 1,
+                "enabled": 1
+            })
+        if not has_selling and not result:
+            result.append({
+                "name": "Standard Selling",
+                "price_list_name": "Standard Selling",
+                "currency": default_curr,
                 "selling": 1,
                 "buying": 0,
                 "enabled": 1
-            }
-        })
+            })
+
+        return self._make_json_response({"data": result})
 
     @http.route([
         '/api/resource/Item Price',
-        '/api/resource/Item Price/<string:price_id>'
+        '/api/resource/Item%20Price',
+        '/api/resource/Item Price/<string:price_id>',
+        '/api/resource/Item%20Price/<string:price_id>'
     ], auth='public', methods=['GET', 'POST', 'PUT', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_resource_item_price(self, price_id=None, **kwargs):
         if request.httprequest.method == 'OPTIONS':
@@ -5870,9 +5917,11 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 result = []
                 for p in products:
+                    found_ap = False
                     for ap in p.advanced_price_ids:
                         if target_price_list and ap.pricelist_id.name and target_price_list.lower() not in ap.pricelist_id.name.lower():
                             continue
+                        found_ap = True
                         result.append({
                             "id": ap.id,
                             "name": f"{p.item_code}_{ap.store_id.name}_{ap.pricelist_id.name}_{ap.uom_id.name}",
@@ -5889,6 +5938,30 @@ class HavanoPOSDeskAPI(http.Controller):
                             "on_hand_qty": ap.on_hand_qty,
                             "currency": "USD"
                         })
+                    if not found_ap:
+                        target_pl_lower = (target_price_list or '').lower()
+                        is_target_buying = ('buying' in target_pl_lower) or ('cost' in target_pl_lower)
+                        is_target_selling = ('selling' in target_pl_lower) or ('retail' in target_pl_lower)
+                        if not target_price_list or is_target_buying:
+                            result.append({
+                                "id": f"{p.id}_buying",
+                                "name": f"{p.item_code}_buying",
+                                "item_code": p.item_code,
+                                "price_list": target_price_list or "Standard Buying",
+                                "uom": p.uom_id.name if p.uom_id else "Each",
+                                "price_list_rate": p.cost_price or p.buying_price or 0.0,
+                                "currency": "USD"
+                            })
+                        if not target_price_list or is_target_selling:
+                            result.append({
+                                "id": f"{p.id}_selling",
+                                "name": f"{p.item_code}_selling",
+                                "item_code": p.item_code,
+                                "price_list": target_price_list or "Standard Selling",
+                                "uom": p.uom_id.name if p.uom_id else "Each",
+                                "price_list_rate": p.selling_price or 0.0,
+                                "currency": "USD"
+                            })
 
                 return self._make_json_response({"data": result})
 
@@ -5908,17 +5981,27 @@ class HavanoPOSDeskAPI(http.Controller):
                     if not item_code:
                         if '_buying' in price_id:
                             item_code = price_id.replace('_buying', '')
-                            price_list = 'buying'
+                            price_list = price_list or 'buying'
                         elif '_selling' in price_id:
                             item_code = price_id.replace('_selling', '')
-                            price_list = 'selling'
+                            price_list = price_list or 'selling'
 
                 if not item_code or rate is None:
                     return self._make_json_response({"error": "item_code and price_list_rate/price are required"}, status=400)
 
-                product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
+                prod_domain = [('item_code', '=', item_code)]
+                if user.havano_role != 'super_admin' and tenant:
+                    prod_domain.append(('tenant_id', '=', tenant.id))
+                product = env['havanoposdesk.product'].search(prod_domain, limit=1)
+                if not product:
+                    product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
                 if not product:
                     return self._make_json_response({"error": f"Product with item_code '{item_code}' not found"}, status=404)
+
+                pl_str = str(price_list or '').strip().lower()
+                is_buying = ('buying' in pl_str) or ('cost' in pl_str)
+                is_selling = ('selling' in pl_str) or ('retail' in pl_str) or (not is_buying)
+                rate_val = float(rate)
 
                 if store_param:
                     sp_store = None
@@ -5929,10 +6012,14 @@ class HavanoPOSDeskAPI(http.Controller):
                         if not sp_store:
                             sp_store = env['havanoposdesk.store'].create({'name': str(store_param).strip(), 'tenant_id': tenant.id})
 
-                    sp_pl_name = price_list or 'Retail'
+                    sp_pl_name = price_list or ('Standard Buying' if is_buying else 'Retail')
                     sp_pl = env['havanoposdesk.pricelist'].search([('name', '=ilike', sp_pl_name.strip()), ('tenant_id', '=', tenant.id)], limit=1)
                     if not sp_pl:
-                        sp_pl = env['havanoposdesk.pricelist'].create({'name': sp_pl_name.strip(), 'type': 'selling', 'tenant_id': tenant.id})
+                        sp_pl = env['havanoposdesk.pricelist'].create({
+                            'name': sp_pl_name.strip(),
+                            'type': 'buying' if is_buying else 'selling',
+                            'tenant_id': tenant.id
+                        })
 
                     uom_param = data.get('uom') or data.get('uom_name') or data.get('stock_uom') or (product.uom_id.name if product.uom_id else 'Each')
                     sp_uom = env['havanoposdesk.uom'].search([('name', '=ilike', str(uom_param).strip()), ('tenant_id', '=', tenant.id)], limit=1)
@@ -5947,7 +6034,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         ('uom_id', '=', sp_uom.id)
                     ], limit=1)
                     if existing_price:
-                        existing_price.write({'price': float(rate), 'qty_to_be_sold': qty_sold, 'initial_stock': init_stock})
+                        existing_price.write({'price': rate_val, 'qty_to_be_sold': qty_sold, 'initial_stock': init_stock})
                     else:
                         env['havanoposdesk.product.uom.price'].create({
                             'product_id': product.id,
@@ -5956,9 +6043,21 @@ class HavanoPOSDeskAPI(http.Controller):
                             'uom_id': sp_uom.id,
                             'qty_to_be_sold': qty_sold,
                             'initial_stock': init_stock,
-                            'price': float(rate),
+                            'price': rate_val,
                             'tenant_id': tenant.id
                         })
+
+                    unit_rate = rate_val / (qty_sold or 1.0)
+                    if is_buying:
+                        product.write({'cost_price': unit_rate, 'buying_price': unit_rate})
+                    elif is_selling:
+                        product.write({'selling_price': unit_rate})
+
+                    if env and env.cr:
+                        env.cr.commit()
+                    elif custom_cr:
+                        custom_cr.commit()
+
                     return self._make_json_response({
                         "data": {
                             "name": f"{item_code}_{sp_store.name}_{sp_pl.name}_{sp_uom.name}",
@@ -5966,30 +6065,47 @@ class HavanoPOSDeskAPI(http.Controller):
                             "store": sp_store.name,
                             "price_list": sp_pl.name,
                             "uom": sp_uom.name,
-                            "price_list_rate": float(rate),
+                            "price_list_rate": rate_val,
                             "initial_stock": init_stock,
                             "currency": data.get('currency', 'USD')
                         }
                     })
 
                 vals = {}
-                if price_list == 'selling':
-                    vals['selling_price'] = float(rate)
-                elif price_list == 'buying':
-                    vals['buying_price'] = float(rate)
+                if is_buying:
+                    vals['cost_price'] = rate_val
+                    vals['buying_price'] = rate_val
+                elif is_selling:
+                    vals['selling_price'] = rate_val
                 else:
-                    vals['selling_price'] = float(rate)
+                    vals['selling_price'] = rate_val
 
                 if vals:
                     product.write(vals)
 
-                price_name = f"{item_code}_buying" if price_list == 'buying' else f"{item_code}_selling"
+                if is_buying and getattr(product, 'advanced_price_ids', None):
+                    for ap in product.advanced_price_ids:
+                        ap_pl_name = (ap.pricelist_id.name or '').lower()
+                        if 'buying' in ap_pl_name or 'cost' in ap_pl_name:
+                            ap.write({'price': rate_val * (ap.qty_to_be_sold or 1.0)})
+                elif is_selling and getattr(product, 'advanced_price_ids', None):
+                    for ap in product.advanced_price_ids:
+                        ap_pl_name = (ap.pricelist_id.name or '').lower()
+                        if 'selling' in ap_pl_name or 'retail' in ap_pl_name:
+                            ap.write({'price': rate_val * (ap.qty_to_be_sold or 1.0)})
+
+                if env and env.cr:
+                    env.cr.commit()
+                elif custom_cr:
+                    custom_cr.commit()
+
+                price_name = f"{item_code}_buying" if is_buying else f"{item_code}_selling"
                 return self._make_json_response({
                     "data": {
                         "name": price_name,
                         "item_code": item_code,
                         "price_list": price_list or '',
-                        "price_list_rate": rate,
+                        "price_list_rate": rate_val,
                         "currency": data.get('currency', 'USD')
                     }
                 })
@@ -6029,7 +6145,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     "stock_uom": p.uom_id.name or "Nos",
                     "image": None,
                     "item_group": p.category_id.name or "Basics",
-                    "valuation_rate": p.buying_price or 0.0,
+                    "valuation_rate": p.cost_price or p.buying_price or 0.0,
+                    "cost_price": p.cost_price or p.buying_price or 0.0,
+                    "buying_price": p.cost_price or p.buying_price or 0.0,
                     "is_bundle": 1 if p.is_bundle else 0,
                     "is_stock_item": 1 if (p.track_qty and not p.is_bundle) else 0,
                     "is_sales_item": 1,
@@ -6065,7 +6183,12 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
 
-            product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
+            prod_domain = [('item_code', '=', item_code)]
+            if user.havano_role != 'super_admin' and tenant:
+                prod_domain.append(('tenant_id', '=', tenant.id))
+            product = env['havanoposdesk.product'].search(prod_domain, limit=1)
+            if not product:
+                product = env['havanoposdesk.product'].search([('item_code', '=', item_code)], limit=1)
             if not product:
                 return self._make_json_response({"error": "Product not found"}, status=404)
 
@@ -6099,10 +6222,30 @@ class HavanoPOSDeskAPI(http.Controller):
                     })
                 vals['uom_id'] = uom.id
 
-            if 'standard_selling' in data:
-                vals['selling_price'] = data['standard_selling']
-            if 'valuation_rate' in data:
-                vals['buying_price'] = data['valuation_rate']
+            if 'standard_selling' in data and data.get('standard_selling') is not None:
+                try:
+                    vals['selling_price'] = float(data['standard_selling'])
+                except (ValueError, TypeError):
+                    pass
+            elif 'selling_price' in data and data.get('selling_price') is not None:
+                try:
+                    vals['selling_price'] = float(data['selling_price'])
+                except (ValueError, TypeError):
+                    pass
+
+            cost_keys = ['valuation_rate', 'cost_price', 'buying_price', 'cost', 'purchase_price', 'standard_buying']
+            cost_val = None
+            for ck in cost_keys:
+                if ck in data and data.get(ck) is not None:
+                    try:
+                        cost_val = float(data[ck])
+                        break
+                    except (ValueError, TypeError):
+                        pass
+
+            if cost_val is not None:
+                vals['buying_price'] = cost_val
+                vals['cost_price'] = cost_val
             if 'maintain_stock' in data:
                 vals['track_qty'] = bool(data['maintain_stock'])
             if 'disabled' in data:
@@ -6219,6 +6362,18 @@ class HavanoPOSDeskAPI(http.Controller):
 
             product.write(vals)
 
+            if cost_val is not None and getattr(product, 'advanced_price_ids', None):
+                for ap in product.advanced_price_ids:
+                    ap_pl_name = (ap.pricelist_id.name or '').lower()
+                    if 'buying' in ap_pl_name or 'cost' in ap_pl_name:
+                        ap.write({'price': cost_val * (ap.qty_to_be_sold or 1.0)})
+
+            if env and env.cr:
+                env.cr.commit()
+            elif custom_cr:
+                custom_cr.commit()
+
+            final_cost = product.cost_price or product.buying_price or 0.0
             return self._make_json_response({
                 "data": {
                     "item_code": product.item_code,
@@ -6227,7 +6382,11 @@ class HavanoPOSDeskAPI(http.Controller):
                     "stock_uom": product.uom_id.name or "Nos",
                     "image": None,
                     "item_group": product.category_id.name or "Basics",
-                    "valuation_rate": product.buying_price or 0.0
+                    "valuation_rate": final_cost,
+                    "cost_price": final_cost,
+                    "buying_price": final_cost,
+                    "standard_selling": product.selling_price or 0.0,
+                    "selling_price": product.selling_price or 0.0
                 }
             })
         except Exception as e:

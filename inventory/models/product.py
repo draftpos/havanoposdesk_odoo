@@ -224,6 +224,12 @@ class HavanoposdeskProduct(models.Model):
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
             
+            # Synchronize cost_price and buying_price
+            if 'buying_price' in vals and 'cost_price' not in vals:
+                vals['cost_price'] = vals['buying_price']
+            elif 'cost_price' in vals and 'buying_price' not in vals:
+                vals['buying_price'] = vals['cost_price']
+
             # Map store_id to store_ids if present and pop it to prevent invalid field exception
             if 'store_id' in vals:
                 store_id = vals.pop('store_id')
@@ -345,6 +351,12 @@ class HavanoposdeskProduct(models.Model):
         return products
 
     def write(self, vals):
+        # Synchronize cost_price and buying_price
+        if 'buying_price' in vals and 'cost_price' not in vals:
+            vals['cost_price'] = vals['buying_price']
+        elif 'cost_price' in vals and 'buying_price' not in vals:
+            vals['buying_price'] = vals['cost_price']
+
         # Sync has_variants and is_variant
         if not self.env.context.get('skip_variant_sync'):
             if 'has_variants' in vals and 'is_variant' not in vals:
@@ -494,7 +506,9 @@ class HavanoposdeskProduct(models.Model):
     def _compute_bundle_prices(self):
         for record in self:
             if record.is_bundle:
-                record.buying_price = sum(item.subtotal_cost for item in record.bundle_item_ids)
+                bundle_cost = sum(item.subtotal_cost for item in record.bundle_item_ids)
+                record.buying_price = bundle_cost
+                record.cost_price = bundle_cost
                 record.selling_price = sum(item.subtotal_selling for item in record.bundle_item_ids)
             elif record.id:
                 default_store = self.env.user.default_store_id
