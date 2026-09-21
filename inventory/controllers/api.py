@@ -2902,28 +2902,106 @@ class HavanoPOSDeskAPI(http.Controller):
                 "conversion_factor": 1.0
             }]
             added_uoms = {uom_name}
+            base_cost = p.cost_price or p.buying_price or 0.0
 
             if getattr(p, 'allow_advanced_pricing', False) and getattr(p, 'advanced_price_ids', []):
+                seen_buying_keys = set()
                 for ap in p.advanced_price_ids:
                     ap_uom_name = ap.uom_id.name or "Nos"
+                    qty_sold = getattr(ap, 'qty_to_be_sold', 1.0) or 1.0
+                    ap_store_name = ap.store_id.name if ap.store_id else None
+                    pl_name = ap.pricelist_id.name if ap.pricelist_id else "Retail"
+                    is_buying_pl = "buying" in pl_name.lower() or "cost" in pl_name.lower()
+
                     if ap.price > 0.0:
-                        ap_store_name = ap.store_id.name if ap.store_id else None
                         prices_data.append({
-                            "priceName": ap.pricelist_id.name if ap.pricelist_id else "Retail",
+                            "priceName": pl_name,
                             "price": ap.price,
                             "uom": ap_uom_name,
-                            "type": "selling",
+                            "type": "buying" if is_buying_pl else "selling",
                             "store": ap_store_name,
                             "warehouse": ap_store_name,
-                            "qty_to_be_sold": getattr(ap, 'qty_to_be_sold', 1.0) or 1.0,
+                            "qty_to_be_sold": qty_sold,
                             "qtyOnHand": ap.on_hand_qty,
                         })
+                        if is_buying_pl:
+                            seen_buying_keys.add((ap_store_name, ap_uom_name))
+
+                    # Automatically generate Standard Buying price if not already explicitly present
+                    buying_key = (ap_store_name, ap_uom_name)
+                    if not is_buying_pl and buying_key not in seen_buying_keys:
+                        seen_buying_keys.add(buying_key)
+                        buying_price = round(base_cost * qty_sold, 4)
+                        prices_data.append({
+                            "priceName": "Standard Buying",
+                            "price": buying_price,
+                            "uom": ap_uom_name,
+                            "type": "buying",
+                            "store": ap_store_name,
+                            "warehouse": ap_store_name,
+                            "qty_to_be_sold": qty_sold,
+                            "qtyOnHand": ap.on_hand_qty,
+                        })
+
                     if ap_uom_name not in added_uoms:
                         uom_conversions.append({
                             "uom": ap_uom_name,
-                            "conversion_factor": getattr(ap, 'qty_to_be_sold', 1.0) or 1.0
+                            "conversion_factor": qty_sold
                         })
                         added_uoms.add(ap_uom_name)
+
+            if not prices_data:
+                # Fallback for products without advanced price lines
+                if stores:
+                    for s in stores:
+                        valuation_domain = [('product_id', '=', p.id), ('store', '=', s.name)]
+                        if current_tenant_id:
+                            valuation_domain.append(('tenant_id', '=', current_tenant_id))
+                        valuation = request.env['havanoposdesk.stock.valuation'].sudo().search(valuation_domain, limit=1)
+                        qty = valuation.on_hand_qty if valuation else 0.0
+                        if p.selling_price > 0.0:
+                            prices_data.append({
+                                "priceName": "Retail",
+                                "price": p.selling_price,
+                                "uom": uom_name,
+                                "type": "selling",
+                                "store": s.name,
+                                "warehouse": s.name,
+                                "qty_to_be_sold": 1.0,
+                                "qtyOnHand": qty,
+                            })
+                        prices_data.append({
+                            "priceName": "Standard Buying",
+                            "price": base_cost,
+                            "uom": uom_name,
+                            "type": "buying",
+                            "store": s.name,
+                            "warehouse": s.name,
+                            "qty_to_be_sold": 1.0,
+                            "qtyOnHand": qty,
+                        })
+                else:
+                    if p.selling_price > 0.0:
+                        prices_data.append({
+                            "priceName": "Retail",
+                            "price": p.selling_price,
+                            "uom": uom_name,
+                            "type": "selling",
+                            "store": default_warehouse_name,
+                            "warehouse": default_warehouse_name,
+                            "qty_to_be_sold": 1.0,
+                            "qtyOnHand": p.opening_stock,
+                        })
+                    prices_data.append({
+                        "priceName": "Standard Buying",
+                        "price": base_cost,
+                        "uom": uom_name,
+                        "type": "buying",
+                        "store": default_warehouse_name,
+                        "warehouse": default_warehouse_name,
+                        "qty_to_be_sold": 1.0,
+                        "qtyOnHand": p.opening_stock,
+                    })
 
                 
             # Map taxes
@@ -7473,6 +7551,69 @@ class HavanoPOSDeskAPI(http.Controller):
             if not product:
                 return self._make_json_response({"message": {"product": None}})
 
+            base_cost = product.cost_price or product.buying_price or 0.0
+            single_prices = []
+            seen_buying_keys = set()
+            for ap in product.advanced_price_ids:
+                ap_uom_name = ap.uom_id.name or "Nos"
+                qty_sold = ap.qty_to_be_sold or 1.0
+                ap_store_name = ap.store_id.name if ap.store_id else None
+                pl_name = ap.pricelist_id.name if ap.pricelist_id else "Retail"
+                is_buying_pl = "buying" in pl_name.lower() or "cost" in pl_name.lower()
+
+                if ap.price > 0.0:
+                    single_prices.append({
+                        "priceName": pl_name,
+                        "price": ap.price,
+                        "uom": ap_uom_name,
+                        "type": "buying" if is_buying_pl else "selling",
+                        "store": ap_store_name,
+                        "warehouse": ap_store_name,
+                        "qty_to_be_sold": qty_sold,
+                        "qtyOnHand": ap.on_hand_qty,
+                    })
+                    if is_buying_pl:
+                        seen_buying_keys.add((ap_store_name, ap_uom_name))
+
+                buying_key = (ap_store_name, ap_uom_name)
+                if not is_buying_pl and buying_key not in seen_buying_keys:
+                    seen_buying_keys.add(buying_key)
+                    buying_price = round(base_cost * qty_sold, 4)
+                    single_prices.append({
+                        "priceName": "Standard Buying",
+                        "price": buying_price,
+                        "uom": ap_uom_name,
+                        "type": "buying",
+                        "store": ap_store_name,
+                        "warehouse": ap_store_name,
+                        "qty_to_be_sold": qty_sold,
+                        "qtyOnHand": ap.on_hand_qty,
+                    })
+
+            if not single_prices:
+                uom_name = product.uom_id.name or "Nos"
+                if product.selling_price > 0.0:
+                    single_prices.append({
+                        "priceName": "Retail",
+                        "price": product.selling_price,
+                        "uom": uom_name,
+                        "type": "selling",
+                        "store": None,
+                        "warehouse": None,
+                        "qty_to_be_sold": 1.0,
+                        "qtyOnHand": product.on_hand_qty,
+                    })
+                single_prices.append({
+                    "priceName": "Standard Buying",
+                    "price": base_cost,
+                    "uom": uom_name,
+                    "type": "buying",
+                    "store": None,
+                    "warehouse": None,
+                    "qty_to_be_sold": 1.0,
+                    "qtyOnHand": product.on_hand_qty,
+                })
+
             return self._make_json_response({
                 "message": {
                     "product": {
@@ -7484,17 +7625,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         "sell_by_price": 1 if getattr(product, 'sellbyprice', False) else 0,
                         "print_after_order": 1 if getattr(product, 'print_after_order', False) else 0,
                         "uom": product.uom_id.name or "Nos",
-                        "prices": [
-                            {
-                                "priceName": ap.pricelist_id.name if ap.pricelist_id else "Retail",
-                                "price": ap.price,
-                                "uom": ap.uom_id.name or "Nos",
-                                "type": "selling",
-                                "store": ap.store_id.name if ap.store_id else None,
-                                "qty_to_be_sold": ap.qty_to_be_sold or 1.0,
-                                "qtyOnHand": ap.on_hand_qty,
-                            } for ap in product.advanced_price_ids if ap.price > 0.0
-                        ]
+                        "prices": single_prices
                     }
                 }
             })
