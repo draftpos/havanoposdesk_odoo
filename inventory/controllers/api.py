@@ -308,7 +308,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     default_customer_name = default_customer.name
                 customers_records = user_env['havanoposdesk.customer'].sudo().search_read(
                 [('store_ids', 'in', store.id)],
-                ['name', 'customer_group_id']
+                ['name', 'customer_group_id', 'phone', 'email', 'tin', 'vat', 'address', 'city']
             )
             customers_data = []
             for c in customers_records:
@@ -318,7 +318,23 @@ class HavanoPOSDeskAPI(http.Controller):
                     "customer_name": c['name'],
                     "customer_group": group_name,
                     "territory": None,
-                    "custom_cost_center": cost_center
+                    "custom_cost_center": cost_center,
+                    "phone": c.get('phone') or "",
+                    "mobile_no": c.get('phone') or "",
+                    "email": c.get('email') or "",
+                    "email_id": c.get('email') or "",
+                    "tin": c.get('tin') or "",
+                    "vat": c.get('vat') or "",
+                    "tax_id": c.get('tin') or "",
+                    "address": c.get('address') or "",
+                    "city": c.get('city') or "",
+                    "custom_customer_tin": c.get('tin') or "",
+                    "custom_customer_vat": c.get('vat') or "",
+                    "custom_trade_name": c['name'],
+                    "custom_email_address": c.get('email') or "",
+                    "custom_telephone_number": c.get('phone') or "",
+                    "custom_customer_address": c.get('address') or "",
+                    "custom_city": c.get('city') or "",
                 })
             # Fetch suppliers
             suppliers_records = user_env['havanoposdesk.supplier'].sudo().search_read([('store_id', '=', store.id)], ['id', 'name'])
@@ -1851,7 +1867,50 @@ class HavanoPOSDeskAPI(http.Controller):
             }
             if 'customer_type' in request.env['havanoposdesk.customer']._fields:
                 vals['customer_type'] = customer_type
+
+            phone = data.get('custom_telephone_number') or data.get('phone') or data.get('mobile_no')
+            email = data.get('custom_email_address') or data.get('email') or data.get('email_id')
+            tin = data.get('custom_customer_tin') or data.get('tin') or data.get('tax_id')
+            vat = data.get('custom_customer_vat') or data.get('vat') or data.get('vat_id')
+            address = data.get('custom_customer_address') or data.get('address') or data.get('street')
+            city = data.get('custom_city') or data.get('city')
+
+            if phone and phone != 'N/A' and 'phone' in request.env['havanoposdesk.customer']._fields:
+                vals['phone'] = phone
+            if email and email != 'N/A' and 'email' in request.env['havanoposdesk.customer']._fields:
+                vals['email'] = email
+            if tin and tin != '00000000' and 'tin' in request.env['havanoposdesk.customer']._fields:
+                vals['tin'] = tin
+            if vat and vat != '11111111' and 'vat' in request.env['havanoposdesk.customer']._fields:
+                vals['vat'] = vat
+            if address and address != 'N/A' and 'address' in request.env['havanoposdesk.customer']._fields:
+                vals['address'] = address
+            if city and city != 'N/A' and 'city' in request.env['havanoposdesk.customer']._fields:
+                vals['city'] = city
+
             customer = request.env['havanoposdesk.customer'].sudo().create(vals)
+        else:
+            up_vals = {}
+            phone = data.get('custom_telephone_number') or data.get('phone') or data.get('mobile_no')
+            email = data.get('custom_email_address') or data.get('email') or data.get('email_id')
+            tin = data.get('custom_customer_tin') or data.get('tin') or data.get('tax_id')
+            vat = data.get('custom_customer_vat') or data.get('vat') or data.get('vat_id')
+            address = data.get('custom_customer_address') or data.get('address') or data.get('street')
+            city = data.get('custom_city') or data.get('city')
+            if phone and phone != 'N/A' and not customer.phone and 'phone' in customer._fields:
+                up_vals['phone'] = phone
+            if email and email != 'N/A' and not customer.email and 'email' in customer._fields:
+                up_vals['email'] = email
+            if tin and tin != '00000000' and not customer.tin and 'tin' in customer._fields:
+                up_vals['tin'] = tin
+            if vat and vat != '11111111' and not customer.vat and 'vat' in customer._fields:
+                up_vals['vat'] = vat
+            if address and address != 'N/A' and not customer.address and 'address' in customer._fields:
+                up_vals['address'] = address
+            if city and city != 'N/A' and not customer.city and 'city' in customer._fields:
+                up_vals['city'] = city
+            if up_vals:
+                customer.sudo().write(up_vals)
             
         res_data = {
             'message': {
@@ -1999,6 +2058,23 @@ class HavanoPOSDeskAPI(http.Controller):
                 'gender': None,
                 'customer_pos_id': None,
                 'default_price_list': '',
+                'custom_customer_tin': c.tin or '',
+                'custom_customer_vat': c.vat or '',
+                'custom_trade_name': c.name or '',
+                'custom_email_address': c.email or '',
+                'custom_telephone_number': c.phone or '',
+                'custom_customer_address': c.address or '',
+                'custom_city': c.city or '',
+                'custom_province': c.country_id.name if c.country_id else '',
+                'tin': c.tin or '',
+                'vat': c.vat or '',
+                'tax_id': c.tin or '',
+                'email': c.email or '',
+                'email_id': c.email or '',
+                'phone': c.phone or '',
+                'mobile_no': c.phone or '',
+                'address': c.address or '',
+                'city': c.city or '',
                 'balance': {
                     'status': 'success',
                     'customer': c.name,
@@ -3865,12 +3941,25 @@ class HavanoPOSDeskAPI(http.Controller):
                     "customer_group": p.customer_group_id.name or ("Individual" if getattr(p, 'customer_type', 'individual') == "individual" else "Commercial"),
                     "territory": p.country_id.name if p.country_id else "All Territories",
                     "custom_cost_center": cost_center_name,
-                    "email": "",
+                    "email": p.email or "",
+                    "email_id": p.email or "",
                     "mobile_no": p.phone or "",
                     "phone": p.phone or "",
-                    "tax_id": "",
+                    "tin": p.tin or "",
+                    "vat": p.vat or "",
+                    "tax_id": p.tin or "",
                     "is_company": getattr(p, 'customer_type', 'individual') == 'company',
                     "primary_address": p.address or "",
+                    "address": p.address or "",
+                    "city": p.city or "",
+                    "custom_customer_tin": p.tin or "",
+                    "custom_customer_vat": p.vat or "",
+                    "custom_trade_name": p.name or "",
+                    "custom_email_address": p.email or "",
+                    "custom_telephone_number": p.phone or "",
+                    "custom_customer_address": p.address or "",
+                    "custom_city": p.city or "",
+                    "custom_province": p.country_id.name if p.country_id else "",
                 })
 
             return self._make_json_response({"message": result})
@@ -5299,13 +5388,19 @@ class HavanoPOSDeskAPI(http.Controller):
                 store = self._get_current_store(user, tenant, params)
                 if not store:
                     return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
-                customer = env['havanoposdesk.customer'].create({
+                create_c_vals = {
                     'name': name,
                     'customer_type': customer_type,
-                    'phone': params.get('mobile_no') or params.get('phone') or '',
+                    'phone': params.get('custom_telephone_number') or params.get('mobile_no') or params.get('phone') or '',
+                    'email': params.get('custom_email_address') or params.get('email') or params.get('email_id') or '',
+                    'tin': params.get('custom_customer_tin') or params.get('tin') or params.get('tax_id') or '',
+                    'vat': params.get('custom_customer_vat') or params.get('vat') or params.get('vat_id') or '',
+                    'address': params.get('custom_customer_address') or params.get('address') or params.get('street') or '',
+                    'city': params.get('custom_city') or params.get('city') or '',
                     'store_ids': [(4, store.id)],
                     'tenant_id': tenant.id if tenant else False,
-                })
+                }
+                customer = env['havanoposdesk.customer'].create(create_c_vals)
 
             if custom_cr:
                 custom_cr.commit()
@@ -5718,7 +5813,22 @@ class HavanoPOSDeskAPI(http.Controller):
                     "customer_group": p.customer_group_id.name or ("Individual" if p.customer_type == "individual" else "Commercial"),
                     "territory": p.country_id.name if p.country_id else "All Territories",
                     "mobile_no": p.phone or "",
-                    "email_id": ""
+                    "phone": p.phone or "",
+                    "email": p.email or "",
+                    "email_id": p.email or "",
+                    "tin": p.tin or "",
+                    "vat": p.vat or "",
+                    "tax_id": p.tin or "",
+                    "address": p.address or "",
+                    "city": p.city or "",
+                    "custom_customer_tin": p.tin or "",
+                    "custom_customer_vat": p.vat or "",
+                    "custom_trade_name": p.name or "",
+                    "custom_email_address": p.email or "",
+                    "custom_telephone_number": p.phone or "",
+                    "custom_customer_address": p.address or "",
+                    "custom_city": p.city or "",
+                    "custom_province": p.country_id.name if p.country_id else "",
                 })
             return self._make_json_response({"data": result})
         finally:
@@ -7133,7 +7243,23 @@ class HavanoPOSDeskAPI(http.Controller):
                         "name": customer.name,
                         "customer_name": customer.name,
                         "customer_group": customer.customer_group_id.name or "Individual",
-                        "mobile_no": customer.phone or ""
+                        "mobile_no": customer.phone or "",
+                        "phone": customer.phone or "",
+                        "email": customer.email or "",
+                        "email_id": customer.email or "",
+                        "tin": customer.tin or "",
+                        "vat": customer.vat or "",
+                        "tax_id": customer.tin or "",
+                        "address": customer.address or "",
+                        "city": customer.city or "",
+                        "custom_customer_tin": customer.tin or "",
+                        "custom_customer_vat": customer.vat or "",
+                        "custom_trade_name": customer.name or "",
+                        "custom_email_address": customer.email or "",
+                        "custom_telephone_number": customer.phone or "",
+                        "custom_customer_address": customer.address or "",
+                        "custom_city": customer.city or "",
+                        "custom_province": customer.country_id.name if customer.country_id else "",
                     }
                 }
             })
@@ -7870,7 +7996,23 @@ class HavanoPOSDeskAPI(http.Controller):
                         "name": customer.name,
                         "customer_name": customer.name,
                         "customer_group": customer.customer_group_id.name or "Individual",
-                        "mobile_no": customer.phone or ""
+                        "mobile_no": customer.phone or "",
+                        "phone": customer.phone or "",
+                        "email": customer.email or "",
+                        "email_id": customer.email or "",
+                        "tin": customer.tin or "",
+                        "vat": customer.vat or "",
+                        "tax_id": customer.tin or "",
+                        "address": customer.address or "",
+                        "city": customer.city or "",
+                        "custom_customer_tin": customer.tin or "",
+                        "custom_customer_vat": customer.vat or "",
+                        "custom_trade_name": customer.name or "",
+                        "custom_email_address": customer.email or "",
+                        "custom_telephone_number": customer.phone or "",
+                        "custom_customer_address": customer.address or "",
+                        "custom_city": customer.city or "",
+                        "custom_province": customer.country_id.name if customer.country_id else "",
                     }
                 }
             })
