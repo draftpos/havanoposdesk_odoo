@@ -141,7 +141,7 @@
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div>
                                         <h5 class="mb-0 text-primary fw-bold">Business Subscription &amp; Prepaid Wallet</h5>
-                                        <span class="text-muted small">Subscription status and balance are managed at the tenant account level.</span>
+                                        <span class="text-muted small">Subscription status and balance.</span>
                                     </div>
                                     <div>
                                         <button name="action_open_subscription" string="Open Full Subscription Page" type="object" class="btn btn-outline-primary" icon="fa-external-link"/>
