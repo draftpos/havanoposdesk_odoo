@@ -993,7 +993,14 @@ class HavanoposdeskTenant(models.Model):
             # Activate plan
             tenant.action_pay_and_activate()
 
-
+    def init(self):
+        super().init()
+        # Clean up any leftover views referencing sync_to_frappe
+        self.env.cr.execute("""
+            DELETE FROM ir_ui_view 
+            WHERE arch_db::text ILIKE '%sync_to_frappe%' 
+               OR arch_db::text ILIKE '%frappe_sync%'
+        """)
 
     def _get_next_sequence(self, seq_type):
         self.ensure_one()
