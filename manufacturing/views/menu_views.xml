@@ -2,7 +2,8 @@
 <odoo>
     <menuitem id="menu_havanoposdesk_manufacturing_root" 
               name="Manufacturing" 
-              sequence="50"/>
+              sequence="50"
+              web_icon="havanoposdesk_odoo,static/description/manufacturing.png"/>
 
     <menuitem id="menu_havanoposdesk_manufacturing_bom" 
               name="Bills of Materials" 
