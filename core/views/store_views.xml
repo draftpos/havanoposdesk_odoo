@@ -82,6 +82,27 @@
                                     </list>
                                 </field>
                             </page>
+                            <page string="Sequence Configuration" name="sequence_config">
+                                <group string="Sequence Configuration">
+                                    <group string="Sales Orders">
+                                        <field name="sale_seq_prefix" string="Prefix"/>
+                                        <field name="sale_seq_next" string="Next Number"/>
+                                        <field name="sale_seq_padding" string="Padding"/>
+                                    </group>
+                                    <group string="Credit Notes (Returns)">
+                                        <field name="sale_ret_seq_prefix" string="Prefix"/>
+                                        <field name="sale_ret_seq_next" string="Next Number"/>
+                                        <field name="sale_ret_seq_padding" string="Padding"/>
+                                    </group>
+                                </group>
+                                <group string="Quotations">
+                                    <group>
+                                        <field name="quotation_seq_prefix" string="Prefix"/>
+                                        <field name="quotation_seq_next" string="Next Number"/>
+                                        <field name="quotation_seq_padding" string="Padding"/>
+                                    </group>
+                                </group>
+                            </page>
                             <page string="ZIMRA Fiscalization">
                                 <div class="mb-3" invisible="not enable_fiscalization">
                                     <button name="action_ping_zimra_device" string="Ping ZIMRA Device" type="object" class="btn-primary"/>

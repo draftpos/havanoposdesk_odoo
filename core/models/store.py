@@ -81,6 +81,19 @@ class HavanoposdeskStore(models.Model):
     fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
     fiscalized_invoice_heading = fields.Char(string='Fiscalized Invoice Heading', default='Fiscal Tax Invoice')
 
+    # Sequence Configuration
+    sale_seq_prefix = fields.Char(string='Sale Sequence Prefix', default='S')
+    sale_seq_next = fields.Integer(string='Sale Sequence Next Number', default=1)
+    sale_seq_padding = fields.Integer(string='Sale Sequence Padding', default=4)
+
+    sale_ret_seq_prefix = fields.Char(string='Credit Note Sequence Prefix', default='C')
+    sale_ret_seq_next = fields.Integer(string='Credit Note Sequence Next Number', default=1)
+    sale_ret_seq_padding = fields.Integer(string='Credit Note Sequence Padding', default=3)
+
+    quotation_seq_prefix = fields.Char(string='Quotation Sequence Prefix', default='Q')
+    quotation_seq_next = fields.Integer(string='Quotation Sequence Next Number', default=1)
+    quotation_seq_padding = fields.Integer(string='Quotation Sequence Padding', default=4)
+
     # Subscription Management (Related to Tenant)
     subscription_plan_id = fields.Many2one(related='tenant_id.subscription_plan_id', string='Current Plan', readonly=True)
     subscription_state = fields.Selection(related='tenant_id.subscription_state', string='Subscription State', readonly=True)
@@ -260,11 +273,54 @@ class HavanoposdeskStore(models.Model):
             else:
                 store.last_open = False
 
+    @api.onchange('tenant_id')
+    def _onchange_tenant_id_seq(self):
+        if self.tenant_id:
+            if not self.sale_seq_prefix or self.sale_seq_prefix == 'S':
+                self.sale_seq_prefix = self.tenant_id.sale_seq_prefix or 'S'
+            if not self.sale_seq_next or self.sale_seq_next == 1:
+                self.sale_seq_next = self.tenant_id.sale_seq_next or 1
+            if not self.sale_seq_padding or self.sale_seq_padding == 4:
+                self.sale_seq_padding = self.tenant_id.sale_seq_padding or 4
+            if not self.sale_ret_seq_prefix or self.sale_ret_seq_prefix == 'C':
+                self.sale_ret_seq_prefix = self.tenant_id.sale_ret_seq_prefix or 'C'
+            if not self.sale_ret_seq_next or self.sale_ret_seq_next == 1:
+                self.sale_ret_seq_next = self.tenant_id.sale_ret_seq_next or 1
+            if not self.sale_ret_seq_padding or self.sale_ret_seq_padding == 3:
+                self.sale_ret_seq_padding = self.tenant_id.sale_ret_seq_padding or 3
+            if not self.quotation_seq_prefix or self.quotation_seq_prefix == 'Q':
+                self.quotation_seq_prefix = self.tenant_id.quotation_seq_prefix or 'Q'
+            if not self.quotation_seq_next or self.quotation_seq_next == 1:
+                self.quotation_seq_next = self.tenant_id.quotation_seq_next or 1
+            if not self.quotation_seq_padding or self.quotation_seq_padding == 4:
+                self.quotation_seq_padding = self.tenant_id.quotation_seq_padding or 4
+
     @api.model
     def default_get(self, fields_list):
         res = super().default_get(fields_list)
         tenant_id = res.get('tenant_id') or (self.env.user.tenant_id.id if self.env.user.tenant_id else False)
         if tenant_id:
+            tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
+            if tenant:
+                if 'sale_seq_prefix' in fields_list and not res.get('sale_seq_prefix'):
+                    res['sale_seq_prefix'] = tenant.sale_seq_prefix or 'S'
+                if 'sale_seq_next' in fields_list and not res.get('sale_seq_next'):
+                    res['sale_seq_next'] = tenant.sale_seq_next or 1
+                if 'sale_seq_padding' in fields_list and not res.get('sale_seq_padding'):
+                    res['sale_seq_padding'] = tenant.sale_seq_padding or 4
+                if 'sale_ret_seq_prefix' in fields_list and not res.get('sale_ret_seq_prefix'):
+                    res['sale_ret_seq_prefix'] = tenant.sale_ret_seq_prefix or 'C'
+                if 'sale_ret_seq_next' in fields_list and not res.get('sale_ret_seq_next'):
+                    res['sale_ret_seq_next'] = tenant.sale_ret_seq_next or 1
+                if 'sale_ret_seq_padding' in fields_list and not res.get('sale_ret_seq_padding'):
+                    res['sale_ret_seq_padding'] = tenant.sale_ret_seq_padding or 3
+                if 'quotation_seq_prefix' in fields_list and not res.get('quotation_seq_prefix'):
+                    res['quotation_seq_prefix'] = tenant.quotation_seq_prefix or 'Q'
+                if 'quotation_seq_next' in fields_list and not res.get('quotation_seq_next'):
+                    res['quotation_seq_next'] = tenant.quotation_seq_next or 1
+                if 'quotation_seq_padding' in fields_list and not res.get('quotation_seq_padding'):
+                    res['quotation_seq_padding'] = tenant.quotation_seq_padding or 4
+
             selling_pricelists = self.env['havanoposdesk.pricelist'].sudo().search([
                 ('tenant_id', '=', tenant_id),
                 ('type', '=', 'selling')
@@ -284,6 +340,77 @@ class HavanoposdeskStore(models.Model):
                 res['pricelist_id'] = (retail_pl[0] if retail_pl else selling_pricelists[0]).id
         return res
 
+    def init(self):
+        super().init()
+        # Initialize sequence values for existing stores from their tenant if unpopulated
+        self.env.cr.execute("""
+            UPDATE havanoposdesk_store s
+            SET sale_seq_prefix = COALESCE(s.sale_seq_prefix, t.sale_seq_prefix, 'S'),
+                sale_seq_next = COALESCE(NULLIF(s.sale_seq_next, 0), t.sale_seq_next, 1),
+                sale_seq_padding = COALESCE(s.sale_seq_padding, t.sale_seq_padding, 4),
+                sale_ret_seq_prefix = COALESCE(s.sale_ret_seq_prefix, t.sale_ret_seq_prefix, 'C'),
+                sale_ret_seq_next = COALESCE(NULLIF(s.sale_ret_seq_next, 0), t.sale_ret_seq_next, 1),
+                sale_ret_seq_padding = COALESCE(s.sale_ret_seq_padding, t.sale_ret_seq_padding, 3),
+                quotation_seq_prefix = COALESCE(s.quotation_seq_prefix, t.quotation_seq_prefix, 'Q'),
+                quotation_seq_next = COALESCE(NULLIF(s.quotation_seq_next, 0), t.quotation_seq_next, 1),
+                quotation_seq_padding = COALESCE(s.quotation_seq_padding, t.quotation_seq_padding, 4)
+            FROM havanoposdesk_tenant t
+            WHERE s.tenant_id = t.id
+              AND (s.sale_seq_prefix IS NULL OR s.sale_seq_next IS NULL OR s.sale_seq_next = 0)
+        """)
+
+    def _get_next_sequence(self, seq_type):
+        self.ensure_one()
+        prefix_field = f"{seq_type}_seq_prefix"
+        next_field = f"{seq_type}_seq_next"
+        padding_field = f"{seq_type}_seq_padding"
+
+        prefix = getattr(self, prefix_field)
+        if prefix is False or prefix is None:
+            prefix = getattr(self.tenant_id, prefix_field) if self.tenant_id else ''
+
+        next_val = getattr(self, next_field)
+        if not next_val:
+            next_val = getattr(self.tenant_id, next_field) if self.tenant_id else 1
+
+        padding = getattr(self, padding_field)
+        if padding is False or padding is None:
+            padding = getattr(self.tenant_id, padding_field) if self.tenant_id else 0
+
+        seq_target_map = {
+            'sale': ('havanoposdesk.sale', 'name'),
+            'quotation': ('havanoposdesk.sale', 'name'),
+            'sale_ret': ('havanoposdesk.sale', 'name'),
+        }
+
+        target_info = seq_target_map.get(seq_type)
+        formatted_seq = ''
+
+        while True:
+            seq_str = str(next_val)
+            if padding > 0:
+                seq_str = seq_str.zfill(padding)
+            formatted_seq = f"{prefix or ''}{seq_str}"
+
+            if target_info and target_info[0] in self.env:
+                model_name, field_name = target_info
+                exists = self.env[model_name].sudo().search_count([
+                    ('tenant_id', '=', self.tenant_id.id),
+                    (field_name, '=', formatted_seq)
+                ]) > 0
+                if not exists:
+                    break
+                next_val += 1
+            else:
+                break
+
+        self.env.cr.execute(
+            f'UPDATE havanoposdesk_store SET "{next_field}" = %s WHERE id = %s',
+            (next_val + 1, self.id)
+        )
+        self.invalidate_recordset([next_field])
+        return formatted_seq
+
     @api.model_create_multi
     def create(self, vals_list):
         assigned_default_tenants = set()
@@ -298,6 +425,28 @@ class HavanoposdeskStore(models.Model):
             ]):
                 vals['is_default'] = True
                 assigned_default_tenants.add(tenant_id)
+
+            if tenant_id:
+                tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
+                if tenant:
+                    if not vals.get('sale_seq_prefix'):
+                        vals['sale_seq_prefix'] = tenant.sale_seq_prefix or 'S'
+                    if not vals.get('sale_seq_next'):
+                        vals['sale_seq_next'] = tenant.sale_seq_next or 1
+                    if not vals.get('sale_seq_padding'):
+                        vals['sale_seq_padding'] = tenant.sale_seq_padding or 4
+                    if not vals.get('sale_ret_seq_prefix'):
+                        vals['sale_ret_seq_prefix'] = tenant.sale_ret_seq_prefix or 'C'
+                    if not vals.get('sale_ret_seq_next'):
+                        vals['sale_ret_seq_next'] = tenant.sale_ret_seq_next or 1
+                    if not vals.get('sale_ret_seq_padding'):
+                        vals['sale_ret_seq_padding'] = tenant.sale_ret_seq_padding or 3
+                    if not vals.get('quotation_seq_prefix'):
+                        vals['quotation_seq_prefix'] = tenant.quotation_seq_prefix or 'Q'
+                    if not vals.get('quotation_seq_next'):
+                        vals['quotation_seq_next'] = tenant.quotation_seq_next or 1
+                    if not vals.get('quotation_seq_padding'):
+                        vals['quotation_seq_padding'] = tenant.quotation_seq_padding or 4
 
             if self.env.user.havano_role == 'super_admin':
                 continue

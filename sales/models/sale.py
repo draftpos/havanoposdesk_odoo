@@ -534,20 +534,31 @@ class Sale(models.Model):
             if vals.get('name', 'New') == 'New':
                 tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
-                if tenant:
-                    if vals.get('is_quotation'):
-                        vals['name'] = tenant._get_next_sequence('quotation')
-                    elif vals.get('is_return'):
-                        vals['name'] = tenant._get_next_sequence('sale_ret')
-                    else:
-                        vals['name'] = tenant._get_next_sequence('sale')
+                
+                store = False
+                if vals.get('store_id'):
+                    store = self.env['havanoposdesk.store'].browse(vals['store_id'])
+                elif vals.get('store'):
+                    domain = [('name', '=', vals['store'])]
+                    if tenant_id:
+                        domain.append(('tenant_id', '=', tenant_id))
+                    store = self.env['havanoposdesk.store'].search(domain, limit=1)
+                elif self.env.user.default_store_id:
+                    store = self.env.user.default_store_id
+
+                seq_type = 'quotation' if vals.get('is_quotation') else ('sale_ret' if vals.get('is_return') else 'sale')
+
+                if store:
+                    vals['name'] = store._get_next_sequence(seq_type)
+                elif tenant:
+                    vals['name'] = tenant._get_next_sequence(seq_type)
                 else:
-                    if vals.get('is_quotation'):
-                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.quotation') or 'New'
-                    elif vals.get('is_return'):
-                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale.return') or 'New'
-                    else:
-                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale') or 'New'
+                    code_map = {
+                        'quotation': 'havanoposdesk.quotation',
+                        'sale_ret': 'havanoposdesk.sale.return',
+                        'sale': 'havanoposdesk.sale',
+                    }
+                    vals['name'] = self.env['ir.sequence'].next_by_code(code_map.get(seq_type, 'havanoposdesk.sale')) or 'New'
             
             # Default account_id for cash sales if not provided
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
