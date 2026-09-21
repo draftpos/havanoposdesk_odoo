@@ -92,6 +92,12 @@ class HavanoposdeskStore(models.Model):
         if self.tenant_id:
             return self.tenant_id.action_upgrade_plan()
         return False
+
+    def action_topup_account(self):
+        self.ensure_one()
+        if self.tenant_id:
+            return self.tenant_id.action_topup_account()
+        return False
     def action_ping_zimra_device(self):
         self.ensure_one()
         from .fiscal_service import get_zimra_service

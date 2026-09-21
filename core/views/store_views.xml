@@ -114,7 +114,8 @@
                                         <field name="account_balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                                     </group>
                                     <group>
-                                        <button name="action_manage_subscription" string="Manage Subscription" type="object" class="btn-primary" icon="fa-credit-card"/>
+                                        <button name="action_manage_subscription" string="Upgrade / Change Plan" type="object" class="btn-primary" icon="fa-credit-card"/>
+                                        <button name="action_topup_account" string="Top Up Account" type="object" class="btn-secondary" icon="fa-money"/>
                                     </group>
                                 </group>
                             </page>
