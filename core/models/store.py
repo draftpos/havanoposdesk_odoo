@@ -81,8 +81,17 @@ class HavanoposdeskStore(models.Model):
     fiscal_ping_interval = fields.Integer(string='Ping Interval (Minutes)', default=5)
     fiscalized_invoice_heading = fields.Char(string='Fiscalized Invoice Heading', default='Fiscal Tax Invoice')
 
+    # Subscription Management (Related to Tenant)
+    subscription_plan_id = fields.Many2one(related='tenant_id.subscription_plan_id', string='Current Plan', readonly=True)
+    subscription_state = fields.Selection(related='tenant_id.subscription_state', string='Subscription State', readonly=True)
+    subscription_end_date = fields.Date(related='tenant_id.subscription_end_date', string='Expiry Date', readonly=True)
+    account_balance = fields.Float(related='tenant_id.account_balance', string='Account Balance', readonly=True)
 
-
+    def action_manage_subscription(self):
+        self.ensure_one()
+        if self.tenant_id:
+            return self.tenant_id.action_upgrade_plan()
+        return False
     def action_ping_zimra_device(self):
         self.ensure_one()
         from .fiscal_service import get_zimra_service

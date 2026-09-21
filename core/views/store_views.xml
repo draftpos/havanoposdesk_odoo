@@ -102,6 +102,22 @@
                                     </group>
                                 </group>
                             </page>
+                            <page string="Subscription Management">
+                                <div class="alert alert-info" role="alert">
+                                    Manage the subscription plan for this store's tenant account.
+                                </div>
+                                <group>
+                                    <group>
+                                        <field name="subscription_plan_id"/>
+                                        <field name="subscription_state" decoration-success="subscription_state == 'active'" decoration-danger="subscription_state == 'expired'" decoration-warning="subscription_state == 'pending'" widget="badge"/>
+                                        <field name="subscription_end_date"/>
+                                        <field name="account_balance" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    </group>
+                                    <group>
+                                        <button name="action_manage_subscription" string="Manage Subscription" type="object" class="btn-primary" icon="fa-credit-card"/>
+                                    </group>
+                                </group>
+                            </page>
                         </notebook>
                     </sheet>
                 </form>
