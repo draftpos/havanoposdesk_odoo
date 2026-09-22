@@ -17,7 +17,7 @@ class CashTransfer(models.Model):
     tenant_id = fields.Many2one(
         "havanoposdesk.tenant",
         string="Tenant",
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1).id),
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True).id),
         index=True,
         readonly=True,
     )
@@ -93,7 +93,7 @@ class CashTransfer(models.Model):
         readonly=True,
     )
     state = fields.Selection([
-        ("draft", "Draft"),
+        ("draft", "Draft", index=True),
         ("posted", "Transferred"),
         ("cancelled", "Cancelled"),
     ], string="Status", default="draft", required=True, copy=False, tracking=True)

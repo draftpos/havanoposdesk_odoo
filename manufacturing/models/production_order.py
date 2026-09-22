@@ -6,7 +6,7 @@ class HavanoPosDeskProductionOrder(models.Model):
     _description = 'Production Order'
 
     name = fields.Char(string='Order Reference', required=True, copy=False, readonly=True, default='New')
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True, default=lambda self: self.env.user.tenant_id.id)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id, index=True)
     bom_id = fields.Many2one('havanoposdesk.manufacturing.bom', string='Bill of Materials', required=True)
     qty_to_produce = fields.Float(string='Quantity to Produce', default=1.0, required=True)
     
@@ -27,9 +27,9 @@ class HavanoPosDeskProductionOrder(models.Model):
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
 
     state = fields.Selection([
-        ('draft', 'Draft'),
+        ('draft', 'Draft', index=True),
         ('completed', 'Completed')
-    ], string='Status', default='draft', required=True, copy=False, index=True)
+    ], string='Status', default='draft', required=True, copy=False)
 
     @api.depends('raw_material_ids.total_price')
     def _compute_total_cost(self):

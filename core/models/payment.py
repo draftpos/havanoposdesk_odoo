@@ -25,7 +25,7 @@ class HavanoposdeskSubscriptionPayment(models.Model):
     payment_method = fields.Char(string='Payment Method')
     transaction_reference = fields.Char(string='Transaction Reference')
     state = fields.Selection([
-        ('draft', 'Draft'),
+        ('draft', 'Draft', index=True),
         ('pending', 'Pending'),
         ('done', 'Done'),
         ('failed', 'Failed')
@@ -55,7 +55,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
     _name = 'havanoposdesk.subscription.pay.wizard'
     _description = 'Pay Subscription Wizard'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade', index=True)
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan', required=True, ondelete='cascade')
     billing_cycle = fields.Selection([
         ('1_month', '1 Month (Monthly)'),
@@ -95,10 +95,10 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
                 continue
 
             # Monthly base calculation
-            if plan.is_custom and tenant:
+            if tenant:
                 extra_terms = tenant.pending_additional_terminals if tenant.pending_subscription_plan_id else (tenant.additional_terminals or 0)
                 extra_price = plan.extra_terminal_price or 12.0
-                m_rate = (plan.price or 12.0) + (extra_terms * extra_price)
+                m_rate = (plan.price or 0.0) + (extra_terms * extra_price)
             else:
                 m_rate = plan.price or 0.0
 
@@ -195,16 +195,18 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
             tx.paynow_poll_url = mobile_res['pollurl']
             tx._set_pending()
 
+            # Ensure the transaction is monitored by the /payment/status page
+            from odoo.http import request
+            if request and hasattr(request, 'session'):
+                monitored_tx_ids = request.session.get('__payment_monitored_tx_ids__', [])
+                if tx.id not in monitored_tx_ids:
+                    monitored_tx_ids.append(tx.id)
+                    request.session['__payment_monitored_tx_ids__'] = monitored_tx_ids
+
             return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'EcoCash Payment Initiated',
-                    'message': mobile_res.get('instructions') or 'A prompt was sent to your phone. Please enter your PIN to authorize payment.',
-                    'type': 'success',
-                    'sticky': True,
-                    'next': {'type': 'ir.actions.act_window_close'},
-                }
+                'type': 'ir.actions.act_url',
+                'url': f'/payment/havano_payments/ecocash_waiting?reference={reference}',
+                'target': 'self',
             }
         else:
             return_url = f"{base_url}/payment/havano_payments/return?reference={reference}"
@@ -235,7 +237,7 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
     _name = 'havanoposdesk.tenant.topup.wizard'
     _description = 'Top Up Account Balance Wizard'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade', index=True)
     amount = fields.Float(string='Top Up Amount ($)', default=10.0, required=True)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card / Online'),
@@ -367,16 +369,18 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
             tx.paynow_poll_url = mobile_res['pollurl']
             tx._set_pending()
 
+            # Ensure the transaction is monitored by the /payment/status page
+            from odoo.http import request
+            if request and hasattr(request, 'session'):
+                monitored_tx_ids = request.session.get('__payment_monitored_tx_ids__', [])
+                if tx.id not in monitored_tx_ids:
+                    monitored_tx_ids.append(tx.id)
+                    request.session['__payment_monitored_tx_ids__'] = monitored_tx_ids
+
             return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'EcoCash Payment Initiated',
-                    'message': mobile_res.get('instructions') or 'A prompt was sent to your phone. Please enter your PIN to complete top-up.',
-                    'type': 'success',
-                    'sticky': True,
-                    'next': {'type': 'ir.actions.act_window_close'},
-                }
+                'type': 'ir.actions.act_url',
+                'url': f'/payment/havano_payments/ecocash_waiting?reference={reference}',
+                'target': 'self',
             }
         else:
             return_url = f"{base_url}/payment/havano_payments/return?reference={reference}"

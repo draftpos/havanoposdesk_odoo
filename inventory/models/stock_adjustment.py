@@ -16,18 +16,17 @@ class StockAdjustment(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        index=True,
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     store_id = fields.Many2one('havanoposdesk.store', string='Store', default=_default_store_id)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     posting_date = fields.Datetime(string='Posting Date', default=fields.Datetime.now)
     allow_edit_date_time = fields.Boolean(string='Allow Edit Date & Time', default=False)
     state = fields.Selection([
-        ('draft', 'Draft'),
+        ('draft', 'Draft', index=True),
         ('posted', 'Posted'),
         ('cancelled', 'Cancelled')
-    ], string='Status', required=True, default='draft', index=True)
+    ], string='Status', required=True, default='draft')
     
     fetch_all_data = fields.Boolean(string='Fetch All Items', default=True)
     fetch_category_id = fields.Many2one('havanoposdesk.category', string='Fetch Category Items')
@@ -370,8 +369,7 @@ class StockAdjustmentLine(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        index=True,
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     adjustment_id = fields.Many2one('havanoposdesk.stock.adjustment', string='Stock Adjustment', required=True, ondelete='cascade')
     store_id = fields.Many2one(related='adjustment_id.store_id', store=True, readonly=True)

@@ -23,7 +23,7 @@ class Expense(models.Model):
         domain="[('type', 'in', ['Cash', 'Bank']), ('active', '=', True)]"
     )
     state = fields.Selection([
-        ('Draft', 'Draft'),
+        ('Draft', 'Draft', index=True),
         ('Pending', 'Pending Approval'),
         ('Posted', 'Posted'),
         ('Rejected', 'Rejected'),
@@ -43,8 +43,7 @@ class Expense(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        index=True,
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     def _default_store_id(self):
         store = self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1)

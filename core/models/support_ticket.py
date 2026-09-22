@@ -10,7 +10,7 @@ class HavanoposdeskSupportTicket(models.Model):
     description = fields.Text(string='Description', required=True)
     email = fields.Char(string='Contact Email', tracking=True)
     phone = fields.Char(string='Contact Phone', tracking=True)
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', tracking=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', tracking=True, index=True)
     user_id = fields.Many2one('res.users', string='Submitter', tracking=True)
     status = fields.Selection([
         ('new', 'New'),

@@ -1,6 +1,6 @@
 {
     'name': 'Havano ERP (havanoposdesk_odoo)',
-    'version': '19.0.1.38',
+    'version': '19.0.1.39',
     'category': 'Sales/Point of Sale',
     'summary': 'Unified ERP backend serving Flutter POS app and Odoo UI',
     'description': """
@@ -51,7 +51,6 @@
         'accounts/views/accounts_mobile_kanban_views.xml',
         'inventory/views/category_views.xml',
         'inventory/views/uom_views.xml',
-        'inventory/views/attribute_views.xml',
         'inventory/views/pricelist_views.xml',
         'inventory/views/product_views.xml',
         'inventory/views/stock_adjustment_views.xml',
@@ -59,6 +58,7 @@
         'inventory/wizard/variant_selector_wizard_views.xml',
         'inventory/views/stock_transfer_views.xml',
         'inventory/views/stock_entry_views.xml',
+        'inventory/views/attribute_views.xml',
         'inventory/views/report_views.xml',
         'inventory/views/inventory_mobile_kanban_views.xml',
         'suppliers/data/sequence.xml',
@@ -67,10 +67,7 @@
         'suppliers/views/supplier_views.xml',
         'suppliers/views/suppliers_mobile_kanban_views.xml',
         'sales/data/sequence.xml',
-        # Migrations
-        # 'migrations/views/migration_wizard_views.xml',
 
-        # Manufacturing
         'manufacturing/security/ir.model.access.csv',
         'manufacturing/views/bom_views.xml',
         'manufacturing/views/production_order_views.xml',
@@ -87,6 +84,8 @@
         'sales/views/daily_sales_report_views.xml',
         'sales/views/item_detailed_ledger_report_views.xml',
         'sales/views/item_summary_ledger_report_views.xml',
+        'sales/views/sales_item_tax_report_views.xml',
+        'sales/views/purchases_item_tax_report_views.xml',
         'sales/views/sale_mobile_kanban_views.xml',
         'core/views/clear_data_wizard_views.xml',
         'core/views/delete_tenant_wizard_views.xml',
@@ -96,7 +95,6 @@
     'installable': True,
     'application': True,
     'license': 'LGPL-3',
-    'post_init_hook': 'post_migrate',
     'assets': {
         'web._assets_core': [
             ('remove', 'web/static/src/core/browser/router.js'),

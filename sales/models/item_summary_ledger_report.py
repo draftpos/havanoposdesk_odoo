@@ -20,7 +20,7 @@ class ItemSummaryLedgerReport(models.Model):
     date = fields.Datetime(string='Date', readonly=True)
     doc_no = fields.Char(string='Reference / Doc No', readonly=True)
     type = fields.Char(string='Transaction Type', readonly=True)
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True, index=True)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     create_uid = fields.Many2one('res.users', string='Created By', readonly=True)
     create_date = fields.Datetime(string='Created On', readonly=True)

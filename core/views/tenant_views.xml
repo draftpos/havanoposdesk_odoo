@@ -113,10 +113,7 @@
                                 <field name="subscription_plan_id"
                                        options="{'no_create': True}"
                                         readonly="not context.is_super_admin"/>
-                                    <field name="billing_cycle" readonly="not context.is_super_admin"/>
-                                    <field name="duration_months" readonly="not context.is_super_admin" invisible="billing_cycle != 'custom_months'"/>
-                                    <field name="additional_terminals" readonly="not context.is_super_admin"/>
-                                    <field name="additional_stores" readonly="not context.is_super_admin"/>
+                         
                                 <field name="effective_max_stores" readonly="1"/>
                                 <field name="effective_max_terminals" readonly="1"/>
                                 <field name="subscription_total_amount" readonly="1"/>
@@ -126,6 +123,10 @@
                             <group string="Duration &amp; Status">
                                 <field name="subscription_start_date" readonly="1"/>
                                 <field name="subscription_end_date" readonly="1"/>
+                                           <field name="billing_cycle" readonly="not context.is_super_admin"/>
+                                    <field name="duration_months" readonly="not context.is_super_admin" invisible="billing_cycle != 'custom_months'"/>
+                                    <field name="additional_terminals" readonly="not context.is_super_admin"/>
+                                    <field name="additional_stores" readonly="not context.is_super_admin"/>
                                 <field name="active"
                                        readonly="not context.is_super_admin"/>
                             </group>

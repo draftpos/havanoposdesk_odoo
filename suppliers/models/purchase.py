@@ -21,8 +21,7 @@ class Purchase(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        index=True,
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     def _default_supplier_id(self):
         user = self.env.user
@@ -99,10 +98,10 @@ class Purchase(models.Model):
     amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
     
     state = fields.Selection([
-        ('draft', 'Draft'),
+        ('draft', 'Draft', index=True),
         ('posted', 'Posted'),
         ('cancelled', 'Cancelled')
-    ], string='Status', required=True, default='draft', index=True)
+    ], string='Status', required=True, default='draft')
     is_return = fields.Boolean(string='Is Return (Debit Note)', default=False)
     return_id = fields.Many2one('havanoposdesk.purchase', string='Original Purchase', copy=False)
     return_purchase_ids = fields.One2many('havanoposdesk.purchase', 'return_id', string='Returned Purchases')
@@ -487,8 +486,7 @@ class PurchaseLine(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        index=True,
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     purchase_id = fields.Many2one('havanoposdesk.purchase', string='Purchase', required=True, ondelete='cascade')
     store_id = fields.Many2one(related='purchase_id.store_id', store=True)
