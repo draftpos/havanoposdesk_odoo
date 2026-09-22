@@ -40,6 +40,7 @@
         'core/views/auth_templates.xml',
         'core/views/error_log_views.xml',
         'core/views/support_ticket_views.xml',
+        'core/views/database_manager_views.xml',
 
         'accounts/views/account_views.xml',
         'accounts/views/expense_views.xml',
