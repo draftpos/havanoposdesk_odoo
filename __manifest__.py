@@ -1,6 +1,6 @@
 {
     'name': 'Havano ERP (havanoposdesk_odoo)',
-    'version': '19.0.1.39',
+    'version': '19.0.1.38',
     'category': 'Sales/Point of Sale',
     'summary': 'Unified ERP backend serving Flutter POS app and Odoo UI',
     'description': """
@@ -50,6 +50,7 @@
         'accounts/views/accounts_mobile_kanban_views.xml',
         'inventory/views/category_views.xml',
         'inventory/views/uom_views.xml',
+        'inventory/views/attribute_views.xml',
         'inventory/views/pricelist_views.xml',
         'inventory/views/product_views.xml',
         'inventory/views/stock_adjustment_views.xml',
@@ -85,8 +86,6 @@
         'sales/views/daily_sales_report_views.xml',
         'sales/views/item_detailed_ledger_report_views.xml',
         'sales/views/item_summary_ledger_report_views.xml',
-        'sales/views/sales_item_tax_report_views.xml',
-        'sales/views/purchases_item_tax_report_views.xml',
         'sales/views/sale_mobile_kanban_views.xml',
         'core/views/clear_data_wizard_views.xml',
         'core/views/delete_tenant_wizard_views.xml',
@@ -142,4 +141,6 @@
             'havanoposdesk_odoo/static/src/xml/variant_selector_dialog.xml',
         ],
     },
+    'post_init_hook': 'hooks.post_init_hook',
+    'post_migrate': 'hooks.post_migrate_hook',
 }

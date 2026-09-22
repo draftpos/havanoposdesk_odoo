@@ -45,10 +45,6 @@ class HavanoZimraCloudService:
 
         if not base_url:
             return {'success': False, 'error': 'Base URL is required'}
-        if not api_key or not api_secret:
-            return {'success': False, 'error': 'API Key and API Secret are required'}
-        if not device_sn:
-            return {'success': False, 'error': 'Device Serial Number (EFD SN) is required'}
 
         session = requests.Session()
         ok, token_or_err = self.fetch_csrf_token(base_url, session)
@@ -69,11 +65,9 @@ class HavanoZimraCloudService:
 
         try:
             _logger.info("[ZIMRA] Pinging device %s at %s", device_sn, ping_url)
-            resp = session.post(ping_url, data=payload, headers=headers, timeout=5)
-            if resp.status_code == 401:
-                return {'success': False, 'error': 'ZIMRA Authentication Error: Invalid or missing API Key / Secret'}
+            resp = session.post(ping_url, data=payload, headers=headers, timeout=6)
             if resp.status_code != 200:
-                return {'success': False, 'error': f"HTTP {resp.status_code}: {resp.text[:200]}"}
+                return {'success': False, 'error': f"HTTP {resp.status_code}: {resp.text}"}
 
             res_json = resp.json()
             msg = res_json.get("message", {})
@@ -116,7 +110,7 @@ class HavanoZimraCloudService:
             product = line.product_id
             item_name = str(product.name if product else "Item")[:100]
 
-            code_val = (product and (getattr(product, 'hs_code', None) or product.item_code or getattr(product, 'part_no', None))) or ""
+            code_val = (product and (product.item_code or product.part_no)) or ""
             raw_code = ''.join(c for c in str(code_val) if c.isdigit())
             if len(raw_code) == 8:
                 item_code = raw_code
@@ -157,8 +151,6 @@ class HavanoZimraCloudService:
 
         if not base_url or not device_sn:
             return {'status': 'failed', 'error': 'ZIMRA Base URL and Device Serial Number (EFD SN) are required'}
-        if not api_key or not api_secret:
-            return {'status': 'failed', 'error': 'ZIMRA API Key and API Secret are required'}
 
         invoice_number = sale.name
         currency = (sale.currency_id.name or 'USD').upper()
@@ -245,22 +237,28 @@ class HavanoZimraCloudService:
             "items_xml": items_xml,
         }
 
-        masked_headers = dict(headers)
-        if api_secret:
-            masked_headers["Authorization"] = f"token {api_key}:***"
-        _logger.info("[ZIMRA API REQUEST] URL: %s | Headers: %s | Payload: %s", send_url, masked_headers, payload)
+        print("\n" + "="*80, flush=True)
+        print(f"[ZIMRA API REQUEST] -> {send_url}", flush=True)
+        print(f"[ZIMRA API HEADERS] -> {headers}", flush=True)
+        print(f"[ZIMRA API PAYLOAD] ->", flush=True)
+        for k, v in payload.items():
+            print(f"   {k}: {v}", flush=True)
+        print("="*80 + "\n", flush=True)
+
+        _logger.info("[ZIMRA API REQUEST] URL: %s | Headers: %s | Payload: %s", send_url, headers, payload)
 
         try:
-            resp = session.post(send_url, data=payload, headers=headers, timeout=6)
-            _logger.info("[ZIMRA API RESPONSE] Status: %s | Text: %s", resp.status_code, resp.text[:300])
+            resp = session.post(send_url, data=payload, headers=headers, timeout=10)
+            print("\n" + "="*80, flush=True)
+            print(f"[ZIMRA API RESPONSE] Status: {resp.status_code}", flush=True)
+            print(f"[ZIMRA API RESPONSE BODY] -> {resp.text}", flush=True)
+            print("="*80 + "\n", flush=True)
 
-            if resp.status_code == 401:
-                _logger.warning("[ZIMRA] 401 Authentication Error from %s: Check API Key and Secret", send_url)
-                return {'status': 'failed', 'error': 'ZIMRA Authentication Error: Invalid or missing API Key / Secret'}
+            _logger.info("[ZIMRA API RESPONSE] Status: %s | Text: %s", resp.status_code, resp.text)
 
             if resp.status_code != 200:
-                _logger.warning("[ZIMRA] Non-200 HTTP response (%s): %s", resp.status_code, resp.text[:200])
-                return {'status': 'failed', 'error': f"HTTP {resp.status_code}: {resp.text[:200]}"}
+                _logger.warning("[ZIMRA] Non-200 HTTP response (%s): %s", resp.status_code, resp.text)
+                return {'status': 'failed', 'error': resp.text}
 
             res_json = resp.json()
             msg = res_json.get("message", res_json)

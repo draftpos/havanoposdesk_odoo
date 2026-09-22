@@ -12,6 +12,7 @@ class Payment(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
+        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     currency_id = fields.Many2one(
@@ -158,32 +159,10 @@ class Payment(models.Model):
             if tenant_id:
                 vals['tenant_id'] = tenant_id
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
-            if not vals.get('currency_id') and vals.get('account_id'):
-                account = self.env['havanoposdesk.account'].browse(vals.get('account_id'))
-                if account.currency_id:
-                    vals['currency_id'] = account.currency_id.id
             if tenant.currency_id and not vals.get('currency_id'):
                 vals['currency_id'] = tenant.currency_id.id
             if vals.get('currency_id'):
                 self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
-
-            curr_id = vals.get('currency_id')
-            if curr_id and tenant and tenant.currency_id and curr_id != tenant.currency_id.id:
-                rate_val = vals.get('exchange_rate')
-                if not rate_val or rate_val == 1.0:
-                    rate_rec = self.env['res.currency.rate'].sudo().search(
-                        [('currency_id', '=', curr_id)],
-                        order='name desc, id desc',
-                        limit=1
-                    )
-                    if rate_rec and rate_rec.company_rate:
-                        vals['exchange_rate'] = float(rate_rec.company_rate)
-                    else:
-                        curr_rec = self.env['res.currency'].browse(curr_id)
-                        pay_date = vals.get('date') or fields.Date.context_today(self)
-                        conv_rate = curr_rec._get_conversion_rate(tenant.currency_id, curr_rec, self.env.company, pay_date)
-                        if conv_rate and conv_rate != 1.0:
-                            vals['exchange_rate'] = conv_rate
             if tenant_id:
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
                 if tenant and not tenant.check_subscription_active():
@@ -206,7 +185,7 @@ class Payment(models.Model):
     def write(self, vals):
         from odoo.exceptions import ValidationError
         for record in self:
-            if record.state != 'draft' and not self.env.context.get('bypass_payment_check') and any(f not in ['state', 'reference'] for f in vals.keys()):
+            if record.state != 'draft' and not self.env.context.get('bypass_payment_check') and any(f not in ['state'] for f in vals.keys()):
                 raise ValidationError("You cannot modify a confirmed/posted payment. Please cancel it first.")
             tenant = self.env['havanoposdesk.tenant'].browse(vals.get('tenant_id', record.tenant_id.id))
             if 'currency_id' in vals:
@@ -348,7 +327,7 @@ class PaymentLine(models.Model):
     _description = 'Payment Line'
 
     payment_id = fields.Many2one('havanoposdesk.payment', string='Payment Reference', ondelete='cascade', required=True)
-    tenant_id = fields.Many2one(related='payment_id.tenant_id', store=True)
+    tenant_id = fields.Many2one(related='payment_id.tenant_id', store=True, index=True)
     account_id = fields.Many2one('havanoposdesk.account', string='Bank/Cash Account', required=True, domain="[('type', 'in', ['Bank', 'Cash']), ('active', '=', True)]")
     currency_id = fields.Many2one(
         'res.currency', 

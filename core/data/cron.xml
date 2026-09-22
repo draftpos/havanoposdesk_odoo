@@ -59,28 +59,5 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
-        <!-- Cron job for automatic expiration of passed subscriptions -->
-        <record id="ir_cron_check_expired_subscriptions" model="ir.cron">
-            <field name="name">Havano POS Desk: Check and Set Expired Subscriptions</field>
-            <field name="model_id" ref="model_havanoposdesk_tenant"/>
-            <field name="state">code</field>
-            <field name="code">model.cron_check_expired_subscriptions()</field>
-            <field name="user_id" ref="base.user_root"/>
-            <field name="interval_number">1</field>
-            <field name="interval_type">hours</field>
-            <field name="active" eval="True"/>
-        </record>
-
-        <!-- Cron job for automatic polling and reconciliation of pending Paynow/EcoCash transactions -->
-        <record id="ir_cron_poll_pending_paynow_transactions" model="ir.cron">
-            <field name="name">Havano POS Desk: Poll Pending Paynow &amp; EcoCash Transactions</field>
-            <field name="model_id" ref="payment.model_payment_transaction"/>
-            <field name="state">code</field>
-            <field name="code">model.cron_poll_pending_paynow_transactions()</field>
-            <field name="user_id" ref="base.user_root"/>
-            <field name="interval_number">1</field>
-            <field name="interval_type">minutes</field>
-            <field name="active" eval="True"/>
-        </record>
     </data>
 </odoo>

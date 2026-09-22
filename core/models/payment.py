@@ -7,7 +7,7 @@ class HavanoposdeskSubscriptionPayment(models.Model):
     _description = 'Subscription Payment Transaction Log'
     _order = 'date desc, id desc'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True)
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan', required=False)
     payment_type = fields.Selection([
         ('subscription', 'Subscription Plan Payment'),
