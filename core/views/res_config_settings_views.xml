@@ -80,6 +80,12 @@
                         <setting id="enable_manufacturing_setting" string="Enable Manufacturing" help="Enable Manufacturing (Bill of Materials and Production Orders).">
                             <field name="biz_enable_manufacturing"/>
                         </setting>
+                        <setting id="enable_variant_attributes_setting" string="Variant Attributes" help="Enable product variant attributes (Size, Color, etc.) to manage multi-attribute variants.">
+                            <field name="biz_enable_variant_attributes"/>
+                            <div class="mt16" invisible="not biz_enable_variant_attributes">
+                                <button name="action_manage_variant_attributes" type="object" string="Manage Attributes" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
                     </block>
 
                     <block title="Decimal Precision &amp; Rounding" name="decimal_precision_config">
