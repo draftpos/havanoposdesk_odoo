@@ -66,7 +66,6 @@ class ResConfigSettings(models.TransientModel):
                 ("stock_decimal_places", "INTEGER DEFAULT 3"),
                 ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
                 ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
-                ("enable_variant_attributes", "BOOLEAN DEFAULT FALSE"),
             ]
             for col_name, col_type in cols:
                 if col_name not in existing_cols:
@@ -260,20 +259,6 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.enable_manufacturing',
         readonly=False
     )
-    biz_enable_variant_attributes = fields.Boolean(
-        string="Enable Variant Attributes",
-        related='tenant_id.enable_variant_attributes',
-        readonly=False
-    )
-
-    def action_manage_variant_attributes(self):
-        return {
-            'type': 'ir.actions.act_window',
-            'name': 'Variant Attributes',
-            'res_model': 'havanoposdesk.attribute',
-            'view_mode': 'list,form',
-            'target': 'current',
-        }
 
     biz_enable_payroll = fields.Boolean(
         related='tenant_id.enable_payroll',

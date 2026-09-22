@@ -57,7 +57,6 @@ class HavanoposdeskTenant(models.Model):
             ("duration_months", "INTEGER DEFAULT 1"),
             ("pending_billing_cycle", "VARCHAR DEFAULT '1_month'"),
             ("pending_duration_months", "INTEGER DEFAULT 1"),
-            ("enable_variant_attributes", "BOOLEAN DEFAULT FALSE"),
 
         ]
         for col_name, col_type in columns:
@@ -121,9 +120,6 @@ class HavanoposdeskTenant(models.Model):
 
     # Manufacturing Settings
     enable_manufacturing = fields.Boolean(string='Enable Manufacturing', default=False)
-
-    # Variant Attributes Settings
-    enable_variant_attributes = fields.Boolean(string='Enable Variant Attributes', default=False)
 
     has_transactions = fields.Boolean(string="Has Transactions", compute="_compute_has_transactions")
     

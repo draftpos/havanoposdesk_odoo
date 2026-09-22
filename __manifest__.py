@@ -50,7 +50,6 @@
         'accounts/views/accounts_mobile_kanban_views.xml',
         'inventory/views/category_views.xml',
         'inventory/views/uom_views.xml',
-        'inventory/views/attribute_views.xml',
         'inventory/views/pricelist_views.xml',
         'inventory/views/product_views.xml',
         'inventory/views/stock_adjustment_views.xml',
