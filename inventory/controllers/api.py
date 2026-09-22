@@ -1187,9 +1187,7 @@ class HavanoPOSDeskAPI(http.Controller):
     # SUBSCRIPTIONS & PAYMENTS
     @http.route('/api/subscription/plans', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
     def get_subscription_plans(self, **kw):
-        uid = request.session.uid
-        if not uid:
-            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+        user = self._get_user(required=False)
             
         plans = request.env['havanoposdesk.subscription.plan'].sudo().search([])
         data = []
@@ -1219,11 +1217,10 @@ class HavanoPOSDeskAPI(http.Controller):
 
     @http.route('/api/subscription/status', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
     def get_subscription_status(self, **kw):
-        uid = request.session.uid
-        if not uid:
+        user = self._get_user(required=True)
+        if not user:
             return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
             
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
             return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -1300,8 +1297,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
     @http.route('/api/subscription/subscribe', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
     def subscribe_plan(self, **kw):
-        uid = request.session.uid
-        if not uid:
+        user = self._get_user(required=True)
+        if not user:
             return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
             
         try:
@@ -1313,7 +1310,6 @@ class HavanoPOSDeskAPI(http.Controller):
         if not plan_id:
             return request.make_response(json.dumps({'error': 'plan_id is required'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
             return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -1356,8 +1352,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
     @http.route('/api/subscription/pay', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
     def pay_subscription(self, **kw):
-        uid = request.session.uid
-        if not uid:
+        user = self._get_user(required=True)
+        if not user:
             return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
             
         try:
@@ -1365,7 +1361,6 @@ class HavanoPOSDeskAPI(http.Controller):
         except Exception:
             return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
             return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -1512,8 +1507,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
     @http.route('/api/subscription/pay_from_balance', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
     def pay_subscription_from_balance(self, **kw):
-        uid = request.session.uid
-        if not uid:
+        user = self._get_user(required=True)
+        if not user:
             return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
             
         try:
@@ -1521,7 +1516,6 @@ class HavanoPOSDeskAPI(http.Controller):
         except Exception:
             data = {}
 
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
             return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -1548,8 +1542,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
     @http.route('/api/subscription/topup', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
     def topup_account_balance(self, **kw):
-        uid = request.session.uid
-        if not uid:
+        user = self._get_user(required=True)
+        if not user:
             return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
             
         try:
@@ -1557,7 +1551,6 @@ class HavanoPOSDeskAPI(http.Controller):
         except Exception:
             return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
             
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
             return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -1699,6 +1692,73 @@ class HavanoPOSDeskAPI(http.Controller):
                 'poll_url': init_res['pollurl'],
                 'reference': reference
             }), headers=[('Content-Type', 'application/json')])
+
+    @http.route('/api/subscription/check_payment', auth='public', methods=['GET', 'POST'], type='http', csrf=False, cors='*')
+    def check_subscription_payment(self, **kw):
+        user = self._get_user(required=True)
+        if not user:
+            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+
+        tenant = user.tenant_id
+        if not tenant:
+            return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
+
+        params = dict(request.params)
+        if request.httprequest.data:
+            try:
+                data = json.loads(request.httprequest.data)
+                params.update(data)
+            except Exception:
+                pass
+
+        reference = params.get('reference')
+        payment_id = params.get('payment_id')
+
+        domain = [('tenant_id', '=', tenant.id)]
+        if reference:
+            domain.append(('transaction_reference', '=', reference))
+        elif payment_id:
+            domain.append(('id', '=', int(payment_id)))
+        else:
+            return request.make_response(json.dumps({'error': 'reference or payment_id is required'}), headers=[('Content-Type', 'application/json')], status=400)
+
+        sub_payment = request.env['havanoposdesk.subscription.payment'].sudo().search(domain, limit=1)
+        if not sub_payment:
+            return request.make_response(json.dumps({'error': 'Payment record not found'}), headers=[('Content-Type', 'application/json')], status=404)
+
+        # If payment is pending and tied to Paynow transaction, check/poll
+        tx = request.env['payment.transaction'].sudo().search([('subscription_payment_id', '=', sub_payment.id)], limit=1)
+        if tx and tx.state == 'pending' and tx.paynow_poll_url and tx.provider_id:
+            try:
+                from odoo.addons.havano_payments.models.paynow_client import PaynowClient
+                if tx.provider_id.paynow_integration_id and tx.provider_id.paynow_integration_key:
+                    client = PaynowClient(tx.provider_id.paynow_integration_id, tx.provider_id.paynow_integration_key)
+                    status_res = client.poll_transaction_status(tx.paynow_poll_url)
+                    status = (status_res.get('status') or '').lower()
+                    if status in ('paid', 'awaiting delivery'):
+                        tx._set_done()
+                    elif status in ('cancelled', 'canceled', 'failed'):
+                        tx._set_canceled()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Error checking Paynow status for sub tx: %s", e)
+
+        from odoo import fields as odoo_fields
+        today = odoo_fields.Date.context_today(tenant)
+        days_left = (tenant.subscription_end_date - today).days if tenant.subscription_end_date else None
+
+        return request.make_response(json.dumps({
+            'success': True,
+            'payment_id': sub_payment.id,
+            'reference': sub_payment.transaction_reference,
+            'payment_state': sub_payment.state,
+            'is_done': sub_payment.state == 'done',
+            'subscription_state': tenant.subscription_state,
+            'subscription_end_date': str(tenant.subscription_end_date) if tenant.subscription_end_date else None,
+            'days_left': days_left,
+            'account_balance': tenant.account_balance,
+        }), headers=[('Content-Type', 'application/json')])
+
 
 
     # HELPER METHOD TO GET AUTHENTICATED USER OR REJECT WITH 401
