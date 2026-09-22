@@ -57,6 +57,7 @@
         'inventory/wizard/variant_selector_wizard_views.xml',
         'inventory/views/stock_transfer_views.xml',
         'inventory/views/stock_entry_views.xml',
+        'inventory/views/attribute_views.xml',
         'inventory/views/report_views.xml',
         'inventory/views/inventory_mobile_kanban_views.xml',
         'suppliers/data/sequence.xml',

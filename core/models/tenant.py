@@ -154,7 +154,7 @@ class HavanoposdeskTenant(models.Model):
     effective_max_terminals = fields.Integer(string='Effective Max Terminals', compute='_compute_subscription_limits', store=True)
     subscription_total_amount = fields.Float(string='Subscription Total Amount ($)', compute='_compute_subscription_total_amount', store=True)
     subscription_state = fields.Selection([
-        ('active', 'Active'),
+        ('active', 'Active', index=True),
         ('pending', 'Pending Payment'),
         ('expired', 'Expired'),
         ('cancelled', 'Cancelled')
@@ -462,6 +462,7 @@ class HavanoposdeskTenant(models.Model):
     show_qty_on_hand = fields.Boolean(string='Show Qty on Hand in POS', default=False)
     enable_shift = fields.Boolean(string='Enable Shift Management', default=False)
     enable_kitchen_settings = fields.Boolean(string='Enable Kitchen Settings', default=False)
+    enable_variant_attributes = fields.Boolean(string='Enable Variant Attributes', default=False)
     enable_tax = fields.Boolean(string='Enable Tax', default=False)
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
@@ -1361,7 +1362,7 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
     _name = 'havanoposdesk.tenant.upgrade.wizard'
     _description = 'Upgrade Tenant Subscription Plan'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade', index=True)
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='New Subscription Plan', required=True, ondelete='cascade')
     billing_cycle = fields.Selection([
         ('1_month', '1 Month (Monthly)'),

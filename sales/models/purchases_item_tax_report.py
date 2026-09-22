@@ -27,7 +27,7 @@ class PurchasesItemTaxReport(models.Model):
     date = fields.Date(string='Date', readonly=True)
     supplier_id = fields.Many2one('havanoposdesk.supplier', string='Supplier', readonly=True)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', readonly=True)
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True, index=True)
     create_uid = fields.Many2one('res.users', string='Created By', readonly=True)
     create_date = fields.Datetime(string='Created On', readonly=True)
 

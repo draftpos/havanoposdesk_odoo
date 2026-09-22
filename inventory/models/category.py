@@ -11,7 +11,7 @@ class HavanoposdeskCategory(models.Model):
     name = fields.Char(string='Category Name', required=True)
     not_for_pos = fields.Boolean(string='Not For POS', default=False)
     store_ids = fields.Many2many('havanoposdesk.store', string='Stores', required=False, default=lambda self: self._default_store_ids())
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self._default_tenant_id())
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self._default_tenant_id(, index=True))
 
     @api.model_create_multi
     def create(self, vals_list):

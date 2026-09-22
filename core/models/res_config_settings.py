@@ -169,7 +169,7 @@ class ResConfigSettings(models.TransientModel):
         string="Tenant",
         ondelete='cascade',
         default=_default_tenant_id
-    )
+    , index=True)
 
     biz_currency_id = fields.Many2one(
         'res.currency', 
@@ -261,6 +261,11 @@ class ResConfigSettings(models.TransientModel):
     biz_enable_kitchen_settings = fields.Boolean(
         string="Enable Kitchen Settings",
         related='tenant_id.enable_kitchen_settings',
+        readonly=False
+    )
+    biz_enable_variant_attributes = fields.Boolean(
+        string="Enable Variant Attributes",
+        related='tenant_id.enable_variant_attributes',
         readonly=False
     )
     biz_enable_manufacturing = fields.Boolean(

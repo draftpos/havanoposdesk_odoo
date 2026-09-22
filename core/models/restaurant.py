@@ -13,7 +13,7 @@ class RestaurantFloor(models.Model):
         string='Tenant', 
         required=True, 
         ondelete='cascade',
-        default=lambda self: self.env.user.tenant_id.id if hasattr(self.env.user, 'tenant_id') else False
+        default=lambda self: self.env.user.tenant_id.id if hasattr(self.env.user, 'tenant_id', index=True) else False
     )
 
     table_ids = fields.One2many('havanoposdesk.restaurant.table', 'floor_id', string='Tables')
@@ -38,7 +38,7 @@ class RestaurantTable(models.Model):
         string='Tenant', 
         required=True, 
         ondelete='cascade',
-        default=lambda self: self.env.user.tenant_id.id if hasattr(self.env.user, 'tenant_id') else False
+        default=lambda self: self.env.user.tenant_id.id if hasattr(self.env.user, 'tenant_id', index=True) else False
     )
 
 
@@ -55,5 +55,5 @@ class RestaurantWaiter(models.Model):
         string='Tenant', 
         required=True, 
         ondelete='cascade',
-        default=lambda self: self.env.user.tenant_id.id if hasattr(self.env.user, 'tenant_id') else False
+        default=lambda self: self.env.user.tenant_id.id if hasattr(self.env.user, 'tenant_id', index=True) else False
     )

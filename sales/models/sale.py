@@ -144,7 +144,7 @@ class Sale(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     store_id = fields.Many2one(
         'havanoposdesk.store', 
@@ -326,7 +326,7 @@ class Sale(models.Model):
     salesperson_id = fields.Many2one('res.users', string='Salesperson', default=lambda self: self.env.user.id)
     is_tax_enabled = fields.Boolean(related='tenant_id.enable_tax', string='Tax Enabled')
     state = fields.Selection([
-        ('draft', 'Draft'),
+        ('draft', 'Draft', index=True),
         ('confirmed', 'Confirmed'),
         ('posted', 'Posted'),
         ('done', 'Done'),
@@ -1165,7 +1165,7 @@ class SaleLine(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     sale_id = fields.Many2one('havanoposdesk.sale', string='Sale', required=True, ondelete='cascade')
     store_id = fields.Many2one(related='sale_id.store_id', store=True)

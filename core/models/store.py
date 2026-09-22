@@ -16,7 +16,7 @@ class HavanoposdeskStore(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     currency_id = fields.Many2one(
         'res.currency', 
@@ -96,7 +96,7 @@ class HavanoposdeskStore(models.Model):
 
     # Subscription Management (Related to Tenant)
     subscription_plan_id = fields.Many2one(related='tenant_id.subscription_plan_id', string='Current Plan', readonly=True)
-    subscription_state = fields.Selection(related='tenant_id.subscription_state', string='Subscription State', readonly=True)
+    subscription_state = fields.Selection(related='tenant_id.subscription_state', string='Subscription State', readonly=True, index=True)
     payment_status = fields.Selection(related='tenant_id.payment_status', string='Payment Status', readonly=True)
     subscription_start_date = fields.Date(related='tenant_id.subscription_start_date', string='Start Date', readonly=True)
     subscription_end_date = fields.Date(related='tenant_id.subscription_end_date', string='Expiry Date', readonly=True)

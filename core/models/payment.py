@@ -7,7 +7,7 @@ class HavanoposdeskSubscriptionPayment(models.Model):
     _description = 'Subscription Payment Transaction Log'
     _order = 'date desc, id desc'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True)
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan', required=False)
     payment_type = fields.Selection([
         ('subscription', 'Subscription Plan Payment'),
@@ -25,7 +25,7 @@ class HavanoposdeskSubscriptionPayment(models.Model):
     payment_method = fields.Char(string='Payment Method')
     transaction_reference = fields.Char(string='Transaction Reference')
     state = fields.Selection([
-        ('draft', 'Draft'),
+        ('draft', 'Draft', index=True),
         ('pending', 'Pending'),
         ('done', 'Done'),
         ('failed', 'Failed')
@@ -55,7 +55,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
     _name = 'havanoposdesk.subscription.pay.wizard'
     _description = 'Pay Subscription Wizard'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade', index=True)
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan', required=True, ondelete='cascade')
     billing_cycle = fields.Selection([
         ('1_month', '1 Month (Monthly)'),
@@ -237,7 +237,7 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
     _name = 'havanoposdesk.tenant.topup.wizard'
     _description = 'Top Up Account Balance Wizard'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade', index=True)
     amount = fields.Float(string='Top Up Amount ($)', default=10.0, required=True)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card / Online'),

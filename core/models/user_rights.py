@@ -16,7 +16,7 @@ class HavanoposdeskUserRightsProfile(models.Model):
         string='Tenant', 
         required=True, 
         default=lambda self: self.env.user.tenant_id.id
-    )
+    , index=True)
     is_additional_tax_enabled = fields.Boolean(string='Is Additional Tax Enabled', default=False)
     food_tax = fields.Float(string='Food Tax %')
     tourism_tax = fields.Float(string='Tourism Tax %')

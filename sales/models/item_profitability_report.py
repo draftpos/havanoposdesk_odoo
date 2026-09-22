@@ -17,7 +17,7 @@ class ItemProfitabilityReport(models.Model):
     profit = fields.Monetary(string='Profit', readonly=True, currency_field='currency_id')
     profit_margin = fields.Float(string='Profit Margin (%)', readonly=True)
     date = fields.Date(string='Date', readonly=True)
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True, index=True)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', readonly=True)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     create_uid = fields.Many2one('res.users', string='Created By', readonly=True)
