@@ -245,6 +245,13 @@ class ResUsers(models.Model):
             if tenant and tenant.enable_shift:
                 return True
             return False
+        if group_ext_id == 'havanoposdesk_odoo.group_variant_attributes':
+            tenant = self.env.user.tenant_id
+            if not tenant:
+                tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+            if tenant and getattr(tenant, 'enable_variant_attributes', False):
+                return True
+            return False
         return super().has_group(group_ext_id)
 
     @api.model_create_multi

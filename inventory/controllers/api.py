@@ -2817,6 +2817,24 @@ class HavanoPOSDeskAPI(http.Controller):
             if (p.name or "") in ["sweet", "Standard Chair"] or p.item_code in ["066559", "026739"]:
                 simple_code = p.item_code
                 
+            variant_attributes = {}
+            enable_variants = False
+            if p.tenant_id and getattr(p.tenant_id, 'enable_variant_attributes', False):
+                enable_variants = True
+            elif not p.tenant_id and tenant and getattr(tenant, 'enable_variant_attributes', False):
+                enable_variants = True
+                
+            if enable_variants:
+                for i in range(1, 6):
+                    attr_val = getattr(p, f'attribute_value_{i}_id', False)
+                    if attr_val and attr_val.attribute_id and getattr(attr_val.attribute_id, 'active', True):
+                        variant_attributes[attr_val.attribute_id.name] = {
+                            "id": attr_val.id,
+                            "value": attr_val.name,
+                            "attribute_id": attr_val.attribute_id.id,
+                            "status": getattr(attr_val.attribute_id, 'active', True)
+                        }
+                
             products_list.append({
                 "itemcode": p.item_code,
                 "itemname": p.name,
@@ -2839,7 +2857,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 "tourism_tax": tourism_tax,
                 "cumulative": cumulative,
                 "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
-                "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0
+                "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
+                "variant_attributes": variant_attributes if variant_attributes else None
             })
             
         import math

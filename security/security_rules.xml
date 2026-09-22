@@ -12,6 +12,10 @@
             <field name="name">Enable Shifts</field>
         </record>
 
+        <record id="group_variant_attributes" model="res.groups">
+            <field name="name">Variant Attributes</field>
+        </record>
+
         <!-- Tenant Model Isolation Rule -->
         <record id="rule_havano_tenant_isolation" model="ir.rule">
             <field name="name">Havano Tenant Isolation</field>

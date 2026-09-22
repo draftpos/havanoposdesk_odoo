@@ -84,6 +84,7 @@
               name="Variant Attributes"
               parent="menu_inventory_master"
               action="action_havanoposdesk_attribute"
+              groups="havanoposdesk_odoo.group_variant_attributes"
               sequence="12"/>
 
 </odoo>
