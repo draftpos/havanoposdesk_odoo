@@ -140,4 +140,6 @@
             'havanoposdesk_odoo/static/src/xml/variant_selector_dialog.xml',
         ],
     },
+    'post_init_hook': 'hooks.post_init_hook',
+    'post_migrate': 'hooks.post_migrate_hook',
 }
