@@ -9,7 +9,7 @@ class StockValuation(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     currency_id = fields.Many2one('res.currency', string='Currency', compute='_compute_currency_id', store=True)
 
@@ -65,7 +65,7 @@ class StockLedger(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     currency_id = fields.Many2one('res.currency', string='Currency', compute='_compute_currency_id', store=True)
 

@@ -13,13 +13,13 @@ class StockTransfer(models.Model):
         'havanoposdesk.tenant',
         string='Tenant',
         required=True,
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     date = fields.Datetime(string='Date', default=fields.Datetime.now, required=True)
     from_store_id = fields.Many2one('havanoposdesk.store', string='From Store', required=True, domain="[('tenant_id', '=', tenant_id)]")
     to_store_id = fields.Many2one('havanoposdesk.store', string='To Store', required=True, domain="[('tenant_id', '=', tenant_id)]")
     state = fields.Selection([
-        ('draft', 'Draft', index=True),
+        ('draft', 'Draft'),
         ('done', 'Transferred'),
         ('cancelled', 'Cancelled'),
     ], string='Status', default='draft', readonly=True, copy=False)

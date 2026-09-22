@@ -40,6 +40,7 @@
         'core/views/auth_templates.xml',
         'core/views/error_log_views.xml',
         'core/views/support_ticket_views.xml',
+        'core/views/database_manager_views.xml',
 
         'accounts/views/account_views.xml',
         'accounts/views/expense_views.xml',
@@ -66,10 +67,7 @@
         'suppliers/views/supplier_views.xml',
         'suppliers/views/suppliers_mobile_kanban_views.xml',
         'sales/data/sequence.xml',
-        # Migrations
-        # 'migrations/views/migration_wizard_views.xml',
 
-        # Manufacturing
         'manufacturing/security/ir.model.access.csv',
         'manufacturing/views/bom_views.xml',
         'manufacturing/views/production_order_views.xml',
@@ -97,7 +95,6 @@
     'installable': True,
     'application': True,
     'license': 'LGPL-3',
-    'post_init_hook': 'post_migrate',
     'assets': {
         'web._assets_core': [
             ('remove', 'web/static/src/core/browser/router.js'),
@@ -143,4 +140,6 @@
             'havanoposdesk_odoo/static/src/xml/variant_selector_dialog.xml',
         ],
     },
+    'post_init_hook': 'hooks.post_init_hook',
+    'post_migrate': 'hooks.post_migrate_hook',
 }

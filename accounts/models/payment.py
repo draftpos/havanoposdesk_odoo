@@ -12,7 +12,7 @@ class Payment(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     currency_id = fields.Many2one(
         'res.currency', 
@@ -114,7 +114,7 @@ class Payment(models.Model):
     transfer_id = fields.Many2one('havanoposdesk.cash.transfer', string='Related Cash Transfer')
     
     state = fields.Selection([
-        ('draft', 'Draft', index=True),
+        ('draft', 'Draft'),
         ('posted', 'Posted'),
         ('cancelled', 'Cancelled')
     ], string='Status', required=True, default='draft')

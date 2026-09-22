@@ -26,7 +26,7 @@ class HavanoposdeskProductBundleItem(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1, index=True) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
+        default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
 
     @api.depends('product_id')

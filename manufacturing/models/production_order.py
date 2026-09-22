@@ -27,7 +27,7 @@ class HavanoPosDeskProductionOrder(models.Model):
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
 
     state = fields.Selection([
-        ('draft', 'Draft', index=True),
+        ('draft', 'Draft'),
         ('completed', 'Completed')
     ], string='Status', default='draft', required=True, copy=False)
 

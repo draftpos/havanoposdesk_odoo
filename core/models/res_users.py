@@ -20,7 +20,7 @@ class ResUsers(models.Model):
     havano_role = fields.Selection(selection='_get_havano_role_selection', string="Havano Role", default='user')
     tenant_id = fields.Many2one('havanoposdesk.tenant', string="Tenant", index=True)
     saas_state = fields.Selection([
-        ('unverified', 'Unverified', index=True),
+        ('unverified', 'Unverified'),
         ('verified', 'Verified'),
         ('suspended', 'Suspended')
     ], string="SaaS State", default='unverified')
@@ -243,6 +243,13 @@ class ResUsers(models.Model):
             if not tenant:
                 tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
             if tenant and tenant.enable_shift:
+                return True
+            return False
+        if group_ext_id == 'havanoposdesk_odoo.group_variant_attributes':
+            tenant = self.env.user.tenant_id
+            if not tenant:
+                tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
+            if tenant and getattr(tenant, 'enable_variant_attributes', False):
                 return True
             return False
         return super().has_group(group_ext_id)
