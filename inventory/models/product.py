@@ -113,59 +113,62 @@ class HavanoposdeskProduct(models.Model):
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
 
-    @api.model
-    def _get_view_cache_key(self, view_id=None, view_type='form', **options):
-        key = super()._get_view_cache_key(view_id=view_id, view_type=view_type, **options)
-        tenant = self.env.user.tenant_id
-        if tenant and tenant.enable_variant_attributes:
-            attrs = self.env['havanoposdesk.attribute'].search([
-                ('tenant_id', '=', tenant.id),
-                ('active', '=', True)
-            ], order='sequence, id')
-            attr_key = tuple((a.id, a.name, a.write_date) for a in attrs)
-            return key + (tenant.id, attr_key)
-        return key + (tenant.id if tenant else False,)
+    def action_generate_variants_from_attributes(self):
+        """Generate variant combinations from active attributes of the tenant."""
+        self.ensure_one()
+        if not self.is_variant:
+            self.is_variant = True
 
-    @api.model
-    def _get_view(self, view_id=None, view_type='form', **options):
-        arch, view = super()._get_view(view_id=view_id, view_type=view_type, **options)
-        if view_type == 'form':
-            from lxml import etree
-            tenant = self.env.user.tenant_id
-            if tenant and tenant.enable_variant_attributes:
-                active_attrs = self.env['havanoposdesk.attribute'].search([
-                    ('tenant_id', '=', tenant.id),
-                    ('active', '=', True)
-                ], order='sequence, id')
+        tenant_id = self.tenant_id.id if self.tenant_id else self.env.user.tenant_id.id
+        active_attributes = self.env['havanoposdesk.attribute'].search([
+            ('tenant_id', '=', tenant_id),
+            ('active', '=', True)
+        ])
 
-                if active_attrs:
-                    variant_nodes = arch.xpath("//field[@name='variant_ids']")
-                    if variant_nodes:
-                        tree_nodes = variant_nodes[0].xpath(".//list | .//tree")
-                        if tree_nodes:
-                            list_node = tree_nodes[0]
-                            # Remove generic attribute_value_ids if present
-                            for old_f in list_node.xpath("./field[@name='attribute_value_ids']"):
-                                list_node.remove(old_f)
-                            for i in range(1, 6):
-                                for old_f in list_node.xpath(f"./field[@name='attribute_value_{i}_id']"):
-                                    list_node.remove(old_f)
+        if not active_attributes:
+            raise ValidationError(_("No active variant attributes found. Please create or activate attributes first under Inventory > Variant Attributes."))
 
-                            name_node = list_node.xpath("./field[@name='name']")
-                            target = name_node[0] if name_node else None
+        attr_with_values = [attr for attr in active_attributes if attr.value_ids]
+        if not attr_with_values:
+            raise ValidationError(_("Active attributes have no values defined. Please add values (e.g. Small, Medium) to your active attributes."))
 
-                            for idx, attr in enumerate(active_attrs[:5], 1):
-                                f_elem = etree.Element('field', {
-                                    'name': f'attribute_value_{idx}_id',
-                                    'string': attr.name,
-                                    'domain': f"[('attribute_id', '=', {attr.id})]",
-                                    'options': "{'no_create': False, 'no_open': True}",
-                                })
-                                if target is not None:
-                                    target.addprevious(f_elem)
-                                else:
-                                    list_node.append(f_elem)
-        return arch, view
+        import itertools
+        value_lists = [attr.value_ids for attr in attr_with_values]
+        combinations = list(itertools.product(*value_lists))
+
+        created_count = 0
+        for combo in combinations:
+            combo_val_ids = set(v.id for v in combo)
+            exists = False
+            for existing_v in self.variant_ids:
+                if set(existing_v.attribute_value_ids.ids) == combo_val_ids:
+                    exists = True
+                    break
+
+            if not exists:
+                combo_str = ", ".join(v.name for v in combo)
+                var_name = f"{self.name} - {combo_str}" if self.name else combo_str
+                self.env['havanoposdesk.product.variant'].create({
+                    'product_id': self.id,
+                    'tenant_id': tenant_id,
+                    'name': var_name,
+                    'attribute_value_ids': [(6, 0, [v.id for v in combo])],
+                    'cost_price': self.cost_price or 0.0,
+                    'selling_price': self.selling_price or 0.0,
+                    'allocate_qty': 0.0,
+                })
+                created_count += 1
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _("Variants Generated"),
+                'message': _("Successfully generated %s variant(s).") % created_count,
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
     @api.depends('is_bundle', 'is_variant', 'variant_ids.on_hand_qty')
     def _compute_on_hand_qty(self):
@@ -735,12 +738,6 @@ class HavanoposdeskProductVariant(models.Model):
     selling_price = fields.Float(string='Sell Price')
     allocate_qty = fields.Float(string='Allocate QTY (from base stock)', default=0.0)
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
-    attribute_value_1_id = fields.Many2one('havanoposdesk.attribute.value', string='Attribute 1', ondelete='set null')
-    attribute_value_2_id = fields.Many2one('havanoposdesk.attribute.value', string='Attribute 2', ondelete='set null')
-    attribute_value_3_id = fields.Many2one('havanoposdesk.attribute.value', string='Attribute 3', ondelete='set null')
-    attribute_value_4_id = fields.Many2one('havanoposdesk.attribute.value', string='Attribute 4', ondelete='set null')
-    attribute_value_5_id = fields.Many2one('havanoposdesk.attribute.value', string='Attribute 5', ondelete='set null')
-
     attribute_value_ids = fields.Many2many(
         'havanoposdesk.attribute.value',
         'havanoposdesk_variant_attribute_value_rel',
@@ -749,26 +746,14 @@ class HavanoposdeskProductVariant(models.Model):
         string='Attributes',
     )
 
-    @api.onchange('attribute_value_1_id', 'attribute_value_2_id', 'attribute_value_3_id', 'attribute_value_4_id', 'attribute_value_5_id')
-    def _onchange_attribute_slots(self):
-        val_records = [
-            self.attribute_value_1_id,
-            self.attribute_value_2_id,
-            self.attribute_value_3_id,
-            self.attribute_value_4_id,
-            self.attribute_value_5_id,
-        ]
-        selected = [v for v in val_records if v]
-        if selected:
-            self.attribute_value_ids = [(6, 0, [v.id for v in selected])]
-            names = [v.name for v in selected if v.name]
-            if not self.name:
-                self.name = " / ".join(names)
-
     @api.onchange('attribute_value_ids')
     def _onchange_attribute_value_ids(self):
-        if self.attribute_value_ids and not self.name:
-            self.name = " / ".join(self.attribute_value_ids.mapped('name'))
+        if self.attribute_value_ids:
+            attr_str = ", ".join(self.attribute_value_ids.mapped('name'))
+            if self.product_id and self.product_id.name:
+                self.name = f"{self.product_id.name} - {attr_str}"
+            else:
+                self.name = attr_str
     
     @api.depends('product_id')
     def _compute_on_hand_qty(self):
@@ -778,13 +763,6 @@ class HavanoposdeskProductVariant(models.Model):
             
     @api.model_create_multi
     def create(self, vals_list):
-        for vals in vals_list:
-            slot_ids = [vals[f] for f in ('attribute_value_1_id', 'attribute_value_2_id', 'attribute_value_3_id', 'attribute_value_4_id', 'attribute_value_5_id') if vals.get(f)]
-            if slot_ids and not vals.get('attribute_value_ids'):
-                vals['attribute_value_ids'] = [(6, 0, slot_ids)]
-            if not vals.get('name') and slot_ids:
-                val_objs = self.env['havanoposdesk.attribute.value'].browse(slot_ids)
-                vals['name'] = " / ".join(val_objs.mapped('name'))
         records = super().create(vals_list)
         for record in records:
             if record.allocate_qty > 0:
@@ -793,15 +771,6 @@ class HavanoposdeskProductVariant(models.Model):
         return records
 
     def write(self, vals):
-        slot_fields = ('attribute_value_1_id', 'attribute_value_2_id', 'attribute_value_3_id', 'attribute_value_4_id', 'attribute_value_5_id')
-        if any(f in vals for f in slot_fields) and 'attribute_value_ids' not in vals:
-            for record in self:
-                slot_ids = []
-                for f in slot_fields:
-                    v_id = vals.get(f, record[f].id if record[f] else False)
-                    if v_id:
-                        slot_ids.append(v_id)
-                vals['attribute_value_ids'] = [(6, 0, slot_ids)]
         res = super().write(vals)
         if 'allocate_qty' in vals:
             for record in self:

@@ -51,10 +51,13 @@ class HavanoposdeskAttributeValue(models.Model):
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True, default=lambda self: self.env.user.tenant_id)
     display_name = fields.Char(string='Display Name', compute='_compute_display_name', store=True)
 
-    @api.depends('name')
+    @api.depends('attribute_id.name', 'name')
     def _compute_display_name(self):
         for rec in self:
-            rec.display_name = rec.name or ''
+            if rec.attribute_id and rec.attribute_id.name:
+                rec.display_name = f"{rec.attribute_id.name}: {rec.name}"
+            else:
+                rec.display_name = rec.name or ''
 
     @api.model_create_multi
     def create(self, vals_list):
