@@ -113,8 +113,21 @@
 
                             </page>
                             <page string="Variants" invisible="is_variant == False">
+                                <field name="enable_variant_attributes" invisible="1"/>
+                                <div class="mb-2 d-flex gap-2" invisible="not enable_variant_attributes">
+                                    <button name="action_generate_variants_from_attributes"
+                                            type="object"
+                                            string="⚡ Generate from Attributes"
+                                            class="btn btn-secondary btn-sm"
+                                            help="Automatically create variant rows for all active attribute combinations (e.g. Small, Medium, Large)."/>
+                                </div>
                                 <field name="variant_ids">
                                     <list editable="bottom">
+                                        <field name="attribute_value_ids"
+                                               widget="many2many_tags"
+                                               string="Attributes"
+                                               column_invisible="parent.enable_variant_attributes == False"
+                                               options="{'color_field': 'color', 'no_create_edit': False}"/>
                                         <field name="name"/>
                                         <field name="allocate_qty" />
                                         <field name="cost_price"/>

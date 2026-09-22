@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Attribute Tree / List View -->
+    <record id="view_havanoposdesk_attribute_tree" model="ir.ui.view">
+        <field name="name">havanoposdesk.attribute.list</field>
+        <field name="model">havanoposdesk.attribute</field>
+        <field name="arch" type="xml">
+            <list string="Variant Attributes">
+                <field name="sequence" widget="handle"/>
+                <field name="name" string="Attribute Name"/>
+                <field name="value_ids" widget="many2many_tags" string="Values"/>
+                <field name="active" widget="boolean_toggle" string="Status (Active)"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Attribute Form View -->
+    <record id="view_havanoposdesk_attribute_form" model="ir.ui.view">
+        <field name="name">havanoposdesk.attribute.form</field>
+        <field name="model">havanoposdesk.attribute</field>
+        <field name="arch" type="xml">
+            <form string="Variant Attribute">
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name" string="Attribute Name"/>
+                        <h1>
+                            <field name="name" placeholder="e.g. Size, Color, Shoe Size, Material"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="active" widget="boolean_toggle" string="Active Status"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Attribute Values" name="attribute_values">
+                            <field name="value_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name" string="Value" placeholder="e.g. Small, Medium, Large, or 5, 6, 7..."/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Attribute Search View -->
+    <record id="view_havanoposdesk_attribute_search" model="ir.ui.view">
+        <field name="name">havanoposdesk.attribute.search</field>
+        <field name="model">havanoposdesk.attribute</field>
+        <field name="arch" type="xml">
+            <search string="Search Attributes">
+                <field name="name" string="Attribute"/>
+                <filter string="Active" name="filter_active" domain="[('active', '=', True)]"/>
+                <filter string="Inactive" name="filter_inactive" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Attribute Window Action -->
+    <record id="action_havanoposdesk_attribute" model="ir.actions.act_window">
+        <field name="name">Variant Attributes</field>
+        <field name="res_model">havanoposdesk.attribute</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_havanoposdesk_attribute_search"/>
+        <field name="context">{'search_default_filter_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first Variant Attribute!
+            </p>
+            <p>
+                Attributes like <strong>Size</strong> (Small, Medium, Large) or <strong>Color</strong> (Red, Blue) allow you to generate and organize variants easily in product records.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item under Inventory Master -->
+    <menuitem id="menu_havanoposdesk_attribute"
+              name="Variant Attributes"
+              parent="menu_inventory_master"
+              action="action_havanoposdesk_attribute"
+              sequence="12"/>
+
+</odoo>

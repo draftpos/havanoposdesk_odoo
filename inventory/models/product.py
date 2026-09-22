@@ -108,9 +108,67 @@ class HavanoposdeskProduct(models.Model):
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
     is_variant = fields.Boolean(string='Is Variant', default=False)
+    enable_variant_attributes = fields.Boolean(related='tenant_id.enable_variant_attributes', string='Enable Variant Attributes')
     variant_ids = fields.One2many('havanoposdesk.product.variant', 'product_id', string='Variants')
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
+
+    def action_generate_variants_from_attributes(self):
+        """Generate variant combinations from active attributes of the tenant."""
+        self.ensure_one()
+        if not self.is_variant:
+            self.is_variant = True
+
+        tenant_id = self.tenant_id.id if self.tenant_id else self.env.user.tenant_id.id
+        active_attributes = self.env['havanoposdesk.attribute'].search([
+            ('tenant_id', '=', tenant_id),
+            ('active', '=', True)
+        ])
+
+        if not active_attributes:
+            raise ValidationError(_("No active variant attributes found. Please create or activate attributes first under Inventory > Variant Attributes."))
+
+        attr_with_values = [attr for attr in active_attributes if attr.value_ids]
+        if not attr_with_values:
+            raise ValidationError(_("Active attributes have no values defined. Please add values (e.g. Small, Medium) to your active attributes."))
+
+        import itertools
+        value_lists = [attr.value_ids for attr in attr_with_values]
+        combinations = list(itertools.product(*value_lists))
+
+        created_count = 0
+        for combo in combinations:
+            combo_val_ids = set(v.id for v in combo)
+            exists = False
+            for existing_v in self.variant_ids:
+                if set(existing_v.attribute_value_ids.ids) == combo_val_ids:
+                    exists = True
+                    break
+
+            if not exists:
+                combo_str = ", ".join(v.name for v in combo)
+                var_name = f"{self.name} - {combo_str}" if self.name else combo_str
+                self.env['havanoposdesk.product.variant'].create({
+                    'product_id': self.id,
+                    'tenant_id': tenant_id,
+                    'name': var_name,
+                    'attribute_value_ids': [(6, 0, [v.id for v in combo])],
+                    'cost_price': self.cost_price or 0.0,
+                    'selling_price': self.selling_price or 0.0,
+                    'allocate_qty': 0.0,
+                })
+                created_count += 1
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _("Variants Generated"),
+                'message': _("Successfully generated %s variant(s).") % created_count,
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
     @api.depends('is_bundle', 'is_variant', 'variant_ids.on_hand_qty')
     def _compute_on_hand_qty(self):
@@ -680,6 +738,22 @@ class HavanoposdeskProductVariant(models.Model):
     selling_price = fields.Float(string='Sell Price')
     allocate_qty = fields.Float(string='Allocate QTY (from base stock)', default=0.0)
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
+    attribute_value_ids = fields.Many2many(
+        'havanoposdesk.attribute.value',
+        'havanoposdesk_variant_attribute_value_rel',
+        'variant_id',
+        'attribute_value_id',
+        string='Attributes',
+    )
+
+    @api.onchange('attribute_value_ids')
+    def _onchange_attribute_value_ids(self):
+        if self.attribute_value_ids:
+            attr_str = ", ".join(self.attribute_value_ids.mapped('name'))
+            if self.product_id and self.product_id.name:
+                self.name = f"{self.product_id.name} - {attr_str}"
+            else:
+                self.name = attr_str
     
     @api.depends('product_id')
     def _compute_on_hand_qty(self):
