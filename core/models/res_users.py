@@ -20,7 +20,7 @@ class ResUsers(models.Model):
     havano_role = fields.Selection(selection='_get_havano_role_selection', string="Havano Role", default='user')
     tenant_id = fields.Many2one('havanoposdesk.tenant', string="Tenant", index=True)
     saas_state = fields.Selection([
-        ('unverified', 'Unverified', index=True),
+        ('unverified', 'Unverified'),
         ('verified', 'Verified'),
         ('suspended', 'Suspended')
     ], string="SaaS State", default='unverified')

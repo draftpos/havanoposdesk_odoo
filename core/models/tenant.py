@@ -154,7 +154,7 @@ class HavanoposdeskTenant(models.Model):
     effective_max_terminals = fields.Integer(string='Effective Max Terminals', compute='_compute_subscription_limits', store=True)
     subscription_total_amount = fields.Float(string='Subscription Total Amount ($)', compute='_compute_subscription_total_amount', store=True)
     subscription_state = fields.Selection([
-        ('active', 'Active', index=True),
+        ('active', 'Active'),
         ('pending', 'Pending Payment'),
         ('expired', 'Expired'),
         ('cancelled', 'Cancelled')

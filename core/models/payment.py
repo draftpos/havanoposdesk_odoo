@@ -25,7 +25,7 @@ class HavanoposdeskSubscriptionPayment(models.Model):
     payment_method = fields.Char(string='Payment Method')
     transaction_reference = fields.Char(string='Transaction Reference')
     state = fields.Selection([
-        ('draft', 'Draft', index=True),
+        ('draft', 'Draft'),
         ('pending', 'Pending'),
         ('done', 'Done'),
         ('failed', 'Failed')

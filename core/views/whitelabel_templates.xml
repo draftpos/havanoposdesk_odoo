@@ -136,9 +136,9 @@
 
 
     <!-- 4. Override webclient_offline to show Havano branding instead of Odoo -->
-    <template id="havano_webclient_offline" inherit_id="webclient_offline" name="Havano Offline Page">
+    <template id="havano_webclient_offline" inherit_id="web.webclient_offline" name="Havano Offline Page">
         <!-- Replace the Odoo logo image with Havano logo -->
-        <xpath expr="//img[@alt='Odoo logo']" position="replace">
+        <xpath expr="//img" position="replace">
             <t t-set="havano_favicon" t-value="request.env['ir.config_parameter'].sudo().get_param('havanoposdesk.favicon', '/havanoposdesk_odoo/static/src/img/favicon.png')"/>
             <img t-att-src="havano_favicon" alt="Havano logo" style="filter: none;"/>
         </xpath>

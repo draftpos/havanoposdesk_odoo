@@ -16,7 +16,7 @@ class Shift(models.Model):
     end_date = fields.Datetime(string='Closed At')
     
     state = fields.Selection([
-        ('open', 'Open', index=True),
+        ('open', 'Open'),
         ('closed', 'Closed')
     ], string='Status', default='open', required=True, tracking=True)
 
