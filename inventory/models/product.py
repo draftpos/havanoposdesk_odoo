@@ -13,6 +13,17 @@ class HavanoposdeskProduct(models.Model):
         try:
             with cr.savepoint():
                 cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS hs_code VARCHAR;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS print_after_order BOOLEAN DEFAULT FALSE;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS is_variant BOOLEAN DEFAULT FALSE;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS has_variants BOOLEAN DEFAULT FALSE;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS template_id INTEGER;")
+                cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS frappe_variant_of VARCHAR;")
+                cr.execute("DELETE FROM ir_model_fields WHERE model = 'havanoposdesk.product' AND (name LIKE 'frappe_%' OR name LIKE 'sync_%');")
+                cr.execute("UPDATE havanoposdesk_product SET has_variants = is_variant WHERE has_variants IS NULL OR has_variants != is_variant;")
+                cr.execute("UPDATE havanoposdesk_product SET is_variant = has_variants WHERE is_variant IS NULL OR is_variant != has_variants;")
+                for i in range(1, 8):
+                    cr.execute(f"ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS kitchen_order_{i} BOOLEAN DEFAULT FALSE;")
         except Exception:
             pass
         return res
@@ -26,6 +37,8 @@ class HavanoposdeskProduct(models.Model):
     name = fields.Char(string='Product Name', required=True)
     item_code = fields.Char(string='Product Code', required=False, copy=False, default=lambda self: 'New')
     allow_edit_item_code = fields.Boolean(related='tenant_id.allow_edit_item_code', string="Allow Edit Item Code")
+    hs_code = fields.Char(string='HS Code', copy=False)
+    is_hs_code_enabled = fields.Boolean(related='tenant_id.enable_hs_code', string="HS Code Enabled")
     barcode = fields.Char(string='Barcode', copy=False)
     is_barcode_enabled = fields.Boolean(related='tenant_id.enable_barcode', string="Barcode Enabled")
     sellbyprice = fields.Boolean(
@@ -82,25 +95,6 @@ class HavanoposdeskProduct(models.Model):
                 res['item_code'] = self.env['ir.sequence'].next_by_code('havanoposdesk.product') or 'New'
         return res
 
-    name = fields.Char(string='Product Name', required=True)
-    item_code = fields.Char(string='Product Code', required=False, copy=False, default=lambda self: 'New')
-    allow_edit_item_code = fields.Boolean(related='tenant_id.allow_edit_item_code', string="Allow Edit Item Code")
-    barcode = fields.Char(string='Barcode', copy=False)
-    is_barcode_enabled = fields.Boolean(related='tenant_id.enable_barcode', string="Barcode Enabled")
-
-    @api.constrains('name', 'tenant_id')
-    def _check_unique_name(self):
-        for record in self:
-            if record.name and record.tenant_id:
-                domain = [
-                    ('id', '!=', record.id),
-                    ('tenant_id', '=', record.tenant_id.id),
-                    ('name', '=ilike', record.name.strip())
-                ]
-                if self.search_count(domain) > 0:
-                    raise ValidationError(f"A Product with the name '{record.name}' already exists in your workspace. Please choose a different name.")
-
-
     buying_price = fields.Float(string='Cost price', default=0.0, compute='_compute_bundle_prices', store=True, readonly=False)
     selling_price = fields.Float(string='Sell price', compute='_compute_bundle_prices', store=True, readonly=False)
     uom_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='UOM Prices')
@@ -108,16 +102,40 @@ class HavanoposdeskProduct(models.Model):
     cost_price = fields.Float(string='Cost Price')
     track_qty = fields.Boolean(string='Track Qty', default=True)
     is_variant = fields.Boolean(string='Is Variant', default=False)
+    has_variants = fields.Boolean(
+        string='Has Variants',
+        compute='_compute_has_variants',
+        inverse='_set_has_variants',
+        search='_search_has_variants',
+        store=True,
+        default=False,
+    )
+    template_id = fields.Many2one('havanoposdesk.product', string='Template', index=True)
     variant_ids = fields.One2many('havanoposdesk.product.variant', 'product_id', string='Variants')
     opening_stock = fields.Float(string='Opening Stock', default=0.0)
     on_hand_qty = fields.Float(string='On Hand', compute='_compute_on_hand_qty')
 
-    @api.depends('is_bundle', 'is_variant', 'variant_ids.on_hand_qty')
+    @api.depends('is_variant', 'variant_ids')
+    def _compute_has_variants(self):
+        for record in self:
+            record.has_variants = bool(record.is_variant or (record.variant_ids and len(record.variant_ids) > 0))
+
+    def _set_has_variants(self):
+        for record in self:
+            if record.is_variant != record.has_variants:
+                super(HavanoposdeskProduct, record.with_context(skip_variant_sync=True)).write({
+                    'is_variant': record.has_variants
+                })
+
+    def _search_has_variants(self, operator, value):
+        return ['|', ('is_variant', operator, value), ('has_variants', operator, value)]
+
+    @api.depends('is_bundle', 'is_variant', 'has_variants', 'variant_ids.on_hand_qty')
     def _compute_on_hand_qty(self):
         for record in self:
             if record.is_bundle:
                 record.on_hand_qty = 0.0
-            elif record.is_variant:
+            elif record.is_variant or record.has_variants:
                 unallocated_vals = self.env['havanoposdesk.stock.valuation'].search([
                     ('product_id', '=', record.id),
                     ('variant_id', '=', False)
@@ -206,6 +224,12 @@ class HavanoposdeskProduct(models.Model):
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
             
+            # Synchronize cost_price and buying_price
+            if 'buying_price' in vals and 'cost_price' not in vals:
+                vals['cost_price'] = vals['buying_price']
+            elif 'cost_price' in vals and 'buying_price' not in vals:
+                vals['buying_price'] = vals['cost_price']
+
             # Map store_id to store_ids if present and pop it to prevent invalid field exception
             if 'store_id' in vals:
                 store_id = vals.pop('store_id')
@@ -258,6 +282,10 @@ class HavanoposdeskProduct(models.Model):
                     if purchase_tax_ids:
                         vals['purchase_tax_ids'] = [(6, 0, purchase_tax_ids)]
 
+            # Sync has_variants and is_variant
+            if 'has_variants' in vals and 'is_variant' not in vals:
+                vals['is_variant'] = vals['has_variants']
+
             # Set store_ids to all stores if all_stores is True (either by default or explicitly)
             if (vals.get('all_stores', True) and 'store_ids' not in vals) or vals.get('all_stores') is True:
                 if tenant_id:
@@ -267,8 +295,11 @@ class HavanoposdeskProduct(models.Model):
         products = super().create(vals_list)
         
         for product in products:
-            if product.variant_ids and not product.is_variant:
-                product.is_variant = True
+            if product.variant_ids and not (product.is_variant or product.has_variants):
+                super(HavanoposdeskProduct, product.with_context(skip_variant_sync=True)).write({
+                    'is_variant': True,
+                    'has_variants': True,
+                })
             if product.use_ingredients and not product.bom_id:
                 bom = self.env['havanoposdesk.manufacturing.bom'].create({
                     'name': f"BOM for {product.name}",
@@ -320,6 +351,17 @@ class HavanoposdeskProduct(models.Model):
         return products
 
     def write(self, vals):
+        # Synchronize cost_price and buying_price
+        if 'buying_price' in vals and 'cost_price' not in vals:
+            vals['cost_price'] = vals['buying_price']
+        elif 'cost_price' in vals and 'buying_price' not in vals:
+            vals['buying_price'] = vals['cost_price']
+
+        # Sync has_variants and is_variant
+        if not self.env.context.get('skip_variant_sync'):
+            if 'has_variants' in vals and 'is_variant' not in vals:
+                vals['is_variant'] = vals['has_variants']
+
         # Map store_id to store_ids if present and pop it to prevent invalid field exception
         if 'store_id' in vals:
             store_id = vals.pop('store_id')
@@ -341,8 +383,11 @@ class HavanoposdeskProduct(models.Model):
 
         if 'variant_ids' in vals and vals['variant_ids']:
             for product in self:
-                if not product.is_variant:
-                    super(HavanoposdeskProduct, product).write({'is_variant': True})
+                if not (product.is_variant or product.has_variants):
+                    super(HavanoposdeskProduct, product.with_context(skip_variant_sync=True)).write({
+                        'is_variant': True,
+                        'has_variants': True
+                    })
 
         if vals.get('all_stores'):
             for product in self:
@@ -388,6 +433,11 @@ class HavanoposdeskProduct(models.Model):
     # Other
     internal_notes = fields.Text(string='Internal Notes')
     is_active = fields.Boolean(string='Active', default=True)
+    print_after_order = fields.Boolean(
+        string='Print After Order',
+        default=False,
+        help='If enabled, triggers printing after an order containing this item is placed.'
+    )
     kitchen_settings_enabled = fields.Boolean(
         related='tenant_id.enable_kitchen_settings',
         string='Kitchen Settings Enabled'
@@ -427,7 +477,7 @@ class HavanoposdeskProduct(models.Model):
     category_id = fields.Many2one('havanoposdesk.category', string='Category', default=_default_category_id)
     uom_id = fields.Many2one('havanoposdesk.uom', string='UOM', default=_default_uom_id)
     
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id)
     currency_id = fields.Many2one(related='tenant_id.currency_id', string='Currency', store=False)
     advanced_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='Advanced Prices')
     allow_advanced_pricing = fields.Boolean(related='tenant_id.allow_advanced_pricing', readonly=True)
@@ -456,7 +506,9 @@ class HavanoposdeskProduct(models.Model):
     def _compute_bundle_prices(self):
         for record in self:
             if record.is_bundle:
-                record.buying_price = sum(item.subtotal_cost for item in record.bundle_item_ids)
+                bundle_cost = sum(item.subtotal_cost for item in record.bundle_item_ids)
+                record.buying_price = bundle_cost
+                record.cost_price = bundle_cost
                 record.selling_price = sum(item.subtotal_selling for item in record.bundle_item_ids)
             elif record.id:
                 default_store = self.env.user.default_store_id
@@ -674,7 +726,7 @@ class HavanoposdeskProductVariant(models.Model):
     _description = 'Product Variant'
 
     product_id = fields.Many2one('havanoposdesk.product', string='Parent Product', required=True, ondelete='cascade')
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True, default=lambda self: self.env.user.tenant_id)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id)
     name = fields.Char(string='Variant Name', required=True)
     cost_price = fields.Float(string='Cost Price')
     selling_price = fields.Float(string='Sell Price')

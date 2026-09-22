@@ -9,12 +9,14 @@
                 <list string="Products">
                     <field name="currency_id" column_invisible="True" />
                     <field name="item_code" string="Product Code" />
+                    <field name="hs_code" string="HS Code" optional="hide" />
                     <field name="name" />
                     <field name="category_id" string="Category" />
                     <field name="uom_id" optional="hide" />
                     <field name="buying_price" optional="hide" widget="monetary" />
                     <field name="selling_price" string="Sell price" widget="monetary" />
                     <field name="sellbyprice" optional="show" widget="boolean" string="Sell by Price" />
+                    <field name="print_after_order" optional="hide" widget="boolean" string="Print After Order" />
                     <field name="track_qty" />
                     <field name="on_hand_qty" string="QTY" />
                     <field name="not_for_sale" optional="hide" />
@@ -44,6 +46,8 @@
                                     <group string="Product information">
                                         <field name="allow_edit_item_code" invisible="1" />
                                         <field name="item_code" class="border-bottom border-dark" readonly="not allow_edit_item_code" force_save="1" />
+                                        <field name="is_hs_code_enabled" invisible="1" />
+                                        <field name="hs_code" invisible="not is_hs_code_enabled" class="border-bottom border-dark" />
                                         <field name="is_barcode_enabled" invisible="1" />
                                         <field name="barcode" invisible="is_barcode_enabled == False" widget="barcode" class="border-bottom border-dark" />
                                         <field name="name" class="border-bottom border-dark" />
@@ -124,24 +128,21 @@
                                 </field>
                             </page>
                             <page string="Other">
+                                <field name="kitchen_settings_enabled" invisible="1" />
                                 <group>
-                                    <group>
-                                        <field name="kitchen_settings_enabled" invisible="1" />
-                                        <group invisible="not kitchen_settings_enabled">
-                                            <group>
-                                                <field name="kitchen_order_1" string="Order 1" />
-                                                <field name="kitchen_order_2" string="Order 2" />
-                                                <field name="kitchen_order_3" string="Order 3" />
-                                                <field name="kitchen_order_4" string="Order 4" />
-                                            </group>
-                                            <group>
-                                                <field name="kitchen_order_5" string="Order 5" />
-                                                <field name="kitchen_order_6" string="Order 6" />
-                                                <field name="kitchen_order_7" string="Order 7" />
-                                            </group>
-                                        </group>
+                                    <group string="General Settings">
                                         <field name="is_active" string="Active" class="border-bottom border-dark" />
+                                        <field name="print_after_order" string="Print After Order" class="border-bottom border-dark" />
                                         <field name="internal_notes" class="border-bottom border-dark" />
+                                    </group>
+                                    <group string="Kitchen Orders" invisible="not kitchen_settings_enabled">
+                                        <field name="kitchen_order_1" string="Order 1" />
+                                        <field name="kitchen_order_2" string="Order 2" />
+                                        <field name="kitchen_order_3" string="Order 3" />
+                                        <field name="kitchen_order_4" string="Order 4" />
+                                        <field name="kitchen_order_5" string="Order 5" />
+                                        <field name="kitchen_order_6" string="Order 6" />
+                                        <field name="kitchen_order_7" string="Order 7" />
                                     </group>
                                 </group>
                                 <group string="Other Pricing Settings">
@@ -215,6 +216,7 @@
                     <filter string="Store" name="filter_store" domain="[('store_ids', '!=', False)]" />
                     <filter string="Track QTY" name="filter_track_qty" domain="[('track_qty', '=', True)]" />
                     <filter string="Product Name" name="filter_name" domain="[('name', '!=', False)]" />
+                    <filter string="Print After Order" name="filter_print_after_order" domain="[('print_after_order', '=', True)]" />
                     <group>
                         <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}" />
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}" />

@@ -16,7 +16,6 @@ class HavanoposdeskStore(models.Model):
         'havanoposdesk.tenant', 
         string='Tenant', 
         required=True, 
-        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     currency_id = fields.Many2one(

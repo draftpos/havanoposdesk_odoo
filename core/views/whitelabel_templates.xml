@@ -22,7 +22,7 @@
     <!-- 3. Override web.layout to inject lottie-player without bundling -->
     <template id="havano_layout_lottie" inherit_id="web.layout" name="Havano Layout Lottie">
         <xpath expr="//head" position="inside">
-            <script type="text/javascript" defer="defer" src="/havanoposdesk_odoo/static/src/js/lottie-player.js"></script>
+            <script type="text/javascript" src="/havanoposdesk_odoo/static/src/js/lottie-player.js"></script>
         </xpath>
     </template>
 

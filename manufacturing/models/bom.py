@@ -9,7 +9,7 @@ class HavanoPosDeskManufacturingBom(models.Model):
     ]
 
     name = fields.Char(string='BOM Reference', required=True)
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True, default=lambda self: self.env.user.tenant_id.id)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id)
     
     raw_material_ids = fields.One2many(
         'havanoposdesk.manufacturing.bom.line', 

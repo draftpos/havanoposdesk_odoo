@@ -13,7 +13,6 @@ class StockTransfer(models.Model):
         'havanoposdesk.tenant',
         string='Tenant',
         required=True,
-        index=True,
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
     date = fields.Datetime(string='Date', default=fields.Datetime.now, required=True)
@@ -23,7 +22,7 @@ class StockTransfer(models.Model):
         ('draft', 'Draft'),
         ('done', 'Transferred'),
         ('cancelled', 'Cancelled'),
-    ], string='Status', default='draft', readonly=True, copy=False, index=True)
+    ], string='Status', default='draft', readonly=True, copy=False)
 
     line_ids = fields.One2many('havanoposdesk.stock.transfer.line', 'transfer_id', string='Transfer Lines')
 
@@ -174,7 +173,7 @@ class StockTransferLine(models.Model):
     _description = 'Stock Transfer Line'
 
     transfer_id = fields.Many2one('havanoposdesk.stock.transfer', string='Transfer', required=True, ondelete='cascade')
-    tenant_id = fields.Many2one(related='transfer_id.tenant_id', store=True, index=True)
+    tenant_id = fields.Many2one(related='transfer_id.tenant_id', store=True)
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, domain="[('tenant_id', '=', tenant_id)]")
     variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     uom_id = fields.Many2one('havanoposdesk.uom', string='Unit of Measure')

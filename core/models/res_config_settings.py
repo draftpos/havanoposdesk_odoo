@@ -27,6 +27,7 @@ class ResConfigSettings(models.TransientModel):
 
     @api.model
     def default_get(self, fields_list):
+        self._ensure_tenant_columns()
         return super().default_get(fields_list)
 
     @api.model
@@ -47,6 +48,7 @@ class ResConfigSettings(models.TransientModel):
                 ("effective_max_stores", "INTEGER DEFAULT 0"),
                 ("effective_max_terminals", "INTEGER DEFAULT 0"),
                 ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
+                ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
                 ("allow_negative_stock", "BOOLEAN DEFAULT TRUE"),
                 ("enable_tax", "BOOLEAN DEFAULT FALSE"),
                 ("enable_barcode", "BOOLEAN DEFAULT FALSE"),
@@ -126,6 +128,13 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.allow_edit_item_code',
         readonly=False,
         help="If enabled, users will be allowed to edit the product codes (item codes) on products."
+    )
+
+    biz_enable_hs_code = fields.Boolean(
+        string="Enable HS Code",
+        related='tenant_id.enable_hs_code',
+        readonly=False,
+        help="If enabled, shows the Harmonized System (HS) Code field on products."
     )
 
     biz_stock_decimal_places = fields.Integer(

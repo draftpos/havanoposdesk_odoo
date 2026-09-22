@@ -25,6 +25,7 @@ class HavanoposdeskTenant(models.Model):
             ("effective_max_stores", "INTEGER DEFAULT 0"),
             ("effective_max_terminals", "INTEGER DEFAULT 0"),
             ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
+            ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
             ("allow_negative_stock", "BOOLEAN DEFAULT TRUE"),
             ("enable_tax", "BOOLEAN DEFAULT FALSE"),
             ("enable_barcode", "BOOLEAN DEFAULT FALSE"),
@@ -253,18 +254,15 @@ class HavanoposdeskTenant(models.Model):
             if not plan:
                 tenant.subscription_total_amount = 0.0
                 continue
-            if plan.is_custom:
-                stores_per_term = plan.stores_per_terminal or 3
-                base_term = plan.max_terminals or 1
-                extra_term = max(0, tenant.additional_terminals or 0)
-                if extra_term == 0 and tenant.additional_stores > 0:
-                    calculated_total_terms = tenant.additional_stores // stores_per_term
-                    if calculated_total_terms > base_term:
-                        extra_term = calculated_total_terms - base_term
-                extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
-            else:
-                m_rate = plan.price or 0.0
+            stores_per_term = plan.stores_per_terminal or 3
+            base_term = plan.max_terminals or 1
+            extra_term = max(0, tenant.additional_terminals or 0)
+            if extra_term == 0 and tenant.additional_stores > 0:
+                calculated_total_terms = tenant.additional_stores // stores_per_term
+                if calculated_total_terms > base_term:
+                    extra_term = calculated_total_terms - base_term
+            extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
+            m_rate = (plan.price or 0.0) + (extra_term * extra_price)
             
             months = max(1, tenant.duration_months or 1)
             if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
@@ -280,18 +278,15 @@ class HavanoposdeskTenant(models.Model):
             if not plan:
                 tenant.pending_subscription_total_amount = 0.0
                 continue
-            if plan.is_custom:
-                stores_per_term = plan.stores_per_terminal or 3
-                base_term = plan.max_terminals or 1
-                extra_term = max(0, tenant.pending_additional_terminals or 0)
-                if extra_term == 0 and tenant.pending_additional_stores > 0:
-                    calculated_total_terms = tenant.pending_additional_stores // stores_per_term
-                    if calculated_total_terms > base_term:
-                        extra_term = calculated_total_terms - base_term
-                extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
-            else:
-                m_rate = plan.price or 0.0
+            stores_per_term = plan.stores_per_terminal or 3
+            base_term = plan.max_terminals or 1
+            extra_term = max(0, tenant.pending_additional_terminals or 0)
+            if extra_term == 0 and tenant.pending_additional_stores > 0:
+                calculated_total_terms = tenant.pending_additional_stores // stores_per_term
+                if calculated_total_terms > base_term:
+                    extra_term = calculated_total_terms - base_term
+            extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
+            m_rate = (plan.price or 0.0) + (extra_term * extra_price)
             
             months = max(1, tenant.pending_duration_months or 1)
             if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
@@ -332,13 +327,19 @@ class HavanoposdeskTenant(models.Model):
 
     def check_subscription_active(self):
         self.ensure_one()
+        today = fields.Date.context_today(self)
+        if self.subscription_end_date and self.subscription_end_date < today:
+            if self.subscription_state not in ('expired', 'cancelled'):
+                self.sudo().with_context(bypass_subscription_check=True).write({
+                    'subscription_state': 'expired'
+                })
         if self.subscription_state not in ('expired', 'cancelled', 'pending'):
             return True
             
         if self.subscription_state == 'expired' and self.subscription_end_date:
             grace_days = int(self.env['ir.config_parameter'].sudo().get_param('havanoposdesk.subscription_grace_days', '5'))
             expiry_with_grace = self.subscription_end_date + relativedelta(days=grace_days)
-            if fields.Date.context_today(self) <= expiry_with_grace:
+            if today <= expiry_with_grace:
                 return True
                 
         return False
@@ -353,12 +354,18 @@ class HavanoposdeskTenant(models.Model):
         if not tenant:
             return {'show_banner': False}
 
+        today = fields.Date.context_today(self)
+        if tenant.subscription_end_date and tenant.subscription_end_date < today:
+            if tenant.subscription_state not in ('expired', 'cancelled'):
+                tenant.sudo().with_context(bypass_subscription_check=True).write({
+                    'subscription_state': 'expired'
+                })
+
         warning_days = int(self.env['ir.config_parameter'].sudo().get_param(
             'havanoposdesk.subscription_expiry_warning_days', '3'))
 
         days_left = None
         if tenant.subscription_end_date:
-            today = fields.Date.context_today(self)
             days_left = (tenant.subscription_end_date - today).days
 
         is_expiring_soon = days_left is not None and days_left <= warning_days
@@ -459,6 +466,7 @@ class HavanoposdeskTenant(models.Model):
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
     allow_edit_item_code = fields.Boolean(string='Allow Editing Item Code', default=False)
+    enable_hs_code = fields.Boolean(string='Enable HS Code', default=False)
     stock_decimal_places = fields.Integer(string='Stock Decimal Places', default=3, help='Number of decimal places (minimum 1)')
     do_not_round_stock = fields.Boolean(string='Do Not Round Stock (Truncate)', default=False, help='If checked, values are truncated without rounding, e.g., 1.67 with 1 decimal place becomes 1.6.')
     expenses_require_approval = fields.Boolean(string='Expenses Require Approval', default=False, help='If enabled, expenses submitted by cashiers will require manager approval before they are posted and deduct cash.')
@@ -526,7 +534,11 @@ class HavanoposdeskTenant(models.Model):
                 vals['subscription_end_date'] = fields.Date.context_today(self) + relativedelta(days=duration)
             if not vals.get('payment_status'):
                 vals['payment_status'] = 'paid'
-            if not vals.get('subscription_state'):
+            today = fields.Date.context_today(self)
+            if vals.get('subscription_end_date') and fields.Date.to_date(vals['subscription_end_date']) < today:
+                if vals.get('subscription_state') != 'cancelled':
+                    vals['subscription_state'] = 'expired'
+            elif not vals.get('subscription_state'):
                 vals['subscription_state'] = 'active'
                 
         tenants = super().create(vals_list)
@@ -981,7 +993,14 @@ class HavanoposdeskTenant(models.Model):
             # Activate plan
             tenant.action_pay_and_activate()
 
-
+    def init(self):
+        super().init()
+        # Clean up any leftover views referencing sync_to_frappe
+        self.env.cr.execute("""
+            DELETE FROM ir_ui_view 
+            WHERE arch_db::text ILIKE '%sync_to_frappe%' 
+               OR arch_db::text ILIKE '%frappe_sync%'
+        """)
 
     def _get_next_sequence(self, seq_type):
         self.ensure_one()
@@ -990,8 +1009,8 @@ class HavanoposdeskTenant(models.Model):
         next_field = f"{seq_type}_seq_next"
         padding_field = f"{seq_type}_seq_padding"
         
-        # Prevent concurrency issues by selecting this tenant row for update
-        self.env.cr.execute("SELECT id FROM havanoposdesk_tenant WHERE id = %s FOR UPDATE", [self.id])
+        # Ensure context skips audit logging for internal sequence advances
+        self = self.with_context(skip_audit_log=True)
         
         prefix = getattr(self, prefix_field) or ''
         next_val = getattr(self, next_field) or 1
@@ -1037,8 +1056,12 @@ class HavanoposdeskTenant(models.Model):
             else:
                 break
         
-        # Increment and update
-        self.write({next_field: next_val + 1})
+        # Direct SQL update avoids concurrent write serialization conflicts and write_date churn
+        self.env.cr.execute(
+            f'UPDATE havanoposdesk_tenant SET "{next_field}" = %s WHERE id = %s',
+            (next_val + 1, self.id)
+        )
+        self.invalidate_recordset([next_field])
         
         return formatted_seq
 
@@ -1054,6 +1077,15 @@ class HavanoposdeskTenant(models.Model):
             if restricted_fields.intersection(vals.keys()):
                 if not self.env.context.get('bypass_subscription_check'):
                     raise ValidationError('You cannot modify subscription details or payment status directly. Please use the "Change/Upgrade Plan" or "Pay & Activate Plan" buttons.')
+
+        # If subscription_end_date is being set in the past, auto-set state to expired unless explicitly cancelled
+        if 'subscription_end_date' in vals and vals['subscription_end_date']:
+            today = fields.Date.context_today(self)
+            end_date = fields.Date.to_date(vals['subscription_end_date'])
+            if end_date and end_date < today:
+                if vals.get('subscription_state') != 'cancelled':
+                    vals['subscription_state'] = 'expired'
+
         return super().write(vals)
 
     def action_open_delete_wizard(self):
@@ -1260,6 +1292,27 @@ class HavanoposdeskTenant(models.Model):
         return self.action_hard_delete_tenant_data()
 
     @api.model
+    def cron_check_expired_subscriptions(self):
+        """
+        Scheduled action to automatically set tenant subscription_state to 'expired'
+        when subscription_end_date has passed (< today).
+        """
+        today = fields.Date.context_today(self)
+        expired_tenants = self.sudo().search([
+            ('subscription_end_date', '!=', False),
+            ('subscription_end_date', '<', today),
+            ('subscription_state', 'not in', ('expired', 'cancelled')),
+        ])
+        if expired_tenants:
+            _logger.info("cron_check_expired_subscriptions: Auto-expiring %s tenant(s) whose end date has passed (< %s)", len(expired_tenants), today)
+            expired_tenants.with_context(bypass_subscription_check=True).write({
+                'subscription_state': 'expired'
+            })
+        else:
+            _logger.info("cron_check_expired_subscriptions: No unexpired tenants with passed subscription end date.")
+        return True
+
+    @api.model
     def cron_cleanup_expired_trial_tenants(self):
         """
         Automated cleanup cron job:
@@ -1365,12 +1418,9 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
                 wizard.monthly_price = 0.0
                 wizard.computed_total_price = 0.0
                 continue
-            if plan.is_custom:
-                extra = max(0, wizard.additional_terminals or 0)
-                extra_price = plan.extra_terminal_price or 12.0
-                m_rate = (plan.price or 12.0) + (extra * extra_price)
-            else:
-                m_rate = plan.price or 0.0
+            extra = max(0, wizard.additional_terminals or 0)
+            extra_price = plan.extra_terminal_price or 12.0
+            m_rate = (plan.price or 0.0) + (extra * extra_price)
 
             wizard.monthly_price = m_rate
             months = max(1, wizard.duration_months or 1)

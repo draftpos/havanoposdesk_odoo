@@ -142,7 +142,7 @@ class HavanoPOSDeskRESTAPI(HavanoPOSDeskAPI):
             return self._make_json_response({"error": "Missing required fields: email, password, name"}, status=400)
 
         import odoo
-        db = request.session.db or 'odoo_db_com'
+        db = request.session.db or 'saas'
         registry = odoo.modules.registry.Registry(db)
         
         with registry.cursor() as cr:
