@@ -25,78 +25,7 @@ class ResConfigSettings(models.TransientModel):
             return super(ResConfigSettings, self.sudo()).execute()
         return super().execute()
 
-    @api.model
-    def default_get(self, fields_list):
-        self._ensure_tenant_columns()
-        return super().default_get(fields_list)
-
-    @api.model
-    def _ensure_tenant_columns(self):
-        cr = self.env.cr
-        try:
-            cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'havanoposdesk_tenant'")
-            existing_cols = {row[0] for row in cr.fetchall()}
-            cols = [
-                ("account_balance", "DOUBLE PRECISION DEFAULT 0.0"),
-                ("pending_subscription_plan_id", "INTEGER"),
-                ("pending_additional_terminals", "INTEGER DEFAULT 0"),
-                ("pending_additional_stores", "INTEGER DEFAULT 0"),
-                ("pending_subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
-                ("additional_terminals", "INTEGER DEFAULT 0"),
-                ("additional_stores", "INTEGER DEFAULT 0"),
-                ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
-                ("effective_max_stores", "INTEGER DEFAULT 0"),
-                ("effective_max_terminals", "INTEGER DEFAULT 0"),
-                ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
-                ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
-                ("allow_negative_stock", "BOOLEAN DEFAULT TRUE"),
-                ("enable_tax", "BOOLEAN DEFAULT FALSE"),
-                ("enable_barcode", "BOOLEAN DEFAULT FALSE"),
-                ("enable_quotations", "BOOLEAN DEFAULT FALSE"),
-                ("enable_uom_conversion", "BOOLEAN DEFAULT FALSE"),
-                ("enable_payment_entries", "BOOLEAN DEFAULT FALSE"),
-                ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
-                ("enable_shift", "BOOLEAN DEFAULT FALSE"),
-                ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
-                ("theme_color", "VARCHAR"),
-                ("product_name_format", "VARCHAR"),
-                ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
-                ("payment_status", "VARCHAR"),
-                ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
-                ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
-                ("payroll_url", "VARCHAR"),
-                ("stock_decimal_places", "INTEGER DEFAULT 3"),
-                ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
-                ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
-            ]
-            for col_name, col_type in cols:
-                if col_name not in existing_cols:
-                    cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN {col_name} {col_type};")
-
-            # Ensure wizard foreign keys have ON DELETE CASCADE so they never block tenant operations
-            wizard_tables = [
-                'havanoposdesk_tenant_topup_wizard',
-                'havanoposdesk_subscription_pay_wizard',
-                'havanoposdesk_tenant_upgrade_wizard'
-            ]
-            for tbl in wizard_tables:
-                try:
-                    cr.execute(f"SELECT to_regclass('{tbl}');")
-                    if cr.fetchone()[0]:
-                        cr.execute(f"""
-                            SELECT conname 
-                            FROM pg_constraint 
-                            WHERE conrelid = '{tbl}'::regclass 
-                              AND confrelid = 'havanoposdesk_tenant'::regclass;
-                        """)
-                        for row in cr.fetchall():
-                            con_name = row[0]
-                            cr.execute(f"ALTER TABLE {tbl} DROP CONSTRAINT IF EXISTS \"{con_name}\";")
-                            cr.execute(f"ALTER TABLE {tbl} ADD CONSTRAINT \"{con_name}\" FOREIGN KEY (tenant_id) REFERENCES havanoposdesk_tenant(id) ON DELETE CASCADE;")
-                except Exception:
-                    pass
-        except Exception:
-            pass
+    # Dynamic DDL methods removed from default_get to eliminate AccessExclusiveLock delays
 
     biz_product_name_format = fields.Selection(
         related='tenant_id.product_name_format',
