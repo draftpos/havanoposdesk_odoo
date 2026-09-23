@@ -1,0 +1,99 @@
+name: Auto Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      restart_odoo:
+        description: 'Restart Odoo service after deploy'
+        required: true
+        type: boolean
+        default: true
+      upgrade_module:
+        description: 'Upgrade module (-u havanoposdesk_odoo) in database'
+        required: false
+        type: boolean
+        default: false
+      database_name:
+        description: 'Database name (required if upgrade_module is checked)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  deploy:
+    name: Deploy to Remote Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+
+            # 1. Target directory (defaults to secret SERVER_TARGET_DIR or fallback path)
+            TARGET_DIR="${{ secrets.SERVER_TARGET_DIR }}"
+            if [ -z "$TARGET_DIR" ]; then
+              TARGET_DIR="/opt/odoo/custom-addons/havanoposdesk_odoo"
+            fi
+
+            echo "=== Step 1: Navigating to $TARGET_DIR ==="
+            if [ ! -d "$TARGET_DIR" ]; then
+              echo "Error: Target directory $TARGET_DIR does not exist on the server."
+              exit 1
+            fi
+            cd "$TARGET_DIR"
+
+            echo "=== Step 2: Pulling latest changes from branch ${{ github.ref_name }} ==="
+            # Mark directory safe for Git (prevents dubious ownership issues)
+            git config --global --add safe.directory "$TARGET_DIR" || true
+
+            # Fetch and sync cleanly to avoid local merge conflict halts
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
+
+            echo "Latest commit deployed:"
+            git log -1 --oneline
+
+            # 3. Optional Module Upgrade (if configured via manual trigger or environment variable)
+            UPGRADE_MODULE="${{ github.event.inputs.upgrade_module || secrets.UPGRADE_MODULE || 'false' }}"
+            DB_NAME="${{ github.event.inputs.database_name || secrets.ODOO_DB_NAME || '' }}"
+
+            if [ "$UPGRADE_MODULE" = "true" ] && [ -n "$DB_NAME" ]; then
+              echo "=== Step 3: Upgrading havanoposdesk_odoo module on database $DB_NAME ==="
+              # Adjust odoo-bin and config path if needed
+              if command -v docker &> /dev/null && [ -f "docker-compose.yml" ]; then
+                docker compose exec -T odoo odoo -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
+              elif [ -f "/opt/odoo/odoo-bin" ]; then
+                python3 /opt/odoo/odoo-bin -c /etc/odoo.conf -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
+              fi
+            fi
+
+            # 4. Service Restart
+            RESTART_ODOO="${{ github.event.inputs.restart_odoo || 'true' }}"
+            if [ "$RESTART_ODOO" = "true" ]; then
+              echo "=== Step 4: Restarting Odoo service ==="
+              if systemctl is-active --quiet odoo 2>/dev/null; then
+                sudo systemctl restart odoo
+                echo "systemctl: Odoo service restarted."
+              elif systemctl is-active --quiet odoo-server 2>/dev/null; then
+                sudo systemctl restart odoo-server
+                echo "systemctl: Odoo-server service restarted."
+              elif command -v docker &> /dev/null && [ -f "docker-compose.yml" ]; then
+                docker compose restart odoo || true
+                echo "docker: Odoo container restarted."
+              else
+                # Fallback restart attempt via systemctl
+                sudo systemctl restart odoo || echo "Notice: Could not automatically detect Odoo service name. Please verify service restart command."
+              fi
+            fi
+
+            echo "=== Deployment Completed Successfully! ==="
