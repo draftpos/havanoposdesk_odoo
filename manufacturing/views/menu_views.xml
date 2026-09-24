@@ -2,6 +2,7 @@
 <odoo>
     <menuitem id="menu_havanoposdesk_manufacturing_root" 
               name="Manufacturing" 
+              web_icon="havanoposdesk_odoo,static/description/manufacturing.png"
               sequence="50"/>
 
     <menuitem id="menu_havanoposdesk_manufacturing_bom" 

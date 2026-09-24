@@ -56,6 +56,28 @@ window.addEventListener('unhandledrejection', (event) => {
     if (!reason) return;
 
     const msg = reason?.data?.message || reason?.message || String(reason);
+    
+    // Suppress Odoo's AbortError popups when navigating away (e.g., clicking Logout)
+    if (reason.name === 'AbortError' || msg.includes('The operation was aborted') || msg.includes('AbortError')) {
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        
+        // Ensure Odoo's default error dialog is removed if it managed to render
+        setTimeout(() => {
+            document.querySelectorAll('.o_error_dialog').forEach(el => {
+                if (el.innerText.includes('AbortError') || el.innerText.includes('The operation was aborted')) {
+                    el.remove();
+                }
+            });
+            // If no other modals exist, remove the backdrop
+            if (document.querySelectorAll('.modal').length === 0) {
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                document.body.classList.remove('modal-open');
+            }
+        }, 10);
+        return;
+    }
+
     if (
         msg.includes('Permission Denied') ||
         msg.includes('AccessError') ||
@@ -77,4 +99,4 @@ window.addEventListener('unhandledrejection', (event) => {
 
         showHavanoAccessDeniedModal(msg);
     }
-});
+}, true);

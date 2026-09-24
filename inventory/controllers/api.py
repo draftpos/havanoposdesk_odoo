@@ -9333,12 +9333,22 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"error": "Terminal not found"}, status=404)
 
             from odoo import fields as odoo_fields
-            terminal.write({
-                'last_seen': odoo_fields.Datetime.now(),
-                'status': 'online'
-            })
-            if custom_cr:
-                custom_cr.commit()
+            now = odoo_fields.Datetime.now()
+            
+            # Debounce database writes to every 30 minutes (1800 seconds)
+            needs_update = False
+            if terminal.status != 'online':
+                needs_update = True
+            elif not terminal.last_seen or (now - terminal.last_seen).total_seconds() > 1800:
+                needs_update = True
+                
+            if needs_update:
+                terminal.write({
+                    'last_seen': now,
+                    'status': 'online'
+                })
+                if custom_cr:
+                    custom_cr.commit()
             return self._make_json_response({"message": "Pong", "status": "online"}, status=200)
         except Exception as e:
             if custom_cr:
