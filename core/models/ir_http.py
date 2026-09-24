@@ -52,6 +52,15 @@ class IrHttp(models.AbstractModel):
             if hasattr(user, 'tenant_id') and user.tenant_id:
                 result['biz_enable_payroll'] = user.tenant_id.enable_payroll
             
+            is_super_admin = bool(
+                request.env.su
+                or user.id == 1
+                or getattr(user, 'havano_role', None) == 'super_admin'
+                or user.has_group('base.group_system')
+            )
+            result['is_super_admin'] = is_super_admin
+            result['havano_role'] = getattr(user, 'havano_role', None)
+            
             # Override "My Company" in the Top Bar to show Store Name or Tenant Name
             display_name = "My Company"
             if hasattr(user, 'default_store_id') and user.default_store_id:

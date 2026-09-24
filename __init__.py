@@ -41,12 +41,19 @@ def post_migrate(env):
         if group_cmds:
             user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
 
-    # Grant Administration Settings group to all super admins
+    # Grant Administration Settings group to all super admins and strip tenant admin group
     if group_system:
-        super_admins = env['res.users'].with_context(active_test=False).search([('havano_role', '=', 'super_admin')])
+        super_admins = env['res.users'].with_context(active_test=False).search([
+            '|', ('havano_role', '=', 'super_admin'), ('id', '=', 1)
+        ])
         for user in super_admins:
+            group_cmds = []
             if group_system not in user.group_ids:
-                user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, group_system.id, 0)]})
+                group_cmds.append((4, group_system.id, 0))
+            if tenant_admin_group and tenant_admin_group in user.group_ids:
+                group_cmds.append((3, tenant_admin_group.id, 0))
+            if group_cmds:
+                user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
 
     if erp_manager_group:
         # Grant Settings group to all tenant admins
