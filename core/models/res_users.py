@@ -503,9 +503,13 @@ class ResUsers(models.Model):
                     existing_groups = vals.get('group_ids', [])
                 
                 # Assign correct backend groups based on role
-                if role == 'super_admin' and group_system:
-                    existing_groups.append((4, group_system.id, 0))
-                    existing_groups.append((4, internal_group.id, 0))
+                if role == 'super_admin':
+                    if group_system:
+                        existing_groups.append((4, group_system.id, 0))
+                    if internal_group:
+                        existing_groups.append((4, internal_group.id, 0))
+                    if tenant_admin_group:
+                        existing_groups.append((3, tenant_admin_group.id, 0))
                 elif role == 'admin' and tenant_admin_group and erp_manager_group:
                     existing_groups.append((4, tenant_admin_group.id, 0))
                     existing_groups.append((4, erp_manager_group.id, 0))
@@ -621,8 +625,13 @@ class ResUsers(models.Model):
                     user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, internal_group.id, 0)]})
 
                 if user.havano_role == 'super_admin':
+                    group_cmds = []
                     if group_system and group_system not in user.group_ids:
-                        user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, group_system.id, 0)]})
+                        group_cmds.append((4, group_system.id, 0))
+                    if tenant_admin_group and tenant_admin_group in user.group_ids:
+                        group_cmds.append((3, tenant_admin_group.id, 0))
+                    if group_cmds:
+                        user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
                 elif user.havano_role == 'admin':
                     # Admin: ensure they have both Tenant Admin group and Settings group
                     group_cmds = []

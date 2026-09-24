@@ -19,6 +19,22 @@
                 <app logo="/havanoposdesk_odoo/static/description/configs.png" data-string="Settings" string="Settings" name="havanoposdesk_my_business" groups="base.group_user">
                     <field name="tenant_id" invisible="1"/>
                     
+                    <block title="Subscription &amp; Wallet" name="subscription_config">
+                        <setting string="Prepaid Wallet Balance" help="Your prepaid balance for subscription renewals and upgrades.">
+                            <div class="content-group mt8">
+                                <field name="biz_account_balance" widget="monetary" options="{'currency_field': 'biz_currency_id'}" class="oe_inline fw-bold fs-5 text-primary"/>
+                            </div>
+                            <div class="mt16">
+                                <button name="action_open_topup_wizard" type="object" string="Top Up Balance" icon="fa-plus-circle" class="btn btn-primary me-2"/>
+                            </div>
+                        </setting>
+                        <setting string="My Subscription Plan" help="View and manage your current subscription plan and billing.">
+                            <div class="mt16">
+                                <button name="%(action_my_subscription)d" type="action" string="Manage Subscription" icon="fa-arrow-right" class="btn btn-secondary"/>
+                            </div>
+                        </setting>
+                    </block>
+
                     <block title="Users &amp; Roles" name="users_roles_config">
                         <setting string="Users" help="Manage your cashiers and backoffice users">
                             <div class="mt16">
@@ -139,22 +155,6 @@
                         <setting string="Device Test &amp; Ping" help="Test connectivity to ZIMRA Cloud API server" invisible="not biz_enable_fiscalization">
                             <div class="mt16">
                                 <button name="action_ping_zimra_device" type="object" string="Ping ZIMRA Device" icon="fa-plug" class="btn btn-primary"/>
-                            </div>
-                        </setting>
-                    </block>
-
-                    <block title="Subscription &amp; Wallet" name="subscription_config">
-                        <setting string="Prepaid Wallet Balance" help="Your prepaid balance for subscription renewals and upgrades.">
-                            <div class="content-group mt8">
-                                <field name="biz_account_balance" widget="monetary" options="{'currency_field': 'biz_currency_id'}" class="oe_inline fw-bold fs-5 text-primary"/>
-                            </div>
-                            <div class="mt16">
-                                <button name="action_open_topup_wizard" type="object" string="Top Up Balance" icon="fa-plus-circle" class="btn btn-primary me-2"/>
-                            </div>
-                        </setting>
-                        <setting string="My Subscription Plan" help="View and manage your current subscription plan and billing.">
-                            <div class="mt16">
-                                <button name="%(action_my_subscription)d" type="action" string="Manage Subscription" icon="fa-arrow-right" class="btn btn-secondary"/>
                             </div>
                         </setting>
                     </block>

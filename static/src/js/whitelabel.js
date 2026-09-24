@@ -122,12 +122,43 @@ function patchDocumentTitle() {
     });
 }
 
+function hideSuperAdminNavItems() {
+    const isSuperAdmin = Boolean(
+        session.is_super_admin ||
+        session.havano_role === "super_admin" ||
+        (session.user_context && session.user_context.uid === 1) ||
+        session.uid === 1
+    );
+    if (!isSuperAdmin) {
+        return;
+    }
+    if (document.body) {
+        document.body.classList.add("is_super_admin");
+    }
+    const navbar = document.querySelector(".o_main_navbar, .o_navbar");
+    if (!navbar) {
+        return;
+    }
+    const navItems = navbar.querySelectorAll(".o_menu_sections a, .o_menu_sections button, .o_menu_sections .dropdown-item, .o_nav_entry, [data-menu-xmlid]");
+    navItems.forEach((el) => {
+        const text = (el.textContent || "").trim();
+        const xmlid = el.getAttribute("data-menu-xmlid");
+        if (text === "My Subscription" || xmlid === "havanoposdesk_odoo.menu_my_subscription") {
+            el.style.display = "none";
+            if (el.parentElement && el.parentElement.tagName === "LI") {
+                el.parentElement.style.display = "none";
+            }
+        }
+    });
+}
+
 // ── 4. Run all patches when DOM is ready ──────────────────────────────────
 function applyWhiteLabel() {
     replaceOdooLogo();
     addLogoutLink();
     patchDocumentTitle();
     patchOdooReferences();
+    hideSuperAdminNavItems();
 }
 
 // Apply immediately if DOM is ready, then again after short delay for dynamic content
@@ -145,7 +176,10 @@ setTimeout(applyWhiteLabel, 2000);
 let patchTimeout;
 const domObserver = new MutationObserver(() => {
     if (patchTimeout) clearTimeout(patchTimeout);
-    patchTimeout = setTimeout(patchOdooReferences, 300);
+    patchTimeout = setTimeout(() => {
+        patchOdooReferences();
+        hideSuperAdminNavItems();
+    }, 300);
 });
 document.addEventListener("DOMContentLoaded", () => {
     domObserver.observe(document.body, { childList: true, subtree: true });
