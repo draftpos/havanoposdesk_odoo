@@ -96,7 +96,7 @@ class CashTransfer(models.Model):
         ('draft', 'Draft'),
         ("posted", "Transferred"),
         ("cancelled", "Cancelled"),
-    ], string="Status", default="draft", required=True, copy=False, tracking=True)
+    ], string="Status", default="draft", required=True, copy=False)
 
     @api.model_create_multi
     def create(self, vals_list):

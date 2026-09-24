@@ -18,7 +18,7 @@ class Shift(models.Model):
     state = fields.Selection([
         ('open', 'Open'),
         ('closed', 'Closed')
-    ], string='Status', default='open', required=True, tracking=True)
+    ], string='Status', default='open', required=True)
 
     currency_id = fields.Many2one('res.currency', string='Currency', related='tenant_id.currency_id', readonly=True)
 
@@ -42,7 +42,7 @@ class Shift(models.Model):
     payment_ids = fields.One2many('havanoposdesk.payment', 'shift_id', string='Payments')
     cash_transfer_ids = fields.One2many('havanoposdesk.cash.transfer', 'shift_id', string='Cash Transfers / Cash Up')
     cash_transferred_amount = fields.Monetary(string='Total Cashed Up / Transferred', compute='_compute_cash_transferred', compute_sudo=True, currency_field='currency_id', store=True)
-    cash_transfer_count = fields.Integer(string='Cash Transfers Count', compute='_compute_cash_transferred', compute_sudo=True)
+    cash_transfer_count = fields.Integer(string='Cash Transfers Count', compute='_compute_cash_transferred', compute_sudo=True, store=True)
     
     payment_breakdown_ids = fields.One2many('havanoposdesk.shift.payment.line', 'shift_id', string='Payment Breakdown (Declared)')
 

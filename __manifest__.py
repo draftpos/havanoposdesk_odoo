@@ -90,7 +90,6 @@
         'core/views/clear_data_wizard_views.xml',
         'core/views/delete_tenant_wizard_views.xml',
         'core/data/clear_data_mail_templates.xml',
-        'core/views/menus.xml',
     ],
     'installable': True,
     'application': True,

@@ -31,6 +31,10 @@ class SalesItemTaxReport(models.Model):
     create_date = fields.Datetime(string='Created On', readonly=True)
 
     def init(self):
+        try:
+            self.env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS hs_code VARCHAR;")
+        except Exception:
+            pass
         tools.drop_view_if_exists(self.env.cr, self._table)
         self.env.cr.execute("""
             CREATE OR REPLACE VIEW %s AS (

@@ -65,7 +65,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
         ('custom_months', 'Custom Months')
     ], string='Billing Cycle', default='1_month', required=True)
     duration_months = fields.Integer(string='Duration (Months)', default=1, required=True)
-    monthly_rate = fields.Float(string='Monthly Rate ($)', compute='_compute_amount_and_rate')
+    monthly_rate = fields.Float(string='Monthly Rate ($)', compute='_compute_amount_and_rate', store=True)
     amount = fields.Float(string='Amount to Pay ($)', compute='_compute_amount_and_rate', store=True, readonly=False)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card (Redirection)'),

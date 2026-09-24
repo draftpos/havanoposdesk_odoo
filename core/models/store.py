@@ -42,7 +42,7 @@ class HavanoposdeskStore(models.Model):
         'havanoposdesk.pricelist', 
         string='Default Pricelist',
         domain="[('id', 'in', pricelist_ids)]",
-        required=True
+        required=False
     )
     active = fields.Boolean(string='Active', default=True)
     is_default = fields.Boolean(string='Is Default', default=False)

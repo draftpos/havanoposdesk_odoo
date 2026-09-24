@@ -7,7 +7,7 @@ import json
 import logging
 import random
 import string
-from odoo.exceptions import ValidationError, UserError
+from odoo.exceptions import ValidationError, UserError, RedirectWarning
 
 _logger = logging.getLogger(__name__)
 
@@ -1099,12 +1099,11 @@ class HavanoPOSDeskAPI(http.Controller):
                 custom_cr.close()
 
     # SUBSCRIPTIONS & PAYMENTS
-    @http.route('/api/subscription/plans', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
+    @http.route('/api/subscription/plans', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def get_subscription_plans(self, **kw):
-        uid = request.session.uid
-        if not uid:
-            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
-            
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
         plans = request.env['havanoposdesk.subscription.plan'].sudo().search([])
         data = []
         for p in plans:
@@ -1129,18 +1128,20 @@ class HavanoPOSDeskAPI(http.Controller):
                     '12_months': p.price * 12 * (1.0 - (annual_disc / 100.0)),
                 }
             })
-        return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
+        return self._make_json_response(data, status=200)
 
-    @http.route('/api/subscription/status', auth='public', methods=['GET'], type='http', csrf=False, cors='*')
+    @http.route('/api/subscription/status', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def get_subscription_status(self, **kw):
-        uid = request.session.uid
-        if not uid:
-            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        user = self._get_user()
+        if not user or not user.exists() or (user.id == request.env.ref('base.public_user').id):
+            return self._make_json_response({'error': 'Unauthorized'}, status=401)
             
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
-            return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
+            return self._make_json_response({'error': 'User has no tenant'}, status=400)
             
         # Count current usage
         stores_count = request.env['havanoposdesk.store'].sudo().search_count([('tenant_id', '=', tenant.id)])
@@ -1208,27 +1209,29 @@ class HavanoPOSDeskAPI(http.Controller):
                 }
             }
         }
-        return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+        return self._make_json_response(res_data, status=200)
 
-    @http.route('/api/subscription/subscribe', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
+    @http.route('/api/subscription/subscribe', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def subscribe_plan(self, **kw):
-        uid = request.session.uid
-        if not uid:
-            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        user = self._get_user()
+        if not user or not user.exists() or (user.id == request.env.ref('base.public_user').id):
+            return self._make_json_response({'error': 'Unauthorized'}, status=401)
             
         try:
             data = json.loads(request.httprequest.data)
         except Exception:
-            return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
+            return self._make_json_response({'error': 'Invalid JSON body'}, status=400)
             
         plan_id = data.get('plan_id')
         if not plan_id:
-            return request.make_response(json.dumps({'error': 'plan_id is required'}), headers=[('Content-Type', 'application/json')], status=400)
+            return self._make_json_response({'error': 'plan_id is required'}, status=400)
             
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
-            return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
+            return self._make_json_response({'error': 'User has no tenant'}, status=400)
             
         plan = request.env['havanoposdesk.subscription.plan'].sudo().browse(plan_id)
         if not plan.exists():
@@ -1266,21 +1269,23 @@ class HavanoPOSDeskAPI(http.Controller):
             'state': tenant.subscription_state,
         }), headers=[('Content-Type', 'application/json')])
 
-    @http.route('/api/subscription/pay', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
+    @http.route('/api/subscription/pay', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def pay_subscription(self, **kw):
-        uid = request.session.uid
-        if not uid:
-            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        user = self._get_user()
+        if not user or not user.exists() or (user.id == request.env.ref('base.public_user').id):
+            return self._make_json_response({'error': 'Unauthorized'}, status=401)
             
         try:
             data = json.loads(request.httprequest.data)
         except Exception:
-            return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
+            return self._make_json_response({'error': 'Invalid JSON body'}, status=400)
             
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
-            return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
+            return self._make_json_response({'error': 'User has no tenant'}, status=400)
             
         plan = tenant.pending_subscription_plan_id or tenant.subscription_plan_id
         if not plan:
@@ -1422,21 +1427,23 @@ class HavanoPOSDeskAPI(http.Controller):
                 'reference': reference
             }), headers=[('Content-Type', 'application/json')])
 
-    @http.route('/api/subscription/pay_from_balance', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
+    @http.route('/api/subscription/pay_from_balance', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def pay_subscription_from_balance(self, **kw):
-        uid = request.session.uid
-        if not uid:
-            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        user = self._get_user()
+        if not user or not user.exists() or (user.id == request.env.ref('base.public_user').id):
+            return self._make_json_response({'error': 'Unauthorized'}, status=401)
             
         try:
             data = json.loads(request.httprequest.data) if request.httprequest.data else {}
         except Exception:
             data = {}
 
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
-            return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
+            return self._make_json_response({'error': 'User has no tenant'}, status=400)
             
         if data.get('billing_cycle') or data.get('duration_months'):
             tenant.with_context(bypass_subscription_check=True).write({
@@ -1458,21 +1465,23 @@ class HavanoPOSDeskAPI(http.Controller):
         except Exception as e:
             return request.make_response(json.dumps({'error': str(e)}), headers=[('Content-Type', 'application/json')], status=400)
 
-    @http.route('/api/subscription/topup', auth='public', methods=['POST'], type='http', csrf=False, cors='*')
+    @http.route('/api/subscription/topup', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def topup_account_balance(self, **kw):
-        uid = request.session.uid
-        if not uid:
-            return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        user = self._get_user()
+        if not user or not user.exists() or (user.id == request.env.ref('base.public_user').id):
+            return self._make_json_response({'error': 'Unauthorized'}, status=401)
             
         try:
             data = json.loads(request.httprequest.data)
         except Exception:
-            return request.make_response(json.dumps({'error': 'Invalid JSON body'}), headers=[('Content-Type', 'application/json')], status=400)
+            return self._make_json_response({'error': 'Invalid JSON body'}, status=400)
             
-        user = request.env['res.users'].sudo().browse(uid)
         tenant = user.tenant_id
         if not tenant:
-            return request.make_response(json.dumps({'error': 'User has no tenant'}), headers=[('Content-Type', 'application/json')], status=400)
+            return self._make_json_response({'error': 'User has no tenant'}, status=400)
             
         amount = float(data.get('amount', 0.0))
         if amount <= 0:
@@ -2900,6 +2909,35 @@ class HavanoPOSDeskAPI(http.Controller):
         ]
         return request.make_response(body, headers=headers, status=status)
 
+    def _extract_error_message(self, exception):
+        """Extract a clean, user-friendly error message from an exception,
+        unpacking RedirectWarning tuples or stringified tuples if present.
+        """
+        import re
+        if isinstance(exception, RedirectWarning):
+            msg = exception.args[0] if exception.args else str(exception)
+            return str(msg), True
+
+        if hasattr(exception, 'args') and exception.args:
+            first_arg = exception.args[0]
+            raw = str(first_arg) if not isinstance(first_arg, str) else first_arg
+        else:
+            raw = str(exception)
+
+        tuple_match = re.match(r"^\(\s*['\"](.*?)['\"]\s*,", raw)
+        if tuple_match:
+            clean_msg = tuple_match.group(1).strip()
+        else:
+            clean_msg = raw.strip()
+
+        is_sub = (
+            'subscription' in clean_msg.lower() or
+            ('cashier' in clean_msg.lower() and 'reached' in clean_msg.lower()) or
+            ('user' in clean_msg.lower() and 'reached' in clean_msg.lower()) or
+            'max_users' in clean_msg.lower()
+        )
+        return clean_msg, is_sub
+
     def _get_request_json(self):
         try:
             return json.loads(request.httprequest.data.decode('utf-8'))
@@ -2920,17 +2958,44 @@ class HavanoPOSDeskAPI(http.Controller):
             try:
                 credential = {'login': username, 'password': password, 'type': 'password'}
                 auth_info = request.env['res.users'].authenticate(credential, {'interactive': False})
-                return auth_info.get('uid')
+                if auth_info.get('uid'):
+                    return auth_info.get('uid')
             except Exception:
-                return None
+                pass
+            # Check PIN fallback
+            try:
+                user_rec = request.env['res.users'].sudo().search([
+                    '|', ('login', '=', username), ('email', '=', username),
+                    ('pin', '=', password)
+                ], limit=1)
+                if user_rec:
+                    return user_rec.id
+            except Exception:
+                pass
+            return None
         else:
             try:
                 registry = odoo.modules.registry.Registry(db)
                 with registry.cursor() as cr:
                     env = odoo.api.Environment(cr, odoo.SUPERUSER_ID, {})
-                    credential = {'login': username, 'password': password, 'type': 'password'}
-                    auth_info = env['res.users'].authenticate(credential, {'interactive': False})
-                    return auth_info.get('uid')
+                    try:
+                        credential = {'login': username, 'password': password, 'type': 'password'}
+                        auth_info = env['res.users'].authenticate(credential, {'interactive': False})
+                        if auth_info.get('uid'):
+                            return auth_info.get('uid')
+                    except Exception:
+                        pass
+                    # Check PIN fallback
+                    try:
+                        user_rec = env['res.users'].sudo().search([
+                            '|', ('login', '=', username), ('email', '=', username),
+                            ('pin', '=', password)
+                        ], limit=1)
+                        if user_rec:
+                            return user_rec.id
+                    except Exception:
+                        pass
+                    return None
             except Exception:
                 return None
 
@@ -8780,11 +8845,15 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"error": "Invalid JSON body"}, status=400)
 
             email = data.get('email')
-            phone_number = data.get('phone_number')
+            phone_number = data.get('phone_number') or data.get('phone') or data.get('mobile_no')
             password = data.get('password')
             pin = data.get('pin')
-            first_name = data.get('first_name') or 'User'
-            last_name = data.get('last_name') or 'Account'
+            first_name = data.get('first_name') or ''
+            last_name = data.get('last_name') or ''
+            full_name = data.get('name') or data.get('full_name') or f"{first_name} {last_name}".strip()
+            if not full_name:
+                full_name = email.split('@')[0] if email and '@' in email else 'User Account'
+
             role_raw = (
                 data.get('role') or
                 data.get('role_profile_name') or
@@ -8807,57 +8876,152 @@ class HavanoPOSDeskAPI(http.Controller):
             if any(k in role_str for k in ('admin', 'tenant_admin', 'super_admin')):
                 is_admin = True
             user_role = 'admin' if is_admin else 'user'
+            allow_backoffice = True if is_admin else bool(data.get('allow_backoffice', False))
+
+            # Resolve store_ids and default_store_id
+            store_ids_input = data.get('store_ids')
+            default_store_input = data.get('default_store_id') or data.get('store_id') or data.get('store') or data.get('default_store')
+            
+            store_objs = env['havanoposdesk.store'].sudo().browse()
+            if store_ids_input and isinstance(store_ids_input, list):
+                s_ids = [int(s) for s in store_ids_input if str(s).isdigit()]
+                if s_ids:
+                    store_objs = env['havanoposdesk.store'].sudo().search([
+                        ('tenant_id', '=', tenant_id),
+                        ('id', 'in', s_ids)
+                    ])
+
+            default_store_obj = False
+            if default_store_input:
+                if str(default_store_input).isdigit():
+                    default_store_obj = env['havanoposdesk.store'].sudo().search([
+                        ('tenant_id', '=', tenant_id),
+                        ('id', '=', int(default_store_input))
+                    ], limit=1)
+                else:
+                    default_store_obj = env['havanoposdesk.store'].sudo().search([
+                        ('tenant_id', '=', tenant_id),
+                        ('name', '=', str(default_store_input))
+                    ], limit=1)
+                    
+            if not default_store_obj and store_objs:
+                default_store_obj = store_objs[0]
+            if not default_store_obj and current_user.default_store_id:
+                default_store_obj = current_user.default_store_id
+            if not default_store_obj and tenant_id:
+                default_store_obj = env['havanoposdesk.store'].sudo().search([
+                    ('tenant_id', '=', tenant_id)
+                ], limit=1)
+
+            if default_store_obj:
+                if not store_objs:
+                    store_objs = default_store_obj
+                elif default_store_obj not in store_objs:
+                    store_objs = store_objs | default_store_obj
+
+            # Resolve pricelist_id
+            pricelist_input = data.get('pricelist_id') or data.get('pricelist')
+            pricelist_obj = False
+            if pricelist_input:
+                if str(pricelist_input).isdigit():
+                    pricelist_obj = env['havanoposdesk.pricelist'].sudo().search([
+                        ('tenant_id', '=', tenant_id),
+                        ('id', '=', int(pricelist_input))
+                    ], limit=1)
+                else:
+                    pricelist_obj = env['havanoposdesk.pricelist'].sudo().search([
+                        ('tenant_id', '=', tenant_id),
+                        ('name', '=ilike', str(pricelist_input).strip())
+                    ], limit=1)
+            if not pricelist_obj and default_store_obj and default_store_obj.pricelist_id:
+                pricelist_obj = default_store_obj.pricelist_id
+            if not pricelist_obj and tenant_id:
+                pricelist_obj = env['havanoposdesk.pricelist'].sudo().search([
+                    ('tenant_id', '=', tenant_id),
+                    ('type', '=', 'selling')
+                ], limit=1)
+
+            # Resolve user rights profile
+            profile_input = data.get('user_rights_profile_id') or data.get('profile_id')
+            profile_obj = False
+            if profile_input and str(profile_input).isdigit():
+                profile_obj = env['havanoposdesk.user.rights.profile'].sudo().search([
+                    ('tenant_id', '=', tenant_id),
+                    ('id', '=', int(profile_input))
+                ], limit=1)
+            if not profile_obj and tenant_id:
+                profile_obj = env['havanoposdesk.user.rights.profile'].sudo().search([
+                    ('tenant_id', '=', tenant_id),
+                    '|', '|',
+                    ('name', '=ilike', str(role_raw)),
+                    ('havano_role', '=', user_role),
+                    ('havano_role', '=', 'cashier' if user_role == 'user' else user_role)
+                ], limit=1)
 
             existing_user = env['res.users'].search([('login', '=', email)], limit=1)
             if existing_user:
                 if existing_user.tenant_id and existing_user.tenant_id.id == tenant_id:
                     # Update existing user info
                     user_vals = {
-                        'name': f"{first_name} {last_name}".strip(),
+                        'name': full_name,
                         'phone': phone_number,
                         'email': email,
-                        'pin': pin,
                     }
-                    if password:
+                    if pin:
+                        user_vals['pin'] = str(pin).strip()
+                    if password and (is_admin or allow_backoffice):
                         user_vals['password'] = password
+                        user_vals['allow_backoffice'] = True
+                    elif 'allow_backoffice' in data:
+                        user_vals['allow_backoffice'] = allow_backoffice
 
-                    # Resolve store from payload
-                    store_ref = data.get('store_id') or data.get('store') or data.get('default_store_id') or data.get('default_store')
-                    store_obj = False
-                    if store_ref:
-                        if isinstance(store_ref, int) or (isinstance(store_ref, str) and store_ref.isdigit()):
-                            store_obj = env['havanoposdesk.store'].sudo().browse(int(store_ref))
-                        else:
-                            store_obj = env['havanoposdesk.store'].sudo().search([('name', '=', str(store_ref))], limit=1)
-                    if store_obj:
-                        user_vals['default_store_id'] = store_obj.id
-                        user_vals['store_ids'] = [(6, 0, [store_obj.id])]
-                        user_vals['api_warehouse'] = store_obj.name
-                        user_vals['api_cost_center'] = store_obj.name
-                    
+                    if default_store_obj:
+                        user_vals['default_store_id'] = default_store_obj.id
+                        user_vals['store_ids'] = [(6, 0, store_objs.ids)]
+                        user_vals['api_warehouse'] = default_store_obj.name
+                        user_vals['api_cost_center'] = default_store_obj.name
+                    if pricelist_obj:
+                        user_vals['pricelist_id'] = pricelist_obj.id
+                    if profile_obj:
+                        user_vals['user_rights_profile_id'] = profile_obj.id
                     if role_raw:
                         user_vals['havano_role'] = user_role
-                        # Search for profile in this tenant
-                        profile = env['havanoposdesk.user.rights.profile'].search([
-                            ('tenant_id', '=', tenant_id),
-                            '|', '|',
-                            ('name', '=ilike', str(role_raw)),
-                            ('havano_role', '=', user_role),
-                            ('havano_role', '=', 'cashier' if user_role == 'user' else user_role)
-                        ], limit=1)
-                        if profile:
-                            user_vals['user_rights_profile_id'] = profile.id
+
+                    if 'allow_discount' in data:
+                        user_vals['allow_discount'] = bool(data.get('allow_discount'))
+                    if 'max_discount_percent' in data:
+                        try:
+                            user_vals['max_discount_percent'] = float(data.get('max_discount_percent'))
+                        except (ValueError, TypeError):
+                            pass
+                    if 'require_shift' in data:
+                        user_vals['require_shift'] = bool(data.get('require_shift'))
+                    if 'enabled' in data or 'active' in data:
+                        user_vals['active'] = bool(data.get('enabled', data.get('active', True)))
 
                     existing_user.sudo().write(user_vals)
                     return self._make_json_response({
-                        "message": "User updated successfully"
+                        "message": "User updated successfully",
+                        "status": 200,
+                        "user_id": existing_user.id
                     })
                 else:
                     return self._make_json_response({"error": "User email is already registered under another tenant"}, status=400)
 
             # Create new user
-            if not password:
-                return self._make_json_response({"error": "Password is required for new users"}, status=400)
+            if is_admin:
+                if not password:
+                    return self._make_json_response({"error": "Password is required for admin users"}, status=400)
+            else:
+                if not pin or len(str(pin).strip()) != 4 or not str(pin).strip().isdigit():
+                    return self._make_json_response({"error": "POS Login PIN must be exactly 4 digits for cashiers"}, status=400)
+                # Check PIN uniqueness in tenant
+                dup_pin = env['res.users'].sudo().search([
+                    ('tenant_id', '=', tenant_id),
+                    ('pin', '=', str(pin).strip())
+                ], limit=1)
+                if dup_pin:
+                    return self._make_json_response({"error": f"PIN {pin} is already in use by {dup_pin.name}"}, status=400)
 
             company = env['res.company'].search([], limit=1)
             company_id = company.id if company else 1
@@ -8880,52 +9044,52 @@ class HavanoPOSDeskAPI(http.Controller):
             timezone_val = data.get('timezone') or data.get('tz')
 
             user_vals = {
-                'name': f"{first_name} {last_name}".strip(),
+                'name': full_name,
                 'login': email,
                 'email': email,
-                'password': password,
                 'havano_role': user_role,
                 'saas_state': 'verified',
                 'tenant_id': tenant_id,
                 'phone': phone_number,
-                'pin': pin,
                 'company_id': company_id,
                 'company_ids': [(6, 0, [company_id])],
-                'active': True,
+                'active': bool(data.get('enabled', data.get('active', True))),
             }
+            if pin:
+                user_vals['pin'] = str(pin).strip()
+            if is_admin:
+                user_vals['password'] = password
+                user_vals['allow_backoffice'] = True
+            elif allow_backoffice and password:
+                user_vals['password'] = password
+                user_vals['allow_backoffice'] = True
+            else:
+                user_vals['allow_backoffice'] = False
+
             if country_id:
                 user_vals['country_id'] = country_id
             if timezone_val:
                 user_vals['tz'] = str(timezone_val).strip()
-            # Resolve store from payload
-            store_ref = data.get('store_id') or data.get('store') or data.get('default_store_id') or data.get('default_store')
-            store_obj = False
-            if store_ref:
-                if isinstance(store_ref, int) or (isinstance(store_ref, str) and store_ref.isdigit()):
-                    store_obj = env['havanoposdesk.store'].sudo().browse(int(store_ref))
-                else:
-                    store_obj = env['havanoposdesk.store'].sudo().search([('name', '=', str(store_ref))], limit=1)
-            
-            if not store_obj and current_user.default_store_id:
-                store_obj = current_user.default_store_id
-                
-            if store_obj:
-                user_vals['default_store_id'] = store_obj.id
-                user_vals['store_ids'] = [(6, 0, [store_obj.id])]
-                user_vals['api_warehouse'] = store_obj.name
-                user_vals['api_cost_center'] = store_obj.name
 
-            # Map the profile if provided
-            if role_raw:
-                profile = env['havanoposdesk.user.rights.profile'].search([
-                    ('tenant_id', '=', tenant_id),
-                    '|', '|',
-                    ('name', '=ilike', str(role_raw)),
-                    ('havano_role', '=', user_role),
-                    ('havano_role', '=', 'cashier' if user_role == 'user' else user_role)
-                ], limit=1)
-                if profile:
-                    user_vals['user_rights_profile_id'] = profile.id
+            if default_store_obj:
+                user_vals['default_store_id'] = default_store_obj.id
+                user_vals['store_ids'] = [(6, 0, store_objs.ids)]
+                user_vals['api_warehouse'] = default_store_obj.name
+                user_vals['api_cost_center'] = default_store_obj.name
+            if pricelist_obj:
+                user_vals['pricelist_id'] = pricelist_obj.id
+            if profile_obj:
+                user_vals['user_rights_profile_id'] = profile_obj.id
+
+            if 'allow_discount' in data:
+                user_vals['allow_discount'] = bool(data.get('allow_discount'))
+            if 'max_discount_percent' in data:
+                try:
+                    user_vals['max_discount_percent'] = float(data.get('max_discount_percent'))
+                except (ValueError, TypeError):
+                    pass
+            if 'require_shift' in data:
+                user_vals['require_shift'] = bool(data.get('require_shift'))
 
             user = env['res.users'].create(user_vals)
 
@@ -8935,13 +9099,243 @@ class HavanoPOSDeskAPI(http.Controller):
             })
 
             return self._make_json_response({
-                "message": "User registered successfully"
+                "message": "User registered successfully",
+                "status": 200,
+                "user_id": user.id
             })
 
+        except RedirectWarning as e:
+            if custom_cr:
+                custom_cr.rollback()
+            msg = e.args[0] if e.args else str(e)
+            return self._make_json_response({
+                "error": str(msg),
+                "message": str(msg),
+                "subscription_error": True,
+                "code": "SUBSCRIPTION_LIMIT",
+            }, status=403)
+        except (UserError, ValidationError) as e:
+            if custom_cr:
+                custom_cr.rollback()
+            msg, is_sub = self._extract_error_message(e)
+            return self._make_json_response({
+                "error": msg,
+                "message": msg,
+                "subscription_error": is_sub,
+                "code": "SUBSCRIPTION_LIMIT" if is_sub else "VALIDATION_ERROR",
+            }, status=403 if is_sub else 400)
         except Exception as e:
             if custom_cr:
                 custom_cr.rollback()
-            return self._make_json_response({"error": str(e)}, status=500)
+            msg, is_sub = self._extract_error_message(e)
+            return self._make_json_response({
+                "error": msg,
+                "message": msg,
+                "subscription_error": is_sub,
+                "code": "SUBSCRIPTION_LIMIT" if is_sub else "SERVER_ERROR",
+            }, status=403 if is_sub else 500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route([
+        '/api/method/saas_api.www.api.edit_user',
+        '/saas_api/edit_user'
+    ], auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_edit_user(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            try:
+                data = json.loads(request.httprequest.data)
+            except Exception:
+                return self._make_json_response({"error": "Invalid JSON body"}, status=400)
+
+            email = data.get('email')
+            user_id = data.get('user_id') or data.get('id')
+            if not email and not user_id:
+                return self._make_json_response({"error": "Email or user_id is required"}, status=400)
+
+            current_user = env['res.users'].browse(uid)
+            tenant_id = current_user.tenant_id.id if current_user.tenant_id else False
+
+            domain = []
+            if user_id and str(user_id).isdigit():
+                domain.append(('id', '=', int(user_id)))
+            else:
+                domain.append(('login', '=', email))
+            if tenant_id and current_user.havano_role != 'super_admin':
+                domain.append(('tenant_id', '=', tenant_id))
+
+            target_user = env['res.users'].sudo().search(domain, limit=1)
+            if not target_user:
+                return self._make_json_response({"error": "User not found in your organization"}, status=404)
+
+            vals = {}
+            first_name = data.get('first_name')
+            last_name = data.get('last_name')
+            name = data.get('name') or data.get('full_name')
+            if name:
+                vals['name'] = name.strip()
+            elif first_name is not None or last_name is not None:
+                current_names = (target_user.name or "").split(' ', 1)
+                fn = first_name if first_name is not None else (current_names[0] if current_names else "")
+                ln = last_name if last_name is not None else (current_names[1] if len(current_names) > 1 else "")
+                vals['name'] = f"{fn} {ln}".strip()
+
+            if 'phone_number' in data or 'phone' in data or 'mobile_no' in data:
+                vals['phone'] = data.get('phone_number') or data.get('phone') or data.get('mobile_no')
+
+            if 'pin' in data and data.get('pin'):
+                pin = str(data.get('pin')).strip()
+                if len(pin) != 4 or not pin.isdigit():
+                    return self._make_json_response({"error": "PIN must be exactly 4 digits"}, status=400)
+                dup = env['res.users'].sudo().search([
+                    ('tenant_id', '=', tenant_id),
+                    ('pin', '=', pin),
+                    ('id', '!=', target_user.id)
+                ], limit=1)
+                if dup:
+                    return self._make_json_response({"error": f"PIN {pin} is already assigned to {dup.name}"}, status=400)
+                vals['pin'] = pin
+
+            new_role = None
+            if 'role' in data or 'role_profile_name' in data or 'havano_role' in data:
+                r_val = str(data.get('role') or data.get('role_profile_name') or data.get('havano_role')).lower()
+                is_admin = any(k in r_val for k in ('admin', 'tenant_admin', 'super_admin'))
+                new_role = 'admin' if is_admin else 'user'
+                vals['havano_role'] = new_role
+                if is_admin:
+                    vals['allow_backoffice'] = True
+
+            if 'allow_backoffice' in data and new_role != 'admin':
+                vals['allow_backoffice'] = bool(data.get('allow_backoffice'))
+
+            if data.get('password'):
+                vals['password'] = data.get('password')
+
+            if 'enabled' in data or 'active' in data:
+                vals['active'] = bool(data.get('enabled', data.get('active', True)))
+
+            # Store & Pricelist
+            store_ids_input = data.get('store_ids')
+            if store_ids_input is not None and isinstance(store_ids_input, list):
+                s_ids = [int(s) for s in store_ids_input if str(s).isdigit()]
+                vals['store_ids'] = [(6, 0, s_ids)]
+
+            default_store_input = data.get('default_store_id') or data.get('store_id')
+            if default_store_input and str(default_store_input).isdigit():
+                vals['default_store_id'] = int(default_store_input)
+
+            pricelist_input = data.get('pricelist_id')
+            if pricelist_input and str(pricelist_input).isdigit():
+                vals['pricelist_id'] = int(pricelist_input)
+
+            profile_input = data.get('user_rights_profile_id') or data.get('profile_id')
+            if profile_input and str(profile_input).isdigit():
+                vals['user_rights_profile_id'] = int(profile_input)
+
+            if 'allow_discount' in data:
+                vals['allow_discount'] = bool(data.get('allow_discount'))
+            if 'max_discount_percent' in data:
+                try:
+                    vals['max_discount_percent'] = float(data.get('max_discount_percent'))
+                except (ValueError, TypeError):
+                    pass
+            if 'require_shift' in data:
+                vals['require_shift'] = bool(data.get('require_shift'))
+
+            target_user.sudo().write(vals)
+            return self._make_json_response({
+                "message": "success",
+                "status": 200,
+                "user_id": target_user.id
+            })
+        except RedirectWarning as e:
+            if custom_cr:
+                custom_cr.rollback()
+            msg = e.args[0] if e.args else str(e)
+            return self._make_json_response({
+                "error": str(msg),
+                "message": str(msg),
+                "subscription_error": True,
+                "code": "SUBSCRIPTION_LIMIT",
+            }, status=403)
+        except (UserError, ValidationError) as e:
+            if custom_cr:
+                custom_cr.rollback()
+            msg, is_sub = self._extract_error_message(e)
+            return self._make_json_response({
+                "error": msg,
+                "message": msg,
+                "subscription_error": is_sub,
+                "code": "SUBSCRIPTION_LIMIT" if is_sub else "VALIDATION_ERROR",
+            }, status=403 if is_sub else 400)
+        except Exception as e:
+            if custom_cr:
+                custom_cr.rollback()
+            msg, is_sub = self._extract_error_message(e)
+            return self._make_json_response({
+                "error": msg,
+                "message": msg,
+                "subscription_error": is_sub,
+                "code": "SUBSCRIPTION_LIMIT" if is_sub else "SERVER_ERROR",
+            }, status=403 if is_sub else 500)
+        finally:
+            if custom_cr:
+                custom_cr.close()
+
+    @http.route([
+        '/api/method/saas_api.www.api.get_user_rights_profiles',
+        '/api/user_rights_profiles',
+        '/api/user/rights-profiles'
+    ], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_get_user_rights_profiles(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            current_user = env['res.users'].browse(uid)
+            tenant = current_user.tenant_id
+            domain = []
+            if tenant:
+                domain.append(('tenant_id', '=', tenant.id))
+            role_param = kwargs.get('role') or request.params.get('role')
+            if role_param:
+                r_clean = 'admin' if 'admin' in str(role_param).lower() else 'user'
+                domain.append(('havano_role', '=', r_clean))
+
+            profiles = env['havanoposdesk.user.rights.profile'].sudo().search(domain)
+            data = []
+            for p in profiles:
+                data.append({
+                    "id": p.id,
+                    "name": p.name,
+                    "havano_role": p.havano_role,
+                    "role": "Admin" if p.havano_role == 'admin' else "Cashier",
+                    "is_default": p.is_default
+                })
+            return self._make_json_response({
+                "message": {
+                    "status": 200,
+                    "data": data
+                }
+            })
         finally:
             if custom_cr:
                 custom_cr.close()
@@ -9008,7 +9402,16 @@ class HavanoPOSDeskAPI(http.Controller):
                     "cost_center": cost_center,
                     "store_ids": u.store_ids.ids if hasattr(u, 'store_ids') and u.store_ids else [],
                     "shops": [{"id": s.id, "name": s.name} for s in u.store_ids] if hasattr(u, 'store_ids') and u.store_ids else [],
+                    "default_store_id": u.default_store_id.id if u.default_store_id else None,
+                    "default_store_name": u.default_store_id.name if u.default_store_id else "",
+                    "pricelist_id": u.pricelist_id.id if u.pricelist_id else None,
+                    "pricelist_name": u.pricelist_id.name if u.pricelist_id else "",
+                    "user_rights_profile_id": u.user_rights_profile_id.id if u.user_rights_profile_id else None,
                     "profile_name": profile_name,
+                    "allow_discount": bool(u.allow_discount),
+                    "max_discount_percent": u.max_discount_percent if u.max_discount_percent is not False else 100.0,
+                    "require_shift": bool(u.require_shift),
+                    "allow_backoffice": bool(u.allow_backoffice),
                     "enabled": 1 if u.active else 0,
                     "is_active": 1 if u.active else 0,
                     "user_type": "System User",
