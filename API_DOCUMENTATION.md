@@ -106,3 +106,10 @@
   }
 }
 ```
+
+---
+
+## 5. Product Variants & Attributes Reference
+For comprehensive documentation on Product Variants, Variant Attributes configuration, Data Models, Stock Allocations, and dedicated variant CRUD & POS API endpoints, see:
+- **[VARIANT_REFERENCE_API.md](file:///opt/odoo-secure/addons-custom/havanoposdesk_odoo/VARIANT_REFERENCE_API.md)**
+
