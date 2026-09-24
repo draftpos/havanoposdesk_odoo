@@ -193,7 +193,7 @@ else:
             </field>
         </record>
 
-        <menuitem id="menu_my_subscription" name="My Subscription" parent="menu_tenant_admin_settings_root" action="action_my_subscription" sequence="10" groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"/>
+        <menuitem id="menu_my_subscription" name="My Subscription" parent="menu_tenant_admin_settings_root" action="action_my_subscription" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin"/>
 
         <!-- Custom currency list view with base currency indicator -->
         <record id="view_havanoposdesk_currency_tree" model="ir.ui.view">
