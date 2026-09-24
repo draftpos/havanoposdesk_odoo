@@ -17,7 +17,7 @@ Add the following secrets:
 | `SERVER_USER` | **Yes** | SSH user on the server | `ubuntu` / `root` / `odoo` |
 | `SERVER_SSH_KEY` | **Yes** | SSH Private Key (ED25519 or RSA) | Entire content of `~/.ssh/id_rsa` or deploy key |
 | `SERVER_PORT` | No | SSH Port (defaults to `22` if omitted) | `22` |
-| `SERVER_TARGET_DIR` | No | Full path to this addon folder on the server (defaults to `/opt/odoo/custom-addons/havanoposdesk_odoo`) | `/opt/odoo/custom-addons/havanoposdesk_odoo` |
+| `SERVER_TARGET_DIR` | No | Full path to this addon folder on the server (defaults to `/opt/odoo-secure/addons-custom/havanoposdesk_odoo`) | `/opt/odoo-secure/addons-custom/havanoposdesk_odoo` |
 | `UPGRADE_MODULE` | No | Set to `true` if you want automatic `-u havanoposdesk_odoo` | `false` |
 | `ODOO_DB_NAME` | No | Odoo database name (if `UPGRADE_MODULE` is enabled) | `production_db` |
 

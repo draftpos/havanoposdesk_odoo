@@ -42,7 +42,7 @@ jobs:
             # 1. Target directory (defaults to secret SERVER_TARGET_DIR or fallback path)
             TARGET_DIR="${{ secrets.SERVER_TARGET_DIR }}"
             if [ -z "$TARGET_DIR" ]; then
-              TARGET_DIR="/opt/odoo/custom-addons/havanoposdesk_odoo"
+              TARGET_DIR="/opt/odoo-secure/addons-custom/havanoposdesk_odoo"
             fi
 
             echo "=== Step 1: Navigating to $TARGET_DIR ==="
