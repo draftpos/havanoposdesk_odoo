@@ -236,9 +236,21 @@ class HavanoPowerSyncController(http.Controller):
                                 'tenant_id': user.tenant_id.id,
                             })
 
+                        # Resolve store from warehouse name
+                        warehouse_name = sale_data.get('warehouse') or ''
+                        store = False
+                        if warehouse_name:
+                            store = request.env['havanoposdesk.store'].sudo().search([
+                                ('name', '=', warehouse_name),
+                                ('tenant_id', '=', user.tenant_id.id)
+                            ], limit=1)
+                        if not store:
+                            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+
                         # Create sale record
+                        sale_tenant_id = store.tenant_id.id if (store and store.tenant_id) else user.tenant_id.id
                         sale_vals = {
-                            'tenant_id': user.tenant_id.id,
+                            'tenant_id': sale_tenant_id,
                             'customer': customer.id,
                             'local_invoice_id': local_invoice_id,
                             'grand_total': float(sale_data.get('grand_total') or 0.0),
@@ -248,7 +260,8 @@ class HavanoPowerSyncController(http.Controller):
                             'change_amount': float(sale_data.get('change_amount') or 0.0),
                             'currency': sale_data.get('currency') or 'USD',
                             'price_list': sale_data.get('price_list') or '',
-                            'store': sale_data.get('warehouse') or '',
+                            'store': store.name if store else '',
+                            'store_id': store.id if store else False,
                             'posting_date': sale_data.get('posting_date') or fields.Date.context_today(user),
                             'is_return': bool(sale_data.get('is_return')),
                             'is_quotation': bool(sale_data.get('is_quotation')),
@@ -259,7 +272,7 @@ class HavanoPowerSyncController(http.Controller):
                         # Create lines
                         for line in items:
                             prod = request.env['havanoposdesk.product'].sudo().search([
-                                ('tenant_id', '=', user.tenant_id.id),
+                                ('tenant_id', '=', sale_tenant_id),
                                 ('item_code', '=', line.get('item_code'))
                             ], limit=1)
 
@@ -271,7 +284,7 @@ class HavanoPowerSyncController(http.Controller):
                                 'rate': float(line.get('rate') or 0.0),
                                 'amount': float(line.get('amount') or 0.0),
                                 'tax_amount': float(line.get('tax_amount') or 0.0),
-                                'tenant_id': user.tenant_id.id,
+                                'tenant_id': sale_tenant_id,
                             })
 
                         results.append({'sale_id': item.get('sale_id'), 'status': 'created', 'server_id': new_sale.id, 'name': new_sale.name})

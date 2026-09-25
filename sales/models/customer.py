@@ -55,7 +55,10 @@ class Customer(models.Model):
         return self.env['havanoposdesk.customer.group'].search(domain, limit=1).id
 
     def _default_store_ids(self):
-        store = self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1)
+        domain = [('is_default', '=', True)]
+        if self.env.user.tenant_id:
+            domain.append(('tenant_id', '=', self.env.user.tenant_id.id))
+        store = self.env['havanoposdesk.store'].search(domain, limit=1)
         if not store and self.env.user.tenant_id:
             store = self.env['havanoposdesk.store'].search([('tenant_id', '=', self.env.user.tenant_id.id)], limit=1)
         return [(6, 0, [store.id])] if store else []
