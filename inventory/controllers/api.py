@@ -1666,6 +1666,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 store_id = int(store_val)
                 store = request.env['havanoposdesk.store'].sudo().browse(store_id)
                 if store.exists():
+                    if tenant and store.tenant_id and store.tenant_id.id != tenant.id:
+                        _logger.warning("Store %s (tenant %s) does not match requested tenant %s", store_id, store.tenant_id.id, tenant.id)
+                        return False
                     return store
             except ValueError:
                 domain = [('name', '=', store_val)]
@@ -1676,7 +1679,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     return store
         
         if user and user.selected_shop_id:
-            return user.selected_shop_id
+            if not tenant or not user.selected_shop_id.tenant_id or user.selected_shop_id.tenant_id.id == tenant.id:
+                return user.selected_shop_id
                 
         return False
 
@@ -3761,7 +3765,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     if not cashier_user:
                         raise Exception(f"User '{cashier_login}' not found. Please log in again online.")
                     user = cashier_user
-                tenant = authenticated_user.tenant_id or user.tenant_id
+                # Prioritize cashier/user tenant over session user to avoid stale token cross-tenant assignment
+                tenant = user.tenant_id or authenticated_user.tenant_id
 
                 sales_data = params.get('sales')
                 if not sales_data:
@@ -3776,6 +3781,15 @@ class HavanoPOSDeskAPI(http.Controller):
                             responses.append({"error": "reference_number is required when making a sale", "local_invoice_id": None})
                             continue
 
+                        store = self._get_current_store(user, tenant, sale_data)
+                        if not store:
+                            responses.append({"error": "Store/Warehouse is required", "local_invoice_id": local_invoice_id})
+                            continue
+
+                        # Enforce that tenant strictly matches the physical store
+                        if store.tenant_id:
+                            tenant = store.tenant_id
+
                         existing_sale = env['havanoposdesk.sale'].search([
                             ('tenant_id', '=', tenant.id),
                             ('local_invoice_id', '=', local_invoice_id)
@@ -3786,11 +3800,6 @@ class HavanoPOSDeskAPI(http.Controller):
                                 "existing_sale": existing_sale.name,
                                 "local_invoice_id": local_invoice_id
                             }, status=409)
-
-                        store = self._get_current_store(user, tenant, sale_data)
-                        if not store:
-                            responses.append({"error": "Store/Warehouse is required", "local_invoice_id": local_invoice_id})
-                            continue
 
                         tz_valid, tz_err = self._validate_store_timezone(store, sale_data, user)
                         if not tz_valid:

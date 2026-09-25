@@ -68,6 +68,15 @@ class Sale(models.Model):
                 if duplicate:
                     raise ValidationError(_("The Local Invoice ID must be unique per tenant!"))
 
+    @api.constrains('store_id', 'tenant_id')
+    def _check_store_tenant_match(self):
+        for sale in self:
+            if sale.store_id and sale.tenant_id and sale.store_id.tenant_id:
+                if sale.store_id.tenant_id != sale.tenant_id:
+                    raise ValidationError(_(
+                        "Store '%s' belongs to tenant '%s', but this sale is assigned to tenant '%s'. Cross-tenant sale assignment is strictly prohibited."
+                    ) % (sale.store_id.name, sale.store_id.tenant_id.name, sale.tenant_id.name))
+
     @api.depends('is_return', 'is_quotation')
     def _compute_invoice_type(self):
         for record in self:
@@ -137,7 +146,11 @@ class Sale(models.Model):
             sale.has_variants = any(bool(line.variant_id) or (line.product_id and line.product_id.is_variant) for line in sale.line_ids)
 
     def _default_store_id(self):
-        return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
+        user = self.env.user
+        domain = [('is_default', '=', True)]
+        if user.tenant_id:
+            domain.append(('tenant_id', '=', user.tenant_id.id))
+        return self.env['havanoposdesk.store'].search(domain, limit=1).id
 
     # View-required fields to avoid undefined errors
     tenant_id = fields.Many2one(
@@ -507,13 +520,35 @@ class Sale(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            # Enforce store resolution and strict tenant matching
+            if vals.get('store_id'):
+                store_obj = self.env['havanoposdesk.store'].browse(vals['store_id'])
+                if store_obj.exists():
+                    if not vals.get('store'):
+                        vals['store'] = store_obj.name
+                    if store_obj.tenant_id:
+                        vals['tenant_id'] = store_obj.tenant_id.id
+            elif vals.get('store'):
+                user_tenant = self.env.user.tenant_id.id if self.env.user.tenant_id else None
+                domain = [('name', '=', vals['store'])]
+                t_id = vals.get('tenant_id') or user_tenant
+                if t_id:
+                    domain.append(('tenant_id', '=', t_id))
+                store_obj = self.env['havanoposdesk.store'].search(domain, limit=1)
+                if store_obj:
+                    vals['store_id'] = store_obj.id
+                    if store_obj.tenant_id:
+                        vals['tenant_id'] = store_obj.tenant_id.id
+
             if not vals.get('shift_id') and not vals.get('is_quotation'):
                 # Try to find an open shift for the current user and tenant
                 shift_domain = [
                     ('user_id', '=', self.env.user.id),
                     ('state', '=', 'open')
                 ]
-                if self.env.user.tenant_id:
+                if vals.get('tenant_id'):
+                    shift_domain.append(('tenant_id', '=', vals['tenant_id']))
+                elif self.env.user.tenant_id:
                     shift_domain.append(('tenant_id', '=', self.env.user.tenant_id.id))
                 open_shift = self.env['havanoposdesk.shift'].search(shift_domain, limit=1)
                 if open_shift:
