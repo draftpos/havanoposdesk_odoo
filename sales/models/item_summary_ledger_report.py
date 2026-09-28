@@ -57,7 +57,10 @@ class ItemSummaryLedgerReport(models.Model):
                 JOIN
                     havanoposdesk_product p ON p.id = sl.product_id
                 LEFT JOIN
-                    havanoposdesk_store st ON (sl.store_id = st.id OR (st.name = sl.store AND st.tenant_id = sl.tenant_id))
+                    havanoposdesk_store st ON (
+                        (sl.store_id = st.id AND st.tenant_id = sl.tenant_id)
+                        OR (sl.store_id IS NULL AND st.name = sl.store AND st.tenant_id = sl.tenant_id)
+                    )
                 LEFT JOIN
                     havanoposdesk_sale s ON (s.name = sl.doc_no AND s.tenant_id = sl.tenant_id)
             )
