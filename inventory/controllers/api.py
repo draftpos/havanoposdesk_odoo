@@ -5611,9 +5611,17 @@ class HavanoPOSDeskAPI(http.Controller):
             for q in quotation_recs:
                 items_list = []
                 for line in q.line_ids:
+                    prod = line.product_id
+                    # havanoposdesk.product uses `item_code`; Odoo native uses `default_code`.
+                    # Use getattr to be safe across both model types.
+                    item_code = (
+                        getattr(prod, 'item_code', None)
+                        or getattr(prod, 'default_code', None)
+                        or ""
+                    )
                     items_list.append({
-                        "item_code": line.product_id.default_code or line.product_id.name if line.product_id else "",
-                        "item_name": line.product_id.name if line.product_id else "",
+                        "item_code": item_code,
+                        "item_name": prod.name if prod else "",
                         "qty": line.quantity or 1.0,
                         "quantity": line.quantity or 1.0,
                         "rate": line.price_unit or 0.0,
@@ -5642,6 +5650,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 }
             })
         except Exception as e:
+            _logger.exception("api_get_quotations_list failed for uid=%s: %s", uid, e)
             return self._make_json_response({"error": str(e)}, status=500)
         finally:
             if custom_cr:
