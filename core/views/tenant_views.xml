@@ -20,6 +20,23 @@
             </field>
         </record>
 
+        <record id="view_havanoposdesk_tenant_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.tenant.search</field>
+            <field name="model">havanoposdesk.tenant</field>
+            <field name="arch" type="xml">
+                <search string="Search Tenants">
+                    <field name="name"/>
+                    <field name="subscription_plan_id"/>
+                    <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+                    <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Subscription Plan" name="group_plan" context="{'group_by':'subscription_plan_id'}"/>
+                        <filter string="Status" name="group_state" context="{'group_by':'subscription_state'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
         <record id="view_havanoposdesk_tenant_form" model="ir.ui.view">
             <field name="name">havanoposdesk.tenant.form</field>
             <field name="model">havanoposdesk.tenant</field>
@@ -108,7 +125,8 @@
                         <group>
                             <group string="Active Subscription &amp; Wallet">
                                 <field name="name"
-                                        readonly="not context.is_super_admin"/>
+                                        readonly="not context.is_super_admin"
+                                        groups="base.group_system"/>
                                     <field name="account_balance" readonly="not context.is_super_admin"/>
                                 <field name="subscription_plan_id"
                                        options="{'no_create': True}"
