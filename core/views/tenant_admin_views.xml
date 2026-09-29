@@ -167,8 +167,6 @@
             <field name="code">
 is_super = env.user.havano_role == 'super_admin' or env.user.has_group('base.group_system') or env.user.id in (1, 2) or env.su
 
-raise UserError(f"DEBUG: is_super={is_super}, user={env.user.name}, id={env.user.id}, role={env.user.havano_role}")
-
 if is_super:
     action = {
         'type': 'ir.actions.act_window',
