@@ -29,10 +29,9 @@
                     <field name="subscription_plan_id"/>
                     <filter string="Active" name="active" domain="[('active', '=', True)]"/>
                     <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
-                    <group expand="0" string="Group By">
-                        <filter string="Subscription Plan" name="group_plan" context="{'group_by':'subscription_plan_id'}"/>
-                        <filter string="Status" name="group_state" context="{'group_by':'subscription_state'}"/>
-                    </group>
+                    <separator/>
+                    <filter string="Subscription Plan" name="group_plan" context="{'group_by':'subscription_plan_id'}"/>
+                    <filter string="Status" name="group_state" context="{'group_by':'subscription_state'}"/>
                 </search>
             </field>
         </record>

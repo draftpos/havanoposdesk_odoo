@@ -112,17 +112,16 @@
             <field name="model">havanoposdesk.subscription.payment</field>
             <field name="arch" type="xml">
                 <search string="Search Payments">
-                    <field name="tenant_id" string="Tenant Name" filter_domain="[('tenant_id.name', 'ilike', self)]" groups="base.group_system"/>
+                    <field name="tenant_id" string="Tenant Name"/>
                     <field name="transaction_reference"/>
                     <field name="payment_method"/>
                     <filter string="Pending" name="pending" domain="[('state', '=', 'pending')]"/>
                     <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
                     <filter string="Failed" name="failed" domain="[('state', '=', 'failed')]"/>
-                    <group expand="0" string="Group By">
-                        <filter string="Tenant" name="group_tenant" domain="[]" context="{'group_by':'tenant_id'}" groups="base.group_system"/>
-                        <filter string="Status" name="group_state" domain="[]" context="{'group_by':'state'}"/>
-                        <filter string="Type" name="group_type" domain="[]" context="{'group_by':'payment_type'}"/>
-                    </group>
+                    <separator/>
+                    <filter string="Tenant" name="group_tenant" context="{'group_by':'tenant_id'}"/>
+                    <filter string="Status" name="group_state" context="{'group_by':'state'}"/>
+                    <filter string="Type" name="group_type" context="{'group_by':'payment_type'}"/>
                 </search>
             </field>
         </record>
