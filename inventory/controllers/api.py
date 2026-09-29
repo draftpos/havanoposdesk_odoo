@@ -411,6 +411,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     "custom_is_order_item_7": int(p.kitchen_order_7),
                     "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
                     "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
+                    "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0,
                 })
                 
             import base64
@@ -647,6 +648,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     'is_sales_item': 1,
                     'sellbyprice': 1 if getattr(p, 'sellbyprice', False) else 0,
                     'sell_by_price': 1 if getattr(p, 'sellbyprice', False) else 0,
+                    'print_after_order': 1 if getattr(p, 'print_after_order', False) else 0,
                     'category': p.category_id.id if p.category_id else None,
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
@@ -715,6 +717,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'color_hex': data.get('color_hex'),
                 'track_qty': data.get('track_qty', True),
                 'sellbyprice': bool(data.get('sellbyprice') or data.get('sell_by_price')),
+                'print_after_order': bool(data.get('print_after_order')),
                 'tenant_id': tenant_id,
                 'store_id': store_id,
             }
@@ -781,6 +784,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'track_qty': product.track_qty,
                 'sellbyprice': 1 if getattr(product, 'sellbyprice', False) else 0,
                 'sell_by_price': 1 if getattr(product, 'sellbyprice', False) else 0,
+                'print_after_order': 1 if getattr(product, 'print_after_order', False) else 0,
                 'category': product.category_id.id if product.category_id else None,
                 'uom': product.uom_id.id if product.uom_id else None,
                 'tenant_id': product.tenant_id.id,
@@ -2369,6 +2373,8 @@ class HavanoPOSDeskAPI(http.Controller):
             }
             if 'sellbyprice' in data or 'sell_by_price' in data:
                 product_vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
+            if 'print_after_order' in data:
+                product_vals['print_after_order'] = bool(data.get('print_after_order'))
             if tax_ids:
                 product_vals['sale_tax_ids'] = [(6, 0, tax_ids)]
             product = request.env['havanoposdesk.product'].sudo().create(product_vals)
@@ -2871,6 +2877,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 "cumulative": cumulative,
                 "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
                 "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
+                "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0,
                 "variant_attributes": variant_attributes if variant_attributes else None
             })
             
@@ -3434,6 +3441,13 @@ class HavanoPOSDeskAPI(http.Controller):
                     vals['sellbyprice'] = sbp_raw.lower() in ['yes', 'true', '1']
                 else:
                     vals['sellbyprice'] = bool(sbp_raw)
+
+            if 'print_after_order' in params:
+                pao_raw = params.get('print_after_order')
+                if isinstance(pao_raw, str):
+                    vals['print_after_order'] = pao_raw.lower() in ['yes', 'true', '1']
+                else:
+                    vals['print_after_order'] = bool(pao_raw)
 
             product.write(vals)
 
@@ -5449,7 +5463,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "is_stock_item": 1 if (p.track_qty and not p.is_bundle) else 0,
                     "is_sales_item": 1,
                     "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
-                    "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0
+                    "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
+                    "print_after_order": 1 if getattr(p, 'print_after_order', False) else 0
                 })
             return self._make_json_response({"data": result})
         finally:
@@ -5516,6 +5531,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 vals['is_active'] = not bool(data['disabled'])
             if 'sellbyprice' in data or 'sell_by_price' in data:
                 vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
+            if 'print_after_order' in data:
+                vals['print_after_order'] = bool(data.get('print_after_order'))
 
             # Resolve sale_tax_ids
             tax_ids = []
@@ -6927,6 +6944,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         "maintainstock": 1 if product.track_qty else 0,
                         "sellbyprice": 1 if getattr(product, 'sellbyprice', False) else 0,
                         "sell_by_price": 1 if getattr(product, 'sellbyprice', False) else 0,
+                        "print_after_order": 1 if getattr(product, 'print_after_order', False) else 0,
                         "uom": product.uom_id.name or "Nos",
                         "prices": [
                             {"priceName": "Standard Selling", "price": product.selling_price or 0.0, "type": "selling"},
