@@ -21,6 +21,7 @@
                     <field name="store_id" optional="show" />
                     <field name="terminal_id" optional="hide" />
                     <field name="app_version" string="App Version" optional="hide" />
+                    <field name="total_qty" string="Qty" optional="show" sum="Total Qty" />
                     <field name="salesperson_id" optional="show" />
                     <field name="amount_untaxed" string="Total Exclu" widget="monetary" optional="hide" />
                     <field name="amount_tax" string="Total Tax" widget="monetary" optional="hide" />

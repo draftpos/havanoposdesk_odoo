@@ -517,6 +517,13 @@ class Sale(models.Model):
             sign = -1.0 if record.is_return else 1.0
             record.total_cost = sum(line.cost_price * line.accepted_qty for line in record.line_ids) * sign
 
+    total_qty = fields.Float(string='Total Quantity', compute='_compute_total_qty', store=True)
+
+    @api.depends('line_ids.accepted_qty')
+    def _compute_total_qty(self):
+        for record in self:
+            record.total_qty = sum(line.accepted_qty for line in record.line_ids)
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
