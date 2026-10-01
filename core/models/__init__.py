@@ -20,3 +20,4 @@ from . import ir_actions_act_window
 from . import cash_transfer
 from . import restaurant
 from . import ir_ui_menu
+from . import tenant_analytics

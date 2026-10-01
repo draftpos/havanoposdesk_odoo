@@ -87,7 +87,12 @@
 
         <!-- SaaS Admin Navigation -->
         <menuitem id="menu_saas_users" name="Users" parent="menu_saas_root" action="action_saas_users" sequence="10"/>
-        <menuitem id="menu_saas_tenants" name="Tenants" parent="menu_saas_root" action="action_havanoposdesk_tenant" sequence="20"/>
+        
+        <!-- Tenants Dropdown -->
+        <menuitem id="menu_saas_tenants_dropdown" name="Tenants" parent="menu_saas_root" sequence="20"/>
+        <menuitem id="menu_saas_tenants" name="Tenants" parent="menu_saas_tenants_dropdown" action="action_havanoposdesk_tenant" sequence="10"/>
+        <menuitem id="menu_saas_tenant_analytics" name="Tenant Analytics" parent="menu_saas_tenants_dropdown" action="action_tenant_analytics" sequence="20"/>
+
         <menuitem id="menu_saas_stores" name="Stores" parent="menu_saas_root" action="action_havanoposdesk_store" sequence="30"/>
         <menuitem id="menu_saas_plans" name="Subscription Plans" parent="menu_saas_root" action="action_subscription_plans" sequence="40"/>
         <menuitem id="menu_saas_payments" name="Subscription &amp; Topup Payments" parent="menu_saas_root" action="action_subscription_payments" sequence="45"/>

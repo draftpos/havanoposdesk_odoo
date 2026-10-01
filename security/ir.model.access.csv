@@ -82,3 +82,4 @@ access_restaurant_waiter,access.restaurant.waiter,model_havanoposdesk_restaurant
 access_wizard_delete_tenant,wizard.delete.tenant,model_wizard_delete_tenant,base.group_system,1,1,1,1
 access_havanoposdesk_attribute,havanoposdesk.attribute,model_havanoposdesk_attribute,base.group_user,1,1,1,1
 access_havanoposdesk_attribute_value,havanoposdesk.attribute.value,model_havanoposdesk_attribute_value,base.group_user,1,1,1,1
+access_havanoposdesk_tenant_analytics,havanoposdesk.tenant.analytics,model_havanoposdesk_tenant_analytics,base.group_user,1,0,0,0

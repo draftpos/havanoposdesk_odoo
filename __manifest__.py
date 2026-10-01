@@ -27,6 +27,7 @@
         'core/views/subscription_views.xml',
         'core/views/terminal_views.xml',
         'core/views/tenant_views.xml',
+        'core/views/tenant_analytics_views.xml',
         'core/views/cash_transfer_views.xml',
         'sales/views/report_views.xml',
         'sales/views/shift_report_templates.xml',

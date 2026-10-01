@@ -137,6 +137,81 @@ class HavanoposdeskTenant(models.Model):
             elif Payment.search_count([('tenant_id', '=', tenant.id)], limit=1) > 0:
                 has_tx = True
             tenant.has_transactions = has_tx
+
+    total_sales_count = fields.Integer(string="Total Sales", compute="_compute_sales_analytics")
+    total_sales_amount = fields.Float(string="Total Sales Amount ($)", compute="_compute_sales_analytics")
+    last_sale_date = fields.Date(string="Last Sale Date", compute="_compute_sales_analytics")
+    last_login = fields.Datetime(string="Last Login", compute="_compute_sales_analytics")
+    last_activity = fields.Datetime(string="Recent Activity", compute="_compute_sales_analytics")
+
+    def _compute_sales_analytics(self):
+        tenant_ids = tuple(self.ids)
+        if not tenant_ids:
+            return
+        # Sales query with safe NULL checks
+        self.env.cr.execute("""
+            SELECT
+                tenant_id,
+                COUNT(*) AS total_sales_count,
+                SUM(COALESCE(amount_total_base, amount_total, 0.0)) AS total_sales_amount,
+                MAX(posting_date) AS last_sale_date,
+                MAX(create_date) AS last_sale_create_date
+            FROM havanoposdesk_sale
+            WHERE tenant_id IN %s
+              AND COALESCE(is_return, FALSE) = FALSE
+              AND COALESCE(is_quotation, FALSE) = FALSE
+              AND COALESCE(state, 'done') != 'cancelled'
+            GROUP BY tenant_id
+        """, (tenant_ids,))
+        sales_map = {
+            r[0]: {'count': r[1], 'amount': r[2] or 0.0, 'last_date': r[3], 'last_sale_time': r[4]}
+            for r in self.env.cr.fetchall()
+        }
+
+        # Logins query
+        self.env.cr.execute("""
+            SELECT
+                u.tenant_id,
+                MAX(l.create_date) AS last_login
+            FROM res_users u
+            LEFT JOIN res_users_log l ON l.create_uid = u.id
+            WHERE u.active = TRUE
+              AND u.tenant_id IN %s
+            GROUP BY u.tenant_id
+        """, (tenant_ids,))
+        login_map = {r[0]: r[1] for r in self.env.cr.fetchall()}
+
+        for tenant in self:
+            s = sales_map.get(tenant.id, {'count': 0, 'amount': 0.0, 'last_date': False, 'last_sale_time': False})
+            tenant.total_sales_count = s['count']
+            tenant.total_sales_amount = s['amount']
+            tenant.last_sale_date = s['last_date']
+            u_login = login_map.get(tenant.id, False)
+            tenant.last_login = u_login
+            s_time = s['last_sale_time']
+            if u_login and s_time:
+                tenant.last_activity = max(u_login, s_time)
+            else:
+                tenant.last_activity = u_login or s_time or False
+
+    def action_view_sales(self):
+        self.ensure_one()
+        return {
+            'name': _('%s – Sales', self.name),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.sale',
+            'view_mode': 'list,form',
+            'domain': [
+                ('tenant_id', '=', self.id),
+                ('is_return', '=', False),
+                ('is_quotation', '=', False),
+            ],
+            'context': {
+                'default_tenant_id': self.id,
+                'search_default_tenant_id': self.id,
+            },
+            'target': 'current',
+        }
             
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan')
     billing_cycle = fields.Selection([

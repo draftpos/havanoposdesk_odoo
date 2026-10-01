@@ -15,6 +15,10 @@
                            decoration-success="subscription_state == 'active'"
                            decoration-warning="subscription_state == 'expired'"
                            decoration-danger="subscription_state == 'cancelled'"/>
+                    <field name="total_sales_count" string="# Sales" optional="show"/>
+                    <field name="total_sales_amount" string="Sales ($)" optional="show"/>
+                    <field name="last_sale_date" string="Last Sale" optional="show"/>
+                    <field name="last_login" string="Last Login" optional="show"/>
                     <field name="active" optional="show"/>
                 </list>
             </field>
@@ -113,6 +117,14 @@
                     </header>
 
                     <sheet>
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_view_sales"
+                                    type="object"
+                                    class="oe_stat_button"
+                                    icon="fa-shopping-cart">
+                                <field name="total_sales_count" widget="statinfo" string="Sales"/>
+                            </button>
+                        </div>
                         <group string="Pending Plan Upgrade Request" invisible="not pending_subscription_plan_id">
                             <field name="pending_subscription_plan_id" readonly="1" options="{'no_create': True}"/>
                             <field name="pending_billing_cycle" readonly="1"/>
