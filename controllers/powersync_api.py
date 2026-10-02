@@ -4,6 +4,7 @@ PowerSync Integration API for Havano POS (Odoo 19 Backend)
 Provides:
 1. JWT issuance for client authentication against the PowerSync service (/api/powersync/token)
 2. Batch mutation endpoint for offline writes uploaded by the POS client (/api/powersync/upload)
+   Supports: Sales with payments, Cashier Shifts (open/close), and Customer creations.
 """
 
 import json
@@ -17,7 +18,6 @@ from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
-# Fallback default secret key for PowerSync HS256 signing (Override in System Parameters or env)
 DEFAULT_JWT_SECRET = "havano_powersync_super_secret_jwt_key_2026"
 DEFAULT_POWERSYNC_URL = "http://127.0.0.1:8080"
 
@@ -84,7 +84,6 @@ class HavanoPowerSyncController(http.Controller):
         # 2. Bearer / Basic Auth token
         if auth_header:
             token = auth_header.replace('Bearer ', '').replace('Basic ', '').strip()
-            # Try Base64 decode for login:password
             try:
                 decoded = base64.b64decode(token).decode('utf-8')
                 if ':' in decoded:
@@ -95,7 +94,6 @@ class HavanoPowerSyncController(http.Controller):
             except Exception:
                 pass
 
-            # Search by custom auth token if applicable
             user = user_env['res.users'].sudo().search([
                 '|', ('login', '=', token), ('id', '=', token)
             ], limit=1)
@@ -128,7 +126,6 @@ class HavanoPowerSyncController(http.Controller):
                 status=400
             )
 
-        # Store ID from query params or user's assigned store
         req_store_id = kw.get('shop_id') or request.httprequest.headers.get('shop_id')
         if not req_store_id and user.store_ids:
             req_store_id = user.store_ids[0].id
@@ -196,33 +193,38 @@ class HavanoPowerSyncController(http.Controller):
         results = []
         SaleModel = request.env['havanoposdesk.sale'].sudo()
         CustomerModel = request.env['havanoposdesk.customer'].sudo()
+        ShiftModel = request.env['havanoposdesk.shift'].sudo()
+        PaymentModel = request.env['havanoposdesk.payment'].sudo()
+        AccountModel = request.env['havanoposdesk.account'].sudo()
 
         cr = request.env.cr
         processed_count = 0
 
         for item in batch:
             mutation_type = item.get('type')
-            savepoint_name = f"ps_mut_{processed_count}"
 
             try:
                 with cr.savepoint():
+                    # ---------------------------------------------------------
+                    # 1. SALE MUTATION
+                    # ---------------------------------------------------------
                     if mutation_type == 'sale':
                         sale_data = item.get('sale', {})
                         items = item.get('items', [])
                         payments = item.get('payments', [])
                         local_invoice_id = sale_data.get('local_invoice_id')
 
-                        # Avoid duplicate sale insertions
+                        # Check for idempotency
                         existing_sale = SaleModel.search([
                             ('tenant_id', '=', user.tenant_id.id),
                             ('local_invoice_id', '=', local_invoice_id)
                         ], limit=1)
 
                         if existing_sale:
-                            results.append({'sale_id': item.get('sale_id'), 'status': 'already_exists', 'id': existing_sale.id})
+                            results.append({'sale_id': item.get('sale_id'), 'status': 'already_exists', 'id': existing_sale.id, 'name': existing_sale.name})
                             continue
 
-                        # Find customer
+                        # Resolve customer
                         customer_name = sale_data.get('customer_name') or 'Walk-in Customer'
                         customer = CustomerModel.search([
                             ('tenant_id', '=', user.tenant_id.id),
@@ -236,19 +238,21 @@ class HavanoPowerSyncController(http.Controller):
                                 'tenant_id': user.tenant_id.id,
                             })
 
-                        # Resolve store from warehouse name
-                        warehouse_name = sale_data.get('warehouse') or ''
+                        # Resolve store
                         store = False
+                        warehouse_name = sale_data.get('warehouse') or ''
                         if warehouse_name:
                             store = request.env['havanoposdesk.store'].sudo().search([
                                 ('name', '=', warehouse_name),
                                 ('tenant_id', '=', user.tenant_id.id)
                             ], limit=1)
-                        if not store:
+                        if not store and sale_data.get('store_id'):
+                            store = request.env['havanoposdesk.store'].sudo().browse(int(sale_data['store_id']))
+                        if not store or not store.exists():
                             store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
 
-                        # Create sale record
                         sale_tenant_id = store.tenant_id.id if (store and store.tenant_id) else user.tenant_id.id
+
                         sale_vals = {
                             'tenant_id': sale_tenant_id,
                             'customer': customer.id,
@@ -265,11 +269,13 @@ class HavanoPowerSyncController(http.Controller):
                             'posting_date': sale_data.get('posting_date') or fields.Date.context_today(user),
                             'is_return': bool(sale_data.get('is_return')),
                             'is_quotation': bool(sale_data.get('is_quotation')),
+                            'fiscal_code': sale_data.get('fiscal_code') or '',
+                            'qr_code': sale_data.get('fiscal_qr_code') or '',
                         }
 
                         new_sale = SaleModel.create(sale_vals)
 
-                        # Create lines
+                        # Create sale lines
                         for line in items:
                             prod = request.env['havanoposdesk.product'].sudo().search([
                                 ('tenant_id', '=', sale_tenant_id),
@@ -287,9 +293,80 @@ class HavanoPowerSyncController(http.Controller):
                                 'tenant_id': sale_tenant_id,
                             })
 
+                        # Create payment records
+                        for p in payments:
+                            method_name = p.get('payment_method') or 'Cash'
+                            acc = AccountModel.search([
+                                ('tenant_id', '=', sale_tenant_id),
+                                ('name', '=ilike', method_name)
+                            ], limit=1)
+                            if not acc:
+                                acc = AccountModel.search([
+                                    ('tenant_id', '=', sale_tenant_id),
+                                    ('type', '=', 'Cash')
+                                ], limit=1)
+
+                            PaymentModel.create({
+                                'tenant_id': sale_tenant_id,
+                                'sale_id': new_sale.id,
+                                'account_id': acc.id if acc else False,
+                                'amount': float(p.get('amount') or 0.0),
+                                'amount_base': float(p.get('base_amount') or p.get('amount') or 0.0),
+                                'exchange_rate': float(p.get('exchange_rate') or 1.0),
+                                'reference': p.get('reference') or local_invoice_id or '',
+                            })
+
                         results.append({'sale_id': item.get('sale_id'), 'status': 'created', 'server_id': new_sale.id, 'name': new_sale.name})
                         processed_count += 1
 
+                    # ---------------------------------------------------------
+                    # 2. SHIFT MUTATION (OPEN / CLOSE)
+                    # ---------------------------------------------------------
+                    elif mutation_type == 'shift':
+                        shift_data = item.get('shift', {})
+                        shift_action = shift_data.get('action') or ('close' if shift_data.get('state') == 'closed' else 'open')
+
+                        if shift_action == 'open':
+                            new_shift = ShiftModel.create({
+                                'tenant_id': user.tenant_id.id,
+                                'user_id': user.id,
+                                'store_id': shift_data.get('store_id') or (user.default_store_id.id if user.default_store_id else False),
+                                'terminal_id': shift_data.get('terminal_id'),
+                                'opening_cash': float(shift_data.get('opening_cash') or 0.0),
+                                'start_date': shift_data.get('start_date') or fields.Datetime.now(),
+                                'state': 'open',
+                            })
+                            results.append({'shift_id': item.get('client_id'), 'server_id': new_shift.id, 'status': 'opened', 'name': new_shift.name})
+                            processed_count += 1
+
+                        elif shift_action == 'close':
+                            shift_id = shift_data.get('shift_id') or shift_data.get('server_id') or shift_data.get('id')
+                            shift_rec = False
+                            if shift_id and str(shift_id).isdigit():
+                                shift_rec = ShiftModel.browse(int(shift_id))
+
+                            if not shift_rec or not shift_rec.exists():
+                                # Fallback search: find active open shift for this user and store
+                                shift_rec = ShiftModel.search([
+                                    ('tenant_id', '=', user.tenant_id.id),
+                                    ('user_id', '=', user.id),
+                                    ('state', '=', 'open')
+                                ], limit=1)
+
+                            if shift_rec and shift_rec.exists() and shift_rec.tenant_id.id == user.tenant_id.id:
+                                shift_rec.write({
+                                    'actual_cash': float(shift_data.get('actual_cash') or 0.0),
+                                    'end_date': shift_data.get('end_date') or fields.Datetime.now(),
+                                    'state': 'closed',
+                                })
+                                results.append({'shift_id': item.get('client_id'), 'server_id': shift_rec.id, 'status': 'closed', 'name': shift_rec.name})
+                                processed_count += 1
+                            else:
+                                results.append({'shift_id': item.get('client_id'), 'status': 'error', 'error': 'Open shift not found for closing'})
+
+                    # ---------------------------------------------------------
+                    # 3. CUSTOMER MUTATION
+                    # ---------------------------------------------------------
                     elif mutation_type == 'customer':
                         cust_data = item.get('customer', {})
                         new_cust = CustomerModel.create({
@@ -297,6 +374,10 @@ class HavanoPowerSyncController(http.Controller):
                             'customer_name': cust_data.get('customer_name'),
                             'currency': cust_data.get('currency') or 'USD',
                             'custom_cost_center': cust_data.get('custom_cost_center'),
+                            'custom_customer_tin': cust_data.get('custom_customer_tin') or '',
+                            'custom_customer_vat': cust_data.get('custom_customer_vat') or '',
+                            'custom_telephone_number': cust_data.get('custom_telephone_number') or '',
+                            'custom_email_address': cust_data.get('custom_email_address') or '',
                             'tenant_id': user.tenant_id.id,
                         })
                         results.append({'client_id': item.get('client_id'), 'status': 'created', 'id': new_cust.id})
