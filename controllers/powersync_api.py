@@ -29,7 +29,7 @@ def _b64url_encode(data_bytes):
     return base64.urlsafe_b64encode(data_bytes).decode('utf-8').rstrip('=')
 
 
-def generate_powersync_jwt(user_id, tenant_id, store_id=None, store_ids=None, role=None, secret_key=None, expires_in=2592000):
+def generate_powersync_jwt(user_id, tenant_id, store_id=None, store_ids=None, role=None, secret_key=None, expires_in=86400):
     """Generate a HS256 JWT for PowerSync client authentication."""
     secret = secret_key or DEFAULT_JWT_SECRET
     now = int(time.time())
@@ -130,6 +130,12 @@ class HavanoPowerSyncController(http.Controller):
         if not req_store_id and user.store_ids:
             req_store_id = user.store_ids[0].id
 
+        req_expires_in = kw.get('expires_in') or request.httprequest.headers.get('expires_in')
+        try:
+            expires_in = min(int(req_expires_in), 86400) if req_expires_in else 86400
+        except (ValueError, TypeError):
+            expires_in = 86400
+
         powersync_url, powersync_secret = self._get_powersync_config()
 
         jwt_token = generate_powersync_jwt(
@@ -139,13 +145,13 @@ class HavanoPowerSyncController(http.Controller):
             store_ids=user.store_ids.ids if user.store_ids else [],
             role=user.havano_role,
             secret_key=powersync_secret,
-            expires_in=2592000  # 30 days
+            expires_in=expires_in
         )
 
         response_data = {
             'token': jwt_token,
             'powersync_url': powersync_url,
-            'expires_in': 2592000,
+            'expires_in': expires_in,
             'tenant_id': str(tenant.id),
             'user_id': str(user.id),
             'store_id': str(req_store_id) if req_store_id else None,
