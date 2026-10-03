@@ -364,6 +364,13 @@ HAVANO_MODELS = frozenset(MODEL_FEATURE_MAP.keys())
 from odoo.models import BaseModel, Model, AbstractModel, TransientModel
 
 def custom_check_access(self, operation: str):
+    # Guard against in-memory / virtual IDs (e.g. ('virtual_4',)) that do not exist in DB
+    real_ids = [i for i in self._ids if isinstance(i, int) or (isinstance(i, str) and i.isdigit())]
+    if not real_ids:
+        return None
+    if len(real_ids) != len(self._ids):
+        self = self.browse(real_ids)
+
     if operation == 'read':
         if self._name in ('res.currency', 'res.currency.rate') or self.env.context.get('bypass_backoffice_read'):
             return None

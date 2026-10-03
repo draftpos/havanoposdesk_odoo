@@ -115,8 +115,36 @@ class HavanoAuditMixin(models.AbstractModel):
         except Exception as e:
             _logger.warning(f"Audit log generation failed for {self._name}: {e}")
 
+def _sanitize_x2many_commands(vals):
+    """
+    Sanitize x2many relational commands in vals to remove operations targeting
+    in-memory virtual IDs (e.g. 'virtual_4') that do not exist in PostgreSQL.
+    """
+    if not isinstance(vals, dict):
+        return vals
+    for k, v in list(vals.items()):
+        if isinstance(v, (list, tuple)) and v and isinstance(v[0], (list, tuple)):
+            clean_list = []
+            for cmd in v:
+                if not isinstance(cmd, (list, tuple)) or not cmd:
+                    continue
+                op = cmd[0]
+                if op in (1, 2, 3, 4):
+                    rec_id = cmd[1]
+                    if isinstance(rec_id, int) or (isinstance(rec_id, str) and rec_id.isdigit()):
+                        clean_list.append(cmd)
+                elif op == 6 and len(cmd) > 2 and isinstance(cmd[2], (list, tuple)):
+                    valid_ids = [i for i in cmd[2] if isinstance(i, int) or (isinstance(i, str) and i.isdigit())]
+                    clean_list.append((6, 0, valid_ids))
+                else:
+                    clean_list.append(cmd)
+            vals[k] = clean_list
+    return vals
+
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            _sanitize_x2many_commands(vals)
         records = super().create(vals_list)
         if not self.env.context.get('skip_audit_log'):
             for record in records:
@@ -138,6 +166,7 @@ class HavanoAuditMixin(models.AbstractModel):
         return records
 
     def write(self, vals):
+        _sanitize_x2many_commands(vals)
         if self.env.context.get('skip_audit_log') or not vals:
             return super().write(vals)
 
