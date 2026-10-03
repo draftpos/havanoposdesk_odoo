@@ -43,18 +43,7 @@ registry.category("actions").add("custom_home_menu.action", CustomHomeMenuCompon
 
 patch(NavBar.prototype, {
     get currentAppSections() {
-        const sections = super.currentAppSections;
-        const isSuperAdmin = Boolean(
-            session.is_super_admin ||
-            session.havano_role === "super_admin" ||
-            session.uid === 1
-        );
-        if (isSuperAdmin && sections && sections.length) {
-            return sections.filter(
-                (s) => s.xmlid !== "havanoposdesk_odoo.menu_my_subscription" && s.name !== "My Subscription"
-            );
-        }
-        return sections;
+        return super.currentAppSections;
     },
 
     setup() {

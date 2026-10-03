@@ -6,6 +6,12 @@ from . import sales
 from . import controllers
 from . import migrations
 from . import manufacturing
+from .hooks import post_init_hook, post_migrate_hook
+
+# Ensure getattr(module, 'hooks.post_init_hook') works if cached manifest uses dotted name
+globals()['hooks.post_init_hook'] = post_init_hook
+globals()['hooks.post_migrate_hook'] = post_migrate_hook
+
 
 
 def post_migrate(env):

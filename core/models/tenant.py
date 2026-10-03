@@ -3,6 +3,7 @@ from odoo.exceptions import ValidationError, AccessError
 import logging
 import traceback
 from dateutil.relativedelta import relativedelta
+from datetime import datetime, timedelta, date
 
 _logger = logging.getLogger(__name__)
 
@@ -58,6 +59,12 @@ class HavanoposdeskTenant(models.Model):
             ("duration_months", "INTEGER DEFAULT 1"),
             ("pending_billing_cycle", "VARCHAR DEFAULT '1_month'"),
             ("pending_duration_months", "INTEGER DEFAULT 1"),
+            ("phone", "VARCHAR"),
+            ("address", "VARCHAR"),
+            ("city", "VARCHAR"),
+            ("sales_rep", "VARCHAR"),
+            ("technician", "VARCHAR"),
+            ("whatsapp_number", "VARCHAR"),
 
         ]
         for col_name, col_type in columns:
@@ -98,6 +105,263 @@ class HavanoposdeskTenant(models.Model):
     currency_id = fields.Many2one('res.currency', string='Default Currency', default=lambda self: self.env.ref('base.USD').id)
     allow_multi_currency = fields.Boolean(string='Allow Multi Currency', default=False)
     global_multi_currency_customers = fields.Boolean(string='Global Multi-Currency Customers', default=False)
+
+    # ── Contact & CRM Fields ──────────────────────────────────────────────────
+    phone = fields.Char(string='Phone Number')
+    address = fields.Char(string='Physical Address')
+    city = fields.Char(string='City')
+    sales_rep = fields.Char(string='Sales Representative')
+    technician = fields.Char(string='Technician')
+    whatsapp_number = fields.Char(string='Verified WhatsApp (Owner)')
+    admin_user_id = fields.Many2one(
+        'res.users',
+        string='Admin User',
+        compute='_compute_admin_user_id',
+        store=False,
+    )
+
+    @api.depends('user_ids', 'user_ids.havano_role')
+    def _compute_admin_user_id(self):
+        for tenant in self:
+            admin = tenant.user_ids.filtered(lambda u: u.havano_role in ('tenant_admin', 'admin')).sorted('id')[:1]
+            tenant.admin_user_id = admin.id if admin else False
+
+    # ── Computed Stats for Profile View ──────────────────────────────────────
+    store_ids = fields.One2many('havanoposdesk.store', 'tenant_id', string='Stores')
+    terminal_ids = fields.One2many('havanoposdesk.pos.terminal', 'tenant_id', string='Terminals')
+    store_count = fields.Integer(string='Stores Count', compute='_compute_tenant_stats')
+    terminal_count = fields.Integer(string='Terminals Count', compute='_compute_tenant_stats')
+    user_count = fields.Integer(string='Users Count', compute='_compute_tenant_stats')
+    sales_count = fields.Integer(string='Sales Count', compute='_compute_tenant_stats')
+
+    primary_store_name = fields.Char(string='Store Name', compute='_compute_tenant_activity')
+    last_sale_date = fields.Datetime(string='Last Sale Date', compute='_compute_tenant_activity', search='_search_last_sale_date')
+    has_sales_today = fields.Boolean(string='Has Sales Today', compute='_compute_tenant_activity', search='_search_has_sales_today')
+
+    # ── Online & Login Activity Tracking ─────────────────────────────────────
+    online_status = fields.Selection([
+        ('online', 'Online'),
+        ('idle', 'Idle'),
+        ('offline', 'Offline')
+    ], string='Online Status', compute='_compute_tenant_activity', search='_search_online_status')
+    is_online = fields.Boolean(string='Is Online', compute='_compute_tenant_activity', search='_search_is_online')
+    last_login_date = fields.Datetime(string='Last Login / Active', compute='_compute_tenant_activity', search='_search_last_login_date')
+    last_login_user_id = fields.Many2one('res.users', string='Last Active User', compute='_compute_tenant_activity')
+    last_login_user_name = fields.Char(string='Last Active User Name', compute='_compute_tenant_activity')
+    hours_used_this_week = fields.Float(string='Hours Used (Week)', compute='_compute_tenant_activity', search='_search_hours_used_this_week')
+    weekly_usage_display = fields.Char(string='Usage This Week', compute='_compute_tenant_activity')
+    online_activity_ids = fields.One2many('havanoposdesk.online.activity', 'tenant_id', string='Online Activity Logs')
+
+    @api.depends('store_ids', 'terminal_ids', 'user_ids')
+    def _compute_tenant_stats(self):
+        sales_map = {}
+        if self.ids:
+            try:
+                sales_data = self.env['havanoposdesk.sale'].read_group([('tenant_id', 'in', self.ids)], ['tenant_id'], ['tenant_id'])
+                sales_map = {item['tenant_id'][0]: item['tenant_id_count'] for item in sales_data if item.get('tenant_id')}
+            except Exception:
+                sales_map = {}
+        for tenant in self:
+            tenant.store_count = len(tenant.store_ids)
+            tenant.terminal_count = len(tenant.terminal_ids)
+            tenant.user_count = len(tenant.user_ids)
+            tenant.sales_count = sales_map.get(tenant.id, 0)
+
+    def action_view_stores(self):
+        self.ensure_one()
+        return {
+            'name': _('Stores - %s', self.name),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.store',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
+
+    def action_view_terminals(self):
+        self.ensure_one()
+        return {
+            'name': _('Terminals - %s', self.name),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.pos.terminal',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
+
+    def action_view_users(self):
+        self.ensure_one()
+        return {
+            'name': _('Users - %s', self.name),
+            'type': 'ir.actions.act_window',
+            'res_model': 'res.users',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', self.user_ids.ids)],
+            'context': {'default_tenant_id': self.id},
+        }
+
+    def action_view_sales(self):
+        self.ensure_one()
+        return {
+            'name': _('Sales Records - %s', self.name),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.sale',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
+
+    def _compute_tenant_activity(self):
+        now = fields.Datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Prefetch latest sales
+        sales = self.env['havanoposdesk.sale'].search([('tenant_id', 'in', self.ids)], order='date desc')
+        sales_by_tenant = {}
+        for s in sales:
+            if s.tenant_id.id not in sales_by_tenant:
+                sales_by_tenant[s.tenant_id.id] = s
+
+        # Prefetch online activities
+        activities = self.env['havanoposdesk.online.activity'].search([('tenant_id', 'in', self.ids)], order='last_activity desc')
+        activities_by_tenant = {}
+        for a in activities:
+            activities_by_tenant.setdefault(a.tenant_id.id, []).append(a)
+
+        # Prefetch user login logs for this week
+        all_user_ids = self.mapped('user_ids').ids
+        logs_this_week = self.env['res.users.log'].search([
+            ('create_uid', 'in', all_user_ids),
+            ('create_date', '>=', week_start)
+        ])
+        logs_by_user = {}
+        for l in logs_this_week:
+            logs_by_user.setdefault(l.create_uid.id, []).append(l)
+
+        for tenant in self:
+            tenant.primary_store_name = tenant.store_ids[0].name if tenant.store_ids else ''
+            latest_sale = sales_by_tenant.get(tenant.id)
+            tenant.last_sale_date = latest_sale.date if latest_sale else False
+            tenant.has_sales_today = bool(latest_sale and latest_sale.date and latest_sale.date >= today_start)
+
+            # 1. Determine latest login/activity and which user
+            latest_dt = False
+            latest_user = False
+            for u in tenant.user_ids:
+                if u.login_date and (not latest_dt or u.login_date > latest_dt):
+                    latest_dt = u.login_date
+                    latest_user = u
+
+            t_activities = activities_by_tenant.get(tenant.id, [])
+            for a in t_activities:
+                if a.last_activity and (not latest_dt or a.last_activity > latest_dt):
+                    latest_dt = a.last_activity
+                    latest_user = a.user_id or latest_user
+
+            tenant.last_login_date = latest_dt
+            tenant.last_login_user_id = latest_user.id if latest_user else False
+            if 'last_login_user_name' in tenant._fields:
+                tenant.last_login_user_name = latest_user.name if latest_user else ''
+
+            # 2. Determine Online Status
+            status = 'offline'
+            for a in t_activities:
+                if a.last_activity:
+                    diff = (now - a.last_activity).total_seconds()
+                    if diff <= 300:
+                        status = 'online'
+                        break
+                    elif diff <= 900 and status != 'online':
+                        status = 'idle'
+            tenant.online_status = status
+            tenant.is_online = (status == 'online')
+
+            # 3. Calculate Hours Used This Week
+            weekly_seconds = 0.0
+            for a in t_activities:
+                if a.last_activity and a.last_activity >= week_start:
+                    weekly_seconds += (a.online_duration_seconds or 0.0)
+
+            for u in tenant.user_ids:
+                u_logs = logs_by_user.get(u.id, [])
+                if u_logs and weekly_seconds < len(u_logs) * 900:
+                    weekly_seconds = max(weekly_seconds, len(u_logs) * 1800)
+
+            hours = round(weekly_seconds / 3600.0, 1)
+            tenant.hours_used_this_week = hours
+            if hours < 0.1 and weekly_seconds > 0:
+                tenant.weekly_usage_display = f"{int(weekly_seconds // 60)} mins"
+            elif hours > 0:
+                tenant.weekly_usage_display = f"{hours} hrs"
+            else:
+                tenant.weekly_usage_display = "0 hrs"
+
+    def _search_has_sales_today(self, operator, value):
+        today_start = fields.Datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        sales = self.env['havanoposdesk.sale'].search([('date', '>=', today_start)])
+        tenant_ids = sales.mapped('tenant_id').ids
+        if (operator in ('=', '==') and value) or (operator in ('!=', '<>') and not value):
+            return [('id', 'in', tenant_ids)]
+        return [('id', 'not in', tenant_ids)]
+
+    def _search_last_sale_date(self, operator, value):
+        sales = self.env['havanoposdesk.sale'].search([('date', operator, value)])
+        tenant_ids = sales.mapped('tenant_id').ids
+        return [('id', 'in', tenant_ids)]
+
+    def _search_last_login_date(self, operator, value):
+        users = self.env['res.users'].search([('login_date', operator, value)])
+        activities = self.env['havanoposdesk.online.activity'].search([('last_activity', operator, value)])
+        tenant_ids = set(users.mapped('tenant_id').ids) | set(activities.mapped('tenant_id').ids)
+        return [('id', 'in', list(tenant_ids))]
+
+    def _search_online_status(self, operator, value):
+        now = fields.Datetime.now()
+        five_min_ago = now - timedelta(minutes=5)
+        fifteen_min_ago = now - timedelta(minutes=15)
+        if value == 'online':
+            activities = self.env['havanoposdesk.online.activity'].search([('last_activity', '>=', five_min_ago)])
+            tenant_ids = activities.mapped('tenant_id').ids
+            return [('id', 'in' if operator in ('=', '==', 'in') else 'not in', tenant_ids)]
+        elif value == 'idle':
+            activities = self.env['havanoposdesk.online.activity'].search([
+                ('last_activity', '>=', fifteen_min_ago),
+                ('last_activity', '<', five_min_ago)
+            ])
+            tenant_ids = activities.mapped('tenant_id').ids
+            return [('id', 'in' if operator in ('=', '==', 'in') else 'not in', tenant_ids)]
+        elif value == 'offline':
+            online_activities = self.env['havanoposdesk.online.activity'].search([('last_activity', '>=', fifteen_min_ago)])
+            online_tenant_ids = online_activities.mapped('tenant_id').ids
+            return [('id', 'not in' if operator in ('=', '==', 'in') else 'in', online_tenant_ids)]
+        return []
+
+    def _search_is_online(self, operator, value):
+        now = fields.Datetime.now()
+        five_min_ago = now - timedelta(minutes=5)
+        activities = self.env['havanoposdesk.online.activity'].search([('last_activity', '>=', five_min_ago)])
+        tenant_ids = activities.mapped('tenant_id').ids
+        if (operator in ('=', '==') and value) or (operator in ('!=', '<>') and not value):
+            return [('id', 'in', tenant_ids)]
+        return [('id', 'not in', tenant_ids)]
+
+    def _search_hours_used_this_week(self, operator, value):
+        now = fields.Datetime.now()
+        week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        activities = self.env['havanoposdesk.online.activity'].search([
+            ('last_activity', '>=', week_start)
+        ])
+        user_logs = self.env['res.users.log'].search([('create_date', '>=', week_start)])
+        users = self.env['res.users'].browse(user_logs.mapped('create_uid').ids)
+        tenant_ids = set(activities.mapped('tenant_id').ids) | set(users.mapped('tenant_id').ids)
+        if operator in ('>', '>=', '!=') and value == 0:
+            return [('id', 'in', list(tenant_ids))]
+        elif operator in ('=', '<=') and value == 0:
+            return [('id', 'not in', list(tenant_ids))]
+        return [('id', 'in', list(tenant_ids))]
+
+
     global_secondary_currency_id = fields.Many2one('res.currency', string='Default Secondary Currency')
     allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=True)
 

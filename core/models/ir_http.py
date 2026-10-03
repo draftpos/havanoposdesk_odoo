@@ -43,6 +43,15 @@ class IrHttp(models.AbstractModel):
             #         user.tenant_id._seed_default_data()
             #     except Exception:
             #         pass
+            try:
+                ip = request.httprequest.environ.get('REMOTE_ADDR')
+                request.env['havanoposdesk.online.activity'].sudo().record_activity(
+                    user=user,
+                    platform='web',
+                    ip_address=ip
+                )
+            except Exception:
+                pass
 
             icp = request.env['ir.config_parameter'].sudo()
             result['havanoposdesk_app_name'] = icp.get_param('web.web_app_name', 'Havano')

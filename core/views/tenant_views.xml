@@ -5,21 +5,37 @@
             <field name="name">havanoposdesk.tenant.tree</field>
             <field name="model">havanoposdesk.tenant</field>
             <field name="arch" type="xml">
-                <list string="Tenants">
-                    <field name="name"/>
-                    <field name="subscription_plan_id"/>
-                    <field name="account_balance"/>
-                    <field name="pending_topup_count" string="Pending Top-Ups" widget="badge" decoration-warning="pending_topup_count > 0" optional="show"/>
+                <list string="Tenants &amp; Activity Tracking">
+                    <field name="name" string="Tenant Name"/>
+                    <field name="online_status"
+                           widget="badge"
+                           decoration-success="online_status == 'online'"
+                           decoration-warning="online_status == 'idle'"
+                           decoration-muted="online_status == 'offline'"
+                           string="Status"/>
+                    <field name="last_login_user_id" string="Last Active User"/>
+                    <field name="last_login_date" string="Last Login / Seen"/>
+                    <field name="weekly_usage_display" string="Weekly Usage"/>
+                    <field name="last_sale_date" string="Last Sale"/>
+                    <field name="subscription_plan_id" string="Plan"/>
                     <field name="subscription_state"
                            widget="badge"
                            decoration-success="subscription_state == 'active'"
-                           decoration-warning="subscription_state == 'expired'"
-                           decoration-danger="subscription_state == 'cancelled'"/>
-                    <field name="total_sales_count" string="# Sales" optional="show"/>
-                    <field name="total_sales_amount" string="Sales ($)" optional="show"/>
-                    <field name="last_sale_date" string="Last Sale" optional="show"/>
-                    <field name="last_login" string="Last Login" optional="show"/>
-                    <field name="active" optional="show"/>
+                            decoration-warning="subscription_state == 'pending'"
+                            decoration-danger="subscription_state in ('expired', 'cancelled')"
+                            string="Subscription"/>
+                    <field name="id" string="Tenant ID" optional="hide"/>
+                    <field name="primary_store_name" string="Store Name" optional="hide"/>
+                    <field name="admin_user_id" string="Admin Name" optional="hide"/>
+                    <field name="phone" optional="hide"/>
+                    <field name="city" optional="hide"/>
+                    <field name="whatsapp_number" string="Verified WhatsApp" optional="hide"/>
+                    <field name="address" optional="hide"/>
+                    <field name="sales_rep" optional="hide"/>
+                    <field name="technician" optional="hide"/>
+                    <field name="has_sales_today" widget="boolean_toggle" string="Sales Today" optional="hide"/>
+                    <field name="account_balance" optional="hide"/>
+                    <field name="active" optional="hide"/>
                 </list>
             </field>
         </record>
@@ -112,17 +128,26 @@
                                 groups="base.group_system"/>
 
                         <field name="subscription_state"
-                               widget="statusbar"
-                               statusbar_visible="active,pending,expired,cancelled"/>
+                                widget="statusbar"
+                                statusbar_visible="active,pending,expired,cancelled"/>
                     </header>
 
                     <sheet>
                         <div class="oe_button_box" name="button_box">
-                            <button name="action_view_sales"
-                                    type="object"
-                                    class="oe_stat_button"
-                                    icon="fa-shopping-cart">
-                                <field name="total_sales_count" widget="statinfo" string="Sales"/>
+                            <button name="%(havanoposdesk_odoo.action_monitoring_sales_usage)d" type="action" class="oe_stat_button" icon="fa-shopping-cart" context="{'search_default_tenant_id': id}">
+                                <div class="o_stat_info">
+                                    <span class="o_stat_text">Sales</span>
+                                    <span class="o_stat_text">Analytics</span>
+                                </div>
+                            </button>
+                            <button name="%(havanoposdesk_odoo.action_havanoposdesk_store)d" type="action" class="oe_stat_button" icon="fa-building-o" context="{'search_default_tenant_id': id, 'default_tenant_id': id}">
+                                <field name="store_count" widget="statinfo" string="Stores"/>
+                            </button>
+                            <button name="%(havanoposdesk_odoo.action_pos_terminals)d" type="action" class="oe_stat_button" icon="fa-desktop" context="{'search_default_tenant_id': id, 'default_tenant_id': id}">
+                                <field name="terminal_count" widget="statinfo" string="Terminals"/>
+                            </button>
+                            <button name="%(havanoposdesk_odoo.action_saas_users)d" type="action" class="oe_stat_button" icon="fa-users" context="{'search_default_tenant_id': id, 'default_tenant_id': id}">
+                                <field name="user_count" widget="statinfo" string="Users"/>
                             </button>
                         </div>
                         <group string="Pending Plan Upgrade Request" invisible="not pending_subscription_plan_id">
@@ -134,48 +159,110 @@
                             <field name="pending_subscription_total_amount" readonly="1"/>
                         </group>
                         <group>
-                            <group string="Active Subscription &amp; Wallet">
-                                <field name="name"
-                                        readonly="not context.is_super_admin"
-                                        groups="base.group_system"/>
+                            <!-- LEFT COLUMN -->
+                            <group>
+                                <group string="Subscription &amp; Wallet">
+                                    <field name="name" readonly="not context.is_super_admin"/>
                                     <field name="account_balance" readonly="not context.is_super_admin"/>
-                                <field name="subscription_plan_id"
-                                       options="{'no_create': True}"
-                                        readonly="not context.is_super_admin"/>
-                         
-                                <field name="effective_max_stores" readonly="1"/>
-                                <field name="effective_max_terminals" readonly="1"/>
-                                <field name="subscription_total_amount" readonly="1"/>
-                                <field name="payment_status" readonly="not context.is_super_admin"/>
-                            </group>
-
-                            <group string="Duration &amp; Status">
-                                <field name="subscription_start_date" readonly="1"/>
-                                <field name="subscription_end_date" readonly="1"/>
-                                           <field name="billing_cycle" readonly="not context.is_super_admin"/>
+                                    <field name="subscription_plan_id" options="{'no_create': True}" readonly="not context.is_super_admin"/>
+                                    <field name="effective_max_stores" readonly="1"/>
+                                    <field name="effective_max_terminals" readonly="1"/>
+                                    <field name="subscription_total_amount" readonly="1"/>
+                                    <field name="payment_status" readonly="not context.is_super_admin"/>
+                                </group>
+                                <group string="Duration &amp; Billing">
+                                    <field name="subscription_start_date" readonly="1"/>
+                                    <field name="subscription_end_date" readonly="1"/>
+                                    <field name="billing_cycle" readonly="not context.is_super_admin"/>
                                     <field name="duration_months" readonly="not context.is_super_admin" invisible="billing_cycle != 'custom_months'"/>
                                     <field name="additional_terminals" readonly="not context.is_super_admin"/>
                                     <field name="additional_stores" readonly="not context.is_super_admin"/>
-                                <field name="active"
-                                       readonly="not context.is_super_admin"/>
+                                    <field name="active" readonly="not context.is_super_admin"/>
+                                </group>
+                                <group string="Contact &amp; Account">
+                                    <field name="phone"/>
+                                    <field name="whatsapp_number"/>
+                                    <field name="address"/>
+                                    <field name="city"/>
+                                    <field name="sales_rep"/>
+                                    <field name="technician"/>
+                                </group>
+                                <group string="Features">
+                                    <field name="restaurant_mode_enabled" widget="boolean_toggle"/>
+                                </group>
                             </group>
-                            <group string="Features">
-                                <field name="restaurant_mode_enabled" widget="boolean_toggle"/>
+                            <!-- RIGHT COLUMN: Telemetry - Super Admin Only -->
+                            <group groups="base.group_system">
+                                <group string="Online Activity &amp; Telemetry">
+                                    <field name="online_status" widget="badge"
+                                           decoration-success="online_status == 'online'"
+                                           decoration-warning="online_status == 'idle'"
+                                           decoration-muted="online_status == 'offline'"/>
+                                    <field name="last_login_user_id" readonly="1"/>
+                                    <field name="last_login_date" readonly="1"/>
+                                    <field name="weekly_usage_display" readonly="1"/>
+                                </group>
                             </group>
                         </group>
 
                         <notebook>
-                            <page string="Transaction History &amp; Top-Ups" name="transaction_history">
+                            <page string="Stores" name="tenant_stores">
+                                <field name="store_ids" readonly="1">
+                                    <list string="Stores">
+                                        <field name="name" string="Store Name"/>
+                                        <field name="active" widget="boolean_toggle" string="Active"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Terminals" name="tenant_terminals">
+                                <field name="terminal_ids" readonly="1">
+                                    <list string="Terminals">
+                                        <field name="name" string="Terminal Name"/>
+                                        <field name="device_hardware_id" string="Hardware"/>
+                                        <field name="store_id" string="Store"/>
+                                        <field name="active" widget="boolean_toggle" string="Active"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Users" name="tenant_users">
+                                <field name="user_ids" readonly="1">
+                                    <list string="Users">
+                                        <field name="name" string="Name"/>
+                                        <field name="login" string="Email / Login"/>
+                                        <field name="havano_role" widget="badge" string="Role"/>
+                                        <field name="login_date" string="Last Login"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Online Devices" name="online_activity" groups="base.group_system">
+                                <field name="online_activity_ids" readonly="1">
+                                    <list decoration-success="online_status == 'online'" decoration-warning="online_status == 'idle'" decoration-muted="online_status == 'offline'">
+                                        <field name="online_status" widget="badge"
+                                               decoration-success="online_status == 'online'"
+                                               decoration-warning="online_status == 'idle'"
+                                               decoration-danger="online_status == 'offline'"
+                                               string="Status"/>
+                                        <field name="user_id" string="User"/>
+                                        <field name="platform" widget="badge" string="Platform"/>
+                                        <field name="device_name" string="Device"/>
+                                        <field name="store_id" string="Store"/>
+                                        <field name="last_activity" string="Last Seen"/>
+                                        <field name="online_duration_display" string="Time Online"/>
+                                        <field name="days_inactive_display" string="Inactivity"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Billing &amp; Top-Ups" name="transaction_history">
                                 <field name="subscription_payment_ids" readonly="1">
                                     <list string="Payments &amp; Top-Up Log" default_order="date desc" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'">
-                                        <field name="date"/>
-                                        <field name="payment_type"/>
-                                        <field name="billing_cycle" optional="show"/>
-                                        <field name="duration_months" optional="show"/>
-                                        <field name="amount" sum="Total Amount"/>
-                                        <field name="payment_method"/>
-                                        <field name="transaction_reference"/>
-                                        <field name="state" widget="badge" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'"/>
+                                        <field name="date" string="Date"/>
+                                        <field name="payment_type" string="Type"/>
+                                        <field name="billing_cycle" optional="show" string="Cycle"/>
+                                        <field name="duration_months" optional="show" string="Duration"/>
+                                        <field name="amount" sum="Total Amount" string="Amount"/>
+                                        <field name="payment_method" string="Method"/>
+                                        <field name="transaction_reference" string="Reference"/>
+                                        <field name="state" widget="badge" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'" string="Status"/>
                                         <button name="action_approve" string="Approve" type="object" class="btn-success" invisible="state != 'pending'" groups="base.group_system"/>
                                         <button name="action_reject" string="Reject" type="object" class="btn-danger" invisible="state != 'pending'" groups="base.group_system"/>
                                     </list>
@@ -285,6 +372,46 @@
                         <button string="Cancel" class="btn-secondary" special="cancel"/>
                     </footer>
                 </form>
+            </field>
+        </record>
+        <!-- Tenant Search View for Activity & Inactivity Tracking -->
+        <record id="view_havanoposdesk_tenant_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.tenant.search</field>
+            <field name="model">havanoposdesk.tenant</field>
+            <field name="arch" type="xml">
+                <search string="Search Tenants &amp; Activity">
+                    <field name="name" string="Tenant Name"/>
+                    <field name="last_login_user_id" string="Active User"/>
+                    <filter string="Active Tenants" name="filter_active" domain="[('active', '=', True)]"/>
+                    <separator/>
+                    <filter string="Online Now 🟢" name="filter_online_now" domain="[('online_status', '=', 'online')]"/>
+                    <filter string="Idle (Recent) 🟡" name="filter_idle" domain="[('online_status', '=', 'idle')]"/>
+                    <filter string="Offline ⚪" name="filter_offline" domain="[('online_status', '=', 'offline')]"/>
+                    <separator/>
+                    <filter string="Logged In This Week" name="logged_in_this_week" domain="[('hours_used_this_week', '&gt;', 0)]"/>
+                    <filter string="Never Logged In" name="filter_never_logged_in" domain="[('last_login_date', '=', False)]"/>
+                    <separator/>
+                    <filter string="Used System Today" name="sales_today" domain="[('has_sales_today', '=', True)]"/>
+                    <filter string="⚠️ NOT Used System Today" name="no_sales_today" domain="[('has_sales_today', '=', False)]"/>
+                    <separator/>
+                    <filter string="Inactive (No Sales &gt; 1 Day)" name="no_sales_1_day" domain="['|', ('last_sale_date', '=', False), ('last_sale_date', '&lt;', (context_today() + datetime.timedelta(days=-1)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Inactive (No Sales &gt; 2 Days)" name="no_sales_2_days" domain="['|', ('last_sale_date', '=', False), ('last_sale_date', '&lt;', (context_today() + datetime.timedelta(days=-2)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Inactive (No Sales &gt; 3 Days)" name="no_sales_3_days" domain="['|', ('last_sale_date', '=', False), ('last_sale_date', '&lt;', (context_today() + datetime.timedelta(days=-3)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Inactive (No Sales &gt; 4 Days)" name="no_sales_4_days" domain="['|', ('last_sale_date', '=', False), ('last_sale_date', '&lt;', (context_today() + datetime.timedelta(days=-4)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Inactive (No Sales &gt; 7 Days)" name="no_sales_7_days" domain="['|', ('last_sale_date', '=', False), ('last_sale_date', '&lt;', (context_today() + datetime.timedelta(days=-7)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Inactive (No Sales &gt; 10 Days)" name="no_sales_10_days" domain="['|', ('last_sale_date', '=', False), ('last_sale_date', '&lt;', (context_today() + datetime.timedelta(days=-10)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Inactive (No Sales &gt; 14 Days)" name="no_sales_14_days" domain="['|', ('last_sale_date', '=', False), ('last_sale_date', '&lt;', (context_today() + datetime.timedelta(days=-14)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Inactive (No Sales &gt; 30 Days)" name="no_sales_30_days" domain="['|', ('last_sale_date', '=', False), ('last_sale_date', '&lt;', (context_today() + datetime.timedelta(days=-30)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <group>
+                        <filter string="Online Status" name="group_by_online_status" context="{'group_by': 'online_status'}"/>
+                        <filter string="Subscription Plan" name="group_by_plan" context="{'group_by': 'subscription_plan_id'}"/>
+                        <filter string="Subscription State" name="group_by_state" context="{'group_by': 'subscription_state'}"/>
+                    </group>
+                    <searchpanel>
+                        <field name="subscription_state" icon="fa-credit-card" select="multi" enable_counters="1"/>
+                        <field name="subscription_plan_id" icon="fa-th-large" enable_counters="1"/>
+                    </searchpanel>
+                </search>
             </field>
         </record>
     </data>

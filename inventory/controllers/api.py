@@ -217,7 +217,21 @@ class HavanoPOSDeskAPI(http.Controller):
                         'last_seen': fields.Datetime.now(),
                         'last_logged_in_user_id': user.id,
                     })
-                    
+
+            if user:
+                try:
+                    ip = request.httprequest.environ.get('REMOTE_ADDR')
+                    login_term = login_terminal if 'login_terminal' in locals() and login_terminal else False
+                    user_env['havanoposdesk.online.activity'].sudo().record_activity(
+                        user=user,
+                        terminal=login_term,
+                        device_hardware_id=device_hardware_id,
+                        app_version=str(app_version) if app_version else False,
+                        platform='mobile_pos',
+                        ip_address=ip
+                    )
+                except Exception:
+                    pass
             # Split full name into first and last name
             names = (user.name or "").split(' ', 1)
             first_name = names[0] if names else ""
@@ -3893,6 +3907,34 @@ class HavanoPOSDeskAPI(http.Controller):
                             lines.append((0, 0, line_vals))
 
                         terminal = user.selected_terminal_id
+                        if not terminal:
+                            # Fallback 1: check payload terminal parameter
+                            term_param = sale_data.get('terminal_id') or sale_data.get('terminal') or sale_data.get('hardware_id')
+                            if term_param:
+                                if isinstance(term_param, int):
+                                    terminal = env['havanoposdesk.pos.terminal'].search([('id', '=', term_param), ('tenant_id', '=', tenant.id)], limit=1)
+                                elif isinstance(term_param, str):
+                                    terminal = env['havanoposdesk.pos.terminal'].search([
+                                        ('tenant_id', '=', tenant.id),
+                                        '|', '|', ('hardware_id', '=', term_param), ('name', '=', term_param), ('id', '=', int(term_param) if term_param.isdigit() else 0)
+                                    ], limit=1)
+                        if not terminal:
+                            # Fallback 2: check header 'hardware-id' or 'terminal-id'
+                            hw_header = request.httprequest.headers.get('hardware-id') or request.httprequest.headers.get('hardware_id') or request.httprequest.headers.get('terminal-id')
+                            if hw_header:
+                                terminal = env['havanoposdesk.pos.terminal'].search([('tenant_id', '=', tenant.id), ('hardware_id', '=', str(hw_header).strip())], limit=1)
+                        if not terminal and local_invoice_id and '-' in str(local_invoice_id):
+                            # Fallback 3: extract terminal/hardware prefix from local_invoice_id (e.g., POS01-10042)
+                            prefix = str(local_invoice_id).split('-')[0].strip()
+                            if prefix:
+                                terminal = env['havanoposdesk.pos.terminal'].search([
+                                    ('tenant_id', '=', tenant.id),
+                                    '|', ('name', '=ilike', prefix), ('hardware_id', '=ilike', prefix)
+                                ], limit=1)
+                        if not terminal:
+                            # Fallback 4: default to first active terminal of store
+                            terminal = env['havanoposdesk.pos.terminal'].search([('tenant_id', '=', tenant.id), ('store_id', '=', store.id), ('active', '=', True)], limit=1)
+
                         payment_method_name = sale_data.get('payment_method')
                         account_id = False
                         if payment_method_name:
@@ -3968,6 +4010,25 @@ class HavanoPOSDeskAPI(http.Controller):
                                 if orig_sale:
                                     return_id_val = orig_sale.id
 
+                        # Ensure local_invoice_id prefix consistency
+                        if local_invoice_id and terminal:
+                            prefix = (terminal.hardware_id or terminal.name or '').strip()
+                            if prefix and not str(local_invoice_id).startswith(prefix + '-'):
+                                if '-' not in str(local_invoice_id):
+                                    local_invoice_id = f"{prefix}-{local_invoice_id}"
+
+                        # Extract app version dynamically from desktop or mobile payload/headers
+                        app_ver = (
+                            sale_data.get('app_version') or 
+                            sale_data.get('desktop_version') or 
+                            sale_data.get('client_version') or 
+                            sale_data.get('pos_version') or 
+                            request.httprequest.headers.get('app_version') or 
+                            request.httprequest.headers.get('app-version') or
+                            request.httprequest.headers.get('desktop_version') or
+                            request.httprequest.headers.get('client-version')
+                        )
+
                         sale_vals = {
                             'customer': customer.id,
                             'store': store.name,
@@ -3983,7 +4044,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             'payment_status': payment_status,
                             'payment_policy': payment_policy,
                             'local_invoice_id': local_invoice_id,
-                            'app_version': sale_data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version'),
+                            'app_version': app_ver,
                             'is_quotation': is_quotation,
                             'is_return': is_return_val,
                             'return_id': return_id_val if return_id_val else False,
@@ -9774,11 +9835,11 @@ class HavanoPOSDeskAPI(http.Controller):
             from odoo import fields as odoo_fields
             now = odoo_fields.Datetime.now()
             
-            # Debounce database writes to every 30 minutes (1800 seconds)
+            # Debounce database writes to every 60 seconds
             needs_update = False
             if terminal.status != 'online':
                 needs_update = True
-            elif not terminal.last_seen or (now - terminal.last_seen).total_seconds() > 1800:
+            elif not terminal.last_seen or (now - terminal.last_seen).total_seconds() > 60:
                 needs_update = True
                 
             if needs_update:
@@ -9786,6 +9847,20 @@ class HavanoPOSDeskAPI(http.Controller):
                     'last_seen': now,
                     'status': 'online'
                 })
+                try:
+                    ip = request.httprequest.environ.get('REMOTE_ADDR')
+                    env['havanoposdesk.online.activity'].sudo().record_activity(
+                        user=terminal.last_logged_in_user_id or False,
+                        tenant=terminal.tenant_id,
+                        store=terminal.store_id,
+                        terminal=terminal,
+                        device_hardware_id=terminal.device_hardware_id or device_hardware_id,
+                        app_version=terminal.app_version,
+                        platform='mobile_pos',
+                        ip_address=ip
+                    )
+                except Exception:
+                    pass
                 if custom_cr:
                     custom_cr.commit()
             return self._make_json_response({"message": "Pong", "status": "online"}, status=200)

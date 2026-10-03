@@ -251,6 +251,13 @@
                     <filter string="Sales Invoices" name="filter_invoices" domain="[('is_quotation', '=', False), ('is_return', '=', False)]" />
                     <filter string="Credit Notes" name="filter_credit_notes" domain="[('is_return', '=', True)]" />
                     <filter string="Today" name="today" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="Yesterday" name="yesterday" domain="[('date', '&gt;=', (context_today() + datetime.timedelta(days=-1)).strftime('%Y-%m-%d 00:00:00')), ('date', '&lt;=', (context_today() + datetime.timedelta(days=-1)).strftime('%Y-%m-%d 23:59:59'))]" />
+                    <filter string="Last 2 Days" name="last_2_days" domain="[('date', '&gt;=', (context_today() + datetime.timedelta(days=-2)).strftime('%Y-%m-%d 00:00:00'))]" />
+                    <filter string="Last 3 Days" name="last_3_days" domain="[('date', '&gt;=', (context_today() + datetime.timedelta(days=-3)).strftime('%Y-%m-%d 00:00:00'))]" />
+                    <filter string="Last 4 Days" name="last_4_days" domain="[('date', '&gt;=', (context_today() + datetime.timedelta(days=-4)).strftime('%Y-%m-%d 00:00:00'))]" />
+                    <filter string="Last 7 Days" name="last_7_days" domain="[('date', '&gt;=', (context_today() + datetime.timedelta(days=-7)).strftime('%Y-%m-%d 00:00:00'))]" />
+                    <filter string="Last 10 Days" name="last_10_days" domain="[('date', '&gt;=', (context_today() + datetime.timedelta(days=-10)).strftime('%Y-%m-%d 00:00:00'))]" />
+                    <filter string="Last 14 Days" name="last_14_days" domain="[('date', '&gt;=', (context_today() + datetime.timedelta(days=-14)).strftime('%Y-%m-%d 00:00:00'))]" />
                     <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
                     <filter string="Reference" name="filter_reference" domain="[('name', '!=', False)]" />
                     <filter string="Payment Mode" name="filter_payment" domain="[('payment_status', '!=', False)]" />
@@ -258,6 +265,7 @@
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]" />
                     <filter string="Customer" name="filter_customer" domain="[('customer', '!=', False)]" />
                     <group>
+                        <filter string="Tenant" name="group_by_tenant" context="{'group_by': 'tenant_id'}" />
                         <filter string="Reference" name="group_by_reference" context="{'group_by': 'name'}" />
                         <filter string="Payment Mode" name="group_by_payment" context="{'group_by': 'payment_status'}" />
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'date:day'}" />
@@ -277,7 +285,7 @@
         <record id="action_sales_operations" model="ir.actions.act_window">
             <field name="name">Sales Invoices</field>
             <field name="res_model">havanoposdesk.sale</field>
-            <field name="view_mode">list,form</field>
+            <field name="view_mode">list,form,graph,pivot,kanban</field>
             <field name="search_view_id" ref="view_havanoposdesk_sale_search" />
             <field name="domain">[('is_quotation', '=', False)]</field>
             <field name="context">{'default_payment_status': 'cash', 'search_default_today': 1}</field>
