@@ -89,7 +89,7 @@
                     <sheet>
                         <group>
                             <group>
-                                <field name="tenant_id" options="{'no_create': True}"/>
+                                <field name="tenant_id" options="{'no_create': True}" groups="base.group_system"/>
                                 <field name="subscription_plan_id" invisible="payment_type == 'topup'"/>
                                 <field name="billing_cycle" invisible="payment_type == 'topup'"/>
                                 <field name="duration_months" invisible="payment_type == 'topup'"/>
@@ -107,11 +107,31 @@
             </field>
         </record>
 
+        <record id="view_subscription_payment_search" model="ir.ui.view">
+            <field name="name">subscription.payment.search</field>
+            <field name="model">havanoposdesk.subscription.payment</field>
+            <field name="arch" type="xml">
+                <search string="Search Payments">
+                    <field name="tenant_id" string="Tenant Name"/>
+                    <field name="transaction_reference"/>
+                    <field name="payment_method"/>
+                    <filter string="Pending" name="pending" domain="[('state', '=', 'pending')]"/>
+                    <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
+                    <filter string="Failed" name="failed" domain="[('state', '=', 'failed')]"/>
+                    <separator/>
+                    <filter string="Tenant" name="group_tenant" context="{'group_by':'tenant_id'}"/>
+                    <filter string="Status" name="group_state" context="{'group_by':'state'}"/>
+                    <filter string="Type" name="group_type" context="{'group_by':'payment_type'}"/>
+                </search>
+            </field>
+        </record>
+
         <record id="action_subscription_payments" model="ir.actions.act_window">
             <field name="name">Subscription &amp; Topup Payments</field>
             <field name="res_model">havanoposdesk.subscription.payment</field>
             <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_subscription_payment_tree"/>
+            <field name="search_view_id" ref="view_subscription_payment_search"/>
         </record>
     </data>
 </odoo>

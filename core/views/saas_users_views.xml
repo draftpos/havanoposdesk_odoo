@@ -14,11 +14,50 @@
                     <field name="default_store_id" string="Default Store" optional="show" />
                     <field name="store_ids" string="Allowed Stores" widget="many2many_tags" optional="show" />
                     <field name="pricelist_id" string="Default Pricelist" optional="show" />
+                    <field name="login_date" string="Latest Login" optional="show" />
                     <field name="saas_state" widget="badge" decoration-info="saas_state == 'unverified'" decoration-success="saas_state == 'verified'" decoration-danger="saas_state == 'suspended'" optional="show" />
                 </list>
             </field>
         </record>
 
+        <!-- Search View for SaaS Users with Inactivity Tracking -->
+        <record id="view_saas_users_search" model="ir.ui.view">
+            <field name="name">saas.users.search</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <search string="Search SaaS Users">
+                    <field name="name" string="User Name"/>
+                    <field name="login" string="Login / Email"/>
+                    <field name="tenant_id" string="Tenant"/>
+                    <field name="default_store_id" string="Store"/>
+                    <field name="havano_role" string="Role"/>
+                    <field name="login_date" string="Date Range (Latest Login)"/>
+
+                    <separator/>
+                    <filter string="Active Today" name="filter_active_today" domain="[('login_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Active Last 24 Hours" name="filter_active_24h" domain="[('login_date', '&gt;=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'))]"/>
+
+                    <separator/>
+                    <filter string="Not Used Today (Inactive Today)" name="filter_inactive_today" domain="['|', ('login_date', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00')), ('login_date', '=', False)]"/>
+                    <filter string="Not Used Since Yesterday (≥ 1 Day)" name="filter_inactive_yesterday" domain="['|', ('login_date', '&lt;', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00')), ('login_date', '=', False)]"/>
+                    <filter string="Not Used in Last 2 Days (≥ 2 Days)" name="filter_inactive_2_days" domain="['|', ('login_date', '&lt;', (context_today() - datetime.timedelta(days=2)).strftime('%Y-%m-%d 00:00:00')), ('login_date', '=', False)]"/>
+                    <filter string="Not Used in Last 3 Days (≥ 3 Days)" name="filter_inactive_3_days" domain="['|', ('login_date', '&lt;', (context_today() - datetime.timedelta(days=3)).strftime('%Y-%m-%d 00:00:00')), ('login_date', '=', False)]"/>
+                    <filter string="Not Used in Last 4 Days (≥ 4 Days)" name="filter_inactive_4_days" domain="['|', ('login_date', '&lt;', (context_today() - datetime.timedelta(days=4)).strftime('%Y-%m-%d 00:00:00')), ('login_date', '=', False)]"/>
+                    <filter string="Not Used in Last 7 Days (≥ 1 Week)" name="filter_inactive_7_days" domain="['|', ('login_date', '&lt;', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')), ('login_date', '=', False)]"/>
+                    <filter string="Not Used in Last 10 Days (≥ 10 Days)" name="filter_inactive_10_days" domain="['|', ('login_date', '&lt;', (context_today() - datetime.timedelta(days=10)).strftime('%Y-%m-%d 00:00:00')), ('login_date', '=', False)]"/>
+                    <filter string="Not Used in Last 14 Days (≥ 2 Weeks)" name="filter_inactive_14_days" domain="['|', ('login_date', '&lt;', (context_today() - datetime.timedelta(days=14)).strftime('%Y-%m-%d 00:00:00')), ('login_date', '=', False)]"/>
+                    <filter string="Not Used in Last 1 Month (≥ 30 Days)" name="filter_inactive_1_month" domain="['|', ('login_date', '&lt;', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d 00:00:00')), ('login_date', '=', False)]"/>
+                    <filter string="Never Logged In" name="filter_never_active" domain="[('login_date', '=', False)]"/>
+
+                    <group>
+                        <filter string="Tenant" name="group_tenant" context="{'group_by': 'tenant_id'}"/>
+                        <filter string="Default Store" name="group_store" context="{'group_by': 'default_store_id'}"/>
+                        <filter string="Havano Role" name="group_role" context="{'group_by': 'havano_role'}"/>
+                        <filter string="Status" name="group_saas_state" context="{'group_by': 'saas_state'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
         
         <record id="view_saas_users_form" model="ir.ui.view">
             <field name="name">saas.users.form</field>
@@ -43,6 +82,8 @@
             <field name="res_model">res.users</field>
             <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_saas_users_tree" />
+            <field name="search_view_id" ref="view_saas_users_search" />
+
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Create a new SaaS User!

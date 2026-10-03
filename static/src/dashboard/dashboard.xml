@@ -11,8 +11,8 @@
                 <div class="dropdown me-2">
                     <Dropdown>
                         <button class="btn bg-white border shadow-sm text-dark d-flex align-items-center rounded-2 px-3 py-2">
-                            <i class="fa fa-building me-2 text-muted"></i>
-                            <span t-esc="state.storeLabel"></span>
+                            <i class="fa fa-filter me-2 text-muted"/>
+                            <span t-esc="state.storeLabel"/>
                         </button>
                         <t t-set-slot="content">
                             <DropdownItem onSelected="() => this.setStore(false, 'All Stores')">All Stores</DropdownItem>
@@ -209,6 +209,270 @@
                 <!-- Modals would go here -->
             <PwaPrompt class="d-md-none" />
                 </div>
+            </div>
+        </div>
+    </t>
+
+    <t t-name="havanoposdesk_odoo.TenantMonitoringDashboard" owl="1">
+        <div class="o_action o_view_controller">
+            <div t-attf-class="o_content overflow-auto w-100 h-100 havano-monitoring-dashboard p-3 p-md-4 #{state.isLoading ? 'opacity-75' : ''}" style="transition: opacity 0.15s ease;">
+                
+                <!-- Dashboard Header / Control Bar -->
+                <div class="card mb-4 bg-white">
+                    <div class="card-body p-3 p-md-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="havano-brand-icon p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                <i class="fa fa-line-chart fa-lg" style="color: #0080ff;"></i>
+                            </div>
+                            <div>
+                                <h4 class="mb-0 fw-bold d-flex align-items-center gap-2" style="font-size: 18px; color: #0f172a;">
+                                    Operations &amp; Multi-Tenant Analytics
+                                    <span class="badge badge-havano-live px-2 py-1">
+                                        <i class="fa fa-circle me-1 small" style="color: #10b981;"></i> Live
+                                    </span>
+                                    <span t-if="state.isLoading" class="badge bg-light text-primary border px-2 py-1" style="font-size: 11px;">
+                                        <i class="fa fa-refresh fa-spin me-1 small"></i> Syncing...
+                                    </span>
+                                </h4>
+                                <p class="text-muted small mb-0" style="font-size: 12.5px;">Real-time revenue telemetry, procurement &amp; inventory movement</p>
+                            </div>
+                        </div>
+
+                        <!-- Controls: Tenant Selector, Time Range Pills, Refresh -->
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <!-- Tenant Multi-Select Dropdown -->
+                            <div class="tenant-multiselect-wrapper" t-ref="tenantDropdownWrapper">
+                                <button class="btn btn-sm bg-white border shadow-sm d-flex align-items-center gap-2 px-3 py-1 rounded-2"
+                                        t-on-click="toggleTenantDropdown">
+                                    <i class="fa fa-users text-primary"/>
+                                    <span t-esc="tenantFilterLabel"/>
+                                    <i class="fa fa-chevron-down text-muted" style="font-size:10px;"/>
+                                </button>
+                                <div t-if="state.tenantDropdownOpen"
+                                     class="tenant-multiselect-panel shadow-lg border rounded-3 bg-white"
+                                     style="position:absolute;z-index:9999;min-width:260px;max-height:320px;overflow:hidden;"
+                                     t-on-click.stop="">
+                                    <!-- Search -->
+                                    <div class="p-2 border-bottom">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-light border-end-0">
+                                                <i class="fa fa-search text-muted"/>
+                                            </span>
+                                            <input type="text"
+                                                   class="form-control border-start-0"
+                                                   placeholder="Search tenants..."
+                                                   t-model="state.tenantSearch"
+                                                   t-on-input="onTenantSearch"/>
+                                        </div>
+                                    </div>
+                                    <!-- All Tenants Option -->
+                                    <div class="px-3 py-2 border-bottom d-flex align-items-center gap-2 tenant-select-all"
+                                         t-on-click="selectAllTenants"
+                                         style="cursor:pointer;font-weight:600;font-size:13px;">
+                                        <i t-attf-class="fa #{state.selectedTenants.length === 0 ? 'fa-check-square text-primary' : 'fa-square text-muted'}"/>
+                                        All Tenants (Aggregated)
+                                    </div>
+                                    <!-- Tenant List with Checkboxes -->
+                                    <div style="overflow-y:auto;max-height:220px;">
+                                        <t t-foreach="filteredTenants" t-as="tenant" t-key="tenant.id">
+                                            <div class="px-3 py-2 d-flex align-items-center gap-2 tenant-option"
+                                                 t-on-click="() => this.toggleTenant(tenant.id)"
+                                                 style="cursor:pointer;font-size:13px;">
+                                                <i t-attf-class="fa #{state.selectedTenants.includes(tenant.id) ? 'fa-check-square text-primary' : 'fa-square text-muted'}"/>
+                                                <span t-esc="tenant.name"/>
+                                            </div>
+                                        </t>
+                                        <div t-if="filteredTenants.length === 0"
+                                             class="px-3 py-3 text-muted text-center" style="font-size:12px;">
+                                            No tenants match
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Time Range Pill Buttons -->
+                            <div class="time-filter-group d-flex align-items-center">
+                                <button type="button" t-attf-class="btn-time-pill #{state.period === 'today' ? 'active' : ''}" t-on-click="() => this.setPeriod('today', 'Today')">Today</button>
+                                <button type="button" t-attf-class="btn-time-pill #{state.period === 'yesterday' ? 'active' : ''}" t-on-click="() => this.setPeriod('yesterday', 'Yesterday')">Yesterday</button>
+                                <button type="button" t-attf-class="btn-time-pill #{state.period === 'this_week' ? 'active' : ''}" t-on-click="() => this.setPeriod('this_week', 'This week')">This Week</button>
+                                <button type="button" t-attf-class="btn-time-pill #{state.period === 'last_week' ? 'active' : ''}" t-on-click="() => this.setPeriod('last_week', 'Last week')">Last Week</button>
+                                <button type="button" t-attf-class="btn-time-pill #{state.period === 'this_month' ? 'active' : ''}" t-on-click="() => this.setPeriod('this_month', 'This month')">This Month</button>
+                                <button type="button" t-attf-class="btn-time-pill #{state.period === 'all' ? 'active' : ''}" t-on-click="() => this.setPeriod('all', 'All')">All</button>
+                            </div>
+
+                            <!-- Refresh Action Button -->
+                            <button type="button" class="btn btn-sm btn-refresh d-flex align-items-center gap-2 px-3 py-1" t-on-click="refreshData" t-att-disabled="state.isLoading">
+                                <i t-attf-class="fa fa-refresh #{state.isLoading ? 'fa-spin' : ''}"></i>
+                                <span><t t-if="state.isLoading">Syncing...</t><t t-else="">Refresh</t></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 1: KPI Summary Metric Cards (Clean, Standout White Cards) -->
+                <div class="row g-3 mb-4">
+                    <!-- 1. Total Sales / Revenue -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="card h-100 kpi-card cursor-pointer">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="kpi-title">Total Sales Revenue</span>
+                                    <div class="havano-icon-box">
+                                        <i class="fa fa-shopping-cart"></i>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-baseline gap-2">
+                                    <h2 class="kpi-value mb-0">$<t t-esc="formatCurrency(state.kpis.sales.total_amount)"/></h2>
+                                    <span class="badge kpi-badge-blue px-2 py-1">
+                                        <t t-esc="state.kpis.sales.transactions_count"/> Invoices
+                                    </span>
+                                </div>
+                                <div class="kpi-subtitle mt-2 d-flex justify-content-between">
+                                    <span>Invoiced &amp; POS volume</span>
+                                    <span class="fw-bold" style="color: #0080ff;">View list <i class="fa fa-arrow-right ms-1"></i></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Purchases Volume -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="card h-100 kpi-card cursor-pointer">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="kpi-title">Purchases &amp; Procurement</span>
+                                    <div class="havano-icon-box">
+                                        <i class="fa fa-truck"></i>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-baseline gap-2">
+                                    <h2 class="kpi-value mb-0">$<t t-esc="formatCurrency(state.kpis.purchases.total_amount)"/></h2>
+                                    <span class="badge kpi-badge-neutral px-2 py-1">digested</span>
+                                </div>
+                                <div class="kpi-subtitle mt-2">
+                                    <span>Across <strong style="color: #0f172a;"><t t-esc="state.kpis.purchases.transactions_count"/></strong> PO records</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Stock Adjustments -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="card h-100 kpi-card cursor-pointer">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="kpi-title">Stock Adjustments</span>
+                                    <div class="havano-icon-box">
+                                        <i class="fa fa-cubes"></i>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-baseline gap-2">
+                                    <h2 class="kpi-value mb-0"><t t-esc="state.kpis.stock_adjustments.operations_count"/> Ops</h2>
+                                    <span class="badge kpi-badge-neutral px-2 py-1">
+                                        Diff: $<t t-esc="formatCurrency(state.kpis.stock_adjustments.total_valuation_diff)"/>
+                                    </span>
+                                </div>
+                                <div class="kpi-subtitle mt-2 d-flex justify-content-between">
+                                    <span>Inventory reconciliation</span>
+                                    <span class="fw-bold" style="color: #0080ff;">View list <i class="fa fa-arrow-right ms-1"></i></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Monitored Tenants -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="card h-100 kpi-card">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="kpi-title">Monitored Tenants</span>
+                                    <div class="havano-icon-box">
+                                        <i class="fa fa-building-o"></i>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-baseline gap-2">
+                                    <h2 class="kpi-value mb-0">
+                                        <t t-if="state.selectedTenants.length > 0"><t t-esc="state.selectedTenants.length"/></t>
+                                        <t t-else=""><t t-esc="state.tenants.length"/></t>
+                                    </h2>
+                                    <span class="badge kpi-badge-neutral px-2 py-1">tenants</span>
+                                </div>
+                                <div class="kpi-subtitle mt-2">
+                                    <span><strong style="color: #0f172a;"><t t-esc="state.kpis.activity.total_events"/></strong> operational events</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Main Charts Grid (Havano Blue Visualizations) -->
+                <div class="row g-3 mb-4">
+                    <!-- Trend Chart (Smooth Spline with Havano Blue Area Fill) -->
+                    <div class="col-12 col-xl-8">
+                        <div class="card h-100">
+                            <div class="chart-card-header d-flex justify-content-between align-items-center">
+                                <span class="chart-title">
+                                    <i class="fa fa-line-chart me-2"></i> Sales Activity Trend (Selected Period)
+                                </span>
+                                <span class="badge kpi-badge-blue px-2 py-1 font-monospace">Revenue Telemetry</span>
+                            </div>
+                            <div class="card-body px-4 pb-3" style="position: relative; height: 280px;">
+                                <canvas t-ref="salesChartCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Operations Breakdown (Donut) -->
+                    <div class="col-12 col-xl-4">
+                        <div class="card h-100">
+                            <div class="chart-card-header d-flex justify-content-between align-items-center">
+                                <span class="chart-title">
+                                    <i class="fa fa-pie-chart me-2"></i> Operations Distribution
+                                </span>
+                                <span class="badge kpi-badge-blue px-2 py-1 font-monospace">Distribution</span>
+                            </div>
+                            <div class="card-body px-4 pb-3" style="position: relative; height: 280px;">
+                                <canvas t-ref="distributionChartCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Secondary Charts -->
+                <div class="row g-3 mb-4">
+                    <!-- Purchases / Procurement Trajectory -->
+                    <div class="col-12 col-xl-6">
+                        <div class="card h-100">
+                            <div class="chart-card-header d-flex justify-content-between align-items-center">
+                                <span class="chart-title">
+                                    <i class="fa fa-truck me-2"></i> Purchases Trajectory
+                                </span>
+                                <span class="badge kpi-badge-blue px-2 py-1 font-monospace">Procurement Spend</span>
+                            </div>
+                            <div class="card-body px-4 pb-3" style="position: relative; height: 260px;">
+                                <canvas t-ref="purchaseChartCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stock Movements & Breakdown (Horizontal Bar) -->
+                    <div class="col-12 col-xl-6">
+                        <div class="card h-100">
+                            <div class="chart-card-header d-flex justify-content-between align-items-center">
+                                <span class="chart-title">
+                                    <i class="fa fa-cubes me-2"></i> Stock Movement &amp; Drift
+                                </span>
+                                <span class="badge kpi-badge-blue px-2 py-1 font-monospace">Operations Breakdown</span>
+                            </div>
+                            <div class="card-body px-4 pb-3" style="position: relative; height: 260px;">
+                                <canvas t-ref="breakdownChartCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom padding -->
+                <div class="pb-4"></div>
             </div>
         </div>
     </t>

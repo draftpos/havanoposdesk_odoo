@@ -120,6 +120,8 @@
                     <field name="item_name" string="Product Name"/>
                     <field name="item_code" string="Product Code"/>
                     <field name="category_id"/>
+                    <field name="store" string="Store Name"/>
+                    <field name="store_id" string="Store"/>
                     <field name="create_uid"/>
                     <field name="create_date"/>
                     <filter string="Today" name="today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
@@ -127,9 +129,11 @@
                     <filter string="Item Name" name="filter_item_name" domain="[('item_name', '!=', False)]"/>
                     <filter string="Item Code" name="filter_item_code" domain="[('item_code', '!=', False)]"/>
                     <filter string="Category" name="filter_category" domain="[('category_id', '!=', False)]"/>
+                    <filter string="Has Store" name="filter_has_store" domain="[('store', '!=', False)]"/>
                     <filter string="Created On" name="filter_created_on" date="create_date"/>
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
                     <group>
+                        <filter string="Store" name="group_by_store" context="{'group_by': 'store'}"/>
                         <filter string="Item Name" name="group_by_item_name" context="{'group_by': 'item_name'}"/>
                         <filter string="Item Code" name="group_by_item_code" context="{'group_by': 'item_code'}"/>
                         <filter string="Category" name="group_by_category" context="{'group_by': 'category_id'}"/>
@@ -156,6 +160,9 @@
             <field name="res_model">havanoposdesk.stock.ledger</field>
             <field name="view_mode">list,kanban</field>
             <field name="search_view_id" ref="view_havanoposdesk_stock_ledger_search"/>
+            <!-- Tenant isolation is enforced by ir.rule (rule_havano_stock_ledger_isolation).
+                 'user' is NOT available in act_window domain context — use [] here. -->
+            <field name="domain">[]</field>
             <field name="context">{'search_default_today': 1}</field>
         </record>
 
