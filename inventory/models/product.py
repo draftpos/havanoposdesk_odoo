@@ -206,7 +206,7 @@ class HavanoposdeskProduct(models.Model):
                 unallocated_qty = sum(unallocated_vals.mapped('on_hand_qty'))
                 record.on_hand_qty = sum(record.variant_ids.mapped('on_hand_qty')) + unallocated_qty
             else:
-                valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', '=', record.id)])
+                valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', 'in', record.ids)])
                 record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
 
     sale_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_sale_tax_rel', 'product_id', 'tax_id', string='Sales Taxes', domain=[('tax_type', '=', 'Sales'), ('active', '=', True)])
