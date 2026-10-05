@@ -111,11 +111,19 @@
                     <field name="create_uid"/>
                     <field name="posting_date"/>
                     <filter string="Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Yesterday" name="yesterday" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-1)).strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', (context_today() + datetime.timedelta(days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Last 2 Days" name="last_2_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-2)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 3 Days" name="last_3_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-3)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 4 Days" name="last_4_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-4)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 7 Days" name="last_7_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-7)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 10 Days" name="last_10_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-10)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 14 Days" name="last_14_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-14)).strftime('%Y-%m-%d 00:00:00'))]"/>
                     <filter string="This Month" name="this_month" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
                     <filter string="Supplier" name="filter_supplier" domain="[('supplier', '!=', False)]"/>
                     <filter string="Created By" name="filter_created_by" domain="[('create_uid', '!=', False)]"/>
                     <filter string="Created On" name="filter_created_on" date="posting_date"/>
                     <group>
+                        <filter string="Tenant" name="group_by_tenant" context="{'group_by': 'tenant_id'}"/>
                         <filter string="Supplier" name="group_by_supplier" context="{'group_by': 'supplier'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'posting_date:day'}"/>
@@ -127,11 +135,36 @@
             </field>
         </record>
 
+        <!-- Graph View -->
+        <record id="view_havanoposdesk_purchase_graph" model="ir.ui.view">
+            <field name="name">havanoposdesk.purchase.graph</field>
+            <field name="model">havanoposdesk.purchase</field>
+            <field name="arch" type="xml">
+                <graph string="Purchases Analysis" type="bar" sample="1">
+                    <field name="posting_date" interval="day"/>
+                    <field name="amount_total" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <!-- Pivot View -->
+        <record id="view_havanoposdesk_purchase_pivot" model="ir.ui.view">
+            <field name="name">havanoposdesk.purchase.pivot</field>
+            <field name="model">havanoposdesk.purchase</field>
+            <field name="arch" type="xml">
+                <pivot string="Purchases Analysis" sample="1">
+                    <field name="posting_date" interval="month" type="row"/>
+                    <field name="supplier" type="col"/>
+                    <field name="amount_total" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
         <!-- Action -->
         <record id="action_havanoposdesk_purchase" model="ir.actions.act_window">
             <field name="name">Purchases</field>
             <field name="res_model">havanoposdesk.purchase</field>
-            <field name="view_mode">list,form</field>
+            <field name="view_mode">list,form,graph,pivot</field>
             <field name="search_view_id" ref="view_havanoposdesk_purchase_search"/>
             <field name="context">{'search_default_today': 1}</field>
             <field name="help" type="html">

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Client Action: TenantOps Dashboard -->
+        <record id="action_tenant_analytics_dashboard" model="ir.actions.client">
+            <field name="name">TenantOps</field>
+            <field name="tag">havanoposdesk.tenant_analytics</field>
+            <field name="target">current</field>
+        </record>
+
+        <!-- Sales Usage Analytics Graph & Pivot -->
+        <record id="view_havanoposdesk_sale_graph_monitoring" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.graph.monitoring</field>
+            <field name="model">havanoposdesk.sale</field>
+            <field name="arch" type="xml">
+                <graph string="Sales Analytics by Tenant" type="bar" sample="1">
+                    <field name="tenant_id" type="row"/>
+                    <field name="date" interval="week" type="col"/>
+                    <field name="amount_total_base" type="measure" string="Base Revenue ($)"/>
+                </graph>
+            </field>
+        </record>
+
+        <record id="view_havanoposdesk_sale_pivot_monitoring" model="ir.ui.view">
+            <field name="name">havanoposdesk.sale.pivot.monitoring</field>
+            <field name="model">havanoposdesk.sale</field>
+            <field name="arch" type="xml">
+                <pivot string="Sales Matrix by Tenant" sample="1">
+                    <field name="tenant_id" type="row"/>
+                    <field name="date" interval="week" type="col"/>
+                    <field name="amount_total_base" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <record id="action_monitoring_sales_usage" model="ir.actions.act_window">
+            <field name="name">Sales Analytics</field>
+            <field name="res_model">havanoposdesk.sale</field>
+            <field name="view_mode">graph,pivot,list,form</field>
+            <field name="view_id" ref="view_havanoposdesk_sale_graph_monitoring"/>
+            <field name="search_view_id" ref="view_havanoposdesk_sale_search"/>
+            <field name="context">{'search_default_group_by_tenant': 1, 'graph_measure': 'amount_total_base', 'graph_mode': 'bar', 'graph_groupbys': ['tenant_id', 'date:week']}</field>
+        </record>
+
+        <!-- Purchases Usage Analytics Graph & Pivot -->
+        <record id="view_havanoposdesk_purchase_graph_monitoring" model="ir.ui.view">
+            <field name="name">havanoposdesk.purchase.graph.monitoring</field>
+            <field name="model">havanoposdesk.purchase</field>
+            <field name="arch" type="xml">
+                <graph string="Purchases Analytics by Tenant" type="bar" sample="1">
+                    <field name="tenant_id" type="row"/>
+                    <field name="posting_date" interval="week" type="col"/>
+                    <field name="amount_total_base" type="measure" string="Total Purchases ($)"/>
+                </graph>
+            </field>
+        </record>
+
+        <record id="view_havanoposdesk_purchase_pivot_monitoring" model="ir.ui.view">
+            <field name="name">havanoposdesk.purchase.pivot.monitoring</field>
+            <field name="model">havanoposdesk.purchase</field>
+            <field name="arch" type="xml">
+                <pivot string="Purchases Matrix by Tenant" sample="1">
+                    <field name="tenant_id" type="row"/>
+                    <field name="posting_date" interval="week" type="col"/>
+                    <field name="amount_total_base" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <record id="action_monitoring_purchases_usage" model="ir.actions.act_window">
+            <field name="name">Purchase Analytics</field>
+            <field name="res_model">havanoposdesk.purchase</field>
+            <field name="view_mode">graph,pivot,list,form</field>
+            <field name="view_id" ref="view_havanoposdesk_purchase_graph_monitoring"/>
+            <field name="search_view_id" ref="view_havanoposdesk_purchase_search"/>
+            <field name="context">{'search_default_group_by_tenant': 1, 'graph_measure': 'amount_total_base', 'graph_mode': 'bar', 'graph_groupbys': ['tenant_id', 'posting_date:week']}</field>
+        </record>
+
+        <!-- Stock Adjustments Analytics Graph & Pivot -->
+        <record id="view_havanoposdesk_stock_adjustment_graph_monitoring" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.adjustment.graph.monitoring</field>
+            <field name="model">havanoposdesk.stock.adjustment</field>
+            <field name="arch" type="xml">
+                <graph string="Stock Adjustments by Tenant" type="bar" sample="1">
+                    <field name="tenant_id" type="row"/>
+                    <field name="posting_date" interval="week" type="col"/>
+                    <field name="total_amount_difference" type="measure" string="Variance Amount ($)"/>
+                </graph>
+            </field>
+        </record>
+
+        <record id="view_havanoposdesk_stock_adjustment_pivot_monitoring" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.adjustment.pivot.monitoring</field>
+            <field name="model">havanoposdesk.stock.adjustment</field>
+            <field name="arch" type="xml">
+                <pivot string="Stock Adjustments Matrix by Tenant" sample="1">
+                    <field name="tenant_id" type="row"/>
+                    <field name="posting_date" interval="week" type="col"/>
+                    <field name="total_amount_difference" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <record id="action_monitoring_stock_adjustments_usage" model="ir.actions.act_window">
+            <field name="name">Stock Analytics</field>
+            <field name="res_model">havanoposdesk.stock.adjustment</field>
+            <field name="view_mode">graph,pivot,list,form</field>
+            <field name="view_id" ref="view_havanoposdesk_stock_adjustment_graph_monitoring"/>
+            <field name="search_view_id" ref="view_havanoposdesk_stock_adjustment_search"/>
+            <field name="context">{'search_default_group_by_tenant': 1, 'graph_measure': 'total_amount_difference', 'graph_mode': 'bar', 'graph_groupbys': ['tenant_id', 'posting_date:week']}</field>
+        </record>
+
+        <!-- TenantOps Standalone App -->
+        <menuitem id="menu_monitoring_root" 
+                  name="TenantOps" 
+                  sequence="25" 
+                  web_icon="havanoposdesk_odoo,static/description/mybusiness.png" 
+                  action="action_tenant_analytics_dashboard"
+                  groups="base.group_system"/>
+        <menuitem id="menu_monitoring_dashboard" name="Dashboard" parent="menu_monitoring_root" action="action_tenant_analytics_dashboard" sequence="10"/>
+        
+        <!-- Reports Dropdown Menu -->
+        <menuitem id="menu_monitoring_reports" name="Reports" parent="menu_monitoring_root" sequence="20"/>
+        <menuitem id="menu_monitoring_sales" name="Sales Analytics" parent="menu_monitoring_reports" action="action_monitoring_sales_usage" sequence="10"/>
+        <menuitem id="menu_monitoring_purchases" name="Purchase Analytics" parent="menu_monitoring_reports" action="action_monitoring_purchases_usage" sequence="20"/>
+        <menuitem id="menu_monitoring_stock_adjustments" name="Stock Analytics" parent="menu_monitoring_reports" action="action_monitoring_stock_adjustments_usage" sequence="30"/>
+
+        <!-- Tenants Activity Menu -->
+        <menuitem id="menu_monitoring_tenants" name="Tenants Activity" parent="menu_monitoring_root" action="action_havanoposdesk_tenant" sequence="30"/>
+    </data>
+</odoo>

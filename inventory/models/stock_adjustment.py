@@ -8,7 +8,10 @@ class StockAdjustment(models.Model):
     _description = 'Stock Adjustment'
 
     def _default_store_id(self):
-        return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
+        domain = [('is_default', '=', True)]
+        if self.env.user.tenant_id:
+            domain.append(('tenant_id', '=', self.env.user.tenant_id.id))
+        return self.env['havanoposdesk.store'].search(domain, limit=1).id
 
     name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default=lambda self: 'New')
     external_ref = fields.Char(string='External Reference', copy=False, readonly=True, help="Reference from external POS system")
@@ -399,7 +402,10 @@ class StockAdjustmentLine(models.Model):
                 if not store and self.env.context.get('default_store_id'):
                     store = self.env['havanoposdesk.store'].browse(self.env.context.get('default_store_id'))
                 if not store:
-                    store = self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1)
+                    sa_domain = [('is_default', '=', True)]
+                    if self.env.user.tenant_id:
+                        sa_domain.append(('tenant_id', '=', self.env.user.tenant_id.id))
+                    store = self.env['havanoposdesk.store'].search(sa_domain, limit=1)
                 
                 on_hand = self.env['havanoposdesk.stock.adjustment']._get_product_stock_on_hand(record.product_id, store)
                 record.on_hand = on_hand

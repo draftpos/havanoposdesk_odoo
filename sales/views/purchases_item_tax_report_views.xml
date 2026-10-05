@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Purchases Item Tax Report List View -->
+        <record id="view_purchases_item_tax_report_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.purchases.item.tax.report.list</field>
+            <field name="model">havanoposdesk.purchases.item.tax.report</field>
+            <field name="arch" type="xml">
+                <list string="Purchases Item Tax Report" create="false" edit="false" delete="false">
+                    <field name="product_id" string="Product" column_invisible="True"/>
+                    <field name="name" string="Item Name"/>
+                    <field name="item_code" string="Item Code"/>
+                    <field name="hs_code" string="HS Code"/>
+                    <field name="qty" string="Qty" sum="Total Qty"/>
+                    <field name="total_exclu" string="Total Exclu" widget="monetary" sum="Total Exclu"/>
+                    <field name="total_tax" string="Total Tax" widget="monetary" sum="Total Tax"/>
+                    <field name="total_inclu" string="Total Inclu" widget="monetary" sum="Total Inclu"/>
+                    <field name="currency_id" string="Currency"/>
+                    <field name="doc_currency_id" string="Doc Currency" optional="show"/>
+                    <field name="exchange_rate" string="Exchange Rate" optional="hide"/>
+                    <field name="doc_total_exclu" string="Doc Exclu" widget="monetary" options="{'currency_field': 'doc_currency_id'}" optional="hide"/>
+                    <field name="doc_total_tax" string="Doc Tax" widget="monetary" options="{'currency_field': 'doc_currency_id'}" optional="hide"/>
+                    <field name="doc_total_inclu" string="Doc Inclu" widget="monetary" options="{'currency_field': 'doc_currency_id'}" optional="hide"/>
+                    <field name="date" string="Date" optional="show"/>
+                    <field name="supplier_id" string="Supplier" optional="show"/>
+                    <field name="store_id" string="Store" optional="show"/>
+                    <field name="category_id" string="Category" optional="hide"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Purchases Item Tax Report Pivot View -->
+        <record id="view_purchases_item_tax_report_pivot" model="ir.ui.view">
+            <field name="name">havanoposdesk.purchases.item.tax.report.pivot</field>
+            <field name="model">havanoposdesk.purchases.item.tax.report</field>
+            <field name="arch" type="xml">
+                <pivot string="Purchases Item Tax Report" disable_linking="True">
+                    <field name="product_id" type="row"/>
+                    <field name="qty" type="measure"/>
+                    <field name="total_exclu" type="measure"/>
+                    <field name="total_tax" type="measure"/>
+                    <field name="total_inclu" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- Purchases Item Tax Report Search View -->
+        <record id="view_purchases_item_tax_report_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.purchases.item.tax.report.search</field>
+            <field name="model">havanoposdesk.purchases.item.tax.report</field>
+            <field name="arch" type="xml">
+                <search string="Search Purchases Item Tax Report">
+                    <field name="name" string="Item Name"/>
+                    <field name="item_code" string="Item Code"/>
+                    <field name="hs_code" string="HS Code"/>
+                    <field name="doc_currency_id" string="Doc Currency"/>
+                    <field name="supplier_id" string="Supplier"/>
+                    <field name="category_id" string="Category"/>
+                    <field name="store_id" string="Store"/>
+                    <field name="date" string="Date"/>
+                    <separator/>
+                    <filter string="Today" name="today" domain="[('date', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                    <filter string="Yesterday" name="yesterday" domain="[('date', '=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
+                    <filter string="This Week" name="this_week" domain="[('date', '&gt;=', '=week_start'), ('date', '&lt;', '=week_start +1w')]"/>
+                    <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
+                    <filter string="This Year" name="this_year" domain="[('date', '&gt;=', context_today().strftime('%Y-01-01'))]"/>
+                    <separator/>
+                    <filter string="Has HS Code" name="has_hs_code" domain="[('hs_code', '!=', False), ('hs_code', '!=', '')]"/>
+                    <filter string="Missing HS Code" name="missing_hs_code" domain="['|', ('hs_code', '=', False), ('hs_code', '=', '')]"/>
+                    <group>
+                        <filter string="Product" name="group_by_product" context="{'group_by':'product_id'}"/>
+                        <filter string="Item Code" name="group_by_item_code" context="{'group_by':'item_code'}"/>
+                        <filter string="HS Code" name="group_by_hs_code" context="{'group_by':'hs_code'}"/>
+                        <filter string="Doc Currency" name="group_by_doc_currency" context="{'group_by':'doc_currency_id'}"/>
+                        <filter string="Supplier" name="group_by_supplier" context="{'group_by':'supplier_id'}"/>
+                        <filter string="Category" name="group_by_category" context="{'group_by':'category_id'}"/>
+                        <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
+                        <filter string="Currency (Base)" name="group_by_currency" context="{'group_by':'currency_id'}"/>
+                        <filter string="Date" name="group_by_date" context="{'group_by':'date:day'}"/>
+                        <filter string="Week" name="group_by_week" context="{'group_by':'date:week'}"/>
+                        <filter string="Month" name="group_by_month" context="{'group_by':'date:month'}"/>
+                        <filter string="Year" name="group_by_year" context="{'group_by':'date:year'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Action for Purchases Item Tax Report -->
+        <record id="action_purchases_item_tax_report" model="ir.actions.act_window">
+            <field name="name">Purchases Item Tax Report</field>
+            <field name="res_model">havanoposdesk.purchases.item.tax.report</field>
+            <field name="view_mode">list,pivot</field>
+            <field name="search_view_id" ref="view_purchases_item_tax_report_search"/>
+            <field name="context">{'search_default_this_month': 1, 'search_default_group_by_product': 1}</field>
+        </record>
+
+        <!-- Menu Item under Sales > Reports -->
+        <menuitem id="menu_purchases_item_tax_report" name="Purchases Item Tax Report" parent="menu_sales_reports" action="action_purchases_item_tax_report" sequence="26"/>
+
+        <!-- Optional Menu Item under Suppliers > Reports -->
+        <menuitem id="menu_suppliers_purchases_item_tax_report" name="Purchases Item Tax Report" parent="menu_suppliers_reports" action="action_purchases_item_tax_report" sequence="20"/>
+    </data>
+</odoo>

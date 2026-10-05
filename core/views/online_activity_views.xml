@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Search View with Comprehensive Inactivity & Availability Filters -->
+        <record id="view_online_activity_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.online.activity.search</field>
+            <field name="model">havanoposdesk.online.activity</field>
+            <field name="arch" type="xml">
+                <search string="Search Online Activities &amp; Devices">
+                    <field name="user_id" string="User"/>
+                    <field name="user_login" string="Email / Login"/>
+                    <field name="tenant_id" string="Tenant"/>
+                    <field name="store_id" string="Store"/>
+                    <field name="terminal_id" string="POS Terminal"/>
+                    <field name="device_hardware_id" string="Hardware ID"/>
+                    <field name="app_version" string="App Version"/>
+                    <field name="last_activity" string="Custom Date (Last Active)"/>
+                    <field name="login_time" string="Custom Date (Login Time)"/>
+
+                    <separator/>
+                    <filter string="Online Now" name="filter_online" domain="[('online_status', '=', 'online')]"/>
+                    <filter string="Idle (5-15m)" name="filter_idle" domain="[('online_status', '=', 'idle')]"/>
+                    <filter string="Offline" name="filter_offline" domain="[('online_status', '=', 'offline')]"/>
+
+                    <separator/>
+                    <filter string="Active Today" name="filter_active_today" domain="[('last_activity', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Active Last 24 Hours" name="filter_active_24h" domain="[('last_activity', '&gt;=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'))]"/>
+
+                    <separator/>
+                    <!-- Inactivity Filters Requested by User -->
+                    <filter string="Not Used Today (Inactive Today)" name="filter_inactive_today" domain="['|', ('last_activity', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used Since Yesterday (≥ 1 Day)" name="filter_inactive_yesterday" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 2 Days (≥ 2 Days)" name="filter_inactive_2_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=2)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 3 Days (≥ 3 Days)" name="filter_inactive_3_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=3)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 4 Days (≥ 4 Days)" name="filter_inactive_4_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=4)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 7 Days (≥ 1 Week)" name="filter_inactive_7_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 10 Days (≥ 10 Days)" name="filter_inactive_10_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=10)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 14 Days (≥ 2 Weeks)" name="filter_inactive_14_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=14)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 1 Month (≥ 30 Days)" name="filter_inactive_1_month" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Never Used System" name="filter_never_active" domain="[('last_activity', '=', False)]"/>
+
+                    <group>
+                        <filter string="Tenant" name="group_tenant" context="{'group_by': 'tenant_id'}"/>
+                        <filter string="Store" name="group_store" context="{'group_by': 'store_id'}"/>
+                        <filter string="Online Status" name="group_status" context="{'group_by': 'online_status'}"/>
+                        <filter string="Havano Role" name="group_role" context="{'group_by': 'havano_role'}"/>
+                        <filter string="Platform" name="group_platform" context="{'group_by': 'platform'}"/>
+                        <filter string="Last Activity Date" name="group_date" context="{'group_by': 'last_activity_date'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- List View -->
+        <record id="view_online_activity_list" model="ir.ui.view">
+            <field name="name">havanoposdesk.online.activity.list</field>
+            <field name="model">havanoposdesk.online.activity</field>
+            <field name="arch" type="xml">
+                <list string="Online Activities &amp; Device Availability"
+                      decoration-success="online_status == 'online'"
+                      decoration-warning="online_status == 'idle'"
+                      decoration-muted="online_status == 'offline'">
+                    <field name="online_status" widget="badge"
+                           decoration-success="online_status == 'online'"
+                           decoration-warning="online_status == 'idle'"
+                           decoration-danger="online_status == 'offline'"/>
+                    <field name="user_id" string="User"/>
+                    <field name="user_login" string="Login / Email" optional="show"/>
+                    <field name="havano_role" string="Role" widget="badge" optional="show"/>
+                    <field name="tenant_id" string="Tenant"/>
+                    <field name="store_id" string="Store" optional="show"/>
+                    <field name="terminal_id" string="POS Terminal" optional="show"/>
+                    <field name="device_name" string="Device" optional="show"/>
+                    <field name="device_hardware_id" string="Hardware ID" optional="hide"/>
+                    <field name="app_version" string="App Version" optional="show"/>
+                    <field name="platform" string="Platform" widget="badge" optional="show"/>
+                    <field name="login_time" string="Logged In At"/>
+                    <field name="last_activity" string="Last Active / Seen"/>
+                    <field name="online_duration_display" string="Usage (Time Online)"/>
+                    <field name="days_inactive_display" string="Inactive Duration" widget="badge"
+                           decoration-success="days_inactive == 0"
+                           decoration-warning="days_inactive &gt; 0 and days_inactive &lt;= 3"
+                           decoration-danger="days_inactive &gt; 3"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Form View -->
+        <record id="view_online_activity_form" model="ir.ui.view">
+            <field name="name">havanoposdesk.online.activity.form</field>
+            <field name="model">havanoposdesk.online.activity</field>
+            <field name="arch" type="xml">
+                <form string="Online Activity &amp; Device Details" create="false" edit="false">
+                    <header>
+                        <field name="online_status" widget="statusbar" statusbar_visible="online,idle,offline"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group string="User &amp; Organization">
+                                <field name="user_id" readonly="1"/>
+                                <field name="user_login" readonly="1"/>
+                                <field name="havano_role" readonly="1"/>
+                                <field name="tenant_id" readonly="1"/>
+                                <field name="store_id" readonly="1"/>
+                            </group>
+                            <group string="Device &amp; Application">
+                                <field name="terminal_id" readonly="1"/>
+                                <field name="device_name" readonly="1"/>
+                                <field name="device_hardware_id" readonly="1"/>
+                                <field name="app_version" readonly="1"/>
+                                <field name="platform" readonly="1"/>
+                                <field name="ip_address" readonly="1"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group string="Session &amp; Usage Timestamps">
+                                <field name="login_time" readonly="1"/>
+                                <field name="last_activity" readonly="1"/>
+                                <field name="online_duration_display" readonly="1"/>
+                            </group>
+                            <group string="Availability &amp; Inactivity">
+                                <field name="is_online" readonly="1"/>
+                                <field name="days_inactive" readonly="1"/>
+                                <field name="days_inactive_display" readonly="1"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Action: Online Activities & Device Monitoring -->
+        <record id="action_online_activities" model="ir.actions.act_window">
+            <field name="name">Online Activities &amp; Device Monitoring</field>
+            <field name="res_model">havanoposdesk.online.activity</field>
+            <field name="view_mode">list,form</field>
+            <field name="view_id" ref="view_online_activity_list"/>
+            <field name="search_view_id" ref="view_online_activity_search"/>
+            <field name="context">{}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No active sessions or device records found!
+                </p>
+                <p>
+                    Online activity, device availability, login times, and usage durations across all tenants and users are tracked here in real-time.
+                </p>
+            </field>
+        </record>
+    </data>
+</odoo>

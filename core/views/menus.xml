@@ -74,9 +74,11 @@
 
         <!-- Actions -->
         <record id="action_havanoposdesk_tenant" model="ir.actions.act_window">
-            <field name="name">Tenants</field>
+            <field name="name">Tenants &amp; Activity</field>
             <field name="res_model">havanoposdesk.tenant</field>
             <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_tenant_search"/>
+            <field name="context">{'search_default_filter_active': 1}</field>
         </record>
 
         <!-- SaaS Configuration App (Restricted to Settings Administrator) -->
@@ -87,12 +89,14 @@
 
         <!-- SaaS Admin Navigation -->
         <menuitem id="menu_saas_users" name="Users" parent="menu_saas_root" action="action_saas_users" sequence="10"/>
+        <menuitem id="menu_saas_online_activities" name="Online Activity &amp; Devices" parent="menu_saas_root" action="action_online_activities" sequence="15"/>
         <menuitem id="menu_saas_tenants" name="Tenants" parent="menu_saas_root" action="action_havanoposdesk_tenant" sequence="20"/>
         <menuitem id="menu_saas_stores" name="Stores" parent="menu_saas_root" action="action_havanoposdesk_store" sequence="30"/>
         <menuitem id="menu_saas_plans" name="Subscription Plans" parent="menu_saas_root" action="action_subscription_plans" sequence="40"/>
         <menuitem id="menu_saas_payments" name="Subscription &amp; Topup Payments" parent="menu_saas_root" action="action_subscription_payments" sequence="45"/>
         <menuitem id="menu_saas_payment_providers" name="Payment Providers" parent="menu_saas_root" action="payment.action_payment_provider" sequence="50"/>
         <menuitem id="menu_saas_terminals" name="Connected Hardware" parent="menu_saas_root" action="action_pos_terminals" sequence="60"/>
+
 
 
         <!-- Action: Purchases Analytics fallback -->

@@ -1,0 +1,657 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Havano Branded Database Manager
+        Replaces the default Odoo database manager UI with a fully branded screen.
+        Served at /web/database/manager and /web/database/selector
+    -->
+    <template id="havano_database_manager" name="Havano Database Manager">
+        <![CDATA[<!DOCTYPE html>]]>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+            <title><t t-esc="app_name"/> | Databases</title>
+            <link rel="shortcut icon" t-att-href="favicon" type="image/png"/>
+            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+            <link rel="stylesheet" href="/web/static/src/libs/fontawesome/css/font-awesome.css"/>
+            <link rel="stylesheet" href="/web/static/lib/bootstrap/dist/css/bootstrap.css"/>
+            <script src="/web/static/lib/bootstrap/js/dist/util/index.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/dom/data.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/dom/event-handler.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/dom/manipulator.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/dom/selector-engine.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/util/config.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/util/component-functions.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/util/backdrop.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/util/focustrap.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/util/scrollbar.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/base-component.js"></script>
+            <script src="/web/static/lib/bootstrap/js/dist/modal.js"></script>
+            <script src="/web/static/src/public/database_manager.js"></script>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                    min-height: 100vh;
+                    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px;
+                }
+                .hv-wrapper {
+                    width: 100%;
+                    max-width: 520px;
+                }
+                .hv-card {
+                    background: rgba(255,255,255,0.06);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255,255,255,0.12);
+                    border-radius: 20px;
+                    overflow: hidden;
+                    box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+                }
+                .hv-header {
+                    padding: 32px 32px 24px;
+                    text-align: center;
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
+                }
+                .hv-logo {
+                    height: 42px;
+                    width: auto;
+                    margin-bottom: 16px;
+                    filter: drop-shadow(0 0 12px rgba(255,255,255,0.3));
+                }
+                .hv-logo-fallback {
+                    display: none;
+                    font-size: 24px;
+                    font-weight: 700;
+                    color: #fff;
+                    letter-spacing: -0.5px;
+                    margin-bottom: 12px;
+                }
+                .hv-header h1 {
+                    font-size: 22px;
+                    font-weight: 600;
+                    color: #fff;
+                    letter-spacing: -0.3px;
+                }
+                .hv-header p {
+                    font-size: 13px;
+                    color: rgba(255,255,255,0.5);
+                    margin-top: 4px;
+                }
+                .hv-body {
+                    padding: 24px 32px 32px;
+                }
+                /* Alert banners */
+                .hv-alert {
+                    padding: 12px 16px;
+                    border-radius: 10px;
+                    font-size: 13px;
+                    margin-bottom: 20px;
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 10px;
+                }
+                .hv-alert-warning {
+                    background: rgba(234,179,8,0.15);
+                    border: 1px solid rgba(234,179,8,0.3);
+                    color: #fde68a;
+                }
+                .hv-alert-danger {
+                    background: rgba(239,68,68,0.15);
+                    border: 1px solid rgba(239,68,68,0.3);
+                    color: #fca5a5;
+                }
+                /* Database list */
+                .hv-db-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    margin-bottom: 20px;
+                }
+                .hv-db-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 12px;
+                    padding: 12px 16px;
+                    transition: all 0.2s ease;
+                }
+                .hv-db-item:hover {
+                    background: rgba(255,255,255,0.1);
+                    border-color: rgba(255,255,255,0.2);
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                }
+                .hv-db-icon {
+                    width: 36px;
+                    height: 36px;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    font-size: 15px;
+                    color: #fff;
+                }
+                .hv-db-name {
+                    flex: 1;
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: #fff;
+                    text-decoration: none;
+                }
+                .hv-db-name:hover { color: #c4b5fd; }
+                .hv-db-warn { color: #fbbf24; font-size: 12px; margin-left: 4px; }
+                .hv-db-actions {
+                    display: flex;
+                    gap: 6px;
+                    flex-shrink: 0;
+                }
+                /* Action buttons */
+                .hv-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 7px 14px;
+                    border-radius: 8px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    border: none;
+                    transition: all 0.2s ease;
+                    text-decoration: none;
+                    font-family: 'Poppins', sans-serif;
+                }
+                .hv-btn-ghost {
+                    background: rgba(255,255,255,0.08);
+                    color: rgba(255,255,255,0.75);
+                    border: 1px solid rgba(255,255,255,0.12);
+                }
+                .hv-btn-ghost:hover {
+                    background: rgba(255,255,255,0.15);
+                    color: #fff;
+                }
+                .hv-btn-danger {
+                    background: rgba(239,68,68,0.15);
+                    color: #fca5a5;
+                    border: 1px solid rgba(239,68,68,0.25);
+                }
+                .hv-btn-danger:hover {
+                    background: rgba(239,68,68,0.3);
+                    color: #fff;
+                }
+                .hv-btn-primary {
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    color: #fff;
+                    border: none;
+                    width: 100%;
+                    justify-content: center;
+                    padding: 11px 20px;
+                    font-size: 14px;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 15px rgba(99,102,241,0.35);
+                }
+                .hv-btn-primary:hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 6px 20px rgba(99,102,241,0.5);
+                }
+                .hv-btn-secondary {
+                    background: rgba(255,255,255,0.08);
+                    color: rgba(255,255,255,0.8);
+                    border: 1px solid rgba(255,255,255,0.15);
+                    width: 100%;
+                    justify-content: center;
+                    padding: 11px 20px;
+                    font-size: 14px;
+                    border-radius: 10px;
+                }
+                .hv-btn-secondary:hover {
+                    background: rgba(255,255,255,0.14);
+                    color: #fff;
+                }
+                .hv-action-row {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    margin-top: 6px;
+                }
+                .hv-action-row-2 {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                }
+                .hv-divider {
+                    border: none;
+                    border-top: 1px solid rgba(255,255,255,0.08);
+                    margin: 20px 0;
+                }
+                .hv-manage-link {
+                    text-align: center;
+                    margin-top: 16px;
+                }
+                .hv-manage-link a {
+                    font-size: 13px;
+                    color: rgba(255,255,255,0.45);
+                    text-decoration: none;
+                    transition: color 0.2s;
+                }
+                .hv-manage-link a:hover { color: rgba(255,255,255,0.8); }
+                /* Modal overrides */
+                .modal-content {
+                    background: #1e1b4b;
+                    border: 1px solid rgba(255,255,255,0.12);
+                    border-radius: 16px;
+                    color: #fff;
+                }
+                .modal-header {
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
+                    padding: 20px 24px 16px;
+                }
+                .modal-header .modal-title {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #fff;
+                }
+                .btn-close {
+                    filter: invert(1) brightness(0.7);
+                }
+                .modal-body {
+                    padding: 20px 24px;
+                }
+                .modal-footer {
+                    border-top: 1px solid rgba(255,255,255,0.08);
+                    padding: 16px 24px;
+                }
+                .form-label, label { color: rgba(255,255,255,0.75); font-size: 13px; }
+                .form-control, .form-select {
+                    background: rgba(255,255,255,0.06);
+                    border: 1px solid rgba(255,255,255,0.15);
+                    color: #fff;
+                    border-radius: 8px;
+                }
+                .form-control:focus, .form-select:focus {
+                    background: rgba(255,255,255,0.1);
+                    border-color: #6366f1;
+                    color: #fff;
+                    box-shadow: 0 0 0 3px rgba(99,102,241,0.25);
+                }
+                .form-control::placeholder { color: rgba(255,255,255,0.3); }
+                option { background: #1e1b4b; }
+                .btn-primary {
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    border: none;
+                    border-radius: 8px;
+                    font-family: 'Poppins', sans-serif;
+                    font-weight: 500;
+                }
+                .btn-primary:hover {
+                    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                    transform: translateY(-1px);
+                }
+                .btn-secondary {
+                    background: rgba(255,255,255,0.08);
+                    border: 1px solid rgba(255,255,255,0.15);
+                    color: rgba(255,255,255,0.8);
+                    border-radius: 8px;
+                    font-family: 'Poppins', sans-serif;
+                }
+                .text-muted { color: rgba(255,255,255,0.4) !important; }
+                small.text-muted a { color: #a5b4fc; }
+                /* Empty state */
+                .hv-empty {
+                    text-align: center;
+                    padding: 24px 0;
+                    color: rgba(255,255,255,0.4);
+                    font-size: 14px;
+                }
+                .hv-empty i { font-size: 36px; margin-bottom: 12px; display: block; }
+            </style>
+        </head>
+        <body>
+            <div class="hv-wrapper">
+                <div class="hv-card">
+                    <!-- Header -->
+                    <div class="hv-header">
+                        <img t-att-src="logo" t-att-alt="app_name" class="hv-logo"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"/>
+                        <div class="hv-logo-fallback"><t t-esc="app_name"/></div>
+                        <h1>Database Manager</h1>
+                        <p>Select or manage your <t t-esc="app_name"/> databases</p>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="hv-body">
+
+                        <!-- Security warning -->
+                        <t t-if="insecure and databases">
+                            <div class="hv-alert hv-alert-warning">
+                                <i class="fa fa-exclamation-triangle mt-1"/>
+                                <span>Your database manager is not protected. Please <a href="#" data-bs-toggle="modal" data-bs-target=".o_database_master" style="color:#fde68a;">set a master password</a> to secure it.</span>
+                            </div>
+                        </t>
+
+                        <!-- Error -->
+                        <t t-if="error">
+                            <div class="hv-alert hv-alert-danger">
+                                <i class="fa fa-times-circle mt-1"/>
+                                <span><t t-esc="error"/></span>
+                            </div>
+                        </t>
+
+                        <!-- DB list disabled -->
+                        <t t-if="not list_db">
+                            <div class="hv-alert hv-alert-warning">
+                                <i class="fa fa-lock mt-1"/>
+                                <span>The database manager has been disabled by the administrator.</span>
+                            </div>
+                        </t>
+
+                        <!-- Database List -->
+                        <t t-if="list_db and databases">
+                            <div class="hv-db-list">
+                                <t t-foreach="databases" t-as="db">
+                                    <div class="hv-db-item">
+                                        <div class="hv-db-icon">
+                                            <i class="fa fa-database"/>
+                                        </div>
+                                        <a t-attf-href="/odoo?db={{ db }}" class="hv-db-name">
+                                            <t t-esc="db"/>
+                                            <t t-if="db in incompatible_databases">
+                                                <span class="hv-db-warn" title="This database may not be compatible">
+                                                    <i class="fa fa-warning"/>
+                                                </span>
+                                            </t>
+                                        </a>
+                                        <t t-if="manage">
+                                            <div class="hv-db-actions">
+                                                <button type="button" t-att-data-db="db"
+                                                        data-bs-target=".o_database_backup"
+                                                        class="o_database_action hv-btn hv-btn-ghost"
+                                                        title="Backup">
+                                                    <i class="fa fa-floppy-o"/>
+                                                </button>
+                                                <button type="button" t-att-data-db="db"
+                                                        data-bs-target=".o_database_duplicate"
+                                                        class="o_database_action hv-btn hv-btn-ghost"
+                                                        title="Duplicate">
+                                                    <i class="fa fa-files-o"/>
+                                                </button>
+                                                <button type="button" t-att-data-db="db"
+                                                        data-bs-target=".o_database_delete"
+                                                        class="o_database_action hv-btn hv-btn-danger"
+                                                        title="Delete">
+                                                    <i class="fa fa-trash-o"/>
+                                                </button>
+                                            </div>
+                                        </t>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+
+                        <!-- No databases -->
+                        <t t-elif="list_db and not databases">
+                            <div class="hv-empty">
+                                <i class="fa fa-database"/>
+                                <div>No databases found</div>
+                            </div>
+                        </t>
+
+                        <!-- Action buttons -->
+                        <t t-if="manage and list_db">
+                            <hr class="hv-divider"/>
+                            <div class="hv-action-row">
+                                <div class="hv-action-row-2">
+                                    <button type="button" data-bs-toggle="modal"
+                                            data-bs-target=".o_database_create"
+                                            class="hv-btn hv-btn-primary">
+                                        <i class="fa fa-plus"/> Create
+                                    </button>
+                                    <button type="button" data-bs-toggle="modal"
+                                            data-bs-target=".o_database_restore"
+                                            class="hv-btn hv-btn-secondary">
+                                        <i class="fa fa-upload"/> Restore
+                                    </button>
+                                </div>
+                                <button type="button" data-bs-toggle="modal"
+                                        data-bs-target=".o_database_master"
+                                        class="hv-btn hv-btn-secondary">
+                                    <i class="fa fa-key"/> Set Master Password
+                                </button>
+                            </div>
+                        </t>
+
+                        <!-- Selector mode: link to manager -->
+                        <t t-if="not manage and list_db">
+                            <div class="hv-manage-link">
+                                <a href="/web/database/manager">
+                                    <i class="fa fa-cog"/> Manage databases
+                                </a>
+                            </div>
+                        </t>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== MODALS (inherited from Odoo, styled above) ===== -->
+
+            <!-- Backup Modal -->
+            <div class="modal fade o_database_backup" role="dialog">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form role="form" action="/web/database/backup" method="post">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token() if request.db else ''"/>
+                            <div class="modal-header">
+                                <h4 class="modal-title"><i class="fa fa-floppy-o me-2"/>Backup Database</h4>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Master Password</label>
+                                    <div class="col-md-8">
+                                        <input type="password" name="master_pwd" class="form-control" required="required" placeholder="Master password"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Database</label>
+                                    <div class="col-md-8">
+                                        <input type="text" name="name" class="form-control o_database_backup_name" readonly="readonly"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Format</label>
+                                    <div class="col-md-8">
+                                        <select name="backup_format" class="form-select">
+                                            <option value="zip">ZIP (with filestore)</option>
+                                            <option value="dump">SQL (without filestore)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <input type="submit" value="Backup" class="btn btn-primary"/>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duplicate Modal -->
+            <div class="modal fade o_database_duplicate" role="dialog">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form role="form" action="/web/database/duplicate" method="post">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token() if request.db else ''"/>
+                            <div class="modal-header">
+                                <h4 class="modal-title"><i class="fa fa-files-o me-2"/>Duplicate Database</h4>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Master Password</label>
+                                    <div class="col-md-8">
+                                        <input type="password" name="master_pwd" class="form-control" required="required" placeholder="Master password"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Database</label>
+                                    <div class="col-md-8">
+                                        <input type="text" name="name" class="form-control o_database_duplicate_name" readonly="readonly"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">New Name</label>
+                                    <div class="col-md-8">
+                                        <input type="text" name="new_name" class="form-control" required="required"
+                                               t-att-pattern="pattern" title="Only alphanumerical characters, underscore, hyphen and dot are allowed"
+                                               placeholder="new_database_name"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <input type="submit" value="Duplicate" class="btn btn-primary"/>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Modal -->
+            <div class="modal fade o_database_delete" role="dialog">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form role="form" action="/web/database/drop" method="post">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token() if request.db else ''"/>
+                            <div class="modal-header">
+                                <h4 class="modal-title"><i class="fa fa-trash-o me-2 text-danger"/>Delete Database</h4>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+                            </div>
+                            <div class="modal-body">
+                                <div class="hv-alert hv-alert-danger mb-3" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 16px;color:#fca5a5;font-size:13px;">
+                                    <i class="fa fa-exclamation-triangle me-2"/>
+                                    <strong>Warning:</strong> This action permanently deletes the database and all its data. This cannot be undone.
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Master Password</label>
+                                    <div class="col-md-8">
+                                        <input type="password" name="master_pwd" class="form-control" required="required" placeholder="Master password"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Database</label>
+                                    <div class="col-md-8">
+                                        <input type="text" name="name" class="form-control o_database_delete_name" readonly="readonly"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <input type="submit" value="Delete" class="btn btn-danger"/>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Restore Modal -->
+            <div class="modal fade o_database_restore" role="dialog">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title"><i class="fa fa-upload me-2"/>Restore Database</h4>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+                        </div>
+                        <form id="form_restore_db" role="form" action="/web/database/restore" method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token() if request.db else ''"/>
+                            <div class="modal-body">
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Master Password</label>
+                                    <div class="col-md-8">
+                                        <input type="password" name="master_pwd" class="form-control" required="required" placeholder="Master password"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Backup File</label>
+                                    <div class="col-md-8">
+                                        <input id="backup_file" type="file" name="backup_file" class="form-control required"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label for="dbname_restore" class="col-md-4 col-form-label">Database Name</label>
+                                    <div class="col-md-8">
+                                        <input id="dbname_restore" type="text" name="name" class="form-control" required="required"
+                                               t-att-pattern="pattern" title="Only alphanumerical characters, underscore, hyphen and dot are allowed"
+                                               placeholder="my_restored_db"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">This database was</label>
+                                    <div class="col-md-8 pt-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" id="radio_copy_true" name="copy" value="true" checked="checked"/>
+                                            <label class="form-check-label" for="radio_copy_true">Copied</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" id="radio_copy_false" name="copy" value="false"/>
+                                            <label class="form-check-label" for="radio_copy_false">Moved</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <input type="submit" value="Restore" class="btn btn-primary"/>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Set Master Password Modal -->
+            <div class="modal fade o_database_master" role="dialog">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form role="form" action="/web/database/change_password" method="post">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token() if request.db else ''"/>
+                            <div class="modal-header">
+                                <h4 class="modal-title"><i class="fa fa-key me-2"/>Set Master Password</h4>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">Current Password</label>
+                                    <div class="col-md-8">
+                                        <input type="password" name="master_pwd" class="form-control" placeholder="Leave blank if not set"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-md-4 col-form-label">New Password</label>
+                                    <div class="col-md-8">
+                                        <input type="password" name="master_pwd_new" class="form-control" required="required" placeholder="New master password"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <input type="submit" value="Update" class="btn btn-primary"/>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </body>
+        </html>
+    </template>
+</odoo>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Tenant Analytics Search View -->
+        <record id="view_havanoposdesk_tenant_analytics_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.tenant.analytics.search</field>
+            <field name="model">havanoposdesk.tenant.analytics</field>
+            <field name="arch" type="xml">
+                <search string="Search Tenant Analytics">
+                    <field name="tenant_name"/>
+                    <field name="subscription_plan_id"/>
+                    <field name="plan_name"/>
+
+                    <separator/>
+                    <!-- Subscription Type / Status Filters -->
+                    <filter string="Subscribed / Paid" name="filter_subscribed" domain="[('is_trial', '=', False)]"/>
+                    <filter string="Demo / Trial Accounts" name="filter_demo" domain="[('is_trial', '=', True)]"/>
+                    <separator/>
+                    <filter string="Active Subscriptions" name="filter_active" domain="[('subscription_state', '=', 'active')]"/>
+                    <filter string="Pending Payment" name="filter_pending" domain="[('subscription_state', '=', 'pending')]"/>
+                    <filter string="Expired Accounts" name="filter_expired" domain="[('subscription_state', '=', 'expired')]"/>
+                    <filter string="Cancelled Accounts" name="filter_cancelled" domain="[('subscription_state', '=', 'cancelled')]"/>
+
+                    <separator/>
+                    <!-- Sales Activity Filters -->
+                    <filter string="Has Made Sales" name="filter_has_sales" domain="[('total_sales_count', '>', 0)]"/>
+                    <filter string="No Sales Made" name="filter_no_sales" domain="[('total_sales_count', '=', 0)]"/>
+                    <filter string="High Sales (&gt; $1,000)" name="filter_high_sales" domain="[('total_sales_amount', '&gt;=', 1000)]"/>
+                    <filter string="Sales in Last 7 Days" name="filter_sales_7d" domain="[('last_sale_date', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                    <filter string="Sales in Last 30 Days" name="filter_sales_30d" domain="[('last_sale_date', '&gt;=', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+
+                    <separator/>
+                    <!-- Login & Usage Filters -->
+                    <filter string="Logged In (Last 7 Days)" name="filter_logged_7d" domain="[('last_login', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Logged In (Last 30 Days)" name="filter_logged_30d" domain="[('last_login', '&gt;=', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Active Usage (Last 7 Days)" name="filter_active_usage_7d" domain="[('last_activity', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Never Logged In" name="filter_never_logged" domain="[('last_login', '=', False)]"/>
+
+                    <separator/>
+                    <!-- Group By Options -->
+                    <filter string="Group by Subscription Plan" name="group_by_plan" context="{'group_by': 'subscription_plan_id'}"/>
+                    <filter string="Group by Status" name="group_by_state" context="{'group_by': 'subscription_state'}"/>
+                    <filter string="Group by Subscribed vs Demo" name="group_by_trial" context="{'group_by': 'is_trial'}"/>
+                    <filter string="Group by Last Sale Month" name="group_by_last_sale_month" context="{'group_by': 'last_sale_date:month'}"/>
+                    <filter string="Group by Last Login Month" name="group_by_last_login_month" context="{'group_by': 'last_login:month'}"/>
+                </search>
+            </field>
+        </record>
+
+        <!-- Tenant Analytics List View -->
+        <record id="view_havanoposdesk_tenant_analytics_tree" model="ir.ui.view">
+            <field name="name">havanoposdesk.tenant.analytics.list</field>
+            <field name="model">havanoposdesk.tenant.analytics</field>
+            <field name="arch" type="xml">
+                <list string="Tenant Analytics" default_order="total_sales_count desc, total_sales_amount desc" create="false" delete="false" edit="false">
+                    <field name="tenant_name" string="Tenant Name" decoration-bf="1"/>
+                    <field name="subscription_plan_id" string="Plan"/>
+                    <field name="is_trial" string="Demo?" widget="boolean"/>
+                    <field name="subscription_state" string="Subscription" widget="badge"
+                           decoration-success="subscription_state == 'active'"
+                           decoration-warning="subscription_state in ('pending', 'expired')"
+                           decoration-danger="subscription_state == 'cancelled'"/>
+                    <field name="subscription_end_date" string="Expiry Date" optional="show"/>
+                    <field name="total_sales_count" string="# Sales" decoration-bf="1" sum="Total Invoices"/>
+                    <field name="total_sales_amount" string="Total Revenue ($)" widget="monetary" options="{'currency_field': 'currency_id'}" decoration-bf="1" sum="Total Revenue"/>
+                    <field name="last_sale_date" string="Last Sale Date" widget="date"/>
+                    <field name="last_login" string="Recent Login" widget="datetime"/>
+                    <field name="last_activity" string="Recent Usage" widget="datetime" optional="show"/>
+                    <field name="user_count" string="# Users" optional="show"/>
+                    <field name="account_balance" string="Wallet Balance ($)" optional="hide"/>
+                    <field name="currency_id" column_invisible="1"/>
+                    <button name="action_view_sales" type="object" string="Sales" icon="fa-shopping-cart" class="btn-sm btn-secondary"/>
+                    <button name="action_open_tenant" type="object" string="View Tenant" icon="fa-external-link" class="btn-sm btn-info"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Tenant Analytics Window Action -->
+        <record id="action_tenant_analytics" model="ir.actions.act_window">
+            <field name="name">Tenant Analytics</field>
+            <field name="res_model">havanoposdesk.tenant.analytics</field>
+            <field name="view_mode">list</field>
+            <field name="view_id" ref="view_havanoposdesk_tenant_analytics_tree"/>
+            <field name="search_view_id" ref="view_havanoposdesk_tenant_analytics_search"/>
+            <field name="context">{}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Tenant Analytics Report
+                </p>
+                <p>
+                    Monitor tenant activity, sales count, total revenue, recent logins and usage, and filter between active subscribers and demo accounts.
+                </p>
+            </field>
+        </record>
+    </data>
+</odoo>
