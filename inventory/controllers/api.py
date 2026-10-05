@@ -5636,20 +5636,21 @@ class HavanoPOSDeskAPI(http.Controller):
                         or getattr(prod, 'default_code', None)
                         or ""
                     )
+                    qty_val = getattr(line, 'accepted_qty', getattr(line, 'product_uom_qty', getattr(line, 'quantity', 1.0)))
                     items_list.append({
                         "item_code": item_code,
                         "item_name": prod.name if prod else "",
-                        "qty": line.quantity or 1.0,
-                        "quantity": line.quantity or 1.0,
-                        "rate": line.price_unit or 0.0,
-                        "amount": line.price_subtotal or 0.0,
+                        "qty": qty_val or 1.0,
+                        "quantity": qty_val or 1.0,
+                        "rate": getattr(line, 'price_unit', getattr(line, 'rate', 0.0)) or 0.0,
+                        "amount": getattr(line, 'price_subtotal', getattr(line, 'amount', 0.0)) or 0.0,
                         "uom": line.uom_id.name if getattr(line, 'uom_id', None) else "Nos",
                     })
 
                 quotations_list.append({
                     "name": q.name or str(q.id),
-                    "customer": q.customer_id.name if q.customer_id else "Customer",
-                    "customer_name": q.customer_id.name if q.customer_id else "Customer",
+                    "customer": getattr(q, 'customer_id', getattr(q, 'customer', False)).name if getattr(q, 'customer_id', getattr(q, 'customer', False)) else "Customer",
+                    "customer_name": getattr(q, 'customer_id', getattr(q, 'customer', False)).name if getattr(q, 'customer_id', getattr(q, 'customer', False)) else "Customer",
                     "transaction_date": q.posting_date.isoformat() if getattr(q, 'posting_date', None) else (q.create_date.isoformat() if q.create_date else ""),
                     "grand_total": getattr(q, 'total_amount', 0.0) or 0.0,
                     "total_amount": getattr(q, 'total_amount', 0.0) or 0.0,
