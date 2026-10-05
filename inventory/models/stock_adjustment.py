@@ -224,7 +224,24 @@ class StockAdjustment(models.Model):
                     vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.stock.adjustment') or 'New'
 
             # Populate on_hand from stock valuation for manual adjustments
-            if 'line_ids' in vals:
+            if 'line_ids' in vals and isinstance(vals['line_ids'], (list, tuple)):
+                cleaned_line_ids = []
+                for line_cmd in vals['line_ids']:
+                    if not isinstance(line_cmd, (list, tuple)) or not line_cmd:
+                        continue
+                    op = line_cmd[0]
+                    # Filter out operations on virtual IDs (not persisted in DB)
+                    if op in (1, 2, 3, 4):
+                        rec_id = line_cmd[1]
+                        if isinstance(rec_id, int) or (isinstance(rec_id, str) and rec_id.isdigit()):
+                            cleaned_line_ids.append(line_cmd)
+                    elif op == 6 and len(line_cmd) > 2 and isinstance(line_cmd[2], (list, tuple)):
+                        valid_ids = [i for i in line_cmd[2] if isinstance(i, int) or (isinstance(i, str) and i.isdigit())]
+                        cleaned_line_ids.append((6, 0, valid_ids))
+                    else:
+                        cleaned_line_ids.append(line_cmd)
+                vals['line_ids'] = cleaned_line_ids
+
                 store_id = vals.get('store_id')
                 store = self.env['havanoposdesk.store'].browse(store_id) if store_id else False
                 for line_cmd in vals['line_ids']:
@@ -240,6 +257,23 @@ class StockAdjustment(models.Model):
 
     def write(self, vals):
         from odoo.exceptions import ValidationError
+        if 'line_ids' in vals and isinstance(vals['line_ids'], (list, tuple)):
+            cleaned_line_ids = []
+            for line_cmd in vals['line_ids']:
+                if not isinstance(line_cmd, (list, tuple)) or not line_cmd:
+                    continue
+                op = line_cmd[0]
+                if op in (1, 2, 3, 4):
+                    rec_id = line_cmd[1]
+                    if isinstance(rec_id, int) or (isinstance(rec_id, str) and rec_id.isdigit()):
+                        cleaned_line_ids.append(line_cmd)
+                elif op == 6 and len(line_cmd) > 2 and isinstance(line_cmd[2], (list, tuple)):
+                    valid_ids = [i for i in line_cmd[2] if isinstance(i, int) or (isinstance(i, str) and i.isdigit())]
+                    cleaned_line_ids.append((6, 0, valid_ids))
+                else:
+                    cleaned_line_ids.append(line_cmd)
+            vals['line_ids'] = cleaned_line_ids
+
         for record in self:
             if record.state != 'draft' and any(f not in ['state'] for f in vals.keys()):
                 raise ValidationError("You cannot modify a confirmed/posted stock adjustment. Please cancel it first.")
