@@ -1,12 +1,19 @@
+import odoo
 from odoo import models, fields, api
 
 class CustomerGroup(models.Model):
     _name = 'havanoposdesk.customer.group'
     _description = 'Customer'
 
-    _constraints = [
-        models.Constraint('unique (name, tenant_id)', 'Customer name must be unique per tenant!')
-    ]
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_name_tenant_id_0(self):
+        for record in self:
+            if record.name and record.tenant_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('name', '=', record.name.id if hasattr(record.name, 'id') else record.name))
+                domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("Customer name must be unique per tenant!")
 
     name = fields.Char(string='Group Name', required=True)
     tenant_id = fields.Many2one(
