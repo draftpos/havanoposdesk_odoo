@@ -9723,7 +9723,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if not shop.exists() or (user.tenant_id and shop.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Invalid shop selection"}, status=400)
 
-            user.sudo().write({'selected_shop_id': shop.id})
+            if user.selected_shop_id.id != shop.id:
+                user.sudo().write({'selected_shop_id': shop.id})
             
             # TODO: Add device_hardware_id if shop select also sends it?
             user_data = self._get_user_info_dict(user, env)
@@ -9873,13 +9874,15 @@ class HavanoPOSDeskAPI(http.Controller):
             # Reassign terminal from old user if taking over
             if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
                 old_user = terminal.taken_by_user_id
-                old_user.sudo().write({'selected_terminal_id': False})
+                if old_user.selected_terminal_id.id == terminal.id:
+                    old_user.sudo().write({'selected_terminal_id': False})
 
             # Generate a unique 4-letter uppercase sale ID prefix for this terminal takeover/selection
             sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
 
             # Update selected terminal for new user
-            user.sudo().write({'selected_terminal_id': terminal.id})
+            if user.selected_terminal_id.id != terminal.id:
+                user.sudo().write({'selected_terminal_id': terminal.id})
             terminal.write({
                 'status': 'online',
                 'device_hardware_id': device_hardware_id,
@@ -10863,9 +10866,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     })
                 data.append({
                     'name': s.name,
-                    'date': str(s.posting_date) if s.posting_date else None,
-                    'customer': s.customer_id.name if s.customer_id else (s.customer.name if s.customer else ''),
-                    'cashier': s.salesperson_id.name if s.salesperson_id else '',
+                    'date': str(s.posting_date) if getattr(s, 'posting_date', False) else None,
+                    'customer': getattr(s, 'customer_id', getattr(s, 'customer', False)).name if getattr(s, 'customer_id', getattr(s, 'customer', False)) else '',
+                    'cashier': getattr(s, 'salesperson_id', getattr(s, 'salesperson', False)).name if getattr(s, 'salesperson_id', getattr(s, 'salesperson', False)) else '',
                     'total_amount': s.amount_total,
                     'total_tax': s.amount_tax,
                     'total_untaxed': s.amount_untaxed,
