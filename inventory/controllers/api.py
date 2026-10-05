@@ -3999,7 +3999,18 @@ class HavanoPOSDeskAPI(http.Controller):
 
                         sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
                         
-                        responses.append({"name": sale.name, "local_invoice_id": local_invoice_id, "status": "created"})
+                        resp_item = {
+                            "name": sale.name,
+                            "id": sale.id,
+                            "local_invoice_id": local_invoice_id,
+                            "status": "created",
+                            "fiscal_status": sale.fiscal_status or 'not_required',
+                            "fiscal_qr_code": sale.fiscal_qr_code or '',
+                            "fiscal_verification_code": sale.fiscal_verification_code or '',
+                            "fiscal_receipt_counter": sale.fiscal_receipt_counter or 0,
+                            "fiscal_global_no": sale.fiscal_global_no or '',
+                        }
+                        responses.append(resp_item)
                     except Exception as e:
                         responses.append({"error": str(e), "local_invoice_id": local_invoice_id})
 
@@ -4012,7 +4023,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     if responses and "error" in responses[0]:
                         return self._make_json_response({"error": responses[0]["error"]}, status=400)
                     elif responses:
-                        return self._make_json_response({"data": {"name": responses[0]["name"]}})
+                        return self._make_json_response({"data": responses[0]})
                     else:
                         return self._make_json_response({"error": "Unknown error"}, status=500)
             except Exception as e:
