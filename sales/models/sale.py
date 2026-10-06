@@ -11,9 +11,6 @@ class Sale(models.Model):
     _description = 'Sale'
     _order = 'date desc, id desc'
 
-    _constraints = [
-        models.Constraint('unique(local_invoice_id, tenant_id)', 'The Local Invoice ID must be unique per tenant!')
-    ]
 
     def _default_posting_time(self):
         now_utc = fields.Datetime.now()

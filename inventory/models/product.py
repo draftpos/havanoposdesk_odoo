@@ -19,11 +19,33 @@ class HavanoposdeskProduct(models.Model):
             pass
         return res
 
-    _constraints = [
-        models.Constraint('unique (name, tenant_id)', 'The product name must be unique per tenant!'),
-        models.Constraint('unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
-        models.Constraint('unique (barcode, tenant_id)', 'The Product Barcode must be unique per tenant!')
-    ]
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_name_tenant_id_0(self):
+        for record in self:
+            if record.name and record.tenant_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('name', '=', record.name.id if hasattr(record.name, 'id') else record.name))
+                domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("The product name must be unique per tenant!")
+    @api.constrains('item_code', 'tenant_id')
+    def _check_unique_item_code_tenant_id_1(self):
+        for record in self:
+            if record.item_code and record.tenant_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('item_code', '=', record.item_code.id if hasattr(record.item_code, 'id') else record.item_code))
+                domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("The Product Code must be unique per tenant!")
+    @api.constrains('barcode', 'tenant_id')
+    def _check_unique_barcode_tenant_id_2(self):
+        for record in self:
+            if record.barcode and record.tenant_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('barcode', '=', record.barcode.id if hasattr(record.barcode, 'id') else record.barcode))
+                domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("The Product Barcode must be unique per tenant!")
 
     name = fields.Char(string='Product Name', required=True)
     item_code = fields.Char(string='Product Code', required=False, copy=False, default=lambda self: 'New')
@@ -184,7 +206,7 @@ class HavanoposdeskProduct(models.Model):
                 unallocated_qty = sum(unallocated_vals.mapped('on_hand_qty'))
                 record.on_hand_qty = sum(record.variant_ids.mapped('on_hand_qty')) + unallocated_qty
             else:
-                valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', '=', record.id)])
+                valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', 'in', record.ids)])
                 record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
 
     sale_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_sale_tax_rel', 'product_id', 'tax_id', string='Sales Taxes', domain=[('tax_type', '=', 'Sales'), ('active', '=', True)])

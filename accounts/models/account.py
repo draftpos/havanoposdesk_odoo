@@ -6,9 +6,15 @@ class Account(models.Model):
     _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Account'
     
-    _constraints = [
-        models.Constraint('unique (name, tenant_id)', 'Account name must be unique per tenant!')
-    ]
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_name_tenant_id_0(self):
+        for record in self:
+            if record.name and record.tenant_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('name', '=', record.name.id if hasattr(record.name, 'id') else record.name))
+                domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("Account name must be unique per tenant!")
 
     @api.constrains('name', 'tenant_id')
     def _check_unique_account_name(self):

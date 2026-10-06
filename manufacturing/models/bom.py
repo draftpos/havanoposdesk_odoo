@@ -4,9 +4,6 @@ class HavanoPosDeskManufacturingBom(models.Model):
     _name = 'havanoposdesk.manufacturing.bom'
     _description = 'Bill of Materials'
 
-    _constraints = [
-        models.Constraint('unique(name, tenant_id)', 'The BOM Reference must be unique per tenant!')
-    ]
 
     name = fields.Char(string='BOM Reference', required=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id, index=True)

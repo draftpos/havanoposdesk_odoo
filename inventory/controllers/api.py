@@ -3999,7 +3999,18 @@ class HavanoPOSDeskAPI(http.Controller):
 
                         sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
                         
-                        responses.append({"name": sale.name, "local_invoice_id": local_invoice_id, "status": "created"})
+                        resp_item = {
+                            "name": sale.name,
+                            "id": sale.id,
+                            "local_invoice_id": local_invoice_id,
+                            "status": "created",
+                            "fiscal_status": sale.fiscal_status or 'not_required',
+                            "fiscal_qr_code": sale.fiscal_qr_code or '',
+                            "fiscal_verification_code": sale.fiscal_verification_code or '',
+                            "fiscal_receipt_counter": sale.fiscal_receipt_counter or 0,
+                            "fiscal_global_no": sale.fiscal_global_no or '',
+                        }
+                        responses.append(resp_item)
                     except Exception as e:
                         responses.append({"error": str(e), "local_invoice_id": local_invoice_id})
 
@@ -4012,7 +4023,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     if responses and "error" in responses[0]:
                         return self._make_json_response({"error": responses[0]["error"]}, status=400)
                     elif responses:
-                        return self._make_json_response({"data": {"name": responses[0]["name"]}})
+                        return self._make_json_response({"data": responses[0]})
                     else:
                         return self._make_json_response({"error": "Unknown error"}, status=500)
             except Exception as e:
@@ -5636,20 +5647,21 @@ class HavanoPOSDeskAPI(http.Controller):
                         or getattr(prod, 'default_code', None)
                         or ""
                     )
+                    qty_val = getattr(line, 'accepted_qty', getattr(line, 'product_uom_qty', getattr(line, 'quantity', 1.0)))
                     items_list.append({
                         "item_code": item_code,
                         "item_name": prod.name if prod else "",
-                        "qty": line.quantity or 1.0,
-                        "quantity": line.quantity or 1.0,
-                        "rate": line.price_unit or 0.0,
-                        "amount": line.price_subtotal or 0.0,
+                        "qty": qty_val or 1.0,
+                        "quantity": qty_val or 1.0,
+                        "rate": getattr(line, 'price_unit', getattr(line, 'rate', 0.0)) or 0.0,
+                        "amount": getattr(line, 'price_subtotal', getattr(line, 'amount', 0.0)) or 0.0,
                         "uom": line.uom_id.name if getattr(line, 'uom_id', None) else "Nos",
                     })
 
                 quotations_list.append({
                     "name": q.name or str(q.id),
-                    "customer": q.customer_id.name if q.customer_id else "Customer",
-                    "customer_name": q.customer_id.name if q.customer_id else "Customer",
+                    "customer": getattr(q, 'customer_id', getattr(q, 'customer', False)).name if getattr(q, 'customer_id', getattr(q, 'customer', False)) else "Customer",
+                    "customer_name": getattr(q, 'customer_id', getattr(q, 'customer', False)).name if getattr(q, 'customer_id', getattr(q, 'customer', False)) else "Customer",
                     "transaction_date": q.posting_date.isoformat() if getattr(q, 'posting_date', None) else (q.create_date.isoformat() if q.create_date else ""),
                     "grand_total": getattr(q, 'total_amount', 0.0) or 0.0,
                     "total_amount": getattr(q, 'total_amount', 0.0) or 0.0,
@@ -9723,7 +9735,8 @@ class HavanoPOSDeskAPI(http.Controller):
             if not shop.exists() or (user.tenant_id and shop.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Invalid shop selection"}, status=400)
 
-            user.sudo().write({'selected_shop_id': shop.id})
+            if user.selected_shop_id.id != shop.id:
+                user.sudo().write({'selected_shop_id': shop.id})
             
             # TODO: Add device_hardware_id if shop select also sends it?
             user_data = self._get_user_info_dict(user, env)
@@ -9873,13 +9886,15 @@ class HavanoPOSDeskAPI(http.Controller):
             # Reassign terminal from old user if taking over
             if terminal.taken_by_user_id and terminal.taken_by_user_id.id != user.id:
                 old_user = terminal.taken_by_user_id
-                old_user.sudo().write({'selected_terminal_id': False})
+                if old_user.selected_terminal_id.id == terminal.id:
+                    old_user.sudo().write({'selected_terminal_id': False})
 
             # Generate a unique 4-letter uppercase sale ID prefix for this terminal takeover/selection
             sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
 
             # Update selected terminal for new user
-            user.sudo().write({'selected_terminal_id': terminal.id})
+            if user.selected_terminal_id.id != terminal.id:
+                user.sudo().write({'selected_terminal_id': terminal.id})
             terminal.write({
                 'status': 'online',
                 'device_hardware_id': device_hardware_id,
@@ -10863,9 +10878,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     })
                 data.append({
                     'name': s.name,
-                    'date': str(s.posting_date) if s.posting_date else None,
-                    'customer': s.customer_id.name if s.customer_id else (s.customer.name if s.customer else ''),
-                    'cashier': s.salesperson_id.name if s.salesperson_id else '',
+                    'date': str(s.posting_date) if getattr(s, 'posting_date', False) else None,
+                    'customer': getattr(s, 'customer_id', getattr(s, 'customer', False)).name if getattr(s, 'customer_id', getattr(s, 'customer', False)) else '',
+                    'cashier': getattr(s, 'salesperson_id', getattr(s, 'salesperson', False)).name if getattr(s, 'salesperson_id', getattr(s, 'salesperson', False)) else '',
                     'total_amount': s.amount_total,
                     'total_tax': s.amount_tax,
                     'total_untaxed': s.amount_untaxed,
