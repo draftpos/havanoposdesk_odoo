@@ -125,18 +125,18 @@
                                         <field name="display_type" column_invisible="True"/>
                                         <field name="currency_id" column_invisible="True" />
                                         <field name="exchange_rate" column_invisible="True" />
-                                        <field name="name" string="Description" optional="show" placeholder="Section / Note / Description..."/>
-                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('is_active', '=', True), ('not_for_sale', '=', False)]" width="30%" string="Item" readonly="display_type" required="not display_type"/>
-                                        <field name="variant_id" column_invisible="not parent.has_variants" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="15%" readonly="display_type"/>
+                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('is_active', '=', True), ('not_for_sale', '=', False)]" width="28%" string="Item" readonly="display_type" required="not display_type"/>
+                                        <field name="name" string="Description" optional="show" placeholder="Description..." width="20%"/>
+                                        <field name="variant_id" column_invisible="not parent.has_variants" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="12%" readonly="display_type"/>
                                         <field name="available_uom_ids" column_invisible="True" />
-                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids or display_type" options="{'no_create': True}" width="15%" />
-                                        <field name="accepted_qty" string="Qty" width="10%" readonly="display_type"/>
-                                        <field name="rate" width="12%" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
+                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids or display_type" options="{'no_create': True}" width="10%" />
+                                        <field name="accepted_qty" string="Qty" width="8%" readonly="display_type"/>
+                                        <field name="rate" width="10%" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
                                         <field name="cost_price" width="10%" optional="hide" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
                                         <field name="gross_profit" string="Gross Profit" optional="hide" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
-                                        <field name="tax_ids" widget="many2many_tags" domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]" width="15%" optional="show" options="{'no_create': True, 'no_create_edit': True, 'no_quick_create': True, 'no_search_more': True}" readonly="display_type"/>
-                                        <field name="price_tax" string="Tax Amt" width="12%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
-                                        <field name="amount" width="15%" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
+                                        <field name="tax_ids" widget="many2many_tags" domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]" width="12%" optional="show" options="{'no_create': True, 'no_create_edit': True, 'no_quick_create': True, 'no_search_more': True}" readonly="display_type"/>
+                                        <field name="price_tax" string="Tax Amt" width="10%" optional="hide" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
+                                        <field name="amount" width="12%" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
                                         <!-- Base-Currency columns (shown only when invoice uses a different currency from base) -->
                                         <field name="price_subtotal_fc" string="Rate (Base)" optional="hide" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" readonly="display_type"/>
                                         <field name="price_tax_fc" string="Tax (Base)" optional="hide" widget="monetary" options="{'currency_field': 'tenant_currency_id'}" column_invisible="not parent.is_cross_currency" readonly="display_type"/>

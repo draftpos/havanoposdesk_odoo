@@ -581,6 +581,9 @@ class PurchaseLine(models.Model):
                 
             if not line.uom_id or line.uom_id.id not in line.available_uom_ids.ids:
                 line.uom_id = line.product_id.uom_id
+
+            if not line.name:
+                line.name = line.product_id.name
                 
             line.tax_ids = [(6, 0, line.product_id.purchase_tax_ids.ids)]
             

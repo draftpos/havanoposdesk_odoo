@@ -63,14 +63,14 @@
                                         <field name="sequence" widget="handle"/>
                                         <field name="display_type" column_invisible="True"/>
                                         <field name="currency_id" column_invisible="True"/>
-                                        <field name="name" string="Description" optional="show" placeholder="Section / Note / Description..."/>
                                         <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('track_qty', '=', True), ('is_bundle', '=', False), ('is_active', '=', True)]" width="30%" string="Item" readonly="display_type" required="not display_type"/>
-                                        <field name="variant_id" column_invisible="not parent.has_variants" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="15%" readonly="display_type"/>
+                                        <field name="name" string="Description" optional="show" placeholder="Description..." width="22%"/>
+                                        <field name="variant_id" column_invisible="not parent.has_variants" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="12%" readonly="display_type"/>
                                         <field name="available_uom_ids" column_invisible="True" />
-                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids or display_type" options="{'no_create': True}" width="15%" />
+                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids or display_type" options="{'no_create': True}" width="10%" />
                                         <field name="accepted_qty" width="10%" readonly="display_type"/>
-                                        <field name="rate" string="Cost Price" width="15%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
-                                        <field name="amount" width="15%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
+                                        <field name="rate" string="Cost Price" width="13%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
+                                        <field name="amount" width="13%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="purchase_total">
