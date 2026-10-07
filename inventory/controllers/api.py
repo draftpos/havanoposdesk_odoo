@@ -4129,6 +4129,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         }
                         responses.append(resp_item)
                     except Exception as e:
+                        _logger.warning("Sales Invoice POST error for tenant %s: %s", tenant.name if tenant else None, e)
                         responses.append({"error": str(e), "local_invoice_id": local_invoice_id})
 
                 if custom_cr:
@@ -4138,6 +4139,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     return self._make_json_response({"data": responses})
                 else:
                     if responses and "error" in responses[0]:
+                        _logger.warning("Sales Invoice POST rejected: %s (local_invoice_id: %s)", responses[0].get("error"), responses[0].get("local_invoice_id"))
                         return self._make_json_response({"error": responses[0]["error"]}, status=400)
                     elif responses:
                         return self._make_json_response({"data": responses[0]})
