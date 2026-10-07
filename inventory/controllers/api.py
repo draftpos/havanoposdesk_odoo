@@ -212,7 +212,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     ('tenant_id', '=', user.tenant_id.id),
                 ], limit=1)
                 if login_terminal:
-                    login_terminal.write({
+                    login_terminal.with_context(skip_audit_log=True).write({
                         'app_version': str(app_version),
                         'last_seen': fields.Datetime.now(),
                         'last_logged_in_user_id': user.id,
@@ -3071,15 +3071,35 @@ class HavanoPOSDeskAPI(http.Controller):
 
     def _check_credentials(self, db, username, password):
         import odoo
+        import hashlib
+        import time
+
+        global _AUTH_CREDENTIALS_CACHE, _AUTH_CACHE_TTL, _AUTH_CACHE_MAX_ENTRIES
+        if '_AUTH_CREDENTIALS_CACHE' not in globals():
+            _AUTH_CREDENTIALS_CACHE = {}
+            _AUTH_CACHE_TTL = 300
+            _AUTH_CACHE_MAX_ENTRIES = 5000
+
         if not db:
             db = 'odoo_db_com'
+
+        norm_user = (username or '').strip().lower()
+        pass_hash = hashlib.sha256((password or '').encode('utf-8', errors='ignore')).hexdigest()
+        cache_key = (db, norm_user, pass_hash)
+        now = time.time()
+
+        cached = _AUTH_CREDENTIALS_CACHE.get(cache_key)
+        if cached and cached[1] > now:
+            return cached[0]
+
+        uid_res = None
         if request.env and request.db == db:
             try:
                 credential = {'login': username, 'password': password, 'type': 'password'}
                 auth_info = request.env['res.users'].authenticate(credential, {'interactive': False})
-                return auth_info.get('uid')
+                uid_res = auth_info.get('uid')
             except Exception:
-                return None
+                uid_res = None
         else:
             try:
                 registry = odoo.modules.registry.Registry(db)
@@ -3087,9 +3107,17 @@ class HavanoPOSDeskAPI(http.Controller):
                     env = odoo.api.Environment(cr, odoo.SUPERUSER_ID, {})
                     credential = {'login': username, 'password': password, 'type': 'password'}
                     auth_info = env['res.users'].authenticate(credential, {'interactive': False})
-                    return auth_info.get('uid')
+                    uid_res = auth_info.get('uid')
             except Exception:
-                return None
+                uid_res = None
+
+        if uid_res:
+            if len(_AUTH_CREDENTIALS_CACHE) >= _AUTH_CACHE_MAX_ENTRIES:
+                _AUTH_CREDENTIALS_CACHE.clear()
+            _AUTH_CREDENTIALS_CACHE[cache_key] = (int(uid_res), now + _AUTH_CACHE_TTL)
+            return int(uid_res)
+
+        return None
 
     def _verify_token(self, token):
         if not token:
@@ -3099,6 +3127,23 @@ class HavanoPOSDeskAPI(http.Controller):
         elif token.startswith("token "):
             token = token[6:]
 
+        import hashlib
+        import time
+        global _AUTH_TOKEN_CACHE, _AUTH_CACHE_TTL, _AUTH_CACHE_MAX_ENTRIES
+        if '_AUTH_TOKEN_CACHE' not in globals():
+            _AUTH_TOKEN_CACHE = {}
+            _AUTH_CACHE_TTL = 300
+            _AUTH_CACHE_MAX_ENTRIES = 5000
+
+        t_hash = hashlib.sha256(token.encode('utf-8', errors='ignore')).hexdigest()
+        now = time.time()
+        cached = _AUTH_TOKEN_CACHE.get(t_hash)
+        if cached and cached[2] > now:
+            return cached[0], cached[1]
+
+        resolved_uid = None
+        resolved_login = None
+
         # First try: parse as the tokenString format "username:password" or "uid:hash"
         try:
             parts = token.split(':')
@@ -3106,41 +3151,49 @@ class HavanoPOSDeskAPI(http.Controller):
                 uid = parts[0]
                 try:
                     int(uid)
-                    return int(uid), None
+                    resolved_uid, resolved_login = int(uid), None
                 except ValueError:
                     username = parts[0]
                     password = parts[1]
                     db = request.db or 'odoo_db_com'
                     uid_res = self._check_credentials(db, username, password)
                     if uid_res:
-                        return int(uid_res), username
+                        resolved_uid, resolved_login = int(uid_res), username
         except Exception:
             pass
 
         # Second try: parse as base64-encoded "uid:login:saas_secret_key"
-        try:
-            import base64
-            token_bytes = base64.b64decode(token.encode('utf-8'))
-            token_str = token_bytes.decode('utf-8')
-            parts = token_str.split(':')
-            if len(parts) == 3 and parts[2] == "saas_secret_key":
-                return int(parts[0]), parts[1]
-        except Exception:
-            pass
+        if not resolved_uid:
+            try:
+                import base64
+                token_bytes = base64.b64decode(token.encode('utf-8'))
+                token_str = token_bytes.decode('utf-8')
+                parts = token_str.split(':')
+                if len(parts) == 3 and parts[2] == "saas_secret_key":
+                    resolved_uid, resolved_login = int(parts[0]), parts[1]
+            except Exception:
+                pass
 
         # Third try: parse as old base64-encoded "username:password"
-        try:
-            import base64
-            token_bytes = base64.b64decode(token.encode('utf-8'))
-            token_str = token_bytes.decode('utf-8')
-            if ':' in token_str:
-                username, password = token_str.split(':', 1)
-                db = request.db or 'odoo_db_com'
-                uid_res = self._check_credentials(db, username, password)
-                if uid_res:
-                    return int(uid_res), username
-        except Exception:
-            pass
+        if not resolved_uid:
+            try:
+                import base64
+                token_bytes = base64.b64decode(token.encode('utf-8'))
+                token_str = token_bytes.decode('utf-8')
+                if ':' in token_str:
+                    username, password = token_str.split(':', 1)
+                    db = request.db or 'odoo_db_com'
+                    uid_res = self._check_credentials(db, username, password)
+                    if uid_res:
+                        resolved_uid, resolved_login = int(uid_res), username
+            except Exception:
+                pass
+
+        if resolved_uid:
+            if len(_AUTH_TOKEN_CACHE) >= _AUTH_CACHE_MAX_ENTRIES:
+                _AUTH_TOKEN_CACHE.clear()
+            _AUTH_TOKEN_CACHE[t_hash] = (resolved_uid, resolved_login, now + _AUTH_CACHE_TTL)
+            return resolved_uid, resolved_login
 
         return None, None
 
@@ -9561,7 +9614,7 @@ class HavanoPOSDeskAPI(http.Controller):
             from odoo import fields as odoo_fields
             try:
                 now_dt = odoo_fields.Datetime.now()
-                terminal.write({
+                terminal.with_context(skip_audit_log=True).write({
                     'last_seen': now_dt,
                     'status': 'online'
                 })
@@ -9683,7 +9736,7 @@ class HavanoPOSDeskAPI(http.Controller):
             # Update selected terminal for new user
             if user.selected_terminal_id.id != terminal.id:
                 user.sudo().write({'selected_terminal_id': terminal.id})
-            terminal.write({
+            terminal.with_context(skip_audit_log=True).write({
                 'status': 'online',
                 'device_hardware_id': device_hardware_id,
                 'app_version': str(app_version) if app_version else terminal.app_version,

@@ -9,7 +9,9 @@ AUDIT_IGNORED_FIELDS = {
     '__last_update', 'write_date', 'write_uid', 'create_date', 'create_uid',
     'display_name', 'message_ids', 'activity_ids', 'message_follower_ids',
     'access_token', 'access_token_signature', 'message_partner_ids',
-    'rating_ids', 'website_message_ids', 'message_has_error', 'message_has_sms_error'
+    'rating_ids', 'website_message_ids', 'message_has_error', 'message_has_sms_error',
+    'last_seen', 'status', 'online_status', 'last_ping', 'last_logged_in',
+    'last_logged_in_user_id', 'sequence_prefix', 'session_id', 'last_active'
 }
 
 
