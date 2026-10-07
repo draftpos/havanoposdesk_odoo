@@ -65,12 +65,12 @@
                            decoration-warning="online_status == 'idle'"
                            decoration-danger="online_status == 'offline'" optional="show" string="Status"/>
                     <field name="tenant_id" string="Tenant Name" optional="show"/>
-                    <field name="tenant_ref_id" string="Tenant ID" optional="show"/>
+                    <field name="tenant_ref_id" string="Tenant ID" optional="hide"/>
                     <field name="store_name" string="Store Name" optional="show"/>
-                    <field name="admin_name" string="Admin Name" optional="show"/>
-                    <field name="email" string="Email" optional="show"/>
+                    <field name="admin_name" string="Admin Name" optional="hide"/>
+                    <field name="email" string="Email" optional="hide"/>
                     <field name="phone" string="Phone" optional="show"/>
-                    <field name="address" string="Address" optional="show"/>
+                    <field name="address" string="Address" optional="hide"/>
                     <field name="city" string="City" optional="show"/>
                     <field name="sales_rep" string="Sales Rep" optional="show"/>
                     <field name="technician" string="Technician" optional="show"/>
