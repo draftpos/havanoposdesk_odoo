@@ -152,7 +152,7 @@
 
     <!-- Menuitem in Configurations -->
     <menuitem id="menu_my_business_audit_logs" 
-              name="Activity Logs" 
+              name="Audit Logs" 
               parent="menu_tenant_admin_settings_root" 
               action="action_havanoposdesk_audit_logs" 
               sequence="60" 

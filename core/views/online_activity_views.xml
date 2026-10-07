@@ -56,7 +56,7 @@
             <field name="name">havanoposdesk.online.activity.list</field>
             <field name="model">havanoposdesk.online.activity</field>
             <field name="arch" type="xml">
-                <list string="Online Activities &amp; Device Availability"
+                <list string="Tenant Status"
                       decoration-success="online_status == 'online'"
                       decoration-warning="online_status == 'idle'"
                       decoration-muted="online_status == 'offline'">
@@ -141,9 +141,9 @@
             </field>
         </record>
 
-        <!-- Action: Online Activities & Device Monitoring -->
+        <!-- Action: Tenant Status -->
         <record id="action_online_activities" model="ir.actions.act_window">
-            <field name="name">Online Activities &amp; Device Monitoring</field>
+            <field name="name">Tenant Status</field>
             <field name="res_model">havanoposdesk.online.activity</field>
             <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_online_activity_list"/>

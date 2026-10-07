@@ -89,7 +89,7 @@
 
         <!-- SaaS Admin Navigation -->
         <menuitem id="menu_saas_users" name="Users" parent="menu_saas_root" action="action_saas_users" sequence="10"/>
-        <menuitem id="menu_saas_online_activities" name="Online Activity &amp; Devices" parent="menu_saas_root" action="action_online_activities" sequence="15"/>
+        <menuitem id="menu_saas_online_activities" name="Tenant Status" parent="menu_saas_root" action="action_online_activities" sequence="15"/>
         <menuitem id="menu_saas_tenants" name="Tenants" parent="menu_saas_root" action="action_havanoposdesk_tenant" sequence="20"/>
         <menuitem id="menu_saas_stores" name="Stores" parent="menu_saas_root" action="action_havanoposdesk_store" sequence="30"/>
         <menuitem id="menu_saas_plans" name="Subscription Plans" parent="menu_saas_root" action="action_subscription_plans" sequence="40"/>
