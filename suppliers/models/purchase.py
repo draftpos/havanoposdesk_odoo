@@ -481,6 +481,14 @@ class Purchase(models.Model):
 class PurchaseLine(models.Model):
     _name = 'havanoposdesk.purchase.line'
     _description = 'Purchase Line'
+    _order = 'sequence, id'
+
+    sequence = fields.Integer(string='Sequence', default=10)
+    display_type = fields.Selection([
+        ('line_section', 'Section'),
+        ('line_note', 'Note'),
+    ], default=False, string='Display Type')
+    name = fields.Text(string='Description')
 
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
@@ -492,7 +500,7 @@ class PurchaseLine(models.Model):
     store_id = fields.Many2one(related='purchase_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='purchase_id.currency_id', readonly=True)
     exchange_rate = fields.Float(related='purchase_id.exchange_rate', readonly=True)
-    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=False)
     variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
@@ -505,9 +513,20 @@ class PurchaseLine(models.Model):
     uom_qty_multiplier = fields.Float(string='UOM Multiplier', default=1.0)
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', compute_sudo=True, store=False)
 
-    @api.depends('accepted_qty', 'rate', 'tax_ids')
+    @api.constrains('display_type', 'product_id')
+    def _check_product_or_section(self):
+        for line in self:
+            if not line.display_type and not line.product_id:
+                raise ValidationError(_("A product is required for normal purchase lines."))
+
+    @api.depends('accepted_qty', 'rate', 'tax_ids', 'display_type')
     def _compute_amount(self):
         for record in self:
+            if record.display_type:
+                record.price_subtotal = 0.0
+                record.price_tax = 0.0
+                record.amount = 0.0
+                continue
             base_amount = record.accepted_qty * record.rate
             taxes = record.tax_ids
             

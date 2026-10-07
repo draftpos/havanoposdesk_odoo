@@ -45,7 +45,7 @@ class Customer(models.Model):
         required=True, 
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
-    tenant_allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency', store=False)
+    tenant_allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency', string='Tenant Multi Currency', store=False)
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
     currency_id = fields.Many2one(
         'res.currency', 

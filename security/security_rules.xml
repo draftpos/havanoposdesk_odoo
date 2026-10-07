@@ -90,7 +90,7 @@
             <field name="name">Havano POS Terminal Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_pos_terminal"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.has_group('base.group_system') or user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Subscription Plan Model Isolation Rule (Allow Read for All Users) -->

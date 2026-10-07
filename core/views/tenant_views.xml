@@ -5,17 +5,39 @@
             <field name="name">havanoposdesk.tenant.tree</field>
             <field name="model">havanoposdesk.tenant</field>
             <field name="arch" type="xml">
-                <list string="Tenants">
-                    <field name="name"/>
-                    <field name="subscription_plan_id"/>
-                    <field name="account_balance"/>
-                    <field name="pending_topup_count" string="Pending Top-Ups" widget="badge" decoration-warning="pending_topup_count > 0" optional="show"/>
+                <list string="Tenants &amp; Activity"
+                      decoration-success="online_status == 'online'"
+                      decoration-warning="online_status == 'idle'"
+                      decoration-muted="online_status == 'offline'">
+                    <field name="online_status" widget="badge"
+                           decoration-success="online_status == 'online'"
+                           decoration-warning="online_status == 'idle'"
+                           decoration-danger="online_status == 'offline'" string="Status" optional="show"/>
+                    <field name="name" string="Tenant Name" optional="show"/>
+                    <field name="id" string="Tenant ID" optional="show"/>
+                    <field name="last_logged_in_user_id" string="Last User" optional="show"/>
+                    <field name="last_activity" string="Last Active / Seen" optional="show"/>
+                    <field name="days_inactive_display" string="Inactive Duration" widget="badge"
+                           decoration-success="days_inactive == 0"
+                           decoration-warning="days_inactive &gt; 0 and days_inactive &lt;= 3"
+                           decoration-danger="days_inactive &gt; 3" optional="show"/>
+                    <field name="admin_name" string="Admin Name" optional="show"/>
+                    <field name="email" string="Email" optional="show"/>
+                    <field name="phone" string="Phone" optional="show"/>
+                    <field name="address" string="Address" optional="hide"/>
+                    <field name="city" string="City" optional="hide"/>
+                    <field name="sales_rep" string="Sales Rep" optional="hide"/>
+                    <field name="technician" string="Technician" optional="hide"/>
+                    <field name="owner_whatsapp" string="Verified WhatsApp (Owner)" optional="show"/>
+                    <field name="subscription_plan_id" optional="show"/>
+                    <field name="account_balance" optional="show"/>
+                    <field name="pending_topup_count" string="Pending Top-Ups" widget="badge" decoration-warning="pending_topup_count &gt; 0" optional="hide"/>
                     <field name="subscription_state"
                            widget="badge"
                            decoration-success="subscription_state == 'active'"
                            decoration-warning="subscription_state == 'expired'"
-                           decoration-danger="subscription_state == 'cancelled'"/>
-                    <field name="active" optional="show"/>
+                           decoration-danger="subscription_state == 'cancelled'" optional="show"/>
+                    <field name="active" optional="hide"/>
                 </list>
             </field>
         </record>
@@ -132,6 +154,16 @@
                             <group string="Features">
                                 <field name="restaurant_mode_enabled" widget="boolean_toggle"/>
                             </group>
+                            <group string="Tenant Profile &amp; Contact Information">
+                                <field name="admin_name"/>
+                                <field name="email"/>
+                                <field name="phone"/>
+                                <field name="owner_whatsapp"/>
+                                <field name="address"/>
+                                <field name="city"/>
+                                <field name="sales_rep"/>
+                                <field name="technician"/>
+                            </group>
                         </group>
 
                         <notebook>
@@ -172,6 +204,73 @@
                         </group>
                     </sheet>
                 </form>
+            </field>
+        </record>
+
+        <!-- Tenant Search View -->
+        <record id="view_havanoposdesk_tenant_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.tenant.search</field>
+            <field name="model">havanoposdesk.tenant</field>
+            <field name="arch" type="xml">
+                <search string="Tenants">
+                    <field name="name" string="Tenant Name"/>
+                    <field name="subscription_plan_id" string="Subscription Plan"/>
+                    <field name="subscription_state" string="Subscription State"/>
+                    <field name="currency_id" string="Currency"/>
+
+                    <filter string="Active" name="filter_active" domain="[('active', '=', True)]"/>
+                    <filter string="Archived / Inactive" name="filter_inactive" domain="[('active', '=', False)]"/>
+                    <separator/>
+
+                    <filter string="Subscription: Active" name="filter_state_active" domain="[('subscription_state', '=', 'active')]"/>
+                    <filter string="Subscription: Pending" name="filter_state_pending" domain="[('subscription_state', '=', 'pending')]"/>
+                    <filter string="Subscription: Expired" name="filter_state_expired" domain="[('subscription_state', '=', 'expired')]"/>
+                    <filter string="Subscription: Cancelled" name="filter_state_cancelled" domain="[('subscription_state', '=', 'cancelled')]"/>
+                    <separator/>
+
+                    <filter string="Paid Tenants" name="filter_paid" domain="[('is_trial', '=', False)]"/>
+                    <filter string="Trial / Demo Tenants" name="filter_trial" domain="[('is_trial', '=', True)]"/>
+                    <separator/>
+
+                    <filter string="Has Pending Top-Ups" name="filter_pending_topups" domain="[('pending_topup_count', '>', 0)]"/>
+                    <filter string="Positive Balance (> $0)" name="filter_positive_balance" domain="[('account_balance', '>', 0)]"/>
+                    <filter string="Zero Balance" name="filter_zero_balance" domain="[('account_balance', '=', 0)]"/>
+                    <separator/>
+
+                    <filter string="Fiscalization Enabled" name="filter_fiscal" domain="[('enable_fiscalization', '=', True)]"/>
+                    <filter string="Restaurant Mode" name="filter_restaurant" domain="[('restaurant_mode_enabled', '=', True)]"/>
+                    <separator/>
+
+                    <filter string="Online Now" name="filter_online" domain="[('online_status', '=', 'online')]"/>
+                    <filter string="Idle (5-15m)" name="filter_idle" domain="[('online_status', '=', 'idle')]"/>
+                    <filter string="Offline" name="filter_offline" domain="[('online_status', '=', 'offline')]"/>
+                    <separator/>
+
+                    <filter string="Active Today" name="filter_active_today" domain="[('last_activity', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Active Last 24 Hours" name="filter_active_24h" domain="[('last_activity', '&gt;=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <separator/>
+
+                    <filter string="Not Used Today (Inactive Today)" name="filter_inactive_today" domain="['|', ('last_activity', '&lt;', context_today().strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used Since Yesterday (≥ 1 Day)" name="filter_inactive_yesterday" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 2 Days (≥ 2 Days)" name="filter_inactive_2_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=2)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 3 Days (≥ 3 Days)" name="filter_inactive_3_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=3)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 4 Days (≥ 4 Days)" name="filter_inactive_4_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=4)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 7 Days (≥ 1 Week)" name="filter_inactive_7_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 10 Days (≥ 10 Days)" name="filter_inactive_10_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=10)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 14 Days (≥ 2 Weeks)" name="filter_inactive_14_days" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=14)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Not Used in Last 1 Month (≥ 30 Days)" name="filter_inactive_1_month" domain="['|', ('last_activity', '&lt;', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d 00:00:00')), ('last_activity', '=', False)]"/>
+                    <filter string="Never Used System" name="filter_never_active" domain="[('last_activity', '=', False)]"/>
+
+                    <group>
+                        <filter string="Tenant Name" name="group_by_name" context="{'group_by': 'name'}"/>
+                        <filter string="Online Status" name="group_by_online_status" context="{'group_by': 'online_status'}"/>
+                        <filter string="Subscription Plan" name="group_by_plan" context="{'group_by': 'subscription_plan_id'}"/>
+                        <filter string="Subscription State" name="group_by_state" context="{'group_by': 'subscription_state'}"/>
+                        <filter string="Billing Cycle" name="group_by_billing_cycle" context="{'group_by': 'billing_cycle'}"/>
+                        <filter string="Trial vs Paid" name="group_by_trial" context="{'group_by': 'is_trial'}"/>
+                        <filter string="Default Currency" name="group_by_currency" context="{'group_by': 'currency_id'}"/>
+                    </group>
+                </search>
             </field>
         </record>
 

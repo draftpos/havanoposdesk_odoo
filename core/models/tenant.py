@@ -57,7 +57,18 @@ class HavanoposdeskTenant(models.Model):
             ("duration_months", "INTEGER DEFAULT 1"),
             ("pending_billing_cycle", "VARCHAR DEFAULT '1_month'"),
             ("pending_duration_months", "INTEGER DEFAULT 1"),
-
+            ("admin_name", "VARCHAR"),
+            ("email", "VARCHAR"),
+            ("phone", "VARCHAR"),
+            ("address", "TEXT"),
+            ("city", "VARCHAR DEFAULT 'Harare'"),
+            ("sales_rep", "VARCHAR"),
+            ("technician", "VARCHAR"),
+            ("owner_whatsapp", "VARCHAR"),
+            ("online_status", "VARCHAR DEFAULT 'offline'"),
+            ("last_activity", "TIMESTAMP"),
+            ("last_logged_in_user_id", "INTEGER"),
+            ("days_inactive", "INTEGER DEFAULT 9999"),
         ]
         for col_name, col_type in columns:
             try:
@@ -99,6 +110,128 @@ class HavanoposdeskTenant(models.Model):
     global_multi_currency_customers = fields.Boolean(string='Global Multi-Currency Customers', default=False)
     global_secondary_currency_id = fields.Many2one('res.currency', string='Default Secondary Currency')
     allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=True)
+
+    admin_name = fields.Char(string='Admin Name', compute='_compute_tenant_contact_info', store=True, readonly=False)
+    email = fields.Char(string='Email', compute='_compute_tenant_contact_info', store=True, readonly=False)
+    phone = fields.Char(string='Phone', compute='_compute_tenant_contact_info', store=True, readonly=False)
+    address = fields.Text(string='Address', compute='_compute_tenant_contact_info', store=True, readonly=False)
+    city = fields.Char(string='City', default='Harare')
+    sales_rep = fields.Char(string='Sales Rep')
+    technician = fields.Char(string='Technician')
+    owner_whatsapp = fields.Char(string='Verified WhatsApp Number (Owner)')
+
+    @api.depends('user_ids', 'user_ids.name', 'user_ids.login')
+    def _compute_tenant_contact_info(self):
+        for tenant in self:
+            admin_user = tenant.user_ids.filtered(lambda u: getattr(u, 'havano_role', False) in ('admin', 'super_admin'))
+            if not admin_user and tenant.user_ids:
+                admin_user = tenant.user_ids[:1]
+            if admin_user:
+                if not tenant.admin_name:
+                    tenant.admin_name = admin_user[0].name
+                if not tenant.email:
+                    tenant.email = admin_user[0].login or getattr(admin_user[0], 'email', False)
+                if not tenant.phone and getattr(admin_user[0], 'phone', False):
+                    tenant.phone = admin_user[0].phone
+            store = tenant.store_ids[:1] if getattr(tenant, 'store_ids', None) else False
+            if store:
+                if not tenant.phone and store.phone_1:
+                    tenant.phone = store.phone_1
+                if not tenant.address and store.address:
+                    tenant.address = store.address
+
+    online_status = fields.Selection([
+        ('online', 'Online'),
+        ('idle', 'Idle'),
+        ('offline', 'Offline')
+    ], string='Status', compute='_compute_tenant_online_activity', store=True, index=True, compute_sudo=True)
+    last_activity = fields.Datetime(string='Last Seen / Active', compute='_compute_tenant_online_activity', store=True, index=True, compute_sudo=True)
+    last_logged_in_user_id = fields.Many2one('res.users', string='Last Logged In User', compute='_compute_tenant_online_activity', store=True, compute_sudo=True)
+    days_inactive = fields.Integer(string='Days Inactive', compute='_compute_tenant_online_activity', store=True, index=True, compute_sudo=True)
+    days_inactive_display = fields.Char(string='Inactive Duration', compute='_compute_days_inactive_display', compute_sudo=True)
+
+    def _compute_tenant_online_activity(self):
+        now = fields.Datetime.now()
+        today = fields.Date.today()
+        for tenant in self:
+            act = self.env['havanoposdesk.online.activity'].sudo().search([
+                ('tenant_id', '=', tenant.id)
+            ], order='last_activity desc, id desc', limit=1)
+
+            term = self.env['havanoposdesk.pos.terminal'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('last_seen', '!=', False)
+            ], order='last_seen desc, id desc', limit=1)
+
+            latest_time = None
+            last_user = None
+            is_online = False
+            is_idle = False
+
+            if act and act.last_activity:
+                latest_time = act.last_activity
+                last_user = act.user_id
+                if act.online_status == 'online':
+                    is_online = True
+                elif act.online_status == 'idle':
+                    is_idle = True
+
+            if term and term.last_seen:
+                if not latest_time or term.last_seen > latest_time:
+                    latest_time = term.last_seen
+                    if term.last_logged_in_user_id:
+                        last_user = term.last_logged_in_user_id
+                    delta_secs = (now - term.last_seen).total_seconds()
+                    if delta_secs <= 300:
+                        is_online = True
+                        is_idle = False
+                    elif delta_secs <= 900:
+                        if not is_online:
+                            is_idle = True
+
+            if not latest_time:
+                log = self.env['havanoposdesk.audit.log'].sudo().search([
+                    ('tenant_id', '=', tenant.id)
+                ], order='timestamp desc, id desc', limit=1)
+                if log and log.timestamp:
+                    latest_time = log.timestamp
+                    last_user = log.user_id
+
+            tenant.last_activity = latest_time
+            tenant.last_logged_in_user_id = last_user.id if last_user else False
+
+            if is_online:
+                tenant.online_status = 'online'
+            elif is_idle:
+                tenant.online_status = 'idle'
+            else:
+                tenant.online_status = 'offline'
+
+            if not latest_time:
+                tenant.days_inactive = 9999
+            else:
+                diff = (today - latest_time.date()).days
+                tenant.days_inactive = max(0, diff)
+
+    @api.depends('days_inactive', 'online_status', 'last_activity')
+    def _compute_days_inactive_display(self):
+        for tenant in self:
+            if not tenant.last_activity:
+                tenant.days_inactive_display = "Never Used"
+            elif tenant.online_status == 'online':
+                tenant.days_inactive_display = "Online Now"
+            else:
+                diff = tenant.days_inactive
+                if diff == 0:
+                    tenant.days_inactive_display = "Active Today"
+                elif diff == 1:
+                    tenant.days_inactive_display = "Yesterday (1 day ago)"
+                elif diff < 30:
+                    tenant.days_inactive_display = f"{diff} days ago"
+                else:
+                    tenant.days_inactive_display = f"{diff // 30} month(s) ago"
+
+
 
     # ZIMRA Fiscalization Settings
     enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
@@ -187,7 +320,7 @@ class HavanoposdeskTenant(models.Model):
     pending_subscription_total_amount = fields.Float(string='Pending Total Amount ($)', compute='_compute_pending_subscription_total_amount', store=True)
     has_pending_upgrade = fields.Boolean(string='Has Pending Upgrade', compute='_compute_has_pending_upgrade')
     subscription_payment_ids = fields.One2many('havanoposdesk.subscription.payment', 'tenant_id', string='Transaction History & Top-Ups')
-    pending_topup_count = fields.Integer(string='Pending Top-Up Count', compute='_compute_pending_topup_count')
+    pending_topup_count = fields.Integer(string='Pending Top-Up Count', compute='_compute_pending_topup_count', search='_search_pending_topup_count')
 
     def _compute_pending_topup_count(self):
         for tenant in self:
@@ -196,6 +329,19 @@ class HavanoposdeskTenant(models.Model):
                 ('payment_type', '=', 'topup'),
                 ('state', '=', 'pending')
             ])
+
+    def _search_pending_topup_count(self, operator, value):
+        payments = self.env['havanoposdesk.subscription.payment'].sudo().search([
+            ('payment_type', '=', 'topup'),
+            ('state', '=', 'pending'),
+            ('tenant_id', '!=', False)
+        ])
+        tenant_ids = payments.mapped('tenant_id').ids
+        if (operator in ('>', '!=') and value == 0) or (operator == '=' and value > 0):
+            return [('id', 'in', tenant_ids)]
+        elif (operator in ('=', '<=') and value == 0) or (operator == '<' and value <= 1):
+            return [('id', 'not in', tenant_ids)]
+        return []
 
     def action_approve_pending_topup(self):
         self.ensure_one()

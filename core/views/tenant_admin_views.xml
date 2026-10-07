@@ -17,6 +17,8 @@
             <field name="name">My POS Terminals</field>
             <field name="res_model">havanoposdesk.pos.terminal</field>
             <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="havanoposdesk_odoo.view_pos_terminal_search"/>
+            <field name="context">{'active_test': False, 'search_default_filter_active': 1}</field>
         </record>
 
         <record id="action_user_rights_profiles" model="ir.actions.act_window">
@@ -218,7 +220,7 @@ else:
             <field name="priority">20</field>
             <field name="arch" type="xml">
                 <form string="Currency">
-                    <div class="alert alert-info text-center" role="alert" invisible="not is_base_currency">
+                    <div class="alert alert-info text-center" role="status" invisible="not is_base_currency">
                         <i class="fa fa-star me-1"></i> This is your base (default) currency.
                     </div>
                     <sheet>

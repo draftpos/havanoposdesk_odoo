@@ -85,6 +85,10 @@
                     <filter string="Not Used in Last 1 Month (≥ 30 Days)" name="filter_inactive_1_month" domain="['|', ('last_seen', '&lt;', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d 00:00:00')), ('last_seen', '=', False)]"/>
                     <filter string="Never Connected" name="filter_never_active" domain="[('last_seen', '=', False)]"/>
 
+                    <separator/>
+                    <filter string="Active" name="filter_active" domain="[('active', '=', True)]"/>
+                    <filter string="Archived / Inactive" name="filter_inactive" domain="[('active', '=', False)]"/>
+
                     <group>
                         <filter string="Tenant" name="group_tenant" context="{'group_by': 'tenant_id'}"/>
                         <filter string="Store" name="group_store" context="{'group_by': 'store_id'}"/>
@@ -100,6 +104,7 @@
             <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_pos_terminal_tree" />
             <field name="search_view_id" ref="view_pos_terminal_search" />
+            <field name="context">{'active_test': False, 'search_default_filter_active': 1, 'search_default_group_tenant': 1}</field>
         </record>
 
     </data>

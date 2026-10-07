@@ -14,14 +14,14 @@ class HavanoposdeskSupplier(models.Model):
                 domain.append(('name', '=', record.name.id if hasattr(record.name, 'id') else record.name))
                 domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
                 if self.search_count(domain) > 0:
-                    raise odoo.exceptions.ValidationError("Supplier name must be unique per tenant!")
+                    raise ValidationError("Supplier name must be unique per tenant!")
 
     name = fields.Char(string='Supplier Name', required=True)
     phone = fields.Char(string='Phone')
     email = fields.Char(string='Email')
     address = fields.Text(string='Address')
     
-    tenant_allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency', store=False)
+    tenant_allow_multi_currency = fields.Boolean(related='tenant_id.allow_multi_currency', string='Tenant Multi Currency', store=False)
     currency_id = fields.Many2one(
         'res.currency', 
         string='Currency', 

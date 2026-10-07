@@ -63,24 +63,31 @@
                     <field name="online_status" widget="badge"
                            decoration-success="online_status == 'online'"
                            decoration-warning="online_status == 'idle'"
-                           decoration-danger="online_status == 'offline'"/>
-                    <field name="user_id" string="User"/>
-                    <field name="user_login" string="Login / Email" optional="show"/>
-                    <field name="havano_role" string="Role" widget="badge" optional="show"/>
-                    <field name="tenant_id" string="Tenant"/>
-                    <field name="store_id" string="Store" optional="show"/>
+                           decoration-danger="online_status == 'offline'" optional="show" string="Status"/>
+                    <field name="tenant_id" string="Tenant Name" optional="show"/>
+                    <field name="tenant_ref_id" string="Tenant ID" optional="show"/>
+                    <field name="store_name" string="Store Name" optional="show"/>
+                    <field name="admin_name" string="Admin Name" optional="show"/>
+                    <field name="email" string="Email" optional="show"/>
+                    <field name="phone" string="Phone" optional="show"/>
+                    <field name="address" string="Address" optional="show"/>
+                    <field name="city" string="City" optional="show"/>
+                    <field name="sales_rep" string="Sales Rep" optional="show"/>
+                    <field name="technician" string="Technician" optional="show"/>
+                    <field name="owner_whatsapp" string="Verified WhatsApp (Owner)" optional="show"/>
+                    <field name="user_id" string="User" optional="show"/>
                     <field name="terminal_id" string="POS Terminal" optional="show"/>
-                    <field name="device_name" string="Device" optional="show"/>
                     <field name="device_hardware_id" string="Hardware ID" optional="hide"/>
-                    <field name="app_version" string="App Version" optional="show"/>
+                    <field name="app_version" string="App Version" optional="hide"/>
                     <field name="platform" string="Platform" widget="badge" optional="show"/>
-                    <field name="login_time" string="Logged In At"/>
-                    <field name="last_activity" string="Last Active / Seen"/>
-                    <field name="online_duration_display" string="Usage (Time Online)"/>
+                    <field name="last_activity" string="Last Active / Seen" optional="show"/>
                     <field name="days_inactive_display" string="Inactive Duration" widget="badge"
                            decoration-success="days_inactive == 0"
                            decoration-warning="days_inactive &gt; 0 and days_inactive &lt;= 3"
-                           decoration-danger="days_inactive &gt; 3"/>
+                           decoration-danger="days_inactive &gt; 3" optional="show"/>
+                    <field name="login_time" string="Login Time" optional="hide"/>
+                    <field name="ip_address" string="IP Address" optional="hide"/>
+                    <field name="online_duration_display" string="Usage Duration" optional="hide"/>
                 </list>
             </field>
         </record>
@@ -141,7 +148,7 @@
             <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_online_activity_list"/>
             <field name="search_view_id" ref="view_online_activity_search"/>
-            <field name="context">{}</field>
+            <field name="context">{'search_default_group_tenant': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     No active sessions or device records found!

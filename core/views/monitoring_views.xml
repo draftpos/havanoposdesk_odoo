@@ -125,7 +125,13 @@
         <menuitem id="menu_monitoring_purchases" name="Purchase Analytics" parent="menu_monitoring_reports" action="action_monitoring_purchases_usage" sequence="20"/>
         <menuitem id="menu_monitoring_stock_adjustments" name="Stock Analytics" parent="menu_monitoring_reports" action="action_monitoring_stock_adjustments_usage" sequence="30"/>
 
+        <!-- Online Activity & Devices Menu -->
+        <menuitem id="menu_monitoring_online_activities" name="Online Activity &amp; Devices" parent="menu_monitoring_root" action="action_online_activities" sequence="25"/>
+
         <!-- Tenants Activity Menu -->
         <menuitem id="menu_monitoring_tenants" name="Tenants Activity" parent="menu_monitoring_root" action="action_havanoposdesk_tenant" sequence="30"/>
+
+        <!-- Activity Logs Menu -->
+        <menuitem id="menu_monitoring_audit_logs" name="Activity Logs" parent="menu_monitoring_root" action="action_havanoposdesk_audit_logs" sequence="35"/>
     </data>
 </odoo>

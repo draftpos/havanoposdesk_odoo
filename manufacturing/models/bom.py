@@ -4,8 +4,8 @@ class HavanoPosDeskManufacturingBom(models.Model):
     _name = 'havanoposdesk.manufacturing.bom'
     _description = 'Bill of Materials'
 
-    _constraints = [
-        models.Constraint('unique(name, tenant_id)', 'The BOM Reference must be unique per tenant!')
+    _sql_constraints = [
+        ('bom_name_tenant_unique', 'unique(name, tenant_id)', 'The BOM Reference must be unique per tenant!')
     ]
 
     name = fields.Char(string='BOM Reference', required=True)

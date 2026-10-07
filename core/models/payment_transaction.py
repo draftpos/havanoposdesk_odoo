@@ -1,4 +1,4 @@
-from odoo import models, fields, _
+from odoo import api, models, fields, _
 
 class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
@@ -45,3 +45,8 @@ class PaymentTransaction(models.Model):
             if tx.subscription_payment_id:
                 tx.subscription_payment_id.write({'state': 'failed'})
         return res
+
+    @api.model
+    def cron_poll_pending_paynow_transactions(self):
+        """ Fallback cron poll method if called on havanoposdesk_odoo """
+        pass

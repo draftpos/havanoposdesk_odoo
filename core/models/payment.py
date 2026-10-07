@@ -65,8 +65,8 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
         ('custom_months', 'Custom Months')
     ], string='Billing Cycle', default='1_month', required=True)
     duration_months = fields.Integer(string='Duration (Months)', default=1, required=True)
-    monthly_rate = fields.Float(string='Monthly Rate ($)', compute='_compute_amount_and_rate')
-    amount = fields.Float(string='Amount to Pay ($)', compute='_compute_amount_and_rate', store=True, readonly=False)
+    monthly_rate = fields.Float(string='Monthly Rate ($)', compute='_compute_monthly_rate', compute_sudo=True)
+    amount = fields.Float(string='Amount to Pay ($)', compute='_compute_amount', store=True, readonly=False, compute_sudo=True)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card (Redirection)'),
         ('ecocash', 'EcoCash Mobile')
@@ -84,17 +84,30 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
         elif self.billing_cycle == '12_months':
             self.duration_months = 12
 
-    @api.depends('subscription_plan_id', 'tenant_id', 'duration_months', 'billing_cycle')
-    def _compute_amount_and_rate(self):
+    @api.depends('subscription_plan_id', 'tenant_id')
+    def _compute_monthly_rate(self):
         for wiz in self:
             tenant = wiz.tenant_id
             plan = wiz.subscription_plan_id or (tenant.pending_subscription_plan_id or tenant.subscription_plan_id if tenant else False)
             if not plan:
                 wiz.monthly_rate = 0.0
+                continue
+            if plan.is_custom and tenant:
+                extra_terms = tenant.pending_additional_terminals if tenant.pending_subscription_plan_id else (tenant.additional_terminals or 0)
+                extra_price = plan.extra_terminal_price or 12.0
+                wiz.monthly_rate = (plan.price or 12.0) + (extra_terms * extra_price)
+            else:
+                wiz.monthly_rate = plan.price or 0.0
+
+    @api.depends('subscription_plan_id', 'tenant_id', 'duration_months', 'billing_cycle')
+    def _compute_amount(self):
+        for wiz in self:
+            tenant = wiz.tenant_id
+            plan = wiz.subscription_plan_id or (tenant.pending_subscription_plan_id or tenant.subscription_plan_id if tenant else False)
+            if not plan:
                 wiz.amount = 0.0
                 continue
 
-            # Monthly base calculation
             if plan.is_custom and tenant:
                 extra_terms = tenant.pending_additional_terminals if tenant.pending_subscription_plan_id else (tenant.additional_terminals or 0)
                 extra_price = plan.extra_terminal_price or 12.0
@@ -102,10 +115,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
             else:
                 m_rate = plan.price or 0.0
 
-            wiz.monthly_rate = m_rate
             months = max(1, wiz.duration_months or 1)
-            
-            # Annual discount calculation if 12 months
             if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
                 discount = plan.annual_discount_percentage / 100.0
                 wiz.amount = m_rate * 12.0 * (1.0 - discount)

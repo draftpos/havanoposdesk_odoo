@@ -227,7 +227,28 @@ class HavanoPowerSyncController(http.Controller):
                         ], limit=1)
 
                         if existing_sale:
-                            results.append({'sale_id': item.get('sale_id'), 'status': 'already_exists', 'id': existing_sale.id, 'name': existing_sale.name})
+                            # Update fiscal data if incoming mutation contains it
+                            update_vals = {}
+                            qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url')
+                            if qr and existing_sale.fiscal_qr_code != qr:
+                                update_vals['fiscal_qr_code'] = qr
+                                update_vals['fiscal_status'] = 'fiscalized'
+                            code = sale_data.get('fiscal_verification_code') or sale_data.get('fiscal_code') or sale_data.get('custom_fiscal_verification_code') or sale_data.get('verification_code')
+                            if code and existing_sale.fiscal_verification_code != code:
+                                update_vals['fiscal_verification_code'] = code
+                            sn = sale_data.get('fiscal_device_serial') or sale_data.get('custom_fiscal_device_sn') or sale_data.get('fiscal_device_id')
+                            if sn and existing_sale.fiscal_device_serial != sn:
+                                update_vals['fiscal_device_serial'] = sn
+                            if sale_data.get('fiscal_day') and existing_sale.fiscal_day != sale_data.get('fiscal_day'):
+                                update_vals['fiscal_day'] = sale_data.get('fiscal_day')
+                            if sale_data.get('fiscal_global_no') and existing_sale.fiscal_global_no != sale_data.get('fiscal_global_no'):
+                                update_vals['fiscal_global_no'] = sale_data.get('fiscal_global_no')
+                            if sale_data.get('fiscal_receipt_counter'):
+                                update_vals['fiscal_receipt_counter'] = int(sale_data.get('fiscal_receipt_counter'))
+
+                            if update_vals:
+                                existing_sale.write(update_vals)
+                            results.append({'sale_id': item.get('sale_id'), 'status': 'updated' if update_vals else 'already_exists', 'id': existing_sale.id, 'name': existing_sale.name})
                             continue
 
                         # Resolve customer
@@ -259,6 +280,11 @@ class HavanoPowerSyncController(http.Controller):
 
                         sale_tenant_id = store.tenant_id.id if (store and store.tenant_id) else user.tenant_id.id
 
+                        fiscal_qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url') or ''
+                        fiscal_verif = sale_data.get('fiscal_verification_code') or sale_data.get('fiscal_code') or sale_data.get('custom_fiscal_verification_code') or sale_data.get('verification_code') or ''
+                        fiscal_sn = sale_data.get('fiscal_device_serial') or sale_data.get('custom_fiscal_device_sn') or sale_data.get('fiscal_device_id') or ''
+                        fiscal_stat = 'fiscalized' if fiscal_qr else (sale_data.get('fiscal_status') or sale_data.get('custom_fiscal_status') or 'not_required')
+
                         sale_vals = {
                             'tenant_id': sale_tenant_id,
                             'customer': customer.id,
@@ -275,8 +301,13 @@ class HavanoPowerSyncController(http.Controller):
                             'posting_date': sale_data.get('posting_date') or fields.Date.context_today(user),
                             'is_return': bool(sale_data.get('is_return')),
                             'is_quotation': bool(sale_data.get('is_quotation')),
-                            'fiscal_code': sale_data.get('fiscal_code') or '',
-                            'qr_code': sale_data.get('fiscal_qr_code') or '',
+                            'fiscal_status': fiscal_stat,
+                            'fiscal_qr_code': fiscal_qr,
+                            'fiscal_verification_code': fiscal_verif,
+                            'fiscal_device_serial': fiscal_sn,
+                            'fiscal_day': sale_data.get('fiscal_day') or '',
+                            'fiscal_global_no': sale_data.get('fiscal_global_no') or '',
+                            'fiscal_receipt_counter': int(sale_data.get('fiscal_receipt_counter') or 0),
                         }
 
                         new_sale = SaleModel.create(sale_vals)

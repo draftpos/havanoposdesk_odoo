@@ -11,15 +11,27 @@
                 <field name="user_name" string="User / Cashier"/>
                 <field name="ip_address" string="IP Address"/>
                 <field name="model_description" string="Entity / Module"/>
+                <field name="timestamp" string="Custom Date Range"/>
 
                 <filter name="filter_create" string="Creations" domain="[('action_type', '=', 'create')]"/>
                 <filter name="filter_write" string="Edits / Updates" domain="[('action_type', '=', 'write')]"/>
                 <filter name="filter_unlink" string="Deletions" domain="[('action_type', '=', 'unlink')]"/>
                 <filter name="filter_action" string="Custom Actions" domain="[('action_type', '=', 'action')]"/>
                 <separator/>
+                <filter name="filter_today" string="Today" domain="[('timestamp', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00'))]"/>
+                <filter name="filter_yesterday" string="Yesterday" domain="[('timestamp', '&gt;=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d 00:00:00')), ('timestamp', '&lt;=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                <filter name="filter_last_2_days" string="Last 2 Days" domain="[('timestamp', '&gt;=', (context_today() - datetime.timedelta(days=2)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                <filter name="filter_last_3_days" string="Last 3 Days" domain="[('timestamp', '&gt;=', (context_today() - datetime.timedelta(days=3)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                <filter name="filter_last_4_days" string="Last 4 Days" domain="[('timestamp', '&gt;=', (context_today() - datetime.timedelta(days=4)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                <filter name="filter_last_7_days" string="Last 7 Days (1 Week)" domain="[('timestamp', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                <filter name="filter_last_10_days" string="Last 10 Days" domain="[('timestamp', '&gt;=', (context_today() - datetime.timedelta(days=10)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                <filter name="filter_last_14_days" string="Last 14 Days (2 Weeks)" domain="[('timestamp', '&gt;=', (context_today() - datetime.timedelta(days=14)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                <filter name="filter_last_1_month" string="Last 1 Month (30 Days)" domain="[('timestamp', '&gt;=', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                <separator/>
                 <filter name="filter_archived" string="Archived" domain="[('active', '=', False)]"/>
 
                 <group>
+                    <filter name="group_tenant" string="Tenant" context="{'group_by': 'tenant_id'}"/>
                     <filter name="group_user" string="User" context="{'group_by': 'user_name'}"/>
                     <filter name="group_model" string="Entity / Module" context="{'group_by': 'model_description'}"/>
                     <filter name="group_action" string="Action Type" context="{'group_by': 'action_type'}"/>
@@ -35,13 +47,14 @@
         <field name="model">havanoposdesk.audit.log</field>
         <field name="arch" type="xml">
             <list string="Activity Logs" create="0" edit="0" delete="0">
-                <field name="timestamp" string="Time"/>
-                <field name="user_name" string="User"/>
-                <field name="action_type" string="Action"/>
-                <field name="model_description" string="Entity / Type"/>
-                <field name="record_name" string="Record / Reference"/>
-                <field name="ip_address" string="Client IP"/>
-                <field name="changes_summary" string="Changes Summary"/>
+                <field name="timestamp" string="Time" optional="show"/>
+                <field name="tenant_id" string="Tenant" optional="show"/>
+                <field name="user_name" string="User" optional="show"/>
+                <field name="action_type" string="Action" optional="show"/>
+                <field name="model_description" string="Entity / Type" optional="show"/>
+                <field name="record_name" string="Record / Reference" optional="show"/>
+                <field name="ip_address" string="Client IP" optional="show"/>
+                <field name="changes_summary" string="Changes Summary" optional="show"/>
                 <field name="store_id" string="Store / Branch" optional="show"/>
             </list>
         </field>

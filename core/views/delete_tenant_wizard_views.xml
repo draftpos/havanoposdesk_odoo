@@ -8,7 +8,7 @@
             <field name="arch" type="xml">
                 <form string="Permanently Delete Tenant">
                     <div class="alert alert-danger" role="alert" style="margin-bottom: 20px;">
-                        <h4 class="alert-heading font-weight-bold">
+                        <h4 class="fw-bold font-weight-bold">
                             <i class="fa fa-exclamation-triangle me-2"/> CRITICAL WARNING: Permanent Data Destruction
                         </h4>
                         <p class="mb-1">

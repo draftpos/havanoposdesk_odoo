@@ -2008,19 +2008,50 @@ class HavanoPOSDeskAPI(http.Controller):
                 tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
                 
         # Resolve POS terminal / profile
-        terminal_name = data.get('pos_profile')
+        terminal_name = data.get('pos_profile') or data.get('terminal_name') or data.get('terminal') or data.get('pos_terminal')
         terminal = False
-        if terminal_name:
+        if data.get('terminal_id'):
+            try:
+                t_id = int(data.get('terminal_id'))
+                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('id', '=', t_id)
+                ], limit=1)
+            except Exception:
+                pass
+        if not terminal and terminal_name:
             terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
                 ('tenant_id', '=', tenant.id),
-                ('name', '=', terminal_name)
+                ('name', '=ilike', str(terminal_name).strip())
             ], limit=1)
+        hw_id = data.get('device_hardware_id') or data.get('hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('hardware-id')
+        if not terminal and hw_id:
+            terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('device_hardware_id', '=', str(hw_id).strip())
+            ], limit=1)
+        raw_local_id = data.get('reference_number') or data.get('local_invoice_id')
+        if not terminal and raw_local_id and '-' in str(raw_local_id):
+            cand_pfx = str(raw_local_id).split('-')[0].strip()
+            if cand_pfx:
+                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('sequence_prefix', '=ilike', cand_pfx)
+                ], limit=1)
         if not terminal and user:
             terminal = user.selected_terminal_id
             
         store = self._get_current_store(user, tenant, data)
         if not store and terminal:
             store = terminal.store_id
+
+        if not terminal and store:
+            store_terminals = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                ('store_id', '=', store.id),
+                ('tenant_id', '=', tenant.id)
+            ])
+            if store_terminals:
+                terminal = store_terminals[0]
             
         if not store:
             return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -2029,13 +2060,20 @@ class HavanoPOSDeskAPI(http.Controller):
         if not tz_valid:
             return request.make_response(json.dumps({'error': tz_err}), headers=[('Content-Type', 'application/json')], status=400)
 
-        local_invoice_id = data.get('reference_number') or data.get('local_invoice_id')
+        local_invoice_id = raw_local_id
         if not local_invoice_id:
             return request.make_response(json.dumps({'error': 'reference_number is required when making a sale'}), headers=[('Content-Type', 'application/json')], status=400)
+
+        # Standardize local_invoice_id with hardware sequence prefix if terminal assigned
+        if terminal and terminal.sequence_prefix:
+            pfx = terminal.sequence_prefix.strip()
+            str_loc = str(local_invoice_id).strip()
+            if not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
+                local_invoice_id = f"{pfx}-{str_loc}"
             
         existing_sale = request.env['havanoposdesk.sale'].sudo().search([
             ('tenant_id', '=', tenant.id),
-            ('local_invoice_id', '=', local_invoice_id)
+            '|', ('local_invoice_id', '=', local_invoice_id), ('local_invoice_id', '=', raw_local_id)
         ], limit=1)
         if existing_sale:
             res_data = {
@@ -2150,10 +2188,29 @@ class HavanoPOSDeskAPI(http.Controller):
             'payment_status': payment_vals['payment_status'],
             'payment_policy': payment_vals['payment_policy'],
             'local_invoice_id': local_invoice_id,
-            'app_version': data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version'),
+            'app_version': data.get('app_version') or data.get('appVersion') or data.get('desktop_version') or data.get('desktopVersion') or data.get('client_version') or data.get('pos_version') or data.get('version') or request.httprequest.headers.get('desktop-version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version') or request.httprequest.headers.get('x-app-version'),
             'is_return': is_return_val,
             'return_id': return_id_val if return_id_val else False,
         }
+        fiscal_qr = data.get('fiscal_qr_code') or data.get('qr_code') or data.get('custom_fiscal_qr_code') or data.get('qr_code_url')
+        if fiscal_qr:
+            sale_vals['fiscal_qr_code'] = fiscal_qr
+            sale_vals['fiscal_status'] = 'fiscalized'
+        elif data.get('fiscal_status') or data.get('custom_fiscal_status'):
+            sale_vals['fiscal_status'] = data.get('fiscal_status') or data.get('custom_fiscal_status')
+        fiscal_verif = data.get('fiscal_verification_code') or data.get('fiscal_code') or data.get('custom_fiscal_verification_code') or data.get('verification_code')
+        if fiscal_verif:
+            sale_vals['fiscal_verification_code'] = fiscal_verif
+        fiscal_sn = data.get('fiscal_device_serial') or data.get('custom_fiscal_device_sn') or data.get('fiscal_device_id')
+        if fiscal_sn:
+            sale_vals['fiscal_device_serial'] = fiscal_sn
+        if data.get('fiscal_day'):
+            sale_vals['fiscal_day'] = data.get('fiscal_day')
+        if data.get('fiscal_global_no'):
+            sale_vals['fiscal_global_no'] = data.get('fiscal_global_no')
+        if data.get('fiscal_receipt_counter'):
+            sale_vals['fiscal_receipt_counter'] = int(data.get('fiscal_receipt_counter'))
+
         if payment_vals.get('account_id'):
             sale_vals['account_id'] = payment_vals['account_id']
         if payment_vals.get('single_payment_amount') is not None:
@@ -2167,10 +2224,129 @@ class HavanoPOSDeskAPI(http.Controller):
             'data': {
                 'name': sale.name,
                 'customer': customer.name,
-                'amount_total': sale.amount_total
+                'amount_total': sale.amount_total,
+                'local_invoice_id': sale.local_invoice_id or '',
+                'fiscal_status': sale.fiscal_status or '',
+                'fiscal_qr_code': sale.fiscal_qr_code or '',
+                'qr_code_url': sale.fiscal_qr_code or '',
+                'verification_code': sale.fiscal_verification_code or '',
             }
         }
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
+
+
+    # UPDATE INVOICE FISCAL DATA (FOR WEB REPRINTS & FRACTIONAL / RETRY FISCALIZATION)
+    @http.route([
+        '/api/method/havano_pos_integration.api.update_invoice_fiscal_data',
+        '/api/method/saas_api.www.api.update_invoice_fiscal_data',
+        '/api/resource/Sales Invoice/update_fiscal',
+        '/api/method/frappe.client.set_value'
+    ], auth='public', methods=['POST', 'PUT', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_update_invoice_fiscal_data(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        params = self._get_request_json()
+        if not token:
+            token = params.get('token')
+
+        uid, login = self._verify_token(token)
+        if not uid:
+            user = self._get_user()
+            uid = user.id
+
+        env, custom_cr = self._get_env(user_id=uid)
+        try:
+            authenticated_user = env['res.users'].browse(uid)
+            tenant = authenticated_user.tenant_id
+
+            # Support frappe.client.set_value format:
+            # { doctype: "Sales Invoice", name: "...", fieldname: { ... } or fieldname: "...", value: "..." }
+            fieldname_arg = params.get('fieldname')
+            value_arg = params.get('value')
+            doc_name = params.get('name') or params.get('online_id') or params.get('invoice_name') or params.get('local_invoice_id') or params.get('reference_number')
+
+            qr_code = params.get('qr_code') or params.get('fiscal_qr_code') or params.get('custom_fiscal_qr_code') or params.get('qr_code_url')
+            verification_code = params.get('verification_code') or params.get('fiscal_verification_code') or params.get('custom_fiscal_verification_code') or params.get('fiscal_code')
+            device_sn = params.get('device_sn') or params.get('fiscal_device_serial') or params.get('custom_fiscal_device_sn') or params.get('fiscal_device_id')
+            fiscal_status = params.get('fiscal_status') or params.get('custom_fiscal_status')
+
+            if isinstance(fieldname_arg, dict):
+                qr_code = qr_code or fieldname_arg.get('custom_fiscal_qr_code') or fieldname_arg.get('fiscal_qr_code') or fieldname_arg.get('qr_code')
+                verification_code = verification_code or fieldname_arg.get('custom_fiscal_verification_code') or fieldname_arg.get('fiscal_verification_code') or fieldname_arg.get('fiscal_code')
+                device_sn = device_sn or fieldname_arg.get('custom_fiscal_device_sn') or fieldname_arg.get('fiscal_device_serial')
+                fiscal_status = fiscal_status or fieldname_arg.get('custom_fiscal_status') or fieldname_arg.get('fiscal_status')
+            elif isinstance(fieldname_arg, str):
+                if 'qr' in fieldname_arg.lower():
+                    qr_code = qr_code or value_arg
+                elif 'verif' in fieldname_arg.lower() or 'code' in fieldname_arg.lower():
+                    verification_code = verification_code or value_arg
+                elif 'status' in fieldname_arg.lower():
+                    fiscal_status = fiscal_status or value_arg
+                elif 'serial' in fieldname_arg.lower() or 'sn' in fieldname_arg.lower() or 'device' in fieldname_arg.lower():
+                    device_sn = device_sn or value_arg
+
+            if not doc_name:
+                return self._make_json_response({'error': 'name or online_id is required'}, status=400)
+
+            domain = []
+            if tenant and authenticated_user.havano_role != 'super_admin':
+                domain.append(('tenant_id', '=', tenant.id))
+
+            sale = False
+            if isinstance(doc_name, int) or (isinstance(doc_name, str) and str(doc_name).isdigit()):
+                sale = env['havanoposdesk.sale'].search(domain + [('id', '=', int(doc_name))], limit=1)
+            if not sale:
+                sale = env['havanoposdesk.sale'].search(domain + [
+                    '|', ('name', '=', str(doc_name).strip()),
+                    ('local_invoice_id', '=', str(doc_name).strip())
+                ], limit=1)
+            if not sale:
+                # Fallback across database if token wasn't scoped or for super_admin / background sync
+                sale = env['havanoposdesk.sale'].search([
+                    '|', ('name', '=', str(doc_name).strip()),
+                    ('local_invoice_id', '=', str(doc_name).strip())
+                ], limit=1)
+
+            if not sale:
+                return self._make_json_response({'error': f"Sales Invoice or Credit Note '{doc_name}' not found"}, status=404)
+
+            update_vals = {}
+            if qr_code:
+                update_vals['fiscal_qr_code'] = qr_code
+                update_vals['fiscal_status'] = 'fiscalized'
+            elif fiscal_status:
+                update_vals['fiscal_status'] = fiscal_status
+            if verification_code:
+                update_vals['fiscal_verification_code'] = verification_code
+            if device_sn:
+                update_vals['fiscal_device_serial'] = device_sn
+            if params.get('fiscal_day'):
+                update_vals['fiscal_day'] = params.get('fiscal_day')
+            if params.get('fiscal_global_no'):
+                update_vals['fiscal_global_no'] = params.get('fiscal_global_no')
+            if params.get('fiscal_receipt_counter'):
+                update_vals['fiscal_receipt_counter'] = int(params.get('fiscal_receipt_counter'))
+
+            if update_vals:
+                sale.sudo().write(update_vals)
+
+            return self._make_json_response({
+                'message': 'success',
+                'data': {
+                    'name': sale.name,
+                    'id': sale.id,
+                    'local_invoice_id': sale.local_invoice_id or '',
+                    'fiscal_status': sale.fiscal_status or '',
+                    'fiscal_qr_code': sale.fiscal_qr_code or '',
+                    'fiscal_verification_code': sale.fiscal_verification_code or '',
+                    'is_return': sale.is_return,
+                }
+            }, status=200)
+        except Exception as e:
+            return self._make_json_response({'error': str(e)}, status=500)
+
 
 
     # 7. CREATE POS OPENING ENTRY
@@ -3697,6 +3873,35 @@ class HavanoPOSDeskAPI(http.Controller):
                             ('local_invoice_id', '=', local_invoice_id)
                         ], limit=1)
                         if existing_sale:
+                            qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url')
+                            code = sale_data.get('fiscal_verification_code') or sale_data.get('fiscal_code') or sale_data.get('custom_fiscal_verification_code') or sale_data.get('verification_code')
+                            sn = sale_data.get('fiscal_device_serial') or sale_data.get('custom_fiscal_device_sn') or sale_data.get('fiscal_device_id')
+                            update_vals = {}
+                            if qr and existing_sale.fiscal_qr_code != qr:
+                                update_vals['fiscal_qr_code'] = qr
+                                update_vals['fiscal_status'] = 'fiscalized'
+                            if code and existing_sale.fiscal_verification_code != code:
+                                update_vals['fiscal_verification_code'] = code
+                            if sn and existing_sale.fiscal_device_serial != sn:
+                                update_vals['fiscal_device_serial'] = sn
+                            if sale_data.get('fiscal_day') and existing_sale.fiscal_day != sale_data.get('fiscal_day'):
+                                update_vals['fiscal_day'] = sale_data.get('fiscal_day')
+                            if sale_data.get('fiscal_global_no') and existing_sale.fiscal_global_no != sale_data.get('fiscal_global_no'):
+                                update_vals['fiscal_global_no'] = sale_data.get('fiscal_global_no')
+                            if sale_data.get('fiscal_receipt_counter'):
+                                update_vals['fiscal_receipt_counter'] = int(sale_data.get('fiscal_receipt_counter'))
+                            if update_vals:
+                                existing_sale.sudo().write(update_vals)
+                                responses.append({
+                                    "name": existing_sale.name,
+                                    "id": existing_sale.id,
+                                    "local_invoice_id": local_invoice_id,
+                                    "status": "updated_fiscal",
+                                    "fiscal_status": existing_sale.fiscal_status or 'fiscalized',
+                                    "fiscal_qr_code": existing_sale.fiscal_qr_code or '',
+                                    "fiscal_verification_code": existing_sale.fiscal_verification_code or '',
+                                })
+                                continue
                             return self._make_json_response({
                                 "error": f"Sale with local_invoice_id '{local_invoice_id}' already exists in cloud",
                                 "existing_sale": existing_sale.name,
@@ -3876,11 +4081,30 @@ class HavanoPOSDeskAPI(http.Controller):
                             'payment_status': payment_status,
                             'payment_policy': payment_policy,
                             'local_invoice_id': local_invoice_id,
-                            'app_version': sale_data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version'),
+                            'app_version': sale_data.get('app_version') or sale_data.get('appVersion') or sale_data.get('desktop_version') or sale_data.get('desktopVersion') or sale_data.get('client_version') or sale_data.get('pos_version') or sale_data.get('version') or request.httprequest.headers.get('desktop-version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version') or request.httprequest.headers.get('x-app-version'),
                             'is_quotation': is_quotation,
                             'is_return': is_return_val,
                             'return_id': return_id_val if return_id_val else False,
                         }
+                        fiscal_qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url')
+                        if fiscal_qr:
+                            sale_vals['fiscal_qr_code'] = fiscal_qr
+                            sale_vals['fiscal_status'] = 'fiscalized'
+                        elif sale_data.get('fiscal_status') or sale_data.get('custom_fiscal_status'):
+                            sale_vals['fiscal_status'] = sale_data.get('fiscal_status') or sale_data.get('custom_fiscal_status')
+                        fiscal_verif = sale_data.get('fiscal_verification_code') or sale_data.get('fiscal_code') or sale_data.get('custom_fiscal_verification_code') or sale_data.get('verification_code')
+                        if fiscal_verif:
+                            sale_vals['fiscal_verification_code'] = fiscal_verif
+                        fiscal_sn = sale_data.get('fiscal_device_serial') or sale_data.get('custom_fiscal_device_sn') or sale_data.get('fiscal_device_id')
+                        if fiscal_sn:
+                            sale_vals['fiscal_device_serial'] = fiscal_sn
+                        if sale_data.get('fiscal_day'):
+                            sale_vals['fiscal_day'] = sale_data.get('fiscal_day')
+                        if sale_data.get('fiscal_global_no'):
+                            sale_vals['fiscal_global_no'] = sale_data.get('fiscal_global_no')
+                        if sale_data.get('fiscal_receipt_counter'):
+                            sale_vals['fiscal_receipt_counter'] = int(sale_data.get('fiscal_receipt_counter'))
+
                         if pricelist_id:
                             sale_vals['pricelist_id'] = pricelist_id
                         if account_id:
@@ -9272,8 +9496,12 @@ class HavanoPOSDeskAPI(http.Controller):
             if not user:
                 user = env['res.users'].browse(uid)
 
-            shop = env['havanoposdesk.store'].sudo().browse(shop_id)
-            if not shop.exists() or (user.tenant_id and shop.tenant_id.id != user.tenant_id.id):
+            shop = None
+            if isinstance(shop_id, int) or (isinstance(shop_id, str) and str(shop_id).isdigit()):
+                shop = env['havanoposdesk.store'].sudo().browse(int(shop_id))
+            elif isinstance(shop_id, str):
+                shop = env['havanoposdesk.store'].sudo().search([('name', '=', shop_id)], limit=1)
+            if not shop or not shop.exists() or (user.tenant_id and shop.tenant_id.id != user.tenant_id.id):
                 return self._make_json_response({"error": "Invalid shop selection"}, status=400)
 
             if user.selected_shop_id.id != shop.id:
@@ -9317,7 +9545,10 @@ class HavanoPOSDeskAPI(http.Controller):
 
             domain = []
             if terminal_id:
-                domain.append(('id', '=', int(terminal_id)))
+                if isinstance(terminal_id, int) or (isinstance(terminal_id, str) and str(terminal_id).isdigit()):
+                    domain.append(('id', '=', int(terminal_id)))
+                else:
+                    domain.append(('name', '=', str(terminal_id)))
             if device_hardware_id:
                 domain.append(('device_hardware_id', '=', device_hardware_id))
 
@@ -9326,12 +9557,20 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"error": "Terminal not found"}, status=404)
 
             from odoo import fields as odoo_fields
-            terminal.write({
-                'last_seen': odoo_fields.Datetime.now(),
-                'status': 'online'
-            })
-            if custom_cr:
-                custom_cr.commit()
+            try:
+                terminal.write({
+                    'last_seen': odoo_fields.Datetime.now(),
+                    'status': 'online'
+                })
+                if custom_cr:
+                    custom_cr.commit()
+            except Exception as write_err:
+                if custom_cr:
+                    try:
+                        custom_cr.rollback()
+                    except Exception:
+                        pass
+                _logger.info("Concurrent lock during terminal ping update, skipped safely: %s", write_err)
             return self._make_json_response({"message": "Pong", "status": "online"}, status=200)
         except Exception as e:
             if custom_cr:

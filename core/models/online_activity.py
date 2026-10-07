@@ -14,7 +14,17 @@ class HavanoOnlineActivity(models.Model):
     havano_role = fields.Selection(related='user_id.havano_role', string='Role', store=True, readonly=True)
 
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', index=True, required=True)
+    tenant_ref_id = fields.Integer(related='tenant_id.id', string='Tenant ID', store=True, readonly=True)
     store_id = fields.Many2one('havanoposdesk.store', string='Store', index=True)
+    store_name = fields.Char(related='store_id.name', string='Store Name', store=True, readonly=True)
+    admin_name = fields.Char(related='tenant_id.admin_name', string='Admin Name', store=True, readonly=True)
+    email = fields.Char(related='tenant_id.email', string='Email', store=True, readonly=True)
+    phone = fields.Char(related='tenant_id.phone', string='Phone', store=True, readonly=True)
+    address = fields.Text(related='tenant_id.address', string='Address', store=True, readonly=True)
+    city = fields.Char(related='tenant_id.city', string='City', store=True, readonly=True)
+    sales_rep = fields.Char(related='tenant_id.sales_rep', string='Sales Rep', store=True, readonly=True)
+    technician = fields.Char(related='tenant_id.technician', string='Technician', store=True, readonly=True)
+    owner_whatsapp = fields.Char(related='tenant_id.owner_whatsapp', string='Verified WhatsApp (Owner)', store=True, readonly=True)
     terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string='POS Terminal', index=True)
     device_hardware_id = fields.Char(string='Hardware ID', index=True)
     device_name = fields.Char(string='Device Name', compute='_compute_device_info', store=True)
@@ -256,7 +266,50 @@ class HavanoOnlineActivity(models.Model):
                     vals['last_activity'] = last_seen
                 if vals:
                     exist.write(vals)
+
+        # 3. Ensure every Tenant has at least one activity tracking record
+        Tenants = self.env['havanoposdesk.tenant'].sudo().search([])
+        AuditLogs = self.env['havanoposdesk.audit.log'].sudo()
+        Sales = self.env['havanoposdesk.sale'].sudo()
+        for t in Tenants:
+            exist = self.search([('tenant_id', '=', t.id)], limit=1)
+            if not exist:
+                last_time = None
+                user_id = False
+                last_log = AuditLogs.search([('tenant_id', '=', t.id)], order='timestamp desc', limit=1)
+                if last_log and last_log.timestamp:
+                    last_time = last_log.timestamp
+                    user_id = last_log.user_id.id if last_log.user_id else False
+                if not last_time:
+                    last_sale = Sales.search([('tenant_id', '=', t.id)], order='date_order desc', limit=1)
+                    if last_sale and last_sale.date_order:
+                        last_time = last_sale.date_order
+                        user_id = last_sale.user_id.id if getattr(last_sale, 'user_id', None) else False
+                if not last_time:
+                    last_time = t.create_date or fields.Datetime.now()
+                if not user_id and t.user_ids:
+                    user_id = t.user_ids[0].id
+
+                store_id = t.store_ids[0].id if getattr(t, 'store_ids', None) and t.store_ids else False
+                self.create({
+                    'tenant_id': t.id,
+                    'store_id': store_id,
+                    'user_id': user_id,
+                    'platform': 'desktop_pos',
+                    'login_time': last_time,
+                    'last_activity': last_time,
+                })
+
         return True
+
+    @api.model
+    def web_search_read(self, *args, **kwargs):
+        if self.sudo().search_count([]) == 0:
+            try:
+                self.sudo().sync_historical_activities()
+            except Exception:
+                pass
+        return super().web_search_read(*args, **kwargs)
 
     @api.model
     def _cron_update_activity_statuses(self):

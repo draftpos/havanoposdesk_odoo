@@ -7,8 +7,8 @@ class HavanoposdeskStore(models.Model):
     _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Store'
 
-    _constraints = [
-        models.Constraint('unique (name, tenant_id)', 'Store name must be unique per tenant!')
+    _sql_constraints = [
+        ('store_name_tenant_unique', 'unique (name, tenant_id)', 'Store name must be unique per tenant!')
     ]
 
     name = fields.Char(string='Store Name', required=True)
@@ -42,7 +42,7 @@ class HavanoposdeskStore(models.Model):
         'havanoposdesk.pricelist', 
         string='Default Pricelist',
         domain="[('id', 'in', pricelist_ids)]",
-        required=True
+        required=False
     )
     active = fields.Boolean(string='Active', default=True)
     is_default = fields.Boolean(string='Is Default', default=False)

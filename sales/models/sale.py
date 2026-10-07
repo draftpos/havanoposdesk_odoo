@@ -11,8 +11,8 @@ class Sale(models.Model):
     _description = 'Sale'
     _order = 'date desc, id desc'
 
-    _constraints = [
-        models.Constraint('unique(local_invoice_id, tenant_id)', 'The Local Invoice ID must be unique per tenant!')
+    _sql_constraints = [
+        ('sale_local_invoice_tenant_unique', 'unique(local_invoice_id, tenant_id)', 'The Local Invoice ID must be unique per tenant!')
     ]
 
     def _default_posting_time(self):
@@ -84,7 +84,7 @@ class Sale(models.Model):
     payment_status_display = fields.Selection([
         ('cash', 'Paid'),
         ('account', 'On Account')
-    ], string='Payment Status', compute='_compute_payment_status_display', inverse='_inverse_payment_status_display')
+    ], string='Payment Status (Display)', compute='_compute_payment_status_display', inverse='_inverse_payment_status_display')
     payment_policy = fields.Selection([
         ('single', 'Single Payment'),
         ('multi', 'Split / Multi-Currency Payment')
@@ -240,10 +240,10 @@ class Sale(models.Model):
 
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
     amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
-    amount_paid_base = fields.Float(string='Paid (Base)', compute='_compute_amount_paid_base', store=True)
-    amount_balance_base = fields.Float(string='Balance Due (Base)', compute='_compute_amount_paid_base', store=True)
-    amount_paid = fields.Float(string='Paid Amount', compute='_compute_amount_paid_base')
-    amount_balance = fields.Float(string='Balance Due', compute='_compute_amount_paid_base')
+    amount_paid_base = fields.Float(string='Paid (Base)', compute='_compute_amount_paid_base', store=True, compute_sudo=True)
+    amount_balance_base = fields.Float(string='Balance Due (Base)', compute='_compute_amount_paid_base', store=True, compute_sudo=True)
+    amount_paid = fields.Float(string='Paid Amount', compute='_compute_amount_paid', compute_sudo=True)
+    amount_balance = fields.Float(string='Balance Due', compute='_compute_amount_paid', compute_sudo=True)
     single_payment_amount = fields.Float(string='Payment Amount', compute='_compute_single_payment_amount', store=True, readonly=False)
     
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
@@ -353,22 +353,38 @@ class Sale(models.Model):
             valid_payments = record.payment_ids.filtered(
                 lambda p: p.state in valid_states and p.payment_type == expected_type
             )
-
-            target_total = abs(record.amount_total)
             target_total_base = abs(record.amount_total_base)
 
-            if record.payment_policy == 'multi':
+            if record.payment_policy == 'multi' or record.payment_status == 'account':
                 record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
-                paid_doc = 0.0
-                for payment in valid_payments:
-                    if payment.currency_id == record.currency_id:
-                        paid_doc += payment.amount
-                    else:
-                        rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
-                        paid_doc += payment.amount_base * rate
-                record.amount_paid = paid_doc
-            elif record.payment_status == 'account':
-                record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+            else:
+                if record.state in ('confirmed', 'done') and valid_payments:
+                    record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+                else:
+                    target_total = abs(record.amount_total)
+                    raw_amount = record.single_payment_amount if record.single_payment_amount > 0 else target_total
+                    payment_amount = abs(raw_amount)
+                    rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                    record.amount_paid_base = payment_amount / rate
+
+            record.amount_balance_base = max(target_total_base - record.amount_paid_base, 0.0)
+
+    @api.depends(
+        'payment_ids.amount', 'payment_ids.amount_base', 'payment_ids.state',
+        'payment_ids.payment_type', 'payment_ids.currency_id', 'amount_total',
+        'payment_status', 'payment_policy', 'single_payment_amount',
+        'currency_id', 'exchange_rate', 'state'
+    )
+    def _compute_amount_paid(self):
+        for record in self:
+            valid_states = ('posted',) if record.state in ('confirmed', 'done') else ('draft', 'posted')
+            expected_type = 'payment' if record.is_return else 'receipt'
+            valid_payments = record.payment_ids.filtered(
+                lambda p: p.state in valid_states and p.payment_type == expected_type
+            )
+            target_total = abs(record.amount_total)
+
+            if record.payment_policy == 'multi' or record.payment_status == 'account':
                 paid_doc = 0.0
                 for payment in valid_payments:
                     if payment.currency_id == record.currency_id:
@@ -379,7 +395,6 @@ class Sale(models.Model):
                 record.amount_paid = paid_doc
             else:
                 if record.state in ('confirmed', 'done') and valid_payments:
-                    record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
                     paid_doc = 0.0
                     for payment in valid_payments:
                         if payment.currency_id == record.currency_id:
@@ -390,12 +405,8 @@ class Sale(models.Model):
                     record.amount_paid = paid_doc
                 else:
                     raw_amount = record.single_payment_amount if record.single_payment_amount > 0 else target_total
-                    payment_amount = abs(raw_amount)
-                    record.amount_paid = payment_amount
-                    rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
-                    record.amount_paid_base = payment_amount / rate
+                    record.amount_paid = abs(raw_amount)
 
-            record.amount_balance_base = max(target_total_base - record.amount_paid_base, 0.0)
             record.amount_balance = max(target_total - record.amount_paid, 0.0)
 
     @api.depends('amount_total', 'payment_policy', 'payment_status', 'is_return')
@@ -481,6 +492,42 @@ class Sale(models.Model):
                 store = self.env['havanoposdesk.store'].browse(vals['store_id'])
                 if store:
                     vals['store'] = store.name
+
+            # Resolve terminal if missing and ensure hardware prefix consistency
+            if not vals.get('terminal_id'):
+                loc_id = vals.get('local_invoice_id')
+                if loc_id and '-' in str(loc_id):
+                    cand_prefix = str(loc_id).split('-')[0].strip()
+                    if cand_prefix:
+                        term = self.env['havanoposdesk.pos.terminal'].sudo().search([
+                            ('sequence_prefix', '=ilike', cand_prefix),
+                            ('tenant_id', '=', tenant_id)
+                        ], limit=1)
+                        if term:
+                            vals['terminal_id'] = term.id
+                if not vals.get('terminal_id') and self.env.user.selected_terminal_id:
+                    vals['terminal_id'] = self.env.user.selected_terminal_id.id
+                if not vals.get('terminal_id') and vals.get('store_id'):
+                    store_terms = self.env['havanoposdesk.pos.terminal'].sudo().search([
+                        ('store_id', '=', vals.get('store_id')),
+                        ('tenant_id', '=', tenant_id)
+                    ])
+                    if store_terms:
+                        vals['terminal_id'] = store_terms[0].id
+
+            # Ensure local_invoice_id carries the terminal sequence prefix consistently
+            if vals.get('terminal_id'):
+                term = self.env['havanoposdesk.pos.terminal'].sudo().browse(vals['terminal_id'])
+                if term and term.sequence_prefix:
+                    pfx = term.sequence_prefix.strip()
+                    loc_id = vals.get('local_invoice_id')
+                    if loc_id:
+                        str_loc = str(loc_id).strip()
+                        if not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
+                            vals['local_invoice_id'] = f"{pfx}-{str_loc}"
+                    elif not vals.get('is_quotation'):
+                        next_num = self.search_count([('terminal_id', '=', term.id)]) + 1
+                        vals['local_invoice_id'] = f"{pfx}-{str(next_num).zfill(4)}"
 
             # Store timezone validation safeguard
             client_tz = vals.get('timezone') or vals.get('tz') or vals.get('device_tz') or self.env.context.get('client_tz')
@@ -999,6 +1046,14 @@ class Sale(models.Model):
 class SaleLine(models.Model):
     _name = 'havanoposdesk.sale.line'
     _description = 'Sale Line'
+    _order = 'sequence, id'
+
+    sequence = fields.Integer(string='Sequence', default=10)
+    display_type = fields.Selection([
+        ('line_section', 'Section'),
+        ('line_note', 'Note'),
+    ], default=False, string='Display Type')
+    name = fields.Text(string='Description')
 
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
@@ -1010,7 +1065,7 @@ class SaleLine(models.Model):
     store_id = fields.Many2one(related='sale_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='sale_id.currency_id', readonly=True)
     exchange_rate = fields.Float(related='sale_id.exchange_rate', readonly=True)
-    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True, domain="[('not_for_sale', '=', False), ('is_active', '=', True)]")
+    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=False, domain="[('not_for_sale', '=', False), ('is_active', '=', True)]")
     variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
@@ -1037,10 +1092,16 @@ class SaleLine(models.Model):
     cost_price = fields.Float(string='Cost Price', compute='_compute_cost_price', store=True, readonly=False)
     gross_profit = fields.Float(string='Gross Profit', compute='_compute_gross_profit', store=True)
 
+    @api.constrains('display_type', 'product_id')
+    def _check_product_or_section(self):
+        for line in self:
+            if not line.display_type and not line.product_id:
+                raise ValidationError(_("A product is required for normal order lines."))
+
     @api.constrains('product_id')
     def _check_product_not_for_sale(self):
         for line in self:
-            if line.product_id and line.product_id.not_for_sale:
+            if not line.display_type and line.product_id and line.product_id.not_for_sale:
                 raise ValidationError(_("The product '%s' is marked as 'Not for Sale' and cannot be added to sales.") % line.product_id.name)
 
     def _resolve_uom_multiplier(self, product_id, uom_id):
@@ -1087,17 +1148,20 @@ class SaleLine(models.Model):
                 break  # same UOM applied to all lines in the same write call
         return super().write(vals)
 
-    @api.depends('price_subtotal', 'cost_price', 'accepted_qty', 'sale_id.is_return')
+    @api.depends('price_subtotal', 'cost_price', 'accepted_qty', 'sale_id.is_return', 'display_type')
     def _compute_gross_profit(self):
         for line in self:
+            if line.display_type:
+                line.gross_profit = 0.0
+                continue
             sign = -1.0 if line.sale_id.is_return else 1.0
             total_cost = line.cost_price * line.accepted_qty * sign
             line.gross_profit = line.price_subtotal - total_cost
 
-    @api.depends('product_id', 'rate')
+    @api.depends('product_id', 'rate', 'display_type')
     def _compute_cost_price(self):
         for line in self:
-            if not line.product_id:
+            if line.display_type or not line.product_id:
                 line.cost_price = 0.0
                 continue
             
@@ -1113,9 +1177,14 @@ class SaleLine(models.Model):
                 # Use normal cost (product's buying_price or cost_price)
                 line.cost_price = line.product_id.buying_price or line.product_id.cost_price or 0.0
 
-    @api.depends('accepted_qty', 'rate', 'tax_ids', 'sale_id.is_return')
+    @api.depends('accepted_qty', 'rate', 'tax_ids', 'sale_id.is_return', 'display_type')
     def _compute_amount(self):
         for record in self:
+            if record.display_type:
+                record.price_subtotal = 0.0
+                record.price_tax = 0.0
+                record.amount = 0.0
+                continue
             sign = -1.0 if record.sale_id.is_return else 1.0
             base_amount = record.accepted_qty * record.rate
             taxes = record.tax_ids
@@ -1134,7 +1203,7 @@ class SaleLine(models.Model):
             record.price_tax = (inclusive_tax_amount + exclusive_tax_amount) * sign
             record.amount = record.price_subtotal + record.price_tax
 
-    @api.depends('price_subtotal', 'price_tax', 'amount', 'exchange_rate', 'sale_id.exchange_rate', 'sale_id.currency_id', 'sale_id.tenant_currency_id')
+    @api.depends('price_subtotal', 'price_tax', 'amount', 'exchange_rate', 'sale_id.exchange_rate', 'sale_id.currency_id', 'sale_id.tenant_currency_id', 'display_type')
     def _compute_fc_amounts(self):
         """Convert line amounts into the document's foreign currency.
 
@@ -1143,6 +1212,11 @@ class SaleLine(models.Model):
         Otherwise, the document is already in foreign currency, so we store the document amounts.
         """
         for record in self:
+            if record.display_type:
+                record.price_subtotal_fc = 0.0
+                record.price_tax_fc = 0.0
+                record.amount_fc = 0.0
+                continue
             if record.sale_id.currency_id == record.sale_id.tenant_currency_id:
                 rate = record.exchange_rate if record.exchange_rate else 1.0
                 record.price_subtotal_fc = record.price_subtotal * rate

@@ -1,6 +1,6 @@
 {
     'name': 'Havano ERP (havanoposdesk_odoo)',
-    'version': '19.0.1.38',
+    'version': '19.0.1.41',
     'category': 'Sales/Point of Sale',
     'summary': 'Unified ERP backend serving Flutter POS app and Odoo UI',
     'description': """
@@ -26,7 +26,9 @@
         'core/views/saas_users_views.xml',
         'core/views/subscription_views.xml',
         'core/views/terminal_views.xml',
+        'core/views/online_activity_views.xml',
         'core/views/tenant_views.xml',
+        'core/views/tenant_analytics_views.xml',
         'core/views/cash_transfer_views.xml',
         'sales/views/report_views.xml',
         'sales/views/shift_report_templates.xml',
@@ -40,6 +42,7 @@
         'core/views/auth_templates.xml',
         'core/views/error_log_views.xml',
         'core/views/support_ticket_views.xml',
+        'core/views/database_manager_views.xml',
 
         'accounts/views/account_views.xml',
         'accounts/views/expense_views.xml',
@@ -57,6 +60,7 @@
         'inventory/wizard/variant_selector_wizard_views.xml',
         'inventory/views/stock_transfer_views.xml',
         'inventory/views/stock_entry_views.xml',
+        'inventory/views/attribute_views.xml',
         'inventory/views/report_views.xml',
         'inventory/views/inventory_mobile_kanban_views.xml',
         'suppliers/data/sequence.xml',
@@ -65,10 +69,7 @@
         'suppliers/views/supplier_views.xml',
         'suppliers/views/suppliers_mobile_kanban_views.xml',
         'sales/data/sequence.xml',
-        # Migrations
-        # 'migrations/views/migration_wizard_views.xml',
 
-        # Manufacturing
         'manufacturing/security/ir.model.access.csv',
         'manufacturing/views/bom_views.xml',
         'manufacturing/views/production_order_views.xml',
@@ -85,16 +86,17 @@
         'sales/views/daily_sales_report_views.xml',
         'sales/views/item_detailed_ledger_report_views.xml',
         'sales/views/item_summary_ledger_report_views.xml',
+        'sales/views/sales_item_tax_report_views.xml',
+        'sales/views/purchases_item_tax_report_views.xml',
         'sales/views/sale_mobile_kanban_views.xml',
+        'core/views/monitoring_views.xml',
         'core/views/clear_data_wizard_views.xml',
         'core/views/delete_tenant_wizard_views.xml',
         'core/data/clear_data_mail_templates.xml',
-        'core/views/menus.xml',
     ],
     'installable': True,
     'application': True,
     'license': 'LGPL-3',
-    'post_init_hook': 'post_migrate',
     'assets': {
         'web._assets_core': [
             ('remove', 'web/static/src/core/browser/router.js'),
@@ -140,4 +142,6 @@
             'havanoposdesk_odoo/static/src/xml/variant_selector_dialog.xml',
         ],
     },
+    'post_init_hook': 'hooks.post_init_hook',
+    'post_migrate': 'hooks.post_migrate_hook',
 }

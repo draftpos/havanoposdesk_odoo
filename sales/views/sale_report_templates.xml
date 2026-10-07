@@ -236,35 +236,56 @@
                             <tbody>
                                 <t t-set="line_idx" t-value="1"/>
                                 <t t-foreach="doc.line_ids" t-as="line">
-                                    <tr t-att-style="'background-color: #f8fafc;' if line_idx % 2 == 0 else ''">
-                                        <td class="idx-col"><span t-esc="line_idx"/></td>
-                                        <td class="desc-col"><span t-field="line.product_id.name"/></td>
-                                        <td><span t-field="line.accepted_qty"/></td>
-                                        <td><span t-field="line.rate" t-options='{"widget": "float", "precision": 2}'/></td>
-                                        
-                                        <!-- Determine Tax % and Tax Amount -->
-                                        <t t-set="tax_pct" t-value="0.0"/>
-                                        <t t-set="tax_amt" t-value="0.0"/>
-                                        <t t-if="line.tax_ids">
-                                            <t t-set="tax_pct" t-value="sum(tax.rate for tax in line.tax_ids)"/>
-                                        </t>
-                                        <t t-set="tax_amt" t-value="line.price_subtotal * (tax_pct / 100.0)"/>
-                                        <t t-set="line_total" t-value="line.price_subtotal + tax_amt"/>
+                                    <t t-if="line.display_type == 'line_section'">
+                                        <tr style="background-color: #f1f5f9; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
+                                            <td colspan="99" style="padding: 8px 12px; font-size: 13px; text-transform: uppercase; color: #0a2342; font-weight: bold; text-align: left;">
+                                                <span t-field="line.name"/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <t t-elif="line.display_type == 'line_note'">
+                                        <tr style="background-color: #ffffff; border-bottom: 1px dashed #e2e8f0;">
+                                            <td colspan="99" style="padding: 6px 12px; font-size: 12px; font-style: italic; font-weight: normal; color: #64748b; text-align: left;">
+                                                <span t-field="line.name"/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <t t-else="">
+                                        <tr t-att-style="'background-color: #f8fafc;' if line_idx % 2 == 0 else ''">
+                                            <td class="idx-col"><span t-esc="line_idx"/></td>
+                                            <td class="desc-col">
+                                                <span t-field="line.product_id.name"/>
+                                                <t t-if="line.name and line.name != line.product_id.name">
+                                                    <br/><span style="font-size: 11px; font-weight: normal; color: #64748b;" t-field="line.name"/>
+                                                </t>
+                                            </td>
+                                            <td><span t-field="line.accepted_qty"/></td>
+                                            <td><span t-field="line.rate" t-options='{"widget": "float", "precision": 2}'/></td>
+                                            
+                                            <!-- Determine Tax % and Tax Amount -->
+                                            <t t-set="tax_pct" t-value="0.0"/>
+                                            <t t-set="tax_amt" t-value="0.0"/>
+                                            <t t-if="line.tax_ids">
+                                                <t t-set="tax_pct" t-value="sum(tax.rate for tax in line.tax_ids)"/>
+                                            </t>
+                                            <t t-set="tax_amt" t-value="line.price_subtotal * (tax_pct / 100.0)"/>
+                                            <t t-set="line_total" t-value="line.price_subtotal + tax_amt"/>
 
-                                        <td><span t-esc="tax_amt" t-options='{"widget": "float", "precision": 2}'/></td>
-                                        <td><span t-esc="line_total" t-options='{"widget": "float", "precision": 2}'/></td>
+                                            <td><span t-esc="tax_amt" t-options='{"widget": "float", "precision": 2}'/></td>
+                                            <td><span t-esc="line_total" t-options='{"widget": "float", "precision": 2}'/></td>
 
-                                        <!-- Cross-currency base equivalents -->
-                                        <t t-if="doc.is_cross_currency">
-                                            <t t-set="rate_base" t-value="line.rate / doc.exchange_rate if doc.exchange_rate else line.rate"/>
-                                            <t t-set="tax_base" t-value="tax_amt / doc.exchange_rate if doc.exchange_rate else tax_amt"/>
-                                            <t t-set="total_base" t-value="line_total / doc.exchange_rate if doc.exchange_rate else line_total"/>
-                                            <td><span t-esc="rate_base" t-options='{"widget": "float", "precision": 2}'/></td>
-                                            <td><span t-esc="tax_base" t-options='{"widget": "float", "precision": 2}'/></td>
-                                            <td><span t-esc="total_base" t-options='{"widget": "float", "precision": 2}'/></td>
-                                        </t>
-                                    </tr>
-                                    <t t-set="line_idx" t-value="line_idx + 1"/>
+                                            <!-- Cross-currency base equivalents -->
+                                            <t t-if="doc.is_cross_currency">
+                                                <t t-set="rate_base" t-value="line.rate / doc.exchange_rate if doc.exchange_rate else line.rate"/>
+                                                <t t-set="tax_base" t-value="tax_amt / doc.exchange_rate if doc.exchange_rate else tax_amt"/>
+                                                <t t-set="total_base" t-value="line_total / doc.exchange_rate if doc.exchange_rate else line_total"/>
+                                                <td><span t-esc="rate_base" t-options='{"widget": "float", "precision": 2}'/></td>
+                                                <td><span t-esc="tax_base" t-options='{"widget": "float", "precision": 2}'/></td>
+                                                <td><span t-esc="total_base" t-options='{"widget": "float", "precision": 2}'/></td>
+                                            </t>
+                                        </tr>
+                                        <t t-set="line_idx" t-value="line_idx + 1"/>
+                                    </t>
                                 </t>
                             </tbody>
                         </table>
@@ -326,7 +347,7 @@
                                         <span class="text-primary-dark font-bold" style="font-size: 13px;">TERMS &amp; CONDITIONS</span>
                                     </div>
                                     <div style="font-size: 12px; line-height: 1.5; color: #334155; min-height: 80px;" t-if="doc.store_id.default_terms">
-                                        <span t-raw="doc.store_id.default_terms"/>
+                                        <span t-out="doc.store_id.default_terms"/>
                                     </div>
                                     
                                     <!-- Signature -->

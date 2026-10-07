@@ -180,6 +180,9 @@ class HavanoposdeskUserRightsProfile(models.Model):
     def _register_hook(self):
         super()._register_hook()
         try:
+            from odoo.tools.sql import table_exists
+            if not table_exists(self.env.cr, 'havanoposdesk_user_rights_profile') or not table_exists(self.env.cr, 'havanoposdesk_user_rights_permission'):
+                return
             cashier_full_features = (
                 'POS', 'Dashboard', 'Reports', 'Settings',
                 'Sales', 'Quotations', 'Customers', 'Expenses', 'Printer'
@@ -251,6 +254,10 @@ class HavanoposdeskUserRightsProfile(models.Model):
                             'can_submit': is_full,
                         })
         except Exception as e:
+            try:
+                self.env.cr.rollback()
+            except Exception:
+                pass
             _logger.warning("Error in user rights profile _register_hook: %s", e)
 
 class HavanoposdeskUserRightsPermission(models.Model):
@@ -288,8 +295,8 @@ class HavanoposdeskUserRightsPermission(models.Model):
     can_delete = fields.Boolean(string='Delete', default=True)
     can_submit = fields.Boolean(string='Submit', default=True)
 
-    _constraints = [
-        models.Constraint('unique(profile_id, feature)', 'A feature permission already exists for this profile!')
+    _sql_constraints = [
+        ('profile_feature_unique', 'unique(profile_id, feature)', 'A feature permission already exists for this profile!')
     ]
 
 
@@ -374,8 +381,8 @@ class HavanoposdeskBackofficePermission(models.Model):
     is_read_only = fields.Boolean(string='Read Only', default=False)
     is_full_access = fields.Boolean(string='Full Access', default=True)
 
-    _constraints = [
-        models.Constraint('unique(profile_id, feature)', 'A feature permission already exists for this profile!')
+    _sql_constraints = [
+        ('backoffice_profile_feature_unique', 'unique(profile_id, feature)', 'A feature permission already exists for this profile!')
     ]
 
 
