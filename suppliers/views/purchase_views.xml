@@ -53,7 +53,7 @@
                         </group>
                         <notebook>
                             <page string="Order Lines">
-                                <field name="line_ids" readonly="state != 'draft'" mode="list,kanban">
+                                <field name="line_ids" readonly="state != 'draft'" mode="list,kanban" widget="section_and_note_one2many">
                                     <list editable="bottom" decoration-bf="display_type == 'line_section'" decoration-italic="display_type == 'line_note'" decoration-muted="display_type == 'line_note'">
                                         <control>
                                             <create name="add_product_control" string="Add a product"/>
@@ -63,14 +63,14 @@
                                         <field name="sequence" column_invisible="True"/>
                                         <field name="display_type" column_invisible="True"/>
                                         <field name="currency_id" column_invisible="True"/>
-                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('track_qty', '=', True), ('is_bundle', '=', False), ('is_active', '=', True)]" width="28%" string="Item" placeholder="Select Item..." readonly="display_type" required="not display_type"/>
-                                        <field name="name" string="Description" width="22%" placeholder="Description / Note..."/>
-                                        <field name="variant_id" column_invisible="not parent.has_variants" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="12%" readonly="display_type"/>
+                                        <field name="product_id" domain="[('store_ids', 'in', parent.store_id), ('track_qty', '=', True), ('is_bundle', '=', False), ('is_active', '=', True)]" width="28%" string="Item" placeholder="Select Item..." readonly="display_type" required="not display_type" invisible="display_type"/>
+                                        <field name="name" string="Description" width="22%" placeholder="Description / Note..." widget="section_and_note_text"/>
+                                        <field name="variant_id" column_invisible="not parent.has_variants" domain="[('product_id', '=', product_id)]" options="{'no_create': True}" width="12%" readonly="display_type" invisible="display_type"/>
                                         <field name="available_uom_ids" column_invisible="True" />
-                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids or display_type" options="{'no_create': True}" width="12%" string="UOM"/>
-                                        <field name="accepted_qty" width="12%" readonly="display_type"/>
-                                        <field name="rate" string="Cost Price" width="12%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
-                                        <field name="amount" string="Total" width="14%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type"/>
+                                        <field name="uom_id" domain="[('id', 'in', available_uom_ids)]" readonly="not available_uom_ids or display_type" options="{'no_create': True}" width="12%" string="UOM" invisible="display_type"/>
+                                        <field name="accepted_qty" width="12%" readonly="display_type" invisible="display_type"/>
+                                        <field name="rate" string="Cost Price" width="12%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type" invisible="display_type"/>
+                                        <field name="amount" string="Total" width="14%" optional="show" widget="monetary" options="{'currency_field': 'currency_id'}" readonly="display_type" invisible="display_type"/>
                                     </list>
                                 </field>
                                 <group class="oe_subtotal_footer oe_right" colspan="2" name="purchase_total">

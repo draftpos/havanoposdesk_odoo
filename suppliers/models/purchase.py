@@ -264,6 +264,8 @@ class Purchase(models.Model):
                     purchase.pos_payment_id = payment.id
 
             for line in purchase.line_ids:
+                if line.display_type:
+                    continue
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
                 unit_rate = line.rate / line.uom_qty_multiplier if line.uom_qty_multiplier else line.rate
                 if base_qty > 0:
@@ -400,6 +402,8 @@ class Purchase(models.Model):
             ]).unlink()
 
             for line in purchase.line_ids:
+                if line.display_type:
+                    continue
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
                 unit_rate = line.rate / line.uom_qty_multiplier if line.uom_qty_multiplier else line.rate
                 if base_qty > 0:
@@ -489,6 +493,24 @@ class PurchaseLine(models.Model):
         ('line_note', 'Note'),
     ], default=False, string='Display Type')
     name = fields.Text(string='Description')
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        if res.get('display_type') or self.env.context.get('default_display_type'):
+            res['accepted_qty'] = 0.0
+            res['rate'] = 0.0
+            res['amount'] = 0.0
+        return res
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('display_type') or self.env.context.get('default_display_type'):
+                vals['accepted_qty'] = 0.0
+                vals['rate'] = 0.0
+                vals['amount'] = 0.0
+        return super().create(vals_list)
 
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 

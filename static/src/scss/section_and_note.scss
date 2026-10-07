@@ -1,0 +1,35 @@
+// Section and note line styling for one2many lists
+tr.o_is_line_section {
+    font-weight: bold !important;
+    background-color: #f1f3f5 !important;
+    border-top: 1px solid #ced4da !important;
+    border-bottom: 1px solid #ced4da !important;
+
+    td {
+        background-color: #f1f3f5 !important;
+        font-weight: 700 !important;
+        color: #212529 !important;
+
+        input, textarea {
+            font-weight: 700 !important;
+            background-color: transparent !important;
+        }
+    }
+}
+
+tr.o_is_line_note {
+    font-style: italic !important;
+    color: #6c757d !important;
+    background-color: #fafbfc !important;
+
+    td {
+        font-style: italic !important;
+        color: #6c757d !important;
+
+        input, textarea {
+            font-style: italic !important;
+            color: #6c757d !important;
+            background-color: transparent !important;
+        }
+    }
+}

@@ -425,11 +425,11 @@ class Sale(models.Model):
             if record.state == 'draft' and record.payment_policy == 'single' and record.payment_status != 'account':
                 record.single_payment_amount = abs(record.amount_total)
 
-    @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
+    @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'line_ids.display_type', 'is_return')
     def _compute_total_cost(self):
         for record in self:
             sign = -1.0 if record.is_return else 1.0
-            record.total_cost = sum(line.cost_price * line.accepted_qty for line in record.line_ids) * sign
+            record.total_cost = sum(line.cost_price * line.accepted_qty for line in record.line_ids if not line.display_type) * sign
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -751,6 +751,8 @@ class Sale(models.Model):
                 sale._post_sale_payments()
 
             for line in sale.line_ids:
+                if line.display_type:
+                    continue
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
                 if base_qty > 0:
                     # Update price on parent product
@@ -967,6 +969,8 @@ class Sale(models.Model):
                 continue
             
             for line in sale.line_ids:
+                if line.display_type:
+                    continue
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
                 if line.product_id.is_bundle:
                     products_to_process = [(comp.product_id, base_qty * comp.qty, False) for comp in line.product_id.bundle_item_ids]
@@ -1054,6 +1058,24 @@ class SaleLine(models.Model):
         ('line_note', 'Note'),
     ], default=False, string='Display Type')
     name = fields.Text(string='Description')
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        if res.get('display_type') or self.env.context.get('default_display_type'):
+            res['accepted_qty'] = 0.0
+            res['rate'] = 0.0
+            res['amount'] = 0.0
+        return res
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('display_type') or self.env.context.get('default_display_type'):
+                vals['accepted_qty'] = 0.0
+                vals['rate'] = 0.0
+                vals['amount'] = 0.0
+        return super().create(vals_list)
 
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
