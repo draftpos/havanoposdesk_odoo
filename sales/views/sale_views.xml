@@ -7,6 +7,14 @@
             <field name="model">havanoposdesk.sale</field>
             <field name="arch" type="xml">
                 <list string="Sales Invoices" default_order="date desc">
+                    <header>
+                        <button name="%(action_havanoposdesk_sale_import_wizard)d" 
+                                string="Smart Import Invoices" 
+                                type="action" 
+                                class="btn-primary" 
+                                display="always" 
+                                icon="fa-cloud-upload"/>
+                    </header>
                     <field name="is_return" column_invisible="True" />
                     <field name="is_quotation" column_invisible="True" />
                     <field name="currency_id" column_invisible="True" />
