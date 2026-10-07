@@ -173,8 +173,10 @@ class PurchaseImportWizard(models.TransientModel):
         col_map = {}
         for k in row_dict.keys():
             lk = k.lower().replace('_', ' ').replace('-', ' ').strip()
-            if 'reference' in lk or 'external' in lk or 'bill' in lk or 'invoice' in lk or lk == 'id':
+            if 'external' in lk or 'reference' in lk or 'bill' in lk or 'invoice' in lk:
                 col_map.setdefault('ref', k)
+            elif lk == 'id':
+                col_map.setdefault('id', k)
             elif 'date' in lk or 'posting' in lk:
                 col_map['date'] = k
             elif 'supplier' in lk or 'vendor' in lk:
@@ -191,8 +193,17 @@ class PurchaseImportWizard(models.TransientModel):
                 col_map['store'] = k
             elif 'tenant' in lk:
                 col_map['tenant'] = k
+            elif 'payment status' in lk:
+                col_map['payment_status'] = k
+            elif 'payment account' in lk:
+                col_map['payment_account'] = k
             elif 'total' in lk or 'amount' in lk:
                 col_map.setdefault('total', k)
+
+        # Fallback for reference if not mapped from external/reference/bill
+        if 'ref' not in col_map and 'id' in col_map:
+            col_map['ref'] = col_map['id']
+
         return col_map
 
     def action_test_file(self):
@@ -236,6 +247,10 @@ class PurchaseImportWizard(models.TransientModel):
 
         for row_idx, r in enumerate(rows_data, start=2):
             raw_ref = self._clean_str(r.get(col_map.get('ref', ''))) if 'ref' in col_map else ''
+            if not raw_ref and 'id' in col_map:
+                raw_ref = self._clean_str(r.get(col_map.get('id', '')))
+            raw_ref = raw_ref.strip(' "\'')
+
             raw_item = self._clean_str(r.get(col_map.get('item', ''))) if 'item' in col_map else ''
             raw_qty = self._clean_str(r.get(col_map.get('qty', ''))) if 'qty' in col_map else '1.0'
             raw_rate = self._clean_str(r.get(col_map.get('rate', ''))) if 'rate' in col_map else '0.0'
@@ -243,14 +258,24 @@ class PurchaseImportWizard(models.TransientModel):
             raw_date = r.get(col_map.get('date', '')) if 'date' in col_map else None
             raw_store = self._clean_str(r.get(col_map.get('store', ''))) if 'store' in col_map else ''
             raw_uom = self._clean_str(r.get(col_map.get('uom', ''))) if 'uom' in col_map else ''
+            raw_pay_status = self._clean_str(r.get(col_map.get('payment_status', ''))) if 'payment_status' in col_map else ''
 
             if not raw_ref and not raw_item:
                 continue
 
+            row_pay_status = self.payment_status
+            if raw_pay_status:
+                rps = raw_pay_status.lower()
+                if 'paid' in rps or 'cash' in rps or 'bank' in rps:
+                    row_pay_status = 'cash'
+                elif 'account' in rps or 'credit' in rps or 'unpaid' in rps:
+                    row_pay_status = 'account'
+
             if raw_ref and (not current_purch or current_purch['ref'] != raw_ref):
                 dt_obj = self._parse_date(raw_date)
                 supp_name = raw_supp or 'Default Supplier'
-                matched_store_id = existing_stores.get(raw_store.strip().lower(), default_store_id)
+                store_key = raw_store.strip().lower()
+                matched_store_id = existing_stores.get(store_key, default_store_id)
 
                 if supp_name.lower() not in existing_suppliers:
                     new_suppliers.add(supp_name)
@@ -261,6 +286,7 @@ class PurchaseImportWizard(models.TransientModel):
                     'supplier_name': supp_name,
                     'store_id': matched_store_id,
                     'store_name': raw_store or (self.store_id.name if self.store_id else 'Default Store'),
+                    'payment_status': row_pay_status,
                     'lines': [],
                     'first_row': row_idx
                 }
@@ -269,7 +295,8 @@ class PurchaseImportWizard(models.TransientModel):
                 synth_ref = f"BILL-{str(len(purchases)+1).zfill(5)}"
                 dt_obj = self._parse_date(raw_date)
                 supp_name = raw_supp or 'Default Supplier'
-                matched_store_id = existing_stores.get(raw_store.strip().lower(), default_store_id)
+                store_key = raw_store.strip().lower()
+                matched_store_id = existing_stores.get(store_key, default_store_id)
 
                 if supp_name.lower() not in existing_suppliers:
                     new_suppliers.add(supp_name)
@@ -280,6 +307,7 @@ class PurchaseImportWizard(models.TransientModel):
                     'supplier_name': supp_name,
                     'store_id': matched_store_id,
                     'store_name': raw_store or (self.store_id.name if self.store_id else 'Default Store'),
+                    'payment_status': row_pay_status,
                     'lines': [],
                     'first_row': row_idx
                 }
@@ -449,6 +477,24 @@ class PurchaseImportWizard(models.TransientModel):
         if not target_tenant:
             target_tenant = self.env['havanoposdesk.tenant'].search([], limit=1)
 
+        # 1. Ensure stores exist
+        Store = self.env['havanoposdesk.store'].sudo()
+        default_store = self.store_id or Store.search([('tenant_id', '=', target_tenant.id)], limit=1)
+        if not default_store:
+            default_store = Store.create({'name': 'Default Store', 'tenant_id': target_tenant.id})
+        fallback_store_id = default_store.id
+
+        store_cache = {
+            s.name.strip().lower(): s.id
+            for s in Store.search([('tenant_id', '=', target_tenant.id)])
+        }
+        for purch in purchases_data:
+            sname = (purch.get('store_name') or '').strip()
+            if sname and sname.lower() not in store_cache:
+                new_st = Store.create({'name': sname, 'tenant_id': target_tenant.id})
+                store_cache[sname.lower()] = new_st.id
+
+        # 2. Ensure suppliers exist
         Supplier = self.env['havanoposdesk.supplier'].sudo()
         supp_cache = {
             s.name.strip().lower(): s.id
@@ -459,18 +505,25 @@ class PurchaseImportWizard(models.TransientModel):
             skey = sname.lower()
             if skey not in supp_cache:
                 if self.auto_create_supplier:
-                    new_s = Supplier.create({'name': sname, 'tenant_id': target_tenant.id})
+                    st_id = store_cache.get((purch.get('store_name') or '').strip().lower(), fallback_store_id)
+                    new_s = Supplier.create({
+                        'name': sname,
+                        'tenant_id': target_tenant.id,
+                        'store_id': st_id
+                    })
                     supp_cache[skey] = new_s.id
                 else:
                     first_s = Supplier.search([('tenant_id', '=', target_tenant.id)], limit=1)
                     supp_cache[skey] = first_s.id if first_s else False
 
+        # 3. Ensure products exist
         Product = self.env['havanoposdesk.product'].sudo()
         prod_cache = {
             p.name.strip().lower(): p.id
             for p in Product.search([('tenant_id', '=', target_tenant.id)])
         }
         for purch in purchases_data:
+            st_id = store_cache.get((purch.get('store_name') or '').strip().lower(), fallback_store_id)
             for l in purch.get('lines', []):
                 pname = (l.get('item') or '').strip()
                 pkey = pname.lower()
@@ -480,26 +533,31 @@ class PurchaseImportWizard(models.TransientModel):
                             'name': pname,
                             'tenant_id': target_tenant.id,
                             'buying_price': l.get('rate', 0.0),
-                            'store_ids': [(4, purch.get('store_id'))] if purch.get('store_id') else False
+                            'store_ids': [(4, st_id)] if st_id else False
                         })
                         prod_cache[pkey] = new_p.id
                     else:
                         first_p = Product.search([('tenant_id', '=', target_tenant.id)], limit=1)
                         prod_cache[pkey] = first_p.id if first_p else False
 
+        # 4. Ensure cash/bank account exists
         Account = self.env['havanoposdesk.account'].sudo()
         cash_account_id = self.account_id.id if self.account_id else False
-        if not cash_account_id and self.payment_status == 'cash':
+        if not cash_account_id:
             acc = Account.search([
                 ('tenant_id', '=', target_tenant.id),
                 ('type', 'in', ['Cash', 'Bank']),
                 ('is_on_account', '=', False)
             ], limit=1)
-            cash_account_id = acc.id if acc else False
-
-        Store = self.env['havanoposdesk.store'].sudo()
-        default_store = self.store_id or Store.search([('tenant_id', '=', target_tenant.id)], limit=1)
-        fallback_store_id = default_store.id if default_store else False
+            if acc:
+                cash_account_id = acc.id
+            else:
+                new_acc = Account.create({
+                    'name': 'Cash',
+                    'type': 'Cash',
+                    'tenant_id': target_tenant.id,
+                })
+                cash_account_id = new_acc.id
 
         currency_id_val = self.currency_id.id if self.currency_id else (
             target_tenant.currency_id.id if target_tenant.currency_id else self.env.company.currency_id.id
@@ -512,7 +570,8 @@ class PurchaseImportWizard(models.TransientModel):
 
         for purch in purchases_data:
             supp_id = supp_cache.get((purch.get('supplier_name') or '').strip().lower(), False)
-            store_id_val = purch.get('store_id') or fallback_store_id
+            store_id_val = store_cache.get((purch.get('store_name') or '').strip().lower(), fallback_store_id)
+            purch_pay_status = purch.get('payment_status', self.payment_status)
 
             lines_vals = []
             for l in purch.get('lines', []):
@@ -538,8 +597,8 @@ class PurchaseImportWizard(models.TransientModel):
                 'supplier': supp_id,
                 'posting_date': purch.get('date'),
                 'currency_id': currency_id_val,
-                'payment_status': self.payment_status,
-                'account_id': cash_account_id if self.payment_status == 'cash' else False,
+                'payment_status': purch_pay_status,
+                'account_id': cash_account_id if purch_pay_status == 'cash' else False,
                 'state': 'posted',
                 'line_ids': lines_vals,
             }
