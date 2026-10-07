@@ -24,7 +24,7 @@ class HavanoOnlineActivity(models.Model):
     city = fields.Char(related='tenant_id.city', string='City', store=True, readonly=True)
     sales_rep = fields.Char(related='tenant_id.sales_rep', string='Sales Rep', store=True, readonly=True)
     technician = fields.Char(related='tenant_id.technician', string='Technician', store=True, readonly=True)
-    owner_whatsapp = fields.Char(related='tenant_id.owner_whatsapp', string='Verified WhatsApp (Owner)', store=True, readonly=True)
+    owner_whatsapp = fields.Char(related='tenant_id.owner_whatsapp', string='V. WhatsApp', store=True, readonly=True)
     terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string='POS Terminal', index=True)
     device_hardware_id = fields.Char(string='Hardware ID', index=True)
     device_name = fields.Char(string='Device Name', compute='_compute_device_info', store=True)
@@ -89,10 +89,10 @@ class HavanoOnlineActivity(models.Model):
                 rec.online_status = 'offline'
                 continue
             delta = (now - rec.last_activity).total_seconds()
-            if delta <= 300:  # <= 5 minutes
+            if delta <= 1800:  # <= 30 minutes
                 rec.is_online = True
                 rec.online_status = 'online'
-            elif delta <= 900:  # 5 - 15 minutes
+            elif delta <= 3600:  # 30 - 60 minutes
                 rec.is_online = False
                 rec.online_status = 'idle'
             else:
@@ -130,11 +130,14 @@ class HavanoOnlineActivity(models.Model):
 
     @api.depends('days_inactive', 'last_activity', 'is_online')
     def _compute_days_inactive_display(self):
+        now = fields.Datetime.now()
         for rec in self:
-            if rec.is_online:
-                rec.days_inactive_display = "Active Now"
-            elif not rec.last_activity:
+            if not rec.last_activity:
                 rec.days_inactive_display = "Never Used"
+                continue
+            delta = (now - rec.last_activity).total_seconds()
+            if rec.is_online and delta <= 1800:
+                rec.days_inactive_display = "Active Now"
             elif rec.days_inactive == 0:
                 rec.days_inactive_display = "Used Today"
             elif rec.days_inactive == 1:
@@ -304,16 +307,63 @@ class HavanoOnlineActivity(models.Model):
 
     @api.model
     def web_search_read(self, *args, **kwargs):
+        self.sudo()._refresh_online_statuses()
+        return super().web_search_read(*args, **kwargs)
+
+    @api.model
+    def search_fetch(self, *args, **kwargs):
+        self.sudo()._refresh_online_statuses()
+        return super().search_fetch(*args, **kwargs)
+
+    @api.model
+    def _refresh_online_statuses(self):
+        """Immediately sync latest activity from terminals and update online status after 30 mins."""
         if self.sudo().search_count([]) == 0:
             try:
                 self.sudo().sync_historical_activities()
             except Exception:
                 pass
-        return super().web_search_read(*args, **kwargs)
+
+        now = fields.Datetime.now()
+        thirty_mins_ago = now - timedelta(minutes=30)
+        sixty_mins_ago = now - timedelta(minutes=60)
+
+        # 1. Sync latest last_seen from POS terminals if newer
+        try:
+            self.env.cr.execute("""
+                UPDATE havanoposdesk_online_activity a
+                SET last_activity = t.last_seen
+                FROM havanoposdesk_pos_terminal t
+                WHERE a.terminal_id = t.id
+                  AND t.last_seen IS NOT NULL
+                  AND (a.last_activity IS NULL OR t.last_seen > a.last_activity);
+            """)
+        except Exception:
+            pass
+
+        # 2. Update is_online and online_status based on the 30-minute window
+        try:
+            self.env.cr.execute("""
+                UPDATE havanoposdesk_online_activity
+                SET is_online = CASE 
+                        WHEN last_activity >= %s THEN TRUE 
+                        ELSE FALSE 
+                    END,
+                    online_status = CASE 
+                        WHEN last_activity IS NULL THEN 'offline'
+                        WHEN last_activity >= %s THEN 'online'
+                        WHEN last_activity >= %s THEN 'idle'
+                        ELSE 'offline'
+                    END,
+                    days_inactive = CASE
+                        WHEN last_activity IS NULL THEN 9999
+                        ELSE GREATEST(0, (CURRENT_DATE - (last_activity AT TIME ZONE 'UTC')::date))
+                    END;
+            """, (thirty_mins_ago, thirty_mins_ago, sixty_mins_ago))
+        except Exception:
+            pass
 
     @api.model
     def _cron_update_activity_statuses(self):
         """Cron job to update days inactive and status periodically."""
-        records = self.search([])
-        records._compute_status()
-        records._compute_days_inactive()
+        self._refresh_online_statuses()

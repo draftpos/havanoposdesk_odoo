@@ -36,6 +36,18 @@
             <field name="active" eval="True"/>
         </record>
 
+        <!-- Cron job for updating online activity and device status every 30 minutes -->
+        <record id="ir_cron_update_online_activity_status" model="ir.cron">
+            <field name="name">Havano POS Desk: Update Online Activity &amp; Device Status</field>
+            <field name="model_id" ref="model_havanoposdesk_online_activity"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_update_activity_statuses()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">30</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+
         <!-- Cron job for automatic ZIMRA pending invoice retry -->
         <record id="ir_cron_sync_pending_fiscal_invoices" model="ir.cron">
             <field name="name">ZIMRA Fiscalization: Auto Sync Offline &amp; Pending Invoices</field>

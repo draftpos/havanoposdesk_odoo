@@ -9560,10 +9560,25 @@ class HavanoPOSDeskAPI(http.Controller):
 
             from odoo import fields as odoo_fields
             try:
+                now_dt = odoo_fields.Datetime.now()
                 terminal.write({
-                    'last_seen': odoo_fields.Datetime.now(),
+                    'last_seen': now_dt,
                     'status': 'online'
                 })
+                try:
+                    user_rec = terminal.last_logged_in_user_id or (request.env.user if request.env.user and request.env.user.id != request.env.ref('base.public_user').id else False)
+                    env['havanoposdesk.online.activity'].sudo().record_activity(
+                        user=user_rec,
+                        tenant=terminal.tenant_id,
+                        store=terminal.store_id,
+                        terminal=terminal,
+                        device_hardware_id=terminal.device_hardware_id or device_hardware_id,
+                        app_version=terminal.app_version,
+                        platform='mobile_pos',
+                        ip_address=request.httprequest.remote_addr,
+                    )
+                except Exception:
+                    pass
                 if custom_cr:
                     custom_cr.commit()
             except Exception as write_err:
@@ -9676,6 +9691,19 @@ class HavanoPOSDeskAPI(http.Controller):
                 'taken_by_user_id': user.id,
                 'sequence_prefix': sale_id_prefix
             })
+            try:
+                env['havanoposdesk.online.activity'].sudo().record_activity(
+                    user=user,
+                    tenant=terminal.tenant_id,
+                    store=terminal.store_id,
+                    terminal=terminal,
+                    device_hardware_id=device_hardware_id or terminal.device_hardware_id,
+                    app_version=str(app_version) if app_version else terminal.app_version,
+                    platform='mobile_pos',
+                    ip_address=request.httprequest.remote_addr,
+                )
+            except Exception:
+                pass
 
             user_data = self._get_user_info_dict(user, env, device_hardware_id=device_hardware_id)
             user_data['sale_id_prefix'] = sale_id_prefix

@@ -74,7 +74,7 @@
                     <field name="city" string="City" optional="show"/>
                     <field name="sales_rep" string="Sales Rep" optional="show"/>
                     <field name="technician" string="Technician" optional="show"/>
-                    <field name="owner_whatsapp" string="Verified WhatsApp (Owner)" optional="show"/>
+                    <field name="owner_whatsapp" string="V. WhatsApp" optional="show"/>
                     <field name="user_id" string="User" optional="show"/>
                     <field name="terminal_id" string="POS Terminal" optional="show"/>
                     <field name="device_hardware_id" string="Hardware ID" optional="hide"/>
