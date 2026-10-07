@@ -91,14 +91,6 @@
             <field name="model">havanoposdesk.purchase</field>
             <field name="arch" type="xml">
                 <list  string="Purchases">
-                    <header>
-                        <button name="%(action_havanoposdesk_purchase_import_wizard)d" 
-                                string="Smart Import Purchases" 
-                                type="action" 
-                                class="btn-primary" 
-                                display="always" 
-                                icon="fa-cloud-upload"/>
-                    </header>
                     <field name="currency_id" column_invisible="True"/>
                     <field name="tenant_currency_id" column_invisible="True" />
                     <field name="posting_date" string="Datetime" optional="show"/>

@@ -5,21 +5,18 @@
             <field name="name">havanoposdesk.sale.import.wizard.form</field>
             <field name="model">havanoposdesk.sale.import.wizard</field>
             <field name="arch" type="xml">
-                <form string="Smart Sales Invoices Importer">
-                    <header>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,tested,imported"/>
-                    </header>
-                    <sheet>
-                        <div class="oe_title mb-3">
-                            <h2 class="text-primary fw-bold">
-                                <i class="fa fa-cloud-upload me-2"/>Smart Sales Invoices Importer
-                            </h2>
-                            <p class="text-muted mb-0">
-                                Upload your sales spreadsheet (Excel or CSV). The system will group multi-item rows, verify products and customers, and validate all totals before proceeding.
-                            </p>
+                <form string="Import Sales Invoices">
+                    <sheet class="p-3">
+                        <div class="mb-2 border-bottom pb-2">
+                            <h5 class="text-primary fw-bold mb-1">
+                                <i class="fa fa-upload me-1"/> Import Sales Invoices
+                            </h5>
+                            <span class="text-muted small">
+                                Upload Excel (.xlsx) or CSV file. Multi-line items will be grouped and validated automatically.
+                            </span>
                         </div>
 
-                        <group>
+                        <group class="mt-1 mb-1">
                             <group string="File &amp; Organization">
                                 <field name="file" filename="filename" widget="binary"/>
                                 <field name="filename" invisible="1"/>
@@ -27,36 +24,39 @@
                                 <field name="store_id" options="{'no_create': True}"/>
                                 <field name="currency_id" options="{'no_create': True}"/>
                             </group>
-                            <group string="Reconciliation &amp; Payment Options">
+                            <group string="Payment &amp; Reconciliation">
                                 <field name="payment_status" widget="radio" options="{'horizontal': true}"/>
                                 <field name="account_id" options="{'no_create': True}" invisible="payment_status != 'cash'"/>
                                 <field name="auto_create_customer" widget="boolean_toggle"/>
                                 <field name="auto_create_product" widget="boolean_toggle"/>
                                 <field name="is_tested" invisible="1"/>
                                 <field name="has_errors" invisible="1"/>
+                                <field name="state" invisible="1"/>
                             </group>
                         </group>
 
-                        <div class="mt-2 mb-3 text-center">
+                        <div class="text-center my-2">
                             <button name="action_test_file" 
-                                    string="🔍 Test &amp; Verify Data" 
+                                    string="Test &amp; Verify Data" 
                                     type="object" 
-                                    class="btn btn-primary btn-lg shadow-sm px-4"
+                                    icon="fa-check-circle"
+                                    class="btn btn-outline-primary px-3 py-1 shadow-sm"
                                     invisible="not file"/>
                         </div>
 
                         <!-- Verification Result HTML Section -->
-                        <div class="mt-3" invisible="not is_tested">
+                        <div class="mt-2" invisible="not is_tested">
                             <field name="test_summary_html" nolabel="1" widget="html"/>
                         </div>
                     </sheet>
                     <footer>
                         <button name="action_proceed_import" 
-                                string="🚀 Proceed to Import Invoices" 
+                                string="Proceed to Import" 
                                 type="object" 
-                                class="btn btn-success fw-bold px-4"
+                                icon="fa-arrow-circle-right"
+                                class="btn btn-primary px-3 py-1"
                                 invisible="not is_tested or has_errors or state == 'imported'"/>
-                        <button string="Close" class="btn btn-secondary" special="cancel"/>
+                        <button string="Close" class="btn btn-secondary px-3 py-1" special="cancel"/>
                     </footer>
                 </form>
             </field>
@@ -64,7 +64,7 @@
 
         <!-- Action to open wizard -->
         <record id="action_havanoposdesk_sale_import_wizard" model="ir.actions.act_window">
-            <field name="name">Smart Import Sales Invoices</field>
+            <field name="name">Import Sales Invoices</field>
             <field name="res_model">havanoposdesk.sale.import.wizard</field>
             <field name="view_mode">form</field>
             <field name="target">new</field>
@@ -74,7 +74,7 @@
 
         <!-- Menu Item under Sales -> Operations -->
         <menuitem id="menu_havanoposdesk_sale_import"
-                  name="Smart Import Sales"
+                  name="Import Sales Invoices"
                   parent="menu_sales_operations"
                   action="action_havanoposdesk_sale_import_wizard"
                   sequence="35"/>

@@ -354,102 +354,100 @@ class SaleImportWizard(models.TransientModel):
         # Cache parsed data in JSON
         self.parsed_data_json = json.dumps(invoices)
 
-        # Build Rich HTML Verification Report
+        # Build Compact HTML Verification Report
         report_parts = []
         if not has_err:
             report_parts.append("""
-                <div class="alert alert-success d-flex align-items-center mb-3" style="border-radius: 8px; border-left: 5px solid #28a745;">
+                <div class="alert alert-success d-flex align-items-center py-2 px-3 mb-2" style="border-radius: 6px; border-left: 4px solid #28a745;">
+                    <i class="fa fa-check-circle text-success me-2 fs-5"></i>
                     <div>
-                        <h4 class="alert-heading mb-1 fw-bold text-success">
-                            <i class="fa fa-check-circle me-2"></i> Verification Passed Successfully!
-                        </h4>
-                        <p class="mb-0 text-muted">All invoice structures and line items validated. Ready for import.</p>
+                        <div class="fw-bold text-success">Verification Passed Successfully</div>
+                        <div class="text-muted small">All invoice structures and line items validated. Ready for import.</div>
                     </div>
                 </div>
             """)
         else:
             report_parts.append(f"""
-                <div class="alert alert-danger d-flex align-items-center mb-3" style="border-radius: 8px; border-left: 5px solid #dc3545;">
+                <div class="alert alert-danger d-flex align-items-center py-2 px-3 mb-2" style="border-radius: 6px; border-left: 4px solid #dc3545;">
+                    <i class="fa fa-exclamation-triangle text-danger me-2 fs-5"></i>
                     <div>
-                        <h4 class="alert-heading mb-1 fw-bold text-danger">
-                            <i class="fa fa-exclamation-triangle me-2"></i> Found {len(validation_errors)} Validation Errors
-                        </h4>
-                        <p class="mb-0 text-muted">Please correct the data rows below before proceeding with the import.</p>
+                        <div class="fw-bold text-danger">Found {len(validation_errors)} Validation Errors</div>
+                        <div class="text-muted small">Please correct the data rows below before proceeding with the import.</div>
                     </div>
                 </div>
             """)
 
-        # Metric Badges
+        # Metric Badges - Compact
         report_parts.append(f"""
-            <div class="row g-2 mb-3 text-center">
+            <div class="row g-2 mb-2 text-center">
                 <div class="col-sm-3">
-                    <div class="p-2 border rounded bg-white shadow-sm">
-                        <div class="text-muted small fw-bold text-uppercase">Invoices</div>
-                        <div class="fs-4 fw-bold text-primary">{self.invoices_count:,}</div>
+                    <div class="p-1 border rounded bg-white">
+                        <div class="text-muted small" style="font-size: 0.72rem; letter-spacing: 0.5px;">INVOICES</div>
+                        <div class="fw-bold text-primary fs-5">{self.invoices_count:,}</div>
                     </div>
                 </div>
                 <div class="col-sm-3">
-                    <div class="p-2 border rounded bg-white shadow-sm">
-                        <div class="text-muted small fw-bold text-uppercase">Line Items</div>
-                        <div class="fs-4 fw-bold text-info">{self.lines_count:,}</div>
+                    <div class="p-1 border rounded bg-white">
+                        <div class="text-muted small" style="font-size: 0.72rem; letter-spacing: 0.5px;">LINE ITEMS</div>
+                        <div class="fw-bold text-info fs-5">{self.lines_count:,}</div>
                     </div>
                 </div>
                 <div class="col-sm-3">
-                    <div class="p-2 border rounded bg-white shadow-sm">
-                        <div class="text-muted small fw-bold text-uppercase">Total Sales Value</div>
-                        <div class="fs-4 fw-bold text-success">${self.total_amount:,.2f}</div>
+                    <div class="p-1 border rounded bg-white">
+                        <div class="text-muted small" style="font-size: 0.72rem; letter-spacing: 0.5px;">TOTAL SALES</div>
+                        <div class="fw-bold text-success fs-5">${self.total_amount:,.2f}</div>
                     </div>
                 </div>
                 <div class="col-sm-3">
-                    <div class="p-2 border rounded bg-white shadow-sm">
-                        <div class="text-muted small fw-bold text-uppercase">Tenant Binding</div>
-                        <div class="fs-6 fw-bold text-dark text-truncate" title="{target_tenant.name}">{target_tenant.name}</div>
+                    <div class="p-1 border rounded bg-white">
+                        <div class="text-muted small" style="font-size: 0.72rem; letter-spacing: 0.5px;">TENANT</div>
+                        <div class="fw-bold text-dark text-truncate pt-1" title="{target_tenant.name}">{target_tenant.name}</div>
                     </div>
                 </div>
             </div>
         """)
 
-        # Detailed Entity Reconciliation Card
-        cust_auto_badge = '<span class="badge bg-success ms-1">Auto-create Enabled</span>' if self.auto_create_customer else '<span class="badge bg-warning ms-1">Requires Existing</span>'
-        prod_auto_badge = '<span class="badge bg-success ms-1">Auto-create Enabled</span>' if self.auto_create_product else '<span class="badge bg-warning ms-1">Requires Existing</span>'
+        # Detailed Entity Reconciliation Card - Compact
+        cust_auto_badge = '<span class="badge bg-success ms-1" style="font-size: 0.7rem;">Auto-create Enabled</span>' if self.auto_create_customer else '<span class="badge bg-warning ms-1" style="font-size: 0.7rem;">Existing Only</span>'
+        prod_auto_badge = '<span class="badge bg-success ms-1" style="font-size: 0.7rem;">Auto-create Enabled</span>' if self.auto_create_product else '<span class="badge bg-warning ms-1" style="font-size: 0.7rem;">Existing Only</span>'
 
         report_parts.append(f"""
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-light py-2 fw-bold text-dark">
+            <div class="card border mb-2">
+                <div class="card-header bg-light py-1 px-2 fw-bold text-dark small">
                     <i class="fa fa-database me-1"></i> Database Matching Summary
                 </div>
-                <div class="card-body py-2">
+                <div class="card-body py-1 px-2 small">
                     <div class="row">
-                        <div class="col-md-6 mb-2">
+                        <div class="col-md-6">
                             <div class="d-flex justify-content-between align-items-center">
-                                <span><strong>Products in File:</strong></span>
-                                <span>{len(existing_products)} Matched, <strong class="text-primary">{len(new_items)} New</strong> {prod_auto_badge}</span>
+                                <span><strong>Products:</strong> {len(existing_products)} Matched, <strong class="text-primary">{len(new_items)} New</strong></span>
+                                <span>{prod_auto_badge}</span>
                             </div>
-                            {"<small class='text-muted'>Sample new items: " + ", ".join(list(new_items)[:4]) + "...</small>" if new_items else "<small class='text-success'>All items matched in catalog!</small>"}
+                            {"<div class='text-muted' style='font-size: 0.75rem;'>Sample new: " + ", ".join(list(new_items)[:3]) + "...</div>" if new_items else "<div class='text-success' style='font-size: 0.75rem;'>All items matched in catalog!</div>"}
                         </div>
-                        <div class="col-md-6 mb-2">
+                        <div class="col-md-6">
                             <div class="d-flex justify-content-between align-items-center">
-                                <span><strong>Customers in File:</strong></span>
-                                <span>{len(existing_customers)} Matched, <strong class="text-primary">{len(new_customers)} New</strong> {cust_auto_badge}</span>
+                                <span><strong>Customers:</strong> {len(existing_customers)} Matched, <strong class="text-primary">{len(new_customers)} New</strong></span>
+                                <span>{cust_auto_badge}</span>
                             </div>
-                            {"<small class='text-muted'>Sample new customers: " + ", ".join(list(new_customers)[:4]) + "...</small>" if new_customers else "<small class='text-success'>All customers matched!</small>"}
+                            {"<div class='text-muted' style='font-size: 0.75rem;'>Sample new: " + ", ".join(list(new_customers)[:3]) + "...</div>" if new_customers else "<div class='text-success' style='font-size: 0.75rem;'>All customers matched!</div>"}
                         </div>
                     </div>
                 </div>
             </div>
         """)
 
-        # Error Details
+        # Error Details - Compact
         if validation_errors:
-            error_list_html = "".join([f"<li class='text-danger'>{err}</li>" for err in validation_errors[:15]])
-            if len(validation_errors) > 15:
-                error_list_html += f"<li class='text-muted'>... and {len(validation_errors)-15} more errors.</li>"
+            error_list_html = "".join([f"<li class='text-danger py-0'>{err}</li>" for err in validation_errors[:10]])
+            if len(validation_errors) > 10:
+                error_list_html += f"<li class='text-muted py-0'>... and {len(validation_errors)-10} more errors.</li>"
             report_parts.append(f"""
-                <div class="card border-danger shadow-sm mb-3">
-                    <div class="card-header bg-danger text-white py-2 fw-bold">
+                <div class="card border-danger mb-2">
+                    <div class="card-header bg-danger text-white py-1 px-2 fw-bold small">
                         <i class="fa fa-times-circle me-1"></i> Errors to Fix in Spreadsheet
                     </div>
-                    <div class="card-body py-2">
+                    <div class="card-body py-1 px-2 small">
                         <ul class="mb-0 ps-3">{error_list_html}</ul>
                     </div>
                 </div>
