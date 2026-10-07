@@ -1,5 +1,8 @@
+import logging
 from odoo import models, fields, api, _
 from datetime import datetime, timedelta, date
+
+_logger = logging.getLogger(__name__)
 
 
 class HavanoOnlineActivity(models.Model):
@@ -307,63 +310,53 @@ class HavanoOnlineActivity(models.Model):
 
     @api.model
     def web_search_read(self, *args, **kwargs):
-        self.sudo()._refresh_online_statuses()
-        return super().web_search_read(*args, **kwargs)
-
-    @api.model
-    def search_fetch(self, *args, **kwargs):
-        self.sudo()._refresh_online_statuses()
-        return super().search_fetch(*args, **kwargs)
-
-    @api.model
-    def _refresh_online_statuses(self):
-        """Immediately sync latest activity from terminals and update online status after 30 mins."""
         if self.sudo().search_count([]) == 0:
             try:
                 self.sudo().sync_historical_activities()
             except Exception:
                 pass
+        return super().web_search_read(*args, **kwargs)
 
+    @api.model
+    def _cron_update_activity_statuses(self):
+        """Cron job to update days inactive and status periodically."""
         now = fields.Datetime.now()
         thirty_mins_ago = now - timedelta(minutes=30)
         sixty_mins_ago = now - timedelta(minutes=60)
 
         # 1. Sync latest last_seen from POS terminals if newer
         try:
-            self.env.cr.execute("""
-                UPDATE havanoposdesk_online_activity a
-                SET last_activity = t.last_seen
-                FROM havanoposdesk_pos_terminal t
-                WHERE a.terminal_id = t.id
-                  AND t.last_seen IS NOT NULL
-                  AND (a.last_activity IS NULL OR t.last_seen > a.last_activity);
-            """)
-        except Exception:
-            pass
+            with self.env.cr.savepoint():
+                self.env.cr.execute("""
+                    UPDATE havanoposdesk_online_activity a
+                    SET last_activity = t.last_seen
+                    FROM havanoposdesk_pos_terminal t
+                    WHERE a.terminal_id = t.id
+                      AND t.last_seen IS NOT NULL
+                      AND (a.last_activity IS NULL OR t.last_seen > a.last_activity);
+                """)
+        except Exception as e:
+            _logger.warning("Error syncing terminal last_seen in cron: %s", e)
 
         # 2. Update is_online and online_status based on the 30-minute window
         try:
-            self.env.cr.execute("""
-                UPDATE havanoposdesk_online_activity
-                SET is_online = CASE 
-                        WHEN last_activity >= %s THEN TRUE 
-                        ELSE FALSE 
-                    END,
-                    online_status = CASE 
-                        WHEN last_activity IS NULL THEN 'offline'
-                        WHEN last_activity >= %s THEN 'online'
-                        WHEN last_activity >= %s THEN 'idle'
-                        ELSE 'offline'
-                    END,
-                    days_inactive = CASE
-                        WHEN last_activity IS NULL THEN 9999
-                        ELSE GREATEST(0, (CURRENT_DATE - (last_activity AT TIME ZONE 'UTC')::date))
-                    END;
-            """, (thirty_mins_ago, thirty_mins_ago, sixty_mins_ago))
-        except Exception:
-            pass
-
-    @api.model
-    def _cron_update_activity_statuses(self):
-        """Cron job to update days inactive and status periodically."""
-        self._refresh_online_statuses()
+            with self.env.cr.savepoint():
+                self.env.cr.execute("""
+                    UPDATE havanoposdesk_online_activity
+                    SET is_online = CASE 
+                            WHEN last_activity >= %s THEN TRUE 
+                            ELSE FALSE 
+                        END,
+                        online_status = CASE 
+                            WHEN last_activity IS NULL THEN 'offline'
+                            WHEN last_activity >= %s THEN 'online'
+                            WHEN last_activity >= %s THEN 'idle'
+                            ELSE 'offline'
+                        END,
+                        days_inactive = CASE
+                            WHEN last_activity IS NULL THEN 9999
+                            ELSE GREATEST(0, (CURRENT_DATE - (last_activity AT TIME ZONE 'UTC')::date))
+                        END;
+                """, (thirty_mins_ago, thirty_mins_ago, sixty_mins_ago))
+        except Exception as e:
+            _logger.warning("Error updating online activity statuses in cron: %s", e)
