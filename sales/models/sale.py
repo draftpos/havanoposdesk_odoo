@@ -523,7 +523,10 @@ class Sale(models.Model):
                     loc_id = vals.get('local_invoice_id')
                     if loc_id:
                         str_loc = str(loc_id).strip()
-                        if not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
+                        parts = str_loc.split('-')
+                        if len(parts) >= 2 and len(parts[0]) == 4 and parts[0].isalpha() and parts[0].isupper():
+                            pass  # already carries a 4-letter sequence prefix
+                        elif not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
                             vals['local_invoice_id'] = f"{pfx}-{str_loc}"
                     elif not vals.get('is_quotation'):
                         next_num = self.search_count([('terminal_id', '=', term.id)]) + 1

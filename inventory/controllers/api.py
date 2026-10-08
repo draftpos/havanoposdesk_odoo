@@ -2068,13 +2068,25 @@ class HavanoPOSDeskAPI(http.Controller):
         if terminal and terminal.sequence_prefix:
             pfx = terminal.sequence_prefix.strip()
             str_loc = str(local_invoice_id).strip()
-            if not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
+            parts = str_loc.split('-')
+            if len(parts) >= 2 and len(parts[0]) == 4 and parts[0].isalpha() and parts[0].isupper():
+                pass  # already prefixed with a 4-letter sequence prefix
+            elif not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
                 local_invoice_id = f"{pfx}-{str_loc}"
             
-        existing_sale = request.env['havanoposdesk.sale'].sudo().search([
+        dup_domain = [
             ('tenant_id', '=', tenant.id),
             '|', ('local_invoice_id', '=', local_invoice_id), ('local_invoice_id', '=', raw_local_id)
-        ], limit=1)
+        ]
+        raw_parts = str(raw_local_id).strip().split('-')
+        if len(raw_parts) >= 2 and raw_parts[-1].isdigit():
+            base_tail = f"-{raw_parts[-2]}-{raw_parts[-1]}"
+            dup_domain = [
+                '&', ('tenant_id', '=', tenant.id),
+                '|', ('local_invoice_id', '=ilike', f"%{base_tail}"),
+                '|', ('local_invoice_id', '=', local_invoice_id), ('local_invoice_id', '=', raw_local_id)
+            ]
+        existing_sale = request.env['havanoposdesk.sale'].sudo().search(dup_domain, limit=1)
         if existing_sale:
             res_data = {
                 'data': {
@@ -3921,10 +3933,19 @@ class HavanoPOSDeskAPI(http.Controller):
                             responses.append({"error": "reference_number is required when making a sale", "local_invoice_id": None})
                             continue
 
-                        existing_sale = env['havanoposdesk.sale'].search([
+                        dup_domain = [
                             ('tenant_id', '=', tenant.id),
                             ('local_invoice_id', '=', local_invoice_id)
-                        ], limit=1)
+                        ]
+                        raw_parts = str(local_invoice_id).strip().split('-')
+                        if len(raw_parts) >= 2 and raw_parts[-1].isdigit():
+                            base_tail = f"-{raw_parts[-2]}-{raw_parts[-1]}"
+                            dup_domain = [
+                                '&', ('tenant_id', '=', tenant.id),
+                                '|', ('local_invoice_id', '=ilike', f"%{base_tail}"),
+                                ('local_invoice_id', '=', local_invoice_id)
+                            ]
+                        existing_sale = env['havanoposdesk.sale'].search(dup_domain, limit=1)
                         if existing_sale:
                             qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url')
                             code = sale_data.get('fiscal_verification_code') or sale_data.get('fiscal_code') or sale_data.get('custom_fiscal_verification_code') or sale_data.get('verification_code')
@@ -9769,8 +9790,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 if old_user.selected_terminal_id.id == terminal.id:
                     old_user.sudo().write({'selected_terminal_id': False})
 
-            # Generate a unique 4-letter uppercase sale ID prefix for this terminal takeover/selection
-            sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
+            # Preserve existing sequence_prefix on the terminal to keep invoice IDs consistent; only generate if unset
+            sale_id_prefix = (terminal.sequence_prefix or '').strip()
+            if not sale_id_prefix:
+                sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
 
             # Update selected terminal for new user with safe savepoint to prevent aborting transaction on concurrent lock
             try:
