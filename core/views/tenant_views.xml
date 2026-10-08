@@ -153,6 +153,7 @@
                             </group>
                             <group string="Features">
                                 <field name="restaurant_mode_enabled" widget="boolean_toggle"/>
+                                <field name="enable_item_group_subunits" widget="boolean_toggle"/>
                             </group>
                             <group string="Tenant Profile &amp; Contact Information">
                                 <field name="admin_name"/>
