@@ -29,7 +29,7 @@ def _b64url_encode(data_bytes):
     return base64.urlsafe_b64encode(data_bytes).decode('utf-8').rstrip('=')
 
 
-def generate_powersync_jwt(user_id, tenant_id, store_id=None, store_ids=None, role=None, secret_key=None, expires_in=86400):
+def generate_powersync_jwt(user_id, tenant_id, store_id=None, store_ids=None, category_ids=None, role=None, secret_key=None, expires_in=86400):
     """Generate a HS256 JWT for PowerSync client authentication."""
     secret = secret_key or DEFAULT_JWT_SECRET
     now = int(time.time())
@@ -48,6 +48,7 @@ def generate_powersync_jwt(user_id, tenant_id, store_id=None, store_ids=None, ro
         "tenant_id": str(tenant_id) if tenant_id else "",
         "store_id": str(store_id) if store_id else "",
         "store_ids": [str(s) for s in (store_ids or [])],
+        "category_ids": [str(c) for c in (category_ids or [])],
         "role": role or "user",
     }
 
@@ -143,6 +144,7 @@ class HavanoPowerSyncController(http.Controller):
             tenant_id=tenant.id,
             store_id=req_store_id,
             store_ids=user.store_ids.ids if user.store_ids else [],
+            category_ids=user.category_ids.ids if (hasattr(user, 'category_ids') and user.category_ids and tenant.enable_item_group_subunits) else [],
             role=user.havano_role,
             secret_key=powersync_secret,
             expires_in=expires_in
@@ -155,6 +157,9 @@ class HavanoPowerSyncController(http.Controller):
             'tenant_id': str(tenant.id),
             'user_id': str(user.id),
             'store_id': str(req_store_id) if req_store_id else None,
+            'enable_item_group_subunits': bool(tenant.enable_item_group_subunits),
+            'allowed_category_ids': user.category_ids.ids if (hasattr(user, 'category_ids') and user.category_ids and tenant.enable_item_group_subunits) else [],
+            'allowed_item_groups': [c.name for c in user.category_ids] if (hasattr(user, 'category_ids') and user.category_ids and tenant.enable_item_group_subunits) else [],
         }
 
         return request.make_response(

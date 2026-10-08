@@ -34,6 +34,19 @@ class ResUsers(models.Model):
     )
     selected_shop_id = fields.Many2one('havanoposdesk.store', string="Selected Shop")
     selected_terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string="Selected Terminal")
+    category_ids = fields.Many2many(
+        'havanoposdesk.category',
+        'res_users_category_rel',
+        'user_id',
+        'category_id',
+        string="Allowed Item Groups / Sub-Units",
+        help="Restrict this cashier to specific item groups / sub-units (e.g. Fuel, Kiosk, Gas). If blank, cashier can access all item groups."
+    )
+    enable_item_group_subunits = fields.Boolean(
+        related='tenant_id.enable_item_group_subunits',
+        string="Sub-Units Enabled on Tenant",
+        readonly=True
+    )
     pin = fields.Char(string="PIN Code")
     user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
     allow_backoffice = fields.Boolean(string="Access Backoffice", compute="_compute_allow_backoffice", inverse="_inverse_allow_backoffice", store=True)

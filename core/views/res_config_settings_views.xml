@@ -95,6 +95,10 @@
                         <setting string="Expenses Require Approval" help="When enabled, expenses submitted by cashiers from the POS will be put in Pending Approval state and must be approved by a manager before cash is deducted">
                             <field name="biz_expenses_require_approval"/>
                         </setting>
+                    <block title="Sub-Units &amp; Item Groups" name="subunit_config">
+                        <setting string="Enable Sub-Units / Item Group Rights" help="Enable independent sub-units (e.g. Fuel, Gas, Kiosk, Spare Parts) on a station/store and strictly restrict cashiers to only sell items from their assigned Item Groups">
+                            <field name="biz_enable_item_group_subunits"/>
+                        </setting>
                     </block>
 
                     <block title="Payroll Integration" name="payroll_integration_config">

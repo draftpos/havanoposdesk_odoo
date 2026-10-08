@@ -48,6 +48,7 @@ class HavanoposdeskTenant(models.Model):
             ("fiscal_device_sn", "VARCHAR"),
             ("fiscal_ping_interval", "INTEGER DEFAULT 5"),
             ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
+            ("enable_item_group_subunits", "BOOLEAN DEFAULT FALSE"),
             ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
             ("payroll_url", "VARCHAR"),
             ("stock_decimal_places", "INTEGER DEFAULT 3"),
@@ -253,6 +254,11 @@ class HavanoposdeskTenant(models.Model):
 
     # Manufacturing Settings
     enable_manufacturing = fields.Boolean(string='Enable Manufacturing', default=False)
+    enable_item_group_subunits = fields.Boolean(
+        string='Enable Sub-Units / Item Group Rights',
+        default=False,
+        help="When enabled, cashiers can be strictly restricted to only sell items belonging to their assigned Item Groups / Sub-Units (e.g. Fuel, Gas, Kiosk)."
+    )
 
     has_transactions = fields.Boolean(string="Has Transactions", compute="_compute_has_transactions")
     

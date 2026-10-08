@@ -10,6 +10,7 @@
                 <xpath expr="//list" position="inside">
                     <field name="default_store_id" string="Default Store" optional="show"/>
                     <field name="store_ids" string="Allowed Stores" widget="many2many_tags" optional="show"/>
+                    <field name="category_ids" string="Allowed Item Groups" widget="many2many_tags" optional="show"/>
                     <field name="pricelist_id" string="Default Pricelist" optional="show"/>
                 </xpath>
             </field>
@@ -35,6 +36,8 @@
                             <group string="Store Access" invisible="havano_role == 'super_admin'">
                                 <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" required="havano_role != 'super_admin'" options="{'no_create': True}"/>
                                 <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="havano_role != 'super_admin'" options="{'no_create': True}"/>
+                                <field name="enable_item_group_subunits" invisible="1"/>
+                                <field name="category_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" placeholder="All item groups (or select Fuel, Kiosk, etc.)"/>
                                 <field name="allowed_pricelist_ids" invisible="1"/>
                                 <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" required="havano_role != 'super_admin'" options="{'no_create': True}" readonly="not default_store_id"/>
                             </group>
@@ -74,6 +77,8 @@
                             <group string="Store Access" invisible="havano_role == 'super_admin'">
                                 <field name="store_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" required="havano_role != 'super_admin'" options="{'no_create': True}"/>
                                 <field name="default_store_id" domain="[('tenant_id', '=', tenant_id)]" required="havano_role != 'super_admin'" options="{'no_create': True}"/>
+                                <field name="enable_item_group_subunits" invisible="1"/>
+                                <field name="category_ids" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" placeholder="All item groups (or select Fuel, Kiosk, etc.)"/>
                                 <field name="allowed_pricelist_ids" invisible="1"/>
                                 <field name="pricelist_id" domain="[('id', 'in', allowed_pricelist_ids)]" required="havano_role != 'super_admin'" options="{'no_create': True}" readonly="not default_store_id"/>
                             </group>

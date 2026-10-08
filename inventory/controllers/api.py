@@ -634,6 +634,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     "store_tz": (store.tz if store else False) or user.tz or 'Africa/Harare',
                     "tz": user.tz or (store.tz if store else False) or 'Africa/Harare',
                     "timezone": (store.tz if store else False) or user.tz or 'Africa/Harare',
+                    "enable_item_group_subunits": bool(tenant and tenant.enable_item_group_subunits),
+                    "allowed_category_ids": user.category_ids.ids if hasattr(user, 'category_ids') and user.category_ids else [],
+                    "allowed_item_groups": [c.name for c in user.category_ids] if hasattr(user, 'category_ids') and user.category_ids else [],
                 })
 
                 # Hardware based terminal assignment — strictly scoped to the user's assigned stores.
@@ -3553,6 +3556,13 @@ class HavanoPOSDeskAPI(http.Controller):
                         'all_stores': True,
                     })
 
+                if tenant.enable_item_group_subunits and sale_user and hasattr(sale_user, 'category_ids') and sale_user.category_ids and sale_user.havano_role != 'super_admin':
+                    if product.category_id and product.category_id not in sale_user.category_ids:
+                        allowed_names = ", ".join(sale_user.category_ids.mapped('name'))
+                        return self._make_json_response({
+                            "error": f"Cashier '{sale_user.name}' is only permitted to sell items under [{allowed_names}]. Item '{product.name}' belongs to [{product.category_id.name}]."
+                        }, status=403)
+
                 line_vals = {
                     'product_id': product.id,
                     'accepted_qty': qty,
@@ -4250,6 +4260,11 @@ class HavanoPOSDeskAPI(http.Controller):
                                     'tenant_id': tenant.id,
                                     'all_stores': True,
                                 })
+
+                            if tenant.enable_item_group_subunits and sale_user and hasattr(sale_user, 'category_ids') and sale_user.category_ids and sale_user.havano_role != 'super_admin':
+                                if product.category_id and product.category_id not in sale_user.category_ids:
+                                    allowed_names = ", ".join(sale_user.category_ids.mapped('name'))
+                                    raise ValidationError(f"Cashier '{sale_user.name}' is only permitted to sell items under [{allowed_names}]. Item '{product.name}' belongs to [{product.category_id.name}].")
 
                             line_vals = {
                                 'product_id': product.id,
@@ -5570,6 +5585,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     domain.append('|')
                     domain.append(('store_ids', '=', False))
                     domain.append(('store_ids', 'in', user.store_ids.ids))
+                if tenant and tenant.enable_item_group_subunits and hasattr(user, 'category_ids') and user.category_ids:
+                    domain.append(('id', 'in', user.category_ids.ids))
 
             categories = env['havanoposdesk.category'].search(domain)
             result = []
@@ -5683,6 +5700,8 @@ class HavanoPOSDeskAPI(http.Controller):
             product_domain = [('is_active', '=', True)]
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
+            if tenant and tenant.enable_item_group_subunits and hasattr(user, 'category_ids') and user.category_ids:
+                product_domain.append(('category_id', 'in', user.category_ids.ids))
             products = env['havanoposdesk.product'].search(product_domain)
 
             result = []
@@ -5750,6 +5769,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     product_domain.append(('tenant_id', '=', tenant.id))
                 if target_item_code:
                     product_domain.append(('item_code', '=', target_item_code))
+                if tenant and tenant.enable_item_group_subunits and hasattr(user, 'category_ids') and user.category_ids:
+                    product_domain.append(('category_id', 'in', user.category_ids.ids))
                 
                 products = env['havanoposdesk.product'].search(product_domain)
 
@@ -5917,6 +5938,8 @@ class HavanoPOSDeskAPI(http.Controller):
             product_domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
+            if tenant and tenant.enable_item_group_subunits and hasattr(user, 'category_ids') and user.category_ids:
+                product_domain.append(('category_id', 'in', user.category_ids.ids))
             products = env['havanoposdesk.product'].search(product_domain)
 
             result = []
@@ -6647,6 +6670,8 @@ class HavanoPOSDeskAPI(http.Controller):
             product_domain = [('is_active', '=', True)]
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
+            if tenant and tenant.enable_item_group_subunits and hasattr(user, 'category_ids') and user.category_ids:
+                product_domain.append(('category_id', 'in', user.category_ids.ids))
                 
             from_date = params.get('from_date')
             to_date = params.get('to_date')

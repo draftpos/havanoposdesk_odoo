@@ -273,6 +273,13 @@ class ResConfigSettings(models.TransientModel):
         string="Payroll URL"
     )
 
+    biz_enable_item_group_subunits = fields.Boolean(
+        string="Enable Sub-Units / Item Group Rights",
+        related='tenant_id.enable_item_group_subunits',
+        readonly=False,
+        help="Enable independent sub-units (e.g. Fuel, Gas, Kiosk, Spare Parts) on a station/store and strictly restrict cashiers to only sell items from their assigned Item Groups."
+    )
+
     # ZIMRA Fiscalization Settings
     biz_enable_fiscalization = fields.Boolean(
         string="Enable Fiscalization",
