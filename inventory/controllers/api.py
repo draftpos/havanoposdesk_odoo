@@ -2400,6 +2400,18 @@ class HavanoPOSDeskAPI(http.Controller):
                 ], limit=1)
 
             if not sale:
+                raw_parts = str(doc_name).strip().split('-')
+                if len(raw_parts) >= 2 and raw_parts[-1].isdigit():
+                    base_tail = f"-{raw_parts[-2]}-{raw_parts[-1]}"
+                    sale = env['havanoposdesk.sale'].search(domain + [
+                        ('local_invoice_id', '=ilike', f"%{base_tail}")
+                    ], limit=1)
+                    if not sale:
+                        sale = env['havanoposdesk.sale'].search([
+                            ('local_invoice_id', '=ilike', f"%{base_tail}")
+                        ], limit=1)
+
+            if not sale:
                 return self._make_json_response({'error': f"Sales Invoice or Credit Note '{doc_name}' not found"}, status=404)
 
             update_vals = {}
@@ -2430,7 +2442,15 @@ class HavanoPOSDeskAPI(http.Controller):
                     'local_invoice_id': sale.local_invoice_id or '',
                     'fiscal_status': sale.fiscal_status or '',
                     'fiscal_qr_code': sale.fiscal_qr_code or '',
+                    'qr_code_url': sale.fiscal_qr_code or '',
+                    'custom_fiscal_qr_code': sale.fiscal_qr_code or '',
                     'fiscal_verification_code': sale.fiscal_verification_code or '',
+                    'verification_code': sale.fiscal_verification_code or '',
+                    'custom_fiscal_verification_code': sale.fiscal_verification_code or '',
+                    'fiscal_device_serial': sale.fiscal_device_serial or '',
+                    'fiscal_day': sale.fiscal_day or '',
+                    'fiscal_global_no': sale.fiscal_global_no or '',
+                    'fiscal_receipt_counter': sale.fiscal_receipt_counter or 0,
                     'is_return': sale.is_return,
                 }
             }, status=200)
@@ -3481,7 +3501,20 @@ class HavanoPOSDeskAPI(http.Controller):
                     "sale_order_id": existing_sale.id,
                     "sale_order_name": existing_sale.name,
                     "data": {
-                        "name": existing_sale.name
+                        "name": existing_sale.name,
+                        "id": existing_sale.id,
+                        "local_invoice_id": existing_sale.local_invoice_id or '',
+                        "fiscal_status": existing_sale.fiscal_status or '',
+                        "fiscal_qr_code": existing_sale.fiscal_qr_code or '',
+                        "qr_code_url": existing_sale.fiscal_qr_code or '',
+                        "custom_fiscal_qr_code": existing_sale.fiscal_qr_code or '',
+                        "fiscal_verification_code": existing_sale.fiscal_verification_code or '',
+                        "verification_code": existing_sale.fiscal_verification_code or '',
+                        "custom_fiscal_verification_code": existing_sale.fiscal_verification_code or '',
+                        "fiscal_device_serial": existing_sale.fiscal_device_serial or '',
+                        "fiscal_day": existing_sale.fiscal_day or '',
+                        "fiscal_global_no": existing_sale.fiscal_global_no or '',
+                        "fiscal_receipt_counter": existing_sale.fiscal_receipt_counter or 0,
                     }
                 })
 
@@ -3639,7 +3672,20 @@ class HavanoPOSDeskAPI(http.Controller):
                 "sale_order_id": sale.id,
                 "sale_order_name": sale.name,
                 "data": {
-                    "name": sale.name
+                    "name": sale.name,
+                    "id": sale.id,
+                    "local_invoice_id": sale.local_invoice_id or '',
+                    "fiscal_status": sale.fiscal_status or '',
+                    "fiscal_qr_code": sale.fiscal_qr_code or '',
+                    "qr_code_url": sale.fiscal_qr_code or '',
+                    "custom_fiscal_qr_code": sale.fiscal_qr_code or '',
+                    "fiscal_verification_code": sale.fiscal_verification_code or '',
+                    "verification_code": sale.fiscal_verification_code or '',
+                    "custom_fiscal_verification_code": sale.fiscal_verification_code or '',
+                    "fiscal_device_serial": sale.fiscal_device_serial or '',
+                    "fiscal_day": sale.fiscal_day or '',
+                    "fiscal_global_no": sale.fiscal_global_no or '',
+                    "fiscal_receipt_counter": sale.fiscal_receipt_counter or 0,
                 }
             })
         except Exception as e:
@@ -3842,6 +3888,20 @@ class HavanoPOSDeskAPI(http.Controller):
                     "grand_total": sale.amount_total,
                     "created_by": created_by,
                     "last_modified_by": created_by,
+                    "local_invoice_id": sale.local_invoice_id or "",
+                    "is_return": sale.is_return,
+                    "fiscal_status": sale.fiscal_status or "not_required",
+                    "fiscal_qr_code": sale.fiscal_qr_code or "",
+                    "qr_code_url": sale.fiscal_qr_code or "",
+                    "custom_fiscal_qr_code": sale.fiscal_qr_code or "",
+                    "fiscal_verification_code": sale.fiscal_verification_code or "",
+                    "verification_code": sale.fiscal_verification_code or "",
+                    "custom_fiscal_verification_code": sale.fiscal_verification_code or "",
+                    "fiscal_device_serial": sale.fiscal_device_serial or "",
+                    "fiscal_day": sale.fiscal_day or "",
+                    "fiscal_global_no": sale.fiscal_global_no or "",
+                    "fiscal_receipt_counter": sale.fiscal_receipt_counter or 0,
+                    "pos_profile": sale.terminal_id.name if sale.terminal_id else "",
                 })
 
             return self._make_json_response({"message": result})
@@ -4019,6 +4079,20 @@ class HavanoPOSDeskAPI(http.Controller):
                         "account": sale.account_id.name if sale.account_id else "",
                         "created_by": created_by,
                         "last_modified_by": created_by,
+                        "local_invoice_id": sale.local_invoice_id or "",
+                        "is_return": sale.is_return,
+                        "fiscal_status": sale.fiscal_status or "not_required",
+                        "fiscal_qr_code": sale.fiscal_qr_code or "",
+                        "qr_code_url": sale.fiscal_qr_code or "",
+                        "custom_fiscal_qr_code": sale.fiscal_qr_code or "",
+                        "fiscal_verification_code": sale.fiscal_verification_code or "",
+                        "verification_code": sale.fiscal_verification_code or "",
+                        "custom_fiscal_verification_code": sale.fiscal_verification_code or "",
+                        "fiscal_device_serial": sale.fiscal_device_serial or "",
+                        "fiscal_day": sale.fiscal_day or "",
+                        "fiscal_global_no": sale.fiscal_global_no or "",
+                        "fiscal_receipt_counter": sale.fiscal_receipt_counter or 0,
+                        "pos_profile": sale.terminal_id.name if sale.terminal_id else "",
                     })
 
                 return self._make_json_response({"data": result})
@@ -4125,7 +4199,15 @@ class HavanoPOSDeskAPI(http.Controller):
                                     "status": "updated_fiscal",
                                     "fiscal_status": existing_sale.fiscal_status or 'fiscalized',
                                     "fiscal_qr_code": existing_sale.fiscal_qr_code or '',
+                                    "qr_code_url": existing_sale.fiscal_qr_code or '',
+                                    "custom_fiscal_qr_code": existing_sale.fiscal_qr_code or '',
                                     "fiscal_verification_code": existing_sale.fiscal_verification_code or '',
+                                    "verification_code": existing_sale.fiscal_verification_code or '',
+                                    "custom_fiscal_verification_code": existing_sale.fiscal_verification_code or '',
+                                    "fiscal_device_serial": existing_sale.fiscal_device_serial or '',
+                                    "fiscal_day": existing_sale.fiscal_day or '',
+                                    "fiscal_global_no": existing_sale.fiscal_global_no or '',
+                                    "fiscal_receipt_counter": existing_sale.fiscal_receipt_counter or 0,
                                 })
                                 continue
                             return self._make_json_response({
@@ -4351,7 +4433,13 @@ class HavanoPOSDeskAPI(http.Controller):
                             "status": "created",
                             "fiscal_status": sale.fiscal_status or 'not_required',
                             "fiscal_qr_code": sale.fiscal_qr_code or '',
+                            "qr_code_url": sale.fiscal_qr_code or '',
+                            "custom_fiscal_qr_code": sale.fiscal_qr_code or '',
                             "fiscal_verification_code": sale.fiscal_verification_code or '',
+                            "verification_code": sale.fiscal_verification_code or '',
+                            "custom_fiscal_verification_code": sale.fiscal_verification_code or '',
+                            "fiscal_device_serial": sale.fiscal_device_serial or '',
+                            "fiscal_day": sale.fiscal_day or '',
                             "fiscal_receipt_counter": sale.fiscal_receipt_counter or 0,
                             "fiscal_global_no": sale.fiscal_global_no or '',
                         }

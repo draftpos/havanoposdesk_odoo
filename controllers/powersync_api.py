@@ -315,7 +315,16 @@ class HavanoPowerSyncController(http.Controller):
 
                             if update_vals:
                                 existing_sale.write(update_vals)
-                            results.append({'sale_id': item.get('sale_id'), 'status': 'updated' if update_vals else 'already_exists', 'id': existing_sale.id, 'name': existing_sale.name})
+                            results.append({
+                                'sale_id': item.get('sale_id'),
+                                'status': 'updated' if update_vals else 'already_exists',
+                                'id': existing_sale.id,
+                                'name': existing_sale.name,
+                                'fiscal_status': existing_sale.fiscal_status or '',
+                                'fiscal_qr_code': existing_sale.fiscal_qr_code or '',
+                                'qr_code_url': existing_sale.fiscal_qr_code or '',
+                                'verification_code': existing_sale.fiscal_verification_code or '',
+                            })
                             continue
 
                         # Resolve customer
@@ -416,7 +425,16 @@ class HavanoPowerSyncController(http.Controller):
                                 'reference': p.get('reference') or local_invoice_id or '',
                             })
 
-                        results.append({'sale_id': item.get('sale_id'), 'status': 'created', 'server_id': new_sale.id, 'name': new_sale.name})
+                        results.append({
+                            'sale_id': item.get('sale_id'),
+                            'status': 'created',
+                            'server_id': new_sale.id,
+                            'name': new_sale.name,
+                            'fiscal_status': new_sale.fiscal_status or '',
+                            'fiscal_qr_code': new_sale.fiscal_qr_code or '',
+                            'qr_code_url': new_sale.fiscal_qr_code or '',
+                            'verification_code': new_sale.fiscal_verification_code or '',
+                        })
                         processed_count += 1
 
                     # ---------------------------------------------------------

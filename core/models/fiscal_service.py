@@ -264,17 +264,24 @@ class HavanoZimraCloudService:
             msg = res_json.get("message", res_json)
 
             if isinstance(msg, dict):
-                qr_code = str(msg.get("QRcode") or msg.get("qr_code") or "")
-                ver_code = str(msg.get("VerificationCode") or msg.get("verification_code") or "")
-                device_id = str(msg.get("DeviceID") or msg.get("device_id") or "")
+                qr_code = str(
+                    msg.get("QRcode") or msg.get("qr_code") or msg.get("qr_code_url")
+                    or msg.get("qrcode_url") or msg.get("qrUrl") or msg.get("url") or ""
+                )
+                ver_code = str(
+                    msg.get("VerificationCode") or msg.get("verification_code")
+                    or msg.get("fiscal_code") or msg.get("signature") or ""
+                )
+                device_id = str(msg.get("DeviceID") or msg.get("device_id") or msg.get("fiscal_device_id") or "")
                 fiscal_day = str(msg.get("FiscalDay") or msg.get("fiscal_day") or "")
-                receipt_counter = int(msg.get("receiptCounter") or msg.get("receipt_counter") or 0)
-                global_no = str(msg.get("receiptGlobalNo") or msg.get("receipt_global_no") or "")
+                receipt_counter = int(msg.get("receiptCounter") or msg.get("receipt_counter") or msg.get("fiscal_receipt_counter") or 0)
+                global_no = str(msg.get("receiptGlobalNo") or msg.get("receipt_global_no") or msg.get("fiscal_global_no") or "")
 
                 if qr_code or ver_code or global_no:
                     return {
                         'status': 'fiscalized',
                         'qr_code': qr_code,
+                        'qr_code_url': qr_code,
                         'verification_code': ver_code,
                         'receipt_counter': receipt_counter,
                         'global_no': global_no,
@@ -304,6 +311,7 @@ class HavanoZimraCloudService:
             return {
                 'status': 'PENDING_SYNC',
                 'qr_code': local_url,
+                'qr_code_url': local_url,
                 'verification_code': sig_hash,
                 'receipt_counter': 0,
                 'global_no': str(sale.id),

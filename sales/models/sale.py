@@ -917,7 +917,7 @@ class Sale(models.Model):
                 if res.get('status') in ('fiscalized', 'PENDING_SYNC'):
                     sale.write({
                         'fiscal_status': res.get('status'),
-                        'fiscal_qr_code': res.get('qr_code', ''),
+                        'fiscal_qr_code': res.get('qr_code') or res.get('qr_code_url') or '',
                         'fiscal_verification_code': res.get('verification_code', ''),
                         'fiscal_receipt_counter': res.get('receipt_counter', 0),
                         'fiscal_global_no': res.get('global_no', ''),
