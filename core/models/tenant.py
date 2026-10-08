@@ -1406,6 +1406,29 @@ class HavanoposdeskTenant(models.Model):
         return self.action_hard_delete_tenant_data()
 
     @api.model
+    def cron_check_expired_subscriptions(self):
+        """
+        Automated cron job (ir.cron ID 25):
+        Checks and marks tenant subscriptions as expired when subscription_end_date is past.
+        """
+        today = fields.Date.context_today(self)
+        _logger.info("Running cron_check_expired_subscriptions for date: %s", today)
+        expired_tenants = self.sudo().search([
+            ('subscription_end_date', '<', today),
+            ('subscription_state', '=', 'active'),
+        ])
+        expired_count = 0
+        for tenant in expired_tenants:
+            try:
+                tenant.action_expire()
+                expired_count += 1
+                _logger.info("Marked subscription for tenant %s (ID: %s) as expired", tenant.name, tenant.id)
+            except Exception as e:
+                _logger.exception("Error expiring subscription for tenant %s: %s", tenant.name, e)
+        _logger.info("Finished cron_check_expired_subscriptions. Updated %s tenants.", expired_count)
+        return True
+
+    @api.model
     def cron_cleanup_expired_trial_tenants(self):
         """
         Automated cleanup cron job:
