@@ -80,6 +80,9 @@
                         <setting id="enable_manufacturing_setting" string="Enable Manufacturing" help="Enable Manufacturing (Bill of Materials and Production Orders).">
                             <field name="biz_enable_manufacturing"/>
                         </setting>
+                        <setting id="enable_item_group_subunits_setting" string="Sub-Units &amp; Item Groups" help="Enable independent sub-units (e.g. Fuel, Gas, Kiosk, Spare Parts) on a station/store and strictly restrict cashiers to only sell items from their assigned Item Groups.">
+                            <field name="biz_enable_item_group_subunits"/>
+                        </setting>
                     </block>
 
                     <block title="Decimal Precision &amp; Rounding" name="decimal_precision_config">
@@ -94,10 +97,6 @@
                     <block title="Expense Settings" name="expense_settings_config">
                         <setting string="Expenses Require Approval" help="When enabled, expenses submitted by cashiers from the POS will be put in Pending Approval state and must be approved by a manager before cash is deducted">
                             <field name="biz_expenses_require_approval"/>
-                        </setting>
-                    <block title="Sub-Units &amp; Item Groups" name="subunit_config">
-                        <setting string="Enable Sub-Units / Item Group Rights" help="Enable independent sub-units (e.g. Fuel, Gas, Kiosk, Spare Parts) on a station/store and strictly restrict cashiers to only sell items from their assigned Item Groups">
-                            <field name="biz_enable_item_group_subunits"/>
                         </setting>
                     </block>
 
