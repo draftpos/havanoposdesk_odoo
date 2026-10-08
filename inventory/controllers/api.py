@@ -4167,7 +4167,19 @@ class HavanoPOSDeskAPI(http.Controller):
                         if payment_commands:
                             sale_vals['payment_ids'] = payment_commands
 
-                        sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
+                        sale = None
+                        for attempt in range(2):
+                            try:
+                                with env.cr.savepoint():
+                                    sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
+                                break
+                            except Exception as create_err:
+                                err_msg = str(create_err)
+                                if attempt == 0 and ("could not serialize" in err_msg or "concurrent update" in err_msg):
+                                    import time
+                                    time.sleep(0.05)
+                                    continue
+                                raise
                         
                         resp_item = {
                             "name": sale.name,
@@ -4812,12 +4824,35 @@ class HavanoPOSDeskAPI(http.Controller):
                         }
                     })
 
+            # Resolve Currency
+            currency_obj = False
+            if account_obj and account_obj.currency_id:
+                currency_obj = account_obj.currency_id
+            elif tenant and tenant.currency_id:
+                currency_obj = tenant.currency_id
+            else:
+                currency_obj = env.company.currency_id
+
+            # Ensure account fallback if still missing
+            if not account_obj and tenant_id:
+                account_obj = env['havanoposdesk.account'].sudo().search([
+                    ('tenant_id', '=', tenant_id),
+                    ('type', 'in', ['Cash', 'Bank'])
+                ], limit=1)
+                if not account_obj:
+                    account_obj = env['havanoposdesk.account'].sudo().create({
+                        'name': 'Cash',
+                        'type': 'Cash',
+                        'tenant_id': tenant_id
+                    })
+
             payment_vals = {
                 'payment_type': payment_type,
                 'partner_type': partner_type,
                 'customer_id': customer_obj.id if customer_obj else False,
                 'supplier_id': supplier_obj.id if supplier_obj else False,
                 'account_id': account_obj.id if account_obj else False,
+                'currency_id': currency_obj.id if currency_obj else False,
                 'amount': amount,
                 'date': today_date,
                 'reference': ref_str,
@@ -4851,9 +4886,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 }
             })
         except Exception as e:
+            _logger.error("Payment Entry error: %s", e, exc_info=True)
             if custom_cr:
                 custom_cr.rollback()
-            return self._make_json_response({"error": str(e)}, status=500)
+            return self._make_json_response({"error": str(e)}, status=400)
         finally:
             if custom_cr:
                 custom_cr.close()
@@ -9612,36 +9648,39 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"error": "Terminal not found"}, status=404)
 
             from odoo import fields as odoo_fields
-            try:
-                now_dt = odoo_fields.Datetime.now()
-                terminal.with_context(skip_audit_log=True).write({
-                    'last_seen': now_dt,
-                    'status': 'online'
-                })
+            now_dt = odoo_fields.Datetime.now()
+            # Throttle ping writes: only update DB if last_seen is older than 30s or terminal was not online
+            needs_update = (
+                not terminal.last_seen
+                or (now_dt - terminal.last_seen).total_seconds() > 30
+                or terminal.status != 'online'
+            )
+            if needs_update:
                 try:
                     with env.cr.savepoint():
-                        user_rec = terminal.last_logged_in_user_id or (request.env.user if request.env.user and request.env.user.id != request.env.ref('base.public_user').id else False)
-                        env['havanoposdesk.online.activity'].sudo().record_activity(
-                            user=user_rec,
-                            tenant=terminal.tenant_id,
-                            store=terminal.store_id,
-                            terminal=terminal,
-                            device_hardware_id=terminal.device_hardware_id or device_hardware_id,
-                            app_version=terminal.app_version,
-                            platform='mobile_pos',
-                            ip_address=request.httprequest.remote_addr,
-                        )
-                except Exception:
-                    pass
-                if custom_cr:
-                    custom_cr.commit()
-            except Exception as write_err:
-                if custom_cr:
-                    try:
-                        custom_cr.rollback()
-                    except Exception:
-                        pass
-                _logger.info("Concurrent lock during terminal ping update, skipped safely: %s", write_err)
+                        terminal.with_context(skip_audit_log=True).write({
+                            'last_seen': now_dt,
+                            'status': 'online'
+                        })
+                        try:
+                            user_rec = terminal.last_logged_in_user_id or (request.env.user if request.env.user and request.env.user.id != request.env.ref('base.public_user').id else False)
+                            env['havanoposdesk.online.activity'].sudo().record_activity(
+                                user=user_rec,
+                                tenant=terminal.tenant_id,
+                                store=terminal.store_id,
+                                terminal=terminal,
+                                device_hardware_id=terminal.device_hardware_id or device_hardware_id,
+                                app_version=terminal.app_version,
+                                platform='mobile_pos',
+                                ip_address=request.httprequest.remote_addr,
+                            )
+                        except Exception:
+                            pass
+                    if custom_cr:
+                        custom_cr.commit()
+                except Exception as write_err:
+                    _logger.debug("Concurrent lock during terminal ping update, skipped safely: %s", write_err)
+
             return self._make_json_response({"message": "Pong", "status": "online"}, status=200)
         except Exception as e:
             if custom_cr:
@@ -9733,18 +9772,33 @@ class HavanoPOSDeskAPI(http.Controller):
             # Generate a unique 4-letter uppercase sale ID prefix for this terminal takeover/selection
             sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
 
-            # Update selected terminal for new user
-            if user.selected_terminal_id.id != terminal.id:
-                user.sudo().write({'selected_terminal_id': terminal.id})
-            terminal.with_context(skip_audit_log=True).write({
-                'status': 'online',
-                'device_hardware_id': device_hardware_id,
-                'app_version': str(app_version) if app_version else terminal.app_version,
-                'last_seen': fields.Datetime.now(),
-                'last_logged_in_user_id': user.id,
-                'taken_by_user_id': user.id,
-                'sequence_prefix': sale_id_prefix
-            })
+            # Update selected terminal for new user with safe savepoint to prevent aborting transaction on concurrent lock
+            try:
+                with env.cr.savepoint():
+                    if user.selected_terminal_id.id != terminal.id:
+                        user.sudo().write({'selected_terminal_id': terminal.id})
+                    terminal.with_context(skip_audit_log=True).write({
+                        'status': 'online',
+                        'device_hardware_id': device_hardware_id,
+                        'app_version': str(app_version) if app_version else terminal.app_version,
+                        'last_seen': fields.Datetime.now(),
+                        'last_logged_in_user_id': user.id,
+                        'taken_by_user_id': user.id,
+                        'sequence_prefix': sale_id_prefix
+                    })
+            except Exception as write_collision:
+                _logger.info("Transient lock during terminal selection write, retrying: %s", write_collision)
+                try:
+                    with env.cr.savepoint():
+                        terminal.with_context(skip_audit_log=True).write({
+                            'status': 'online',
+                            'device_hardware_id': device_hardware_id,
+                            'last_seen': fields.Datetime.now(),
+                            'taken_by_user_id': user.id,
+                        })
+                except Exception:
+                    pass
+
             try:
                 with env.cr.savepoint():
                     env['havanoposdesk.online.activity'].sudo().record_activity(
