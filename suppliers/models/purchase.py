@@ -230,8 +230,8 @@ class Purchase(models.Model):
             if purchase.state != 'draft':
                 continue
                 
-            # Auto-create payment if cash
-            if purchase.payment_status == 'cash' and purchase.account_id:
+            # Auto-create payment if cash and total is greater than zero
+            if purchase.payment_status == 'cash' and purchase.account_id and purchase.amount_total > 0:
                 payment_type = 'receipt' if purchase.is_return else 'payment'
                 
                 existing_payment = self.env['havanoposdesk.payment'].search([
