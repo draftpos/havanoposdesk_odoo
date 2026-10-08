@@ -74,6 +74,8 @@
             <list string="System Errors" create="0" edit="0" decoration-danger="not is_resolved" decoration-success="is_resolved">
                 <header>
                     <button name="action_sync_issues" type="object" string="Pull Latest Issues" class="oe_highlight"/>
+                    <button name="action_mark_resolved" type="object" string="Mark Selected Resolved" class="btn-success"/>
+                    <button name="action_resolve_all" type="object" string="Resolve All" class="btn-outline-danger" confirm="Are you sure you want to mark all issues as resolved?"/>
                 </header>
                 <field name="type" string="Error Type"/>
                 <field name="name" string="Message"/>
@@ -97,6 +99,8 @@
             <form string="System Error Issue" create="0" edit="0">
                 <header>
                     <button name="action_sync_events" type="object" string="Fetch Latest Events" class="oe_highlight"/>
+                    <button name="action_mark_resolved" type="object" string="Mark as Resolved" class="btn-success" invisible="is_resolved"/>
+                    <button name="action_mark_unresolved" type="object" string="Reopen Issue" class="btn-secondary" invisible="not is_resolved"/>
                     <widget name="web_ribbon" title="Resolved" bg_color="bg-success" invisible="not is_resolved"/>
                 </header>
                 <sheet>
@@ -235,6 +239,29 @@
         <field name="state">code</field>
         <field name="code">
             model.action_sync_issues()
+        </field>
+    </record>
+
+    <!-- Contextual Server Actions to Mark Resolved / Reopen in list view -->
+    <record id="action_mark_issues_resolved" model="ir.actions.server">
+        <field name="name">Mark as Resolved</field>
+        <field name="model_id" ref="model_havano_error_issue"/>
+        <field name="binding_model_id" ref="model_havano_error_issue"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+            records.action_mark_resolved()
+        </field>
+    </record>
+
+    <record id="action_mark_issues_unresolved" model="ir.actions.server">
+        <field name="name">Reopen Issues</field>
+        <field name="model_id" ref="model_havano_error_issue"/>
+        <field name="binding_model_id" ref="model_havano_error_issue"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+            records.action_mark_unresolved()
         </field>
     </record>
 
