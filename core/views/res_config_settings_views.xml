@@ -82,6 +82,9 @@
                         </setting>
                         <setting id="enable_item_group_subunits_setting" string="Sub-Units &amp; Item Groups" help="Enable independent sub-units (e.g. Fuel, Gas, Kiosk, Spare Parts) on a station/store and strictly restrict cashiers to only sell items from their assigned Item Groups.">
                             <field name="biz_enable_item_group_subunits"/>
+                            <div class="mt16" invisible="not biz_enable_item_group_subunits">
+                                <button name="%(havanoposdesk_odoo.action_havanoposdesk_category)d" type="action" string="Manage Item Groups / Sub-Units" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
                         </setting>
                     </block>
 
