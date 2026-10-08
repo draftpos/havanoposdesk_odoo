@@ -128,6 +128,123 @@ class HavanoPOSDeskAPI(http.Controller):
 
         return parsed_date or sale_date
 
+    def _resolve_terminal(self, env, tenant, user=None, store=None, data=None, raw_local_id=None):
+        data = data or {}
+        terminal = False
+        t_id = data.get('terminal_id')
+        if t_id:
+            try:
+                terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('id', '=', int(t_id))
+                ], limit=1)
+            except Exception:
+                pass
+
+        terminal_name = data.get('pos_profile') or data.get('terminal_name') or data.get('terminal') or data.get('pos_terminal')
+        if not terminal and terminal_name:
+            terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('name', '=ilike', str(terminal_name).strip())
+            ], limit=1)
+
+        hw_id = (
+            data.get('device_hardware_id') or data.get('hardware_id')
+            or request.httprequest.headers.get('device_hardware_id')
+            or request.httprequest.headers.get('hardware-id')
+            or request.httprequest.headers.get('device-hardware-id')
+        )
+        if not terminal and hw_id:
+            terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('device_hardware_id', '=', str(hw_id).strip())
+            ], limit=1)
+
+        raw_id = raw_local_id or data.get('reference_number') or data.get('local_invoice_id')
+        if not terminal and raw_id and '-' in str(raw_id):
+            cand_pfx = str(raw_id).split('-')[0].strip()
+            if cand_pfx:
+                terminal = env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('sequence_prefix', '=ilike', cand_pfx)
+                ], limit=1)
+
+        if not terminal and user and getattr(user, 'selected_terminal_id', None):
+            terminal = user.selected_terminal_id
+
+        if not terminal and store:
+            store_terminals = env['havanoposdesk.pos.terminal'].sudo().search([
+                ('store_id', '=', store.id),
+                ('tenant_id', '=', tenant.id)
+            ])
+            if store_terminals:
+                terminal = store_terminals[0]
+
+        return terminal
+
+    def _standardize_local_invoice_id(self, local_invoice_id, terminal):
+        if not local_invoice_id:
+            return local_invoice_id
+        if terminal and terminal.sequence_prefix:
+            pfx = terminal.sequence_prefix.strip()
+            str_loc = str(local_invoice_id).strip()
+            parts = str_loc.split('-')
+            if len(parts) >= 2 and len(parts[0]) == 4 and parts[0].isalpha() and parts[0].isupper():
+                return str_loc  # already prefixed with a 4-letter sequence prefix
+            elif not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
+                return f"{pfx}-{str_loc}"
+        return str(local_invoice_id).strip()
+
+    def _resolve_app_version(self, data, terminal=None, params=None):
+        data = data or {}
+        params = params or {}
+        # 1. Desktop version specific keys take priority
+        desktop_ver = (
+            data.get('desktop_version') or data.get('desktopVersion')
+            or params.get('desktop_version') or params.get('desktopVersion')
+            or request.httprequest.headers.get('desktop-version')
+            or request.httprequest.headers.get('desktop_version')
+            or request.httprequest.headers.get('x-desktop-version')
+        )
+        if desktop_ver:
+            return str(desktop_ver).strip()
+
+        # 2. Check terminal registered version
+        term_ver = terminal.app_version if terminal and terminal.app_version else None
+
+        # 3. Payload explicit version
+        app_ver = (
+            data.get('app_version') or data.get('appVersion')
+            or data.get('client_version') or data.get('pos_version')
+            or data.get('version')
+            or params.get('app_version') or params.get('appVersion')
+            or params.get('client_version') or params.get('pos_version')
+            or params.get('version')
+        )
+        if app_ver:
+            # If app_ver is generic mobile '2.3.4' but terminal is a desktop terminal (e.g. 2.0.8.xx),
+            # prefer the terminal's registered desktop version
+            if term_ver and str(term_ver).startswith('2.0.8') and str(app_ver) == '2.3.4':
+                return str(term_ver).strip()
+            return str(app_ver).strip()
+
+        # 4. If payload didn't specify, use terminal's app_version
+        if term_ver:
+            return str(term_ver).strip()
+
+        # 5. Header fallback
+        header_ver = (
+            request.httprequest.headers.get('app_version')
+            or request.httprequest.headers.get('app-version')
+            or request.httprequest.headers.get('x-app-version')
+        )
+        if header_ver:
+            if term_ver and str(term_ver).startswith('2.0.8') and str(header_ver) == '2.3.4':
+                return str(term_ver).strip()
+            return str(header_ver).strip()
+
+        return False
+
     # AUTHENTICATION
     @http.route(['/api/auth/login', '/api/method/saas_api.www.api.login'], auth='public', methods=['POST'], type='http', csrf=False, cors='*')
     def api_login(self, **kw):
@@ -142,7 +259,14 @@ class HavanoPOSDeskAPI(http.Controller):
         timezone = data.get('timezone')
         items_limit = data.get('items_limit')
         device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
-        app_version = data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version')
+        app_version = (
+            data.get('desktop_version') or data.get('desktopVersion')
+            or data.get('app_version') or data.get('appVersion')
+            or data.get('client_version') or data.get('pos_version')
+            or request.httprequest.headers.get('desktop-version')
+            or request.httprequest.headers.get('app_version')
+            or request.httprequest.headers.get('app-version')
+        )
         
         if not login or not password:
             return request.make_response(json.dumps({'error': 'Username and password are required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -2007,51 +2131,17 @@ class HavanoPOSDeskAPI(http.Controller):
             if not tenant:
                 tenant = request.env['havanoposdesk.tenant'].sudo().create({'name': 'Default Tenant'})
                 
-        # Resolve POS terminal / profile
-        terminal_name = data.get('pos_profile') or data.get('terminal_name') or data.get('terminal') or data.get('pos_terminal')
-        terminal = False
-        if data.get('terminal_id'):
-            try:
-                t_id = int(data.get('terminal_id'))
-                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
-                    ('tenant_id', '=', tenant.id),
-                    ('id', '=', t_id)
-                ], limit=1)
-            except Exception:
-                pass
-        if not terminal and terminal_name:
-            terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
-                ('tenant_id', '=', tenant.id),
-                ('name', '=ilike', str(terminal_name).strip())
-            ], limit=1)
-        hw_id = data.get('device_hardware_id') or data.get('hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('hardware-id')
-        if not terminal and hw_id:
-            terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
-                ('tenant_id', '=', tenant.id),
-                ('device_hardware_id', '=', str(hw_id).strip())
-            ], limit=1)
         raw_local_id = data.get('reference_number') or data.get('local_invoice_id')
-        if not terminal and raw_local_id and '-' in str(raw_local_id):
-            cand_pfx = str(raw_local_id).split('-')[0].strip()
-            if cand_pfx:
-                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
-                    ('tenant_id', '=', tenant.id),
-                    ('sequence_prefix', '=ilike', cand_pfx)
-                ], limit=1)
-        if not terminal and user:
-            terminal = user.selected_terminal_id
-            
+        if not raw_local_id:
+            return request.make_response(json.dumps({'error': 'reference_number is required when making a sale'}), headers=[('Content-Type', 'application/json')], status=400)
+
+        terminal = self._resolve_terminal(request.env, tenant, user=user, store=None, data=data, raw_local_id=raw_local_id)
         store = self._get_current_store(user, tenant, data)
         if not store and terminal:
             store = terminal.store_id
 
         if not terminal and store:
-            store_terminals = request.env['havanoposdesk.pos.terminal'].sudo().search([
-                ('store_id', '=', store.id),
-                ('tenant_id', '=', tenant.id)
-            ])
-            if store_terminals:
-                terminal = store_terminals[0]
+            terminal = self._resolve_terminal(request.env, tenant, user=user, store=store, data=data, raw_local_id=raw_local_id)
             
         if not store:
             return request.make_response(json.dumps({'error': 'Store/Warehouse is required'}), headers=[('Content-Type', 'application/json')], status=400)
@@ -2060,19 +2150,7 @@ class HavanoPOSDeskAPI(http.Controller):
         if not tz_valid:
             return request.make_response(json.dumps({'error': tz_err}), headers=[('Content-Type', 'application/json')], status=400)
 
-        local_invoice_id = raw_local_id
-        if not local_invoice_id:
-            return request.make_response(json.dumps({'error': 'reference_number is required when making a sale'}), headers=[('Content-Type', 'application/json')], status=400)
-
-        # Standardize local_invoice_id with hardware sequence prefix if terminal assigned
-        if terminal and terminal.sequence_prefix:
-            pfx = terminal.sequence_prefix.strip()
-            str_loc = str(local_invoice_id).strip()
-            parts = str_loc.split('-')
-            if len(parts) >= 2 and len(parts[0]) == 4 and parts[0].isalpha() and parts[0].isupper():
-                pass  # already prefixed with a 4-letter sequence prefix
-            elif not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
-                local_invoice_id = f"{pfx}-{str_loc}"
+        local_invoice_id = self._standardize_local_invoice_id(raw_local_id, terminal)
             
         dup_domain = [
             ('tenant_id', '=', tenant.id),
@@ -2200,7 +2278,7 @@ class HavanoPOSDeskAPI(http.Controller):
             'payment_status': payment_vals['payment_status'],
             'payment_policy': payment_vals['payment_policy'],
             'local_invoice_id': local_invoice_id,
-            'app_version': data.get('app_version') or data.get('appVersion') or data.get('desktop_version') or data.get('desktopVersion') or data.get('client_version') or data.get('pos_version') or data.get('version') or request.httprequest.headers.get('desktop-version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version') or request.httprequest.headers.get('x-app-version'),
+            'app_version': self._resolve_app_version(data, terminal=terminal),
             'is_return': is_return_val,
             'return_id': return_id_val if return_id_val else False,
         }
@@ -3320,12 +3398,11 @@ class HavanoPOSDeskAPI(http.Controller):
         if not uid:
             return self._make_json_response({"error": "Unauthorized"}, status=401)
 
-        customer_name = params.get('customer') or "Walk-in Customer"
-        lines = params.get('lines')
-        if lines is None:
-            lines = params.get('items')
-        if lines is None:
-            lines = []
+        pos_invoice_data = params.get('pos_invoice')
+        sale_data = pos_invoice_data if isinstance(pos_invoice_data, dict) else params
+
+        customer_name = sale_data.get('customer') or params.get('customer') or "Walk-in Customer"
+        lines = sale_data.get('lines') or sale_data.get('items') or params.get('lines') or params.get('items') or []
 
         if not lines:
             return self._make_json_response({"error": "No items in sale"}, status=400)
@@ -3335,16 +3412,68 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
             
-            # Deduplication check
-            local_invoice_id = params.get('reference_number') or params.get('local_invoice_id')
-            if not local_invoice_id:
+            raw_local_id = sale_data.get('reference_number') or sale_data.get('local_invoice_id') or params.get('reference_number') or params.get('local_invoice_id')
+            if not raw_local_id:
                 return self._make_json_response({"error": "reference_number is required when making a sale"}, status=400)
 
-            existing_sale = env['havanoposdesk.sale'].search([
+            sale_user_email = sale_data.get('cashier') or sale_data.get('sales_person') or sale_data.get('owner') or sale_data.get('user') or params.get('cashier') or params.get('sales_person') or params.get('owner') or params.get('user')
+            sale_user = None
+            if sale_user_email:
+                cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
+                if cashier_user:
+                    sale_user = cashier_user
+            if not sale_user:
+                sale_user = user
+
+            store = self._get_current_store(sale_user, tenant, sale_data) or self._get_current_store(user, tenant, params)
+            terminal = self._resolve_terminal(env, tenant, user=sale_user or user, store=store, data=sale_data, raw_local_id=raw_local_id)
+            if not store and terminal:
+                store = terminal.store_id
+            if not store:
+                return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
+            if not terminal and store:
+                terminal = self._resolve_terminal(env, tenant, user=sale_user or user, store=store, data=sale_data, raw_local_id=raw_local_id)
+
+            tz_valid, tz_err = self._validate_store_timezone(store, sale_data, sale_user)
+            if not tz_valid:
+                return self._make_json_response({"error": tz_err}, status=400)
+
+            local_invoice_id = self._standardize_local_invoice_id(raw_local_id, terminal)
+
+            # Deduplication check
+            dup_domain = [
                 ('tenant_id', '=', tenant.id),
-                ('local_invoice_id', '=', local_invoice_id)
-            ], limit=1)
+                ('local_invoice_id', 'in', list({str(raw_local_id).strip(), str(local_invoice_id).strip()}))
+            ]
+            raw_parts = str(raw_local_id).strip().split('-')
+            if len(raw_parts) >= 2 and raw_parts[-1].isdigit():
+                base_tail = f"-{raw_parts[-2]}-{raw_parts[-1]}"
+                dup_domain = [
+                    '&', ('tenant_id', '=', tenant.id),
+                    '|', ('local_invoice_id', '=ilike', f"%{base_tail}"),
+                    ('local_invoice_id', 'in', list({str(raw_local_id).strip(), str(local_invoice_id).strip()}))
+                ]
+            existing_sale = env['havanoposdesk.sale'].search(dup_domain, limit=1)
             if existing_sale:
+                qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url')
+                code = sale_data.get('fiscal_verification_code') or sale_data.get('fiscal_code') or sale_data.get('custom_fiscal_verification_code') or sale_data.get('verification_code')
+                sn = sale_data.get('fiscal_device_serial') or sale_data.get('custom_fiscal_device_sn') or sale_data.get('fiscal_device_id')
+                update_vals = {}
+                if qr and existing_sale.fiscal_qr_code != qr:
+                    update_vals['fiscal_qr_code'] = qr
+                    update_vals['fiscal_status'] = 'fiscalized'
+                if code and existing_sale.fiscal_verification_code != code:
+                    update_vals['fiscal_verification_code'] = code
+                if sn and existing_sale.fiscal_device_serial != sn:
+                    update_vals['fiscal_device_serial'] = sn
+                if sale_data.get('fiscal_day') and existing_sale.fiscal_day != sale_data.get('fiscal_day'):
+                    update_vals['fiscal_day'] = sale_data.get('fiscal_day')
+                if sale_data.get('fiscal_global_no') and existing_sale.fiscal_global_no != sale_data.get('fiscal_global_no'):
+                    update_vals['fiscal_global_no'] = sale_data.get('fiscal_global_no')
+                if sale_data.get('fiscal_receipt_counter'):
+                    update_vals['fiscal_receipt_counter'] = int(sale_data.get('fiscal_receipt_counter'))
+                if update_vals:
+                    existing_sale.sudo().write(update_vals)
                 if custom_cr:
                     custom_cr.commit()
                 return self._make_json_response({
@@ -3355,14 +3484,6 @@ class HavanoPOSDeskAPI(http.Controller):
                         "name": existing_sale.name
                     }
                 })
-
-            store = self._get_current_store(user, tenant, params)
-            if not store:
-                return self._make_json_response({"error": "Store/Warehouse is required"}, status=400)
-
-            tz_valid, tz_err = self._validate_store_timezone(store, params, user)
-            if not tz_valid:
-                return self._make_json_response({"error": tz_err}, status=400)
 
             customer = env['havanoposdesk.customer'].search([
                 ('name', '=', customer_name),
@@ -3436,23 +3557,13 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 sale_lines.append((0, 0, line_vals))
 
-            terminal = user.selected_terminal_id
-            sale_user_email = params.get('cashier') or params.get('sales_person') or params.get('owner') or params.get('user')
-            sale_user = None
-            if sale_user_email:
-                cashier_user = env['res.users'].sudo().search([('login', '=', sale_user_email)], limit=1)
-                if cashier_user:
-                    sale_user = cashier_user
-            if not sale_user:
-                sale_user = user
-
-            payment_vals = self._prepare_payment_vals(env, tenant, customer, params)
+            payment_vals = self._prepare_payment_vals(env, tenant, customer, sale_data)
             if payment_vals['payment_status'] != 'cash' and tenant and not tenant.allow_credit_sales:
                 return self._make_json_response({"error": "Oops! Creating sales on credit is disabled."}, status=400)
             
             # Resolve currency
             doc_currency = False
-            currency_param = params.get('currency') or params.get('currency_id')
+            currency_param = sale_data.get('currency') or sale_data.get('currency_id') or params.get('currency') or params.get('currency_id')
             if currency_param:
                 if isinstance(currency_param, int):
                     doc_currency = env['res.currency'].sudo().browse(currency_param)
@@ -3463,7 +3574,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 doc_currency = customer.currency_id or tenant.currency_id or env.company.currency_id
 
             # Resolve exchange rate
-            doc_exchange_rate = float(params.get('exchange_rate') or 0.0)
+            doc_exchange_rate = float(sale_data.get('exchange_rate') or params.get('exchange_rate') or 0.0)
             if doc_exchange_rate <= 0:
                 if doc_currency and tenant.currency_id:
                     if doc_currency == tenant.currency_id:
@@ -3484,13 +3595,33 @@ class HavanoPOSDeskAPI(http.Controller):
                 'currency_id': doc_currency.id if doc_currency else False,
                 'exchange_rate': doc_exchange_rate,
                 'line_ids': sale_lines,
-                'date': self._get_sale_date(params, sale_user, store),
+                'date': self._get_sale_date(sale_data, sale_user, store),
                 'state': 'done',
                 'salesperson_id': sale_user.id,
                 'payment_status': payment_vals['payment_status'],
                 'payment_policy': payment_vals['payment_policy'],
                 'local_invoice_id': local_invoice_id,
+                'app_version': self._resolve_app_version(sale_data, terminal=terminal, params=params),
             }
+            fiscal_qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url')
+            if fiscal_qr:
+                sale_vals['fiscal_qr_code'] = fiscal_qr
+                sale_vals['fiscal_status'] = 'fiscalized'
+            elif sale_data.get('fiscal_status') or sale_data.get('custom_fiscal_status'):
+                sale_vals['fiscal_status'] = sale_data.get('fiscal_status') or sale_data.get('custom_fiscal_status')
+            fiscal_verif = sale_data.get('fiscal_verification_code') or sale_data.get('fiscal_code') or sale_data.get('custom_fiscal_verification_code') or sale_data.get('verification_code')
+            if fiscal_verif:
+                sale_vals['fiscal_verification_code'] = fiscal_verif
+            fiscal_sn = sale_data.get('fiscal_device_serial') or sale_data.get('custom_fiscal_device_sn') or sale_data.get('fiscal_device_id')
+            if fiscal_sn:
+                sale_vals['fiscal_device_serial'] = fiscal_sn
+            if sale_data.get('fiscal_day'):
+                sale_vals['fiscal_day'] = sale_data.get('fiscal_day')
+            if sale_data.get('fiscal_global_no'):
+                sale_vals['fiscal_global_no'] = sale_data.get('fiscal_global_no')
+            if sale_data.get('fiscal_receipt_counter'):
+                sale_vals['fiscal_receipt_counter'] = int(sale_data.get('fiscal_receipt_counter'))
+
             if payment_vals.get('account_id'):
                 sale_vals['account_id'] = payment_vals['account_id']
             if payment_vals.get('single_payment_amount') is not None:
@@ -3928,22 +4059,43 @@ class HavanoPOSDeskAPI(http.Controller):
                 
                 for sale_data in sales_data:
                     try:
-                        local_invoice_id = sale_data.get('reference_number') or sale_data.get('local_invoice_id')
-                        if not local_invoice_id:
+                        raw_local_id = sale_data.get('reference_number') or sale_data.get('local_invoice_id')
+                        if not raw_local_id:
                             responses.append({"error": "reference_number is required when making a sale", "local_invoice_id": None})
                             continue
 
+                        sale_user = self._resolve_sale_user(env, sale_data, tenant)
+                        if not sale_user:
+                            sale_user = user
+
+                        store = self._get_current_store(sale_user or user, tenant, sale_data)
+                        terminal = self._resolve_terminal(env, tenant, user=sale_user or user, store=store, data=sale_data, raw_local_id=raw_local_id)
+                        if not store and terminal:
+                            store = terminal.store_id
+                        if not store:
+                            responses.append({"error": "Store/Warehouse is required", "local_invoice_id": raw_local_id})
+                            continue
+                        if not terminal and store:
+                            terminal = self._resolve_terminal(env, tenant, user=sale_user or user, store=store, data=sale_data, raw_local_id=raw_local_id)
+
+                        tz_valid, tz_err = self._validate_store_timezone(store, sale_data, sale_user or user)
+                        if not tz_valid:
+                            responses.append({"error": tz_err, "local_invoice_id": raw_local_id})
+                            continue
+
+                        local_invoice_id = self._standardize_local_invoice_id(raw_local_id, terminal)
+
                         dup_domain = [
                             ('tenant_id', '=', tenant.id),
-                            ('local_invoice_id', '=', local_invoice_id)
+                            ('local_invoice_id', 'in', list({str(raw_local_id).strip(), str(local_invoice_id).strip()}))
                         ]
-                        raw_parts = str(local_invoice_id).strip().split('-')
+                        raw_parts = str(raw_local_id).strip().split('-')
                         if len(raw_parts) >= 2 and raw_parts[-1].isdigit():
                             base_tail = f"-{raw_parts[-2]}-{raw_parts[-1]}"
                             dup_domain = [
                                 '&', ('tenant_id', '=', tenant.id),
                                 '|', ('local_invoice_id', '=ilike', f"%{base_tail}"),
-                                ('local_invoice_id', '=', local_invoice_id)
+                                ('local_invoice_id', 'in', list({str(raw_local_id).strip(), str(local_invoice_id).strip()}))
                             ]
                         existing_sale = env['havanoposdesk.sale'].search(dup_domain, limit=1)
                         if existing_sale:
@@ -3981,16 +4133,6 @@ class HavanoPOSDeskAPI(http.Controller):
                                 "existing_sale": existing_sale.name,
                                 "local_invoice_id": local_invoice_id
                             }, status=409)
-
-                        store = self._get_current_store(user, tenant, sale_data)
-                        if not store:
-                            responses.append({"error": "Store/Warehouse is required", "local_invoice_id": local_invoice_id})
-                            continue
-
-                        tz_valid, tz_err = self._validate_store_timezone(store, sale_data, user)
-                        if not tz_valid:
-                            responses.append({"error": tz_err, "local_invoice_id": local_invoice_id})
-                            continue
 
                         customer_name = sale_data.get('customer')
                         if not customer_name:
@@ -4064,7 +4206,8 @@ class HavanoPOSDeskAPI(http.Controller):
 
                             lines.append((0, 0, line_vals))
 
-                        terminal = user.selected_terminal_id
+                        if not terminal:
+                            terminal = user.selected_terminal_id
                         payment_method_name = sale_data.get('payment_method')
                         account_id = False
                         if payment_method_name:
@@ -4087,9 +4230,8 @@ class HavanoPOSDeskAPI(http.Controller):
                             if pl:
                                 pricelist_id = pl.id
 
-                        sale_user = self._resolve_sale_user(env, sale_data, tenant)
                         if not sale_user:
-                            sale_user = user
+                            sale_user = self._resolve_sale_user(env, sale_data, tenant) or user
 
                         payment_vals = self._prepare_payment_vals(env, tenant, customer, sale_data, default_account_id=account_id)
                         payment_status = payment_vals['payment_status']
@@ -4155,7 +4297,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             'payment_status': payment_status,
                             'payment_policy': payment_policy,
                             'local_invoice_id': local_invoice_id,
-                            'app_version': sale_data.get('app_version') or sale_data.get('appVersion') or sale_data.get('desktop_version') or sale_data.get('desktopVersion') or sale_data.get('client_version') or sale_data.get('pos_version') or sale_data.get('version') or request.httprequest.headers.get('desktop-version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version') or request.httprequest.headers.get('x-app-version'),
+                            'app_version': self._resolve_app_version(sale_data, terminal=terminal, params=params),
                             'is_quotation': is_quotation,
                             'is_return': is_return_val,
                             'return_id': return_id_val if return_id_val else False,
@@ -9732,7 +9874,16 @@ class HavanoPOSDeskAPI(http.Controller):
 
             terminal_id = data.get('terminal_id')
             device_hardware_id = data.get('device_hardware_id') or request.httprequest.headers.get('device_hardware_id') or request.httprequest.headers.get('device-hardware-id')
-            app_version = data.get('app_version') or request.httprequest.headers.get('app_version') or request.httprequest.headers.get('app-version')
+            app_version = (
+                data.get('desktop_version') or data.get('desktopVersion')
+                or data.get('app_version') or data.get('appVersion')
+                or data.get('client_version') or data.get('pos_version')
+                or request.httprequest.headers.get('desktop-version')
+                or request.httprequest.headers.get('desktop_version')
+                or request.httprequest.headers.get('x-desktop-version')
+                or request.httprequest.headers.get('app_version')
+                or request.httprequest.headers.get('app-version')
+            )
             take_over = data.get('take_over', False)
 
             if not terminal_id:

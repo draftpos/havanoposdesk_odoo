@@ -218,13 +218,80 @@ class HavanoPowerSyncController(http.Controller):
                         sale_data = item.get('sale', {})
                         items = item.get('items', [])
                         payments = item.get('payments', [])
-                        local_invoice_id = sale_data.get('local_invoice_id')
+                        raw_local_id = sale_data.get('local_invoice_id') or item.get('sale_id')
+
+                        # Resolve store
+                        store = False
+                        warehouse_name = sale_data.get('warehouse') or ''
+                        if warehouse_name:
+                            store = request.env['havanoposdesk.store'].sudo().search([
+                                ('name', '=', warehouse_name),
+                                ('tenant_id', '=', user.tenant_id.id)
+                            ], limit=1)
+                        if not store and sale_data.get('store_id'):
+                            store = request.env['havanoposdesk.store'].sudo().browse(int(sale_data['store_id']))
+                        if not store or not store.exists():
+                            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+
+                        # Resolve terminal
+                        terminal = False
+                        if sale_data.get('terminal_id'):
+                            try:
+                                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                                    ('tenant_id', '=', user.tenant_id.id),
+                                    ('id', '=', int(sale_data['terminal_id']))
+                                ], limit=1)
+                            except Exception:
+                                pass
+                        if not terminal:
+                            t_name = sale_data.get('terminal') or sale_data.get('terminal_name') or sale_data.get('pos_profile')
+                            if t_name:
+                                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                                    ('tenant_id', '=', user.tenant_id.id),
+                                    ('name', '=ilike', str(t_name).strip())
+                                ], limit=1)
+                        if not terminal:
+                            hw_id = sale_data.get('device_hardware_id') or sale_data.get('hardware_id')
+                            if hw_id:
+                                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                                    ('tenant_id', '=', user.tenant_id.id),
+                                    ('device_hardware_id', '=', str(hw_id).strip())
+                                ], limit=1)
+                        if not terminal and user.selected_terminal_id:
+                            terminal = user.selected_terminal_id
+                        if not terminal and store:
+                            store_terminals = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                                ('store_id', '=', store.id),
+                                ('tenant_id', '=', user.tenant_id.id)
+                            ])
+                            if store_terminals:
+                                terminal = store_terminals[0]
+
+                        # Standardize local_invoice_id with terminal sequence prefix
+                        local_invoice_id = raw_local_id
+                        if terminal and terminal.sequence_prefix:
+                            pfx = terminal.sequence_prefix.strip()
+                            str_loc = str(local_invoice_id).strip()
+                            parts = str_loc.split('-')
+                            if len(parts) >= 2 and len(parts[0]) == 4 and parts[0].isalpha() and parts[0].isupper():
+                                pass
+                            elif not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
+                                local_invoice_id = f"{pfx}-{str_loc}"
 
                         # Check for idempotency
-                        existing_sale = SaleModel.search([
+                        dup_domain = [
                             ('tenant_id', '=', user.tenant_id.id),
-                            ('local_invoice_id', '=', local_invoice_id)
-                        ], limit=1)
+                            ('local_invoice_id', 'in', list({str(raw_local_id).strip(), str(local_invoice_id).strip()}))
+                        ]
+                        raw_parts = str(raw_local_id).strip().split('-')
+                        if len(raw_parts) >= 2 and raw_parts[-1].isdigit():
+                            base_tail = f"-{raw_parts[-2]}-{raw_parts[-1]}"
+                            dup_domain = [
+                                '&', ('tenant_id', '=', user.tenant_id.id),
+                                '|', ('local_invoice_id', '=ilike', f"%{base_tail}"),
+                                ('local_invoice_id', 'in', list({str(raw_local_id).strip(), str(local_invoice_id).strip()}))
+                            ]
+                        existing_sale = SaleModel.search(dup_domain, limit=1)
 
                         if existing_sale:
                             # Update fiscal data if incoming mutation contains it
@@ -265,19 +332,6 @@ class HavanoPowerSyncController(http.Controller):
                                 'tenant_id': user.tenant_id.id,
                             })
 
-                        # Resolve store
-                        store = False
-                        warehouse_name = sale_data.get('warehouse') or ''
-                        if warehouse_name:
-                            store = request.env['havanoposdesk.store'].sudo().search([
-                                ('name', '=', warehouse_name),
-                                ('tenant_id', '=', user.tenant_id.id)
-                            ], limit=1)
-                        if not store and sale_data.get('store_id'):
-                            store = request.env['havanoposdesk.store'].sudo().browse(int(sale_data['store_id']))
-                        if not store or not store.exists():
-                            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
-
                         sale_tenant_id = store.tenant_id.id if (store and store.tenant_id) else user.tenant_id.id
 
                         fiscal_qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url') or ''
@@ -285,9 +339,17 @@ class HavanoPowerSyncController(http.Controller):
                         fiscal_sn = sale_data.get('fiscal_device_serial') or sale_data.get('custom_fiscal_device_sn') or sale_data.get('fiscal_device_id') or ''
                         fiscal_stat = 'fiscalized' if fiscal_qr else (sale_data.get('fiscal_status') or sale_data.get('custom_fiscal_status') or 'not_required')
 
+                        app_ver = (
+                            sale_data.get('desktop_version') or sale_data.get('desktopVersion')
+                            or (terminal.app_version if terminal and terminal.app_version and str(terminal.app_version).startswith('2.0.8') else None)
+                            or sale_data.get('app_version') or sale_data.get('appVersion')
+                            or (terminal.app_version if terminal else None)
+                        )
+
                         sale_vals = {
                             'tenant_id': sale_tenant_id,
                             'customer': customer.id,
+                            'terminal_id': terminal.id if terminal else False,
                             'local_invoice_id': local_invoice_id,
                             'grand_total': float(sale_data.get('grand_total') or 0.0),
                             'total_tax': float(sale_data.get('total_tax_amount') or 0.0),
@@ -299,6 +361,7 @@ class HavanoPowerSyncController(http.Controller):
                             'store': store.name if store else '',
                             'store_id': store.id if store else False,
                             'posting_date': sale_data.get('posting_date') or fields.Date.context_today(user),
+                            'app_version': str(app_ver).strip() if app_ver else False,
                             'is_return': bool(sale_data.get('is_return')),
                             'is_quotation': bool(sale_data.get('is_quotation')),
                             'fiscal_status': fiscal_stat,
