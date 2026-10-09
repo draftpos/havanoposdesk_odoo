@@ -6,7 +6,7 @@
         <menuitem id="menu_tenant_my_stores" name="Stores" parent="menu_tenant_admin_settings_root" action="action_my_stores" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
         <menuitem id="menu_tenant_my_terminals" name="POS Terminals" parent="menu_tenant_admin_settings_root" action="action_my_terminals" sequence="12" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
         <menuitem id="menu_tenant_user_rights" name="User Rights Profiles" parent="menu_tenant_admin_settings_root" action="action_user_rights_profiles" sequence="14" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
-        <menuitem id="menu_my_business_topups" name="Top-Up &amp; Subscription Payments" parent="menu_tenant_admin_settings_root" action="action_subscription_payments" sequence="15" groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"/>
+        <menuitem id="menu_my_business_topups" name="Billing" parent="menu_tenant_admin_settings_root" action="action_subscription_payments" sequence="15" groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"/>
         <menuitem id="menu_sales_cashiers" name="Cashiers &amp; Staff" parent="menu_sales_master" action="action_my_cashiers" sequence="35" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
 
         
