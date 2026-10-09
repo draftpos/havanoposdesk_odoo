@@ -47,6 +47,17 @@ class ResUsers(models.Model):
         string="Sub-Units Enabled on Tenant",
         readonly=True
     )
+
+    def get_effective_category_ids(self):
+        """
+        Returns list of category IDs including the cashier's assigned categories
+        AND all child / descendant categories (e.g. Kiosk -> Drinks, Snacks).
+        """
+        self.ensure_one()
+        if not self.category_ids:
+            return []
+        return self.env['havanoposdesk.category'].sudo().search([('id', 'child_of', self.category_ids.ids)]).ids
+
     pin = fields.Char(string="PIN Code")
     user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
     allow_backoffice = fields.Boolean(string="Access Backoffice", compute="_compute_allow_backoffice", inverse="_inverse_allow_backoffice", store=True)

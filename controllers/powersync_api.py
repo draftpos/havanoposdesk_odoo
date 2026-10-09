@@ -139,12 +139,14 @@ class HavanoPowerSyncController(http.Controller):
 
         powersync_url, powersync_secret = self._get_powersync_config()
 
+        effective_cat_ids = user.get_effective_category_ids() if (hasattr(user, 'get_effective_category_ids') and tenant.enable_item_group_subunits) else (user.category_ids.ids if (hasattr(user, 'category_ids') and user.category_ids and tenant.enable_item_group_subunits) else [])
+
         jwt_token = generate_powersync_jwt(
             user_id=user.id,
             tenant_id=tenant.id,
             store_id=req_store_id,
             store_ids=user.store_ids.ids if user.store_ids else [],
-            category_ids=user.category_ids.ids if (hasattr(user, 'category_ids') and user.category_ids and tenant.enable_item_group_subunits) else [],
+            category_ids=effective_cat_ids,
             role=user.havano_role,
             secret_key=powersync_secret,
             expires_in=expires_in
@@ -158,8 +160,8 @@ class HavanoPowerSyncController(http.Controller):
             'user_id': str(user.id),
             'store_id': str(req_store_id) if req_store_id else None,
             'enable_item_group_subunits': bool(tenant.enable_item_group_subunits),
-            'allowed_category_ids': user.category_ids.ids if (hasattr(user, 'category_ids') and user.category_ids and tenant.enable_item_group_subunits) else [],
-            'allowed_item_groups': [c.name for c in user.category_ids] if (hasattr(user, 'category_ids') and user.category_ids and tenant.enable_item_group_subunits) else [],
+            'allowed_category_ids': effective_cat_ids,
+            'allowed_item_groups': [c.name for c in (user.category_ids | user.env['havanoposdesk.category'].sudo().search([('id', 'child_of', user.category_ids.ids)]))] if (hasattr(user, 'category_ids') and user.category_ids and tenant.enable_item_group_subunits) else [],
         }
 
         return request.make_response(

@@ -1,46 +1,119 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <!-- Category Search View -->
+        <record id="view_havanoposdesk_category_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.category.search</field>
+            <field name="model">havanoposdesk.category</field>
+            <field name="arch" type="xml">
+                <search string="Search Item Groups">
+                    <field name="name" string="Name / Keyword"/>
+                    <field name="complete_name" string="Full Path"/>
+                    <field name="parent_id" string="Parent Sub-Unit"/>
+                    <separator/>
+                    <filter string="Business Lines / Sub-Units" name="filter_sub_units" domain="['|', ('is_sub_unit', '=', True), ('parent_id', '=', False)]"/>
+                    <filter string="Child Categories" name="filter_children" domain="[('parent_id', '!=', False)]"/>
+                    <separator/>
+                    <filter string="Available in POS" name="filter_pos" domain="[('not_for_pos', '=', False)]"/>
+                    <group>
+                        <filter string="Parent Sub-Unit" name="group_parent" context="{'group_by': 'parent_id'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Category Tree / List View -->
         <record id="view_havanoposdesk_category_tree" model="ir.ui.view">
             <field name="name">havanoposdesk.category.tree</field>
             <field name="model">havanoposdesk.category</field>
             <field name="arch" type="xml">
-                <list  string="Categories">
-                    <field  name="name"/>
-                    <field  name="not_for_pos" optional="show"/>
-                    <field  name="store_ids" widget="many2many_tags"/>
-                    <field  name="tenant_id" column_invisible="1"/>
+                <list string="Item Groups &amp; Categories" default_order="complete_name asc">
+                    <field name="complete_name" string="Group / Category Path"/>
+                    <field name="name" string="Short Name" optional="hide"/>
+                    <field name="parent_id" string="Parent Sub-Unit" optional="show"/>
+                    <field name="is_sub_unit" string="Business Line / Unit" widget="boolean" optional="show"/>
+                    <field name="products_count" string="Products" optional="show"/>
+                    <field name="child_count" string="Sub-Groups" optional="show"/>
+                    <field name="not_for_pos" string="Hidden in POS" optional="show"/>
+                    <field name="store_ids" widget="many2many_tags" optional="show"/>
+                    <field name="tenant_id" column_invisible="1"/>
                 </list>
             </field>
         </record>
 
+        <!-- Category Form View -->
         <record id="view_havanoposdesk_category_form" model="ir.ui.view">
             <field name="name">havanoposdesk.category.form</field>
             <field name="model">havanoposdesk.category</field>
             <field name="arch" type="xml">
-                <form string="Category">
+                <form string="Item Group / Category">
                     <sheet>
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_view_products" type="object" class="oe_stat_button" icon="fa-cubes">
+                                <field name="products_count" string="Products" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_sub_categories" type="object" class="oe_stat_button" icon="fa-sitemap" invisible="not is_sub_unit and not child_ids">
+                                <field name="child_count" string="Sub-Categories" widget="statinfo"/>
+                            </button>
+                        </div>
+
+                        <div class="oe_title">
+                            <label for="name" string="Group / Category Name"/>
+                            <h1>
+                                <field name="name" placeholder="e.g. Kiosk, Fuel, Beverages, Gas, Spare Parts"/>
+                            </h1>
+                            <div class="d-flex align-items-center gap-2 mt-1" invisible="not parent_id">
+                                <span class="badge text-bg-light border">Path: <field name="complete_name" readonly="1"/></span>
+                            </div>
+                        </div>
+
                         <group>
-                            <group>
-                                <field name="name" string="Category Name" placeholder="e.g. Beverages" class="border-bottom border-dark"/>
-                                <field name="not_for_pos"/>
+                            <group string="Classification &amp; Hierarchy">
+                                <field name="is_sub_unit" widget="boolean_toggle"/>
+                                <field name="parent_id" string="Parent Sub-Unit / Group" 
+                                       invisible="is_sub_unit" 
+                                       placeholder="Select parent unit (e.g. Kiosk, Fuel)"/>
                                 <field name="tenant_id" invisible="1"/>
                             </group>
-                            <group>
-                                <field name="store_ids" widget="many2many_tags" class="border-bottom border-dark"/>
+                            <group string="Store Access &amp; POS Display">
+                                <field name="store_ids" widget="many2many_tags" placeholder="Available in all stores if blank"/>
+                                <field name="not_for_pos" widget="boolean_toggle"/>
                             </group>
                         </group>
+
+                        <notebook>
+                            <page string="Sub-Categories" name="sub_categories_page" invisible="not is_sub_unit and not child_ids">
+                                <field name="child_ids" context="{'default_parent_id': id, 'default_tenant_id': tenant_id}">
+                                    <list string="Child Categories" editable="bottom">
+                                        <field name="name" string="Sub-Category Name" placeholder="e.g. Cold Drinks, Snacks, Cigarettes"/>
+                                        <field name="not_for_pos" string="Hidden in POS"/>
+                                        <field name="products_count" string="Products" readonly="1"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
                     </sheet>
                 </form>
             </field>
         </record>
 
+        <!-- Category Window Action -->
         <record id="action_havanoposdesk_category" model="ir.actions.act_window">
             <field name="name">Item Groups / Categories</field>
             <field name="res_model">havanoposdesk.category</field>
             <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_havanoposdesk_category_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create your first Item Group or Sub-Unit!
+                </p>
+                <p>
+                    Organize your products into Business Units (e.g. Fuel, Kiosk, Gas, Spare Parts) and child categories (e.g. Beverages, Snacks).
+                </p>
+            </field>
         </record>
 
+        <!-- Menu Items -->
         <menuitem id="menu_category_inventory" name="Item Groups / Categories" parent="menu_inventory_master" action="action_havanoposdesk_category" sequence="20"/>
         <menuitem id="menu_category_sales" name="Item Groups / Categories" parent="menu_sales_master" action="action_havanoposdesk_category" sequence="25"/>
     </data>
