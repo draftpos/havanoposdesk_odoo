@@ -2,7 +2,12 @@
 <odoo>
     <data>
         <menuitem id="menu_tenant_admin_settings_root" name="Configurations" web_icon="havanoposdesk_odoo,static/description/configs.png" sequence="550" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_tenant_my_cashiers" name="Users &amp; Cashiers" parent="menu_tenant_admin_settings_root" action="action_my_cashiers" sequence="5" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_tenant_my_stores" name="Stores" parent="menu_tenant_admin_settings_root" action="action_my_stores" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_tenant_my_terminals" name="POS Terminals" parent="menu_tenant_admin_settings_root" action="action_my_terminals" sequence="12" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_tenant_user_rights" name="User Rights Profiles" parent="menu_tenant_admin_settings_root" action="action_user_rights_profiles" sequence="14" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
         <menuitem id="menu_my_business_topups" name="Top-Up &amp; Subscription Payments" parent="menu_tenant_admin_settings_root" action="action_subscription_payments" sequence="15" groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"/>
+        <menuitem id="menu_sales_cashiers" name="Cashiers &amp; Staff" parent="menu_sales_master" action="action_my_cashiers" sequence="35" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
 
         
         <record id="action_my_stores" model="ir.actions.act_window">
@@ -91,6 +96,7 @@
                     <field name="havano_role" string="User Role" />
                     <field name="default_store_id" string="Default Store" optional="show" />
                     <field name="store_ids" string="Allowed Stores" widget="many2many_tags" optional="show" />
+                    <field name="category_ids" string="Allowed Sub-Units / Groups" widget="many2many_tags" optional="show" />
                     <field name="pricelist_id" string="Default Pricelist" optional="show" />
                     <field name="allow_backoffice" string="Backoffice" widget="boolean_toggle" optional="show" />
                     <field name="active" widget="boolean_toggle" optional="show" />
@@ -116,7 +122,7 @@
                             </div>
                         </div>
                         <group>
-                            <group>
+                            <group string="Access &amp; Security">
                                 <!-- LEFT COLUMN -->
                                 <field name="havano_role" string="User Role" />
                                 <field name="user_rights_profile_id" string="Rights Profile" options="{'no_create': True}" domain="[('tenant_id', '=', tenant_id), ('havano_role', '=', havano_role)]"/>
@@ -133,7 +139,7 @@
                                 
                                 <field name="active" string="Active User" widget="boolean_toggle" />
                             </group>
-                            <group>
+                            <group string="Store &amp; POS Setup">
                                 <!-- RIGHT COLUMN -->
                                 <field name="store_ids" string="Allowed Stores" widget="many2many_tags" required="havano_role != 'super_admin'" options="{'no_create': True}" />
                                 <field name="default_store_id" string="Default Store" required="havano_role != 'super_admin'" options="{'no_create': True}" />
@@ -144,6 +150,9 @@
                                 <field name="require_shift" string="Require Shift" widget="boolean_toggle" />
                                 <field name="tenant_id" invisible="1" />
                             </group>
+                        </group>
+                        <group string="Sub-Units &amp; Department Restriction (Optional)">
+                            <field name="category_ids" string="Allowed Sub-Units / Groups" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" placeholder="Leave empty for full store access, or select departments (e.g. Fuel, Kiosk, Gas)"/>
                         </group>
                     </sheet>
                 </form>
