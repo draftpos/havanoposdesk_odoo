@@ -218,71 +218,95 @@ class HavanoTenantAnalytics(models.Model):
         p_start_dt_str = f"{p_start.strftime('%Y-%m-%d')} 00:00:00"
         p_end_dt_str = f"{p_end.strftime('%Y-%m-%d')} 23:59:59"
 
-        # 3. Base Domains
+        # 3. Base SQL Filter Helper
+        cr = self.env.cr
+        tenant_sql = ""
+        tenant_params = []
         if tenant_id:
             if isinstance(tenant_id, list):
-                tenant_domain = [('tenant_id', 'in', tenant_id)]
+                tenant_sql = " AND tenant_id IN %s"
+                tenant_params = [tuple(tenant_id)]
             else:
-                tenant_domain = [('tenant_id', '=', int(tenant_id))]
-        else:
-            tenant_domain = []
+                tenant_sql = " AND tenant_id = %s"
+                tenant_params = [int(tenant_id)]
 
-        sale_domain = tenant_domain + [('date', '>=', start_dt_str), ('date', '<=', end_dt_str)]
-        prev_sale_domain = tenant_domain + [('date', '>=', p_start_dt_str), ('date', '<=', p_end_dt_str)]
+        # 4. Fetch Aggregated Metrics via High-Performance SQL
+        # Sales KPIs
+        cr.execute(f"""
+            SELECT 
+                COUNT(*),
+                COALESCE(SUM(COALESCE(amount_total_base, amount_total, 0)), 0)
+            FROM havanoposdesk_sale
+            WHERE date >= %s AND date <= %s {tenant_sql}
+        """, [start_dt_str, end_dt_str] + tenant_params)
+        curr_sales_count, curr_sales_total = cr.fetchone() or (0, 0.0)
 
-        purchase_domain = tenant_domain + [('posting_date', '>=', start_dt_str), ('posting_date', '<=', end_dt_str)]
-        prev_purchase_domain = tenant_domain + [('posting_date', '>=', p_start_dt_str), ('posting_date', '<=', p_end_dt_str)]
-
-        adj_domain = tenant_domain + [('posting_date', '>=', start_dt_str), ('posting_date', '<=', end_dt_str)]
-        prev_adj_domain = tenant_domain + [('posting_date', '>=', p_start_dt_str), ('posting_date', '<=', p_end_dt_str)]
-
-        # 4. Fetch Records
-        sales = self.env['havanoposdesk.sale'].search(sale_domain, order='date asc')
-        prev_sales = self.env['havanoposdesk.sale'].search(prev_sale_domain)
-
-        purchases = self.env['havanoposdesk.purchase'].search(purchase_domain, order='posting_date asc')
-        prev_purchases = self.env['havanoposdesk.purchase'].search(prev_purchase_domain)
-
-        adjustments = self.env['havanoposdesk.stock.adjustment'].search(adj_domain, order='posting_date asc')
-        prev_adjustments = self.env['havanoposdesk.stock.adjustment'].search(prev_adj_domain)
-
-        # 5. Compute Overall KPIs
-        curr_sales_total = sum((s.amount_total_base or s.amount_total or 0.0) for s in sales)
-        prev_sales_total = sum((s.amount_total_base or s.amount_total or 0.0) for s in prev_sales)
+        cr.execute(f"""
+            SELECT 
+                COUNT(*),
+                COALESCE(SUM(COALESCE(amount_total_base, amount_total, 0)), 0)
+            FROM havanoposdesk_sale
+            WHERE date >= %s AND date <= %s {tenant_sql}
+        """, [p_start_dt_str, p_end_dt_str] + tenant_params)
+        prev_sales_count, prev_sales_total = cr.fetchone() or (0, 0.0)
         sales_growth = self._calculate_growth(curr_sales_total, prev_sales_total)
 
-        curr_purchases_total = sum((p.amount_total_base or p.amount_total or 0.0) for p in purchases)
-        prev_purchases_total = sum((p.amount_total_base or p.amount_total or 0.0) for p in prev_purchases)
+        # Purchases KPIs
+        cr.execute(f"""
+            SELECT 
+                COUNT(*),
+                COALESCE(SUM(COALESCE(amount_total_base, amount_total, 0)), 0)
+            FROM havanoposdesk_purchase
+            WHERE posting_date >= %s AND posting_date <= %s {tenant_sql}
+        """, [start_dt_str, end_dt_str] + tenant_params)
+        curr_purchases_count, curr_purchases_total = cr.fetchone() or (0, 0.0)
+
+        cr.execute(f"""
+            SELECT 
+                COUNT(*),
+                COALESCE(SUM(COALESCE(amount_total_base, amount_total, 0)), 0)
+            FROM havanoposdesk_purchase
+            WHERE posting_date >= %s AND posting_date <= %s {tenant_sql}
+        """, [p_start_dt_str, p_end_dt_str] + tenant_params)
+        prev_purchases_count, prev_purchases_total = cr.fetchone() or (0, 0.0)
         purchases_growth = self._calculate_growth(curr_purchases_total, prev_purchases_total)
 
-        # Stock adjustments stats
-        curr_adj_count = len(adjustments)
-        curr_adj_valuation = sum(a.total_amount_difference or 0.0 for a in adjustments)
-        curr_pos_qty = 0.0
-        curr_neg_qty = 0.0
+        # Stock adjustments KPIs
+        cr.execute(f"""
+            SELECT 
+                COUNT(*),
+                COALESCE(SUM(COALESCE(total_amount_difference, 0)), 0),
+                COALESCE(SUM(CASE WHEN COALESCE(total_qty_difference, 0) > 0 THEN total_qty_difference ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN COALESCE(total_qty_difference, 0) < 0 THEN ABS(total_qty_difference) ELSE 0 END), 0),
+                COUNT(CASE WHEN COALESCE(total_qty_difference, 0) > 0 THEN 1 END),
+                COUNT(CASE WHEN COALESCE(total_qty_difference, 0) < 0 THEN 1 END)
+            FROM havanoposdesk_stock_adjustment
+            WHERE posting_date >= %s AND posting_date <= %s {tenant_sql}
+        """, [start_dt_str, end_dt_str] + tenant_params)
+        curr_adj_count, curr_adj_valuation, curr_pos_qty, curr_neg_qty, pos_adj_count, neg_adj_count = cr.fetchone() or (0, 0.0, 0.0, 0.0, 0, 0)
 
-        for adj in adjustments:
-            diff = adj.total_qty_difference or 0.0
-            if diff > 0:
-                curr_pos_qty += diff
-            elif diff < 0:
-                curr_neg_qty += abs(diff)
+        cr.execute(f"""
+            SELECT COUNT(*)
+            FROM havanoposdesk_stock_adjustment
+            WHERE posting_date >= %s AND posting_date <= %s {tenant_sql}
+        """, [p_start_dt_str, p_end_dt_str] + tenant_params)
+        prev_adj_count = (cr.fetchone() or (0,))[0]
 
         # Activity stats
-        total_activities = len(sales) + len(purchases) + len(adjustments)
-        prev_total_activities = len(prev_sales) + len(prev_purchases) + len(prev_adjustments)
+        total_activities = curr_sales_count + curr_purchases_count + curr_adj_count
+        prev_total_activities = prev_sales_count + prev_purchases_count + prev_adj_count
         activity_growth = self._calculate_growth(total_activities, prev_total_activities)
 
         kpis = {
             'sales': {
                 'total_amount': round(curr_sales_total, 2),
-                'transactions_count': len(sales),
-                'avg_transaction': round(curr_sales_total / len(sales), 2) if sales else 0.0,
+                'transactions_count': curr_sales_count,
+                'avg_transaction': round(curr_sales_total / curr_sales_count, 2) if curr_sales_count else 0.0,
                 'growth_pct': sales_growth,
             },
             'purchases': {
                 'total_amount': round(curr_purchases_total, 2),
-                'transactions_count': len(purchases),
+                'transactions_count': curr_purchases_count,
                 'growth_pct': purchases_growth,
             },
             'stock_adjustments': {
@@ -293,54 +317,79 @@ class HavanoTenantAnalytics(models.Model):
             },
             'activity': {
                 'total_events': total_activities,
-                'sales_events': len(sales),
-                'purchase_events': len(purchases),
-                'adjustment_events': len(adjustments),
+                'sales_events': curr_sales_count,
+                'purchase_events': curr_purchases_count,
+                'adjustment_events': curr_adj_count,
                 'growth_pct': activity_growth,
             }
         }
 
-        # 6. Build Timeline Buckets based on granularity
+        # 5. Build Timeline Buckets based on granularity
         buckets = self._generate_timeline_buckets(d_start, d_end, granularity)
 
-        # Buckets data storage
         sales_by_bucket = {b['key']: {'amount': 0.0, 'count': 0} for b in buckets}
         purchases_by_bucket = {b['key']: {'amount': 0.0, 'count': 0} for b in buckets}
         adj_by_bucket = {b['key']: {'count': 0, 'pos_qty': 0.0, 'neg_qty': 0.0, 'valuation': 0.0} for b in buckets}
 
-        # Populate Sales
-        for s in sales:
-            if s.date:
-                dt = fields.Datetime.to_datetime(s.date)
-                b_key = self._get_bucket_key(dt, granularity)
-                if b_key in sales_by_bucket:
-                    sales_by_bucket[b_key]['amount'] += (s.amount_total_base or s.amount_total or 0.0)
-                    sales_by_bucket[b_key]['count'] += 1
+        if granularity == 'daily':
+            bucket_expr = "to_char(date, 'YYYY-MM-DD')"
+            bucket_expr_p = "to_char(posting_date, 'YYYY-MM-DD')"
+        elif granularity == 'monthly':
+            bucket_expr = "to_char(date, 'YYYY-MM')"
+            bucket_expr_p = "to_char(posting_date, 'YYYY-MM')"
+        else:  # 'weekly'
+            bucket_expr = "to_char(date, 'IYYY-\"W\"IW')"
+            bucket_expr_p = "to_char(posting_date, 'IYYY-\"W\"IW')"
 
-        # Populate Purchases
-        for p in purchases:
-            if p.posting_date:
-                dt = fields.Datetime.to_datetime(p.posting_date)
-                b_key = self._get_bucket_key(dt, granularity)
-                if b_key in purchases_by_bucket:
-                    purchases_by_bucket[b_key]['amount'] += (p.amount_total_base or p.amount_total or 0.0)
-                    purchases_by_bucket[b_key]['count'] += 1
+        # Timeline Aggregation: Sales
+        cr.execute(f"""
+            SELECT 
+                {bucket_expr} AS b_key,
+                COALESCE(SUM(COALESCE(amount_total_base, amount_total, 0)), 0),
+                COUNT(*)
+            FROM havanoposdesk_sale
+            WHERE date >= %s AND date <= %s {tenant_sql}
+            GROUP BY 1
+        """, [start_dt_str, end_dt_str] + tenant_params)
+        for b_key, b_amount, b_count in cr.fetchall():
+            if b_key in sales_by_bucket:
+                sales_by_bucket[b_key]['amount'] = float(b_amount or 0.0)
+                sales_by_bucket[b_key]['count'] = int(b_count or 0)
 
-        # Populate Adjustments
-        for a in adjustments:
-            if a.posting_date:
-                dt = fields.Datetime.to_datetime(a.posting_date)
-                b_key = self._get_bucket_key(dt, granularity)
-                if b_key in adj_by_bucket:
-                    adj_by_bucket[b_key]['count'] += 1
-                    adj_by_bucket[b_key]['valuation'] += (a.total_amount_difference or 0.0)
-                    d_qty = a.total_qty_difference or 0.0
-                    if d_qty > 0:
-                        adj_by_bucket[b_key]['pos_qty'] += d_qty
-                    elif d_qty < 0:
-                        adj_by_bucket[b_key]['neg_qty'] += abs(d_qty)
+        # Timeline Aggregation: Purchases
+        cr.execute(f"""
+            SELECT 
+                {bucket_expr_p} AS b_key,
+                COALESCE(SUM(COALESCE(amount_total_base, amount_total, 0)), 0),
+                COUNT(*)
+            FROM havanoposdesk_purchase
+            WHERE posting_date >= %s AND posting_date <= %s {tenant_sql}
+            GROUP BY 1
+        """, [start_dt_str, end_dt_str] + tenant_params)
+        for b_key, b_amount, b_count in cr.fetchall():
+            if b_key in purchases_by_bucket:
+                purchases_by_bucket[b_key]['amount'] = float(b_amount or 0.0)
+                purchases_by_bucket[b_key]['count'] = int(b_count or 0)
 
-        # Extract aligned chart datasets
+        # Timeline Aggregation: Adjustments
+        cr.execute(f"""
+            SELECT 
+                {bucket_expr_p} AS b_key,
+                COUNT(*),
+                COALESCE(SUM(COALESCE(total_amount_difference, 0)), 0),
+                COALESCE(SUM(CASE WHEN COALESCE(total_qty_difference, 0) > 0 THEN total_qty_difference ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN COALESCE(total_qty_difference, 0) < 0 THEN ABS(total_qty_difference) ELSE 0 END), 0)
+            FROM havanoposdesk_stock_adjustment
+            WHERE posting_date >= %s AND posting_date <= %s {tenant_sql}
+            GROUP BY 1
+        """, [start_dt_str, end_dt_str] + tenant_params)
+        for b_key, b_count, b_val, b_pos, b_neg in cr.fetchall():
+            if b_key in adj_by_bucket:
+                adj_by_bucket[b_key]['count'] = int(b_count or 0)
+                adj_by_bucket[b_key]['valuation'] = float(b_val or 0.0)
+                adj_by_bucket[b_key]['pos_qty'] = float(b_pos or 0.0)
+                adj_by_bucket[b_key]['neg_qty'] = float(b_neg or 0.0)
+
         labels = [b['label'] for b in buckets]
 
         sales_chart = {
@@ -371,23 +420,19 @@ class HavanoTenantAnalytics(models.Model):
             'total_events': [sales_by_bucket[b['key']]['count'] + purchases_by_bucket[b['key']]['count'] + adj_by_bucket[b['key']]['count'] for b in buckets],
         }
 
-        total_sales_count = len(sales)
-        total_purchases_count = len(purchases)
-        total_adj_count = len(adjustments)
-
         distribution_chart = {
             'labels': ['Sales Invoices', 'Purchase Orders', 'Stock Adjustments'],
-            'data': [total_sales_count, total_purchases_count, total_adj_count],
+            'data': [curr_sales_count, curr_purchases_count, curr_adj_count],
             'colors': ['#0080ff', '#38bdf8', '#94a3b8'],
         }
 
         breakdown_chart = {
             'labels': ['Positive Adj (Stock In)', 'Negative Adj (Stock Out)', 'Purchase Orders', 'Sales Invoices'],
             'data': [
-                len(adjustments.filtered(lambda a: (a.total_qty_difference or 0) > 0)),
-                len(adjustments.filtered(lambda a: (a.total_qty_difference or 0) < 0)),
-                total_purchases_count,
-                total_sales_count,
+                pos_adj_count,
+                neg_adj_count,
+                curr_purchases_count,
+                curr_sales_count,
             ],
             'colors': ['#0080ff', '#38bdf8', '#64748b', '#cbd5e1'],
         }

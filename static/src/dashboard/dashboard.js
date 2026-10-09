@@ -410,9 +410,9 @@ export class TenantMonitoringDashboard extends Component {
                 document.head.appendChild(link);
             }
             try {
-                await loadBundle("web.chartjs_lib");
-            } catch (e) {
                 await loadJS("/web/static/lib/Chart/Chart.js");
+            } catch (e) {
+                console.warn("Chart.js load warning:", e);
             }
             await this.fetchData();
         });
