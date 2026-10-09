@@ -495,6 +495,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     product_domain.append(('tenant_id', '=', user.tenant_id.id))
                 if user.havano_role == 'user':
                     product_domain.append(('store_ids', 'in', user.store_ids.ids))
+                if tenant and tenant.enable_item_group_subunits and hasattr(user, 'category_ids') and user.category_ids:
+                    effective_cats = user.get_effective_category_ids() if hasattr(user, 'get_effective_category_ids') else user.category_ids.ids
+                    product_domain.append(('category_id', 'in', effective_cats))
                     
             limit_val = None
             if items_limit is not None:
@@ -754,6 +757,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 domain.append(('tenant_id', '=', user.tenant_id.id))
                 if user.havano_role == 'user':
                     domain.append(('store_ids', 'in', user.store_ids.ids))
+                if user.tenant_id and user.tenant_id.enable_item_group_subunits and hasattr(user, 'category_ids') and user.category_ids:
+                    effective_cats = user.get_effective_category_ids() if hasattr(user, 'get_effective_category_ids') else user.category_ids.ids
+                    domain.append(('category_id', 'in', effective_cats))
                     
             products = request.env['havanoposdesk.product'].sudo().search(domain)
             data = []
@@ -1987,6 +1993,9 @@ class HavanoPOSDeskAPI(http.Controller):
             prod_domain.append(('tenant_id', '=', tenant.id))
         if store:
             prod_domain.append(('store_ids', 'in', [store.id]))
+        if tenant and tenant.enable_item_group_subunits and hasattr(user, 'category_ids') and user.category_ids and user.havano_role != 'super_admin':
+            effective_cats = user.get_effective_category_ids() if hasattr(user, 'get_effective_category_ids') else user.category_ids.ids
+            prod_domain.append(('category_id', 'in', effective_cats))
         products = request.env['havanoposdesk.product'].sudo().search(prod_domain)
         items_data = []
         for p in products:
@@ -2929,6 +2938,9 @@ class HavanoPOSDeskAPI(http.Controller):
             
         if product_store_domain:
             product_domain.append(('store_ids', 'in', product_store_domain))
+        if tenant and tenant.enable_item_group_subunits and hasattr(user, 'category_ids') and user.category_ids and user.havano_role != 'super_admin':
+            effective_cats = user.get_effective_category_ids() if hasattr(user, 'get_effective_category_ids') else user.category_ids.ids
+            product_domain.append(('category_id', 'in', effective_cats))
                 
         total_count = request.env['havanoposdesk.product'].sudo().search_count(product_domain)
         products = request.env['havanoposdesk.product'].sudo().search(product_domain, limit=limit, offset=offset)
