@@ -48,6 +48,11 @@ class HavanoposdeskCategory(models.Model):
         required=True, 
         default=lambda self: self._default_tenant_id()
     )
+    enable_item_group_subunits = fields.Boolean(
+        related='tenant_id.enable_item_group_subunits',
+        string="Sub-Units Enabled on Tenant",
+        readonly=True
+    )
 
     products_count = fields.Integer(string='Products Count', compute='_compute_products_count')
     child_count = fields.Integer(string='Sub-Categories Count', compute='_compute_child_count')

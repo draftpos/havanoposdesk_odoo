@@ -149,9 +149,10 @@
                                 <field name="max_discount_percent" invisible="allow_discount == False" />
                                 <field name="require_shift" string="Require Shift" widget="boolean_toggle" />
                                 <field name="tenant_id" invisible="1" />
+                                <field name="enable_item_group_subunits" invisible="1" />
                             </group>
                         </group>
-                        <group string="Sub-Units &amp; Department Restriction (Optional)">
+                        <group string="Sub-Units &amp; Department Restriction (Optional)" invisible="not enable_item_group_subunits">
                             <field name="category_ids" string="Allowed Sub-Units / Groups" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" placeholder="Leave empty for full store access, or select departments (e.g. Fuel, Kiosk, Gas)"/>
                         </group>
                     </sheet>

@@ -48,11 +48,12 @@
             <field name="arch" type="xml">
                 <form string="Item Group / Category">
                     <sheet>
+                        <field name="enable_item_group_subunits" invisible="1"/>
                         <div class="oe_button_box" name="button_box">
                             <button name="action_view_products" type="object" class="oe_stat_button" icon="fa-cubes">
                                 <field name="products_count" string="Products" widget="statinfo"/>
                             </button>
-                            <button name="action_view_sub_categories" type="object" class="oe_stat_button" icon="fa-sitemap" invisible="not is_sub_unit and not child_ids">
+                            <button name="action_view_sub_categories" type="object" class="oe_stat_button" icon="fa-sitemap" invisible="not enable_item_group_subunits or (not is_sub_unit and not child_ids)">
                                 <field name="child_count" string="Sub-Categories" widget="statinfo"/>
                             </button>
                         </div>
@@ -62,13 +63,13 @@
                             <h1>
                                 <field name="name" placeholder="e.g. Kiosk, Fuel, Beverages, Gas, Spare Parts"/>
                             </h1>
-                            <div class="d-flex align-items-center gap-2 mt-1" invisible="not parent_id">
+                            <div class="d-flex align-items-center gap-2 mt-1" invisible="not parent_id or not enable_item_group_subunits">
                                 <span class="badge text-bg-light border">Path: <field name="complete_name" readonly="1"/></span>
                             </div>
                         </div>
 
                         <group>
-                            <group string="Classification &amp; Hierarchy">
+                            <group string="Classification &amp; Hierarchy" invisible="not enable_item_group_subunits">
                                 <field name="is_sub_unit" widget="boolean_toggle"/>
                                 <field name="parent_id" string="Parent Sub-Unit / Group" 
                                        invisible="is_sub_unit" 
@@ -81,7 +82,7 @@
                             </group>
                         </group>
 
-                        <notebook>
+                        <notebook invisible="not enable_item_group_subunits">
                             <page string="Sub-Categories" name="sub_categories_page" invisible="not is_sub_unit and not child_ids">
                                 <field name="child_ids" context="{'default_parent_id': id, 'default_tenant_id': tenant_id}">
                                     <list string="Child Categories" editable="bottom">
