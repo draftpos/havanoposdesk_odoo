@@ -25,7 +25,7 @@
             <field name="name">Havano Category Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_category"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else ['|', ('tenant_id', '=', False), ('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), ('id', 'in', user.get_effective_category_ids())] if user.havano_role == 'user' and user.tenant_id.enable_item_group_subunits and user.category_ids else ['|', ('tenant_id', '=', False), ('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- UOM Model Isolation Rule -->
@@ -66,7 +66,7 @@
             <field name="name">Havano Product Isolation</field>
             <field name="model_id" ref="model_havanoposdesk_product"/>
             <field name="global" eval="True"/>
-            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_ids', '=', False), ('store_ids', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_ids', '=', False), ('store_ids', 'in', user.store_ids.ids), ('category_id', 'in', user.get_effective_category_ids())] if user.havano_role == 'user' and user.tenant_id.enable_item_group_subunits and user.category_ids else [('tenant_id', '=', user.tenant_id.id), '|', ('store_ids', '=', False), ('store_ids', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
         <!-- Sale Model Isolation Rule -->

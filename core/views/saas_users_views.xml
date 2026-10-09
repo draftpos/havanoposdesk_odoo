@@ -13,6 +13,7 @@
                     <field name="tenant_id" />
                     <field name="default_store_id" string="Default Store" optional="show" />
                     <field name="store_ids" string="Allowed Stores" widget="many2many_tags" optional="show" />
+                    <field name="category_ids" string="Allowed Sub-Units / Groups" widget="many2many_tags" optional="show" />
                     <field name="pricelist_id" string="Default Pricelist" optional="show" />
                     <field name="login_date" string="Latest Login" optional="show" />
                     <field name="saas_state" widget="badge" decoration-info="saas_state == 'unverified'" decoration-success="saas_state == 'verified'" decoration-danger="saas_state == 'suspended'" optional="show" />
