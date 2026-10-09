@@ -35,6 +35,16 @@ class HavanoposdeskPosTerminal(models.Model):
         ('offline', 'Offline')
     ], string='Status', default='open')
 
+    _OPERATIONAL_HEARTBEAT_FIELDS = {
+        'last_seen', 'status', 'device_hardware_id', 'taken_by_user_id',
+        'app_version', 'sequence_prefix', 'last_logged_in_user_id'
+    }
+
+    def write(self, vals):
+        if set(vals.keys()).issubset(self._OPERATIONAL_HEARTBEAT_FIELDS):
+            return super(HavanoposdeskPosTerminal, self.with_context(skip_audit_log=True)).write(vals)
+        return super().write(vals)
+
     @api.model
     def _get_default_name(self):
         tenant_id = self.env.user.tenant_id.id

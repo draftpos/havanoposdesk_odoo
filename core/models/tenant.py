@@ -167,7 +167,15 @@ class HavanoposdeskTenant(models.Model):
 
         for tenant in self:
             try:
-                tenant.sudo().write(vals)
+                # Debounce: If tenant is already online and active within last 5 mins, skip redundant row write to avoid lock contention
+                should_write = True
+                if tenant.online_status == 'online' and tenant.last_activity:
+                    diff_secs = (now - tenant.last_activity).total_seconds()
+                    if diff_secs < 300 and tenant.days_inactive == 0:
+                        should_write = False
+                if should_write:
+                    tenant.sudo().write(vals)
+
                 self.env['havanoposdesk.online.activity'].sudo().record_activity(
                     user=user if hasattr(user, 'id') else False,
                     tenant=tenant,

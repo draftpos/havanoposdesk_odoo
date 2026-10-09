@@ -180,7 +180,7 @@ class HavanoOnlineActivity(models.Model):
 
         existing = self.sudo().search(domain, order='last_activity desc', limit=1)
         if existing:
-            vals = {'last_activity': now}
+            vals = {}
             if user_id and existing.user_id.id != user_id:
                 vals['user_id'] = user_id
             if store_id and existing.store_id.id != store_id:
@@ -189,17 +189,19 @@ class HavanoOnlineActivity(models.Model):
                 vals['terminal_id'] = terminal_id
             if app_version and existing.app_version != app_version:
                 vals['app_version'] = app_version
-            if ip_address:
+            if ip_address and existing.ip_address != ip_address:
                 vals['ip_address'] = ip_address
 
-            delta = (now - existing.last_activity).total_seconds() if existing.last_activity else 0
-            if 0 < delta < 14400:
-                vals['online_duration_seconds'] = existing.online_duration_seconds + min(delta, 300)
-            elif delta >= 14400:
-                vals['login_time'] = now
-                vals['online_duration_seconds'] = 0.0
+            delta = (now - existing.last_activity).total_seconds() if existing.last_activity else 9999
+            if delta >= 45 or vals:
+                vals['last_activity'] = now
+                if 0 < delta < 14400:
+                    vals['online_duration_seconds'] = existing.online_duration_seconds + min(delta, 300)
+                elif delta >= 14400:
+                    vals['login_time'] = now
+                    vals['online_duration_seconds'] = 0.0
 
-            existing.write(vals)
+                existing.write(vals)
             return existing
         else:
             vals = {

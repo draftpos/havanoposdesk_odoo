@@ -11,7 +11,8 @@ AUDIT_IGNORED_FIELDS = {
     'access_token', 'access_token_signature', 'message_partner_ids',
     'rating_ids', 'website_message_ids', 'message_has_error', 'message_has_sms_error',
     'last_seen', 'status', 'online_status', 'last_ping', 'last_logged_in',
-    'last_logged_in_user_id', 'sequence_prefix', 'session_id', 'last_active'
+    'last_logged_in_user_id', 'sequence_prefix', 'session_id', 'last_active',
+    'device_hardware_id', 'taken_by_user_id', 'app_version', 'pos_version', 'desktop_version'
 }
 
 
