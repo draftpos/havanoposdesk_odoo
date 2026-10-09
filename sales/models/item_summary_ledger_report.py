@@ -49,7 +49,7 @@ class ItemSummaryLedgerReport(models.Model):
                     sl.create_date as date,
                     sl.doc_no as doc_no,
                     sl.type as type,
-                    sl.tenant_id as tenant_id,
+                    COALESCE(sl.tenant_id, p.tenant_id, st.tenant_id) as tenant_id,
                     sl.create_uid as create_uid,
                     sl.create_date as create_date
                 FROM
@@ -57,8 +57,8 @@ class ItemSummaryLedgerReport(models.Model):
                 JOIN
                     havanoposdesk_product p ON p.id = sl.product_id
                 LEFT JOIN
-                    havanoposdesk_store st ON (sl.store_id = st.id OR (st.name = sl.store AND st.tenant_id = sl.tenant_id))
+                    havanoposdesk_store st ON (sl.store_id = st.id OR (st.name = sl.store AND st.tenant_id = COALESCE(sl.tenant_id, p.tenant_id)))
                 LEFT JOIN
-                    havanoposdesk_sale s ON (s.name = sl.doc_no AND s.tenant_id = sl.tenant_id)
+                    havanoposdesk_sale s ON (s.name = sl.doc_no AND s.tenant_id = COALESCE(sl.tenant_id, p.tenant_id))
             )
         """ % (self._table,))
