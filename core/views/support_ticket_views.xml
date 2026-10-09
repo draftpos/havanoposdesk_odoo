@@ -63,5 +63,5 @@
     </record>
 
     
-    <menuitem id="menu_saas_support_tickets" name="Support Tickets" parent="menu_saas_root" action="action_support_ticket" sequence="60" />
+    <menuitem id="menu_saas_support_tickets" name="Support" parent="menu_saas_root" action="action_support_ticket" sequence="60" />
 </odoo>

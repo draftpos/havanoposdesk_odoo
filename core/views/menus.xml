@@ -91,10 +91,14 @@
         <menuitem id="menu_saas_users" name="Users" parent="menu_saas_root" action="action_saas_users" sequence="10"/>
         <menuitem id="menu_saas_tenants" name="Tenants" parent="menu_saas_root" action="action_havanoposdesk_tenant" sequence="20"/>
         <menuitem id="menu_saas_stores" name="Stores" parent="menu_saas_root" action="action_havanoposdesk_store" sequence="30"/>
-        <menuitem id="menu_saas_plans" name="Subscription Plans" parent="menu_saas_root" action="action_subscription_plans" sequence="40"/>
-        <menuitem id="menu_saas_payments" name="Subscription &amp; Topup Payments" parent="menu_saas_root" action="action_subscription_payments" sequence="45"/>
-        <menuitem id="menu_saas_payment_providers" name="Payment Providers" parent="menu_saas_root" action="payment.action_payment_provider" sequence="50"/>
-        <menuitem id="menu_saas_terminals" name="Connected Hardware" parent="menu_saas_root" action="action_pos_terminals" sequence="60"/>
+        
+        <!-- Billing Dropdown -->
+        <menuitem id="menu_saas_billing" name="Billing" parent="menu_saas_root" sequence="40"/>
+        <menuitem id="menu_saas_plans" name="Subscription Plans" parent="menu_saas_billing" action="action_subscription_plans" sequence="10"/>
+        <menuitem id="menu_saas_payments" name="Payments &amp; Topups" parent="menu_saas_billing" action="action_subscription_payments" sequence="20"/>
+        <menuitem id="menu_saas_payment_providers" name="Payment Gateways" parent="menu_saas_billing" action="payment.action_payment_provider" sequence="30"/>
+
+        <menuitem id="menu_saas_terminals" name="Terminals" parent="menu_saas_root" action="action_pos_terminals" sequence="50"/>
 
 
 
