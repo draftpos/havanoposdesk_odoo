@@ -3674,6 +3674,12 @@ class HavanoPOSDeskAPI(http.Controller):
 
             sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
 
+            try:
+                if tenant:
+                    tenant.sudo().record_tenant_activity(user=sale_user, terminal=terminal, platform='mobile_pos')
+            except Exception:
+                pass
+
             if custom_cr:
                 custom_cr.commit()
 
@@ -4432,6 +4438,11 @@ class HavanoPOSDeskAPI(http.Controller):
                             try:
                                 with env.cr.savepoint():
                                     sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
+                                try:
+                                    if tenant:
+                                        tenant.sudo().record_tenant_activity(user=sale_user, terminal=terminal, platform='mobile_pos')
+                                except Exception:
+                                    pass
                                 break
                             except Exception as create_err:
                                 err_msg = str(create_err)
@@ -9950,6 +9961,12 @@ class HavanoPOSDeskAPI(http.Controller):
                                 platform='mobile_pos',
                                 ip_address=request.httprequest.remote_addr,
                             )
+                            if terminal.tenant_id:
+                                terminal.tenant_id.sudo().record_tenant_activity(
+                                    user=user_rec,
+                                    terminal=terminal,
+                                    platform='mobile_pos'
+                                )
                         except Exception:
                             pass
                     if custom_cr:
@@ -10098,6 +10115,12 @@ class HavanoPOSDeskAPI(http.Controller):
                         platform='mobile_pos',
                         ip_address=request.httprequest.remote_addr,
                     )
+                    if terminal.tenant_id:
+                        terminal.tenant_id.sudo().record_tenant_activity(
+                            user=user,
+                            terminal=terminal,
+                            platform='mobile_pos'
+                        )
             except Exception:
                 pass
 

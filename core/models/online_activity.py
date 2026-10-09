@@ -360,3 +360,9 @@ class HavanoOnlineActivity(models.Model):
                 """, (thirty_mins_ago, thirty_mins_ago, sixty_mins_ago))
         except Exception as e:
             _logger.warning("Error updating online activity statuses in cron: %s", e)
+
+        # 3. Batch sync havanoposdesk_tenant activity statuses
+        try:
+            self.env['havanoposdesk.tenant'].sudo()._sync_tenants_activity_status()
+        except Exception as e:
+            _logger.warning("Error syncing tenant activity in cron: %s", e)

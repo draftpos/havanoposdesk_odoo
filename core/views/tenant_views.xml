@@ -9,6 +9,9 @@
                       decoration-success="online_status == 'online'"
                       decoration-warning="online_status == 'idle'"
                       decoration-muted="online_status == 'offline'">
+                    <header>
+                        <button name="action_sync_all_activity" string="Refresh Activity Status" type="object" class="btn-primary" display="always"/>
+                    </header>
                     <field name="online_status" widget="badge"
                            decoration-success="online_status == 'online'"
                            decoration-warning="online_status == 'idle'"

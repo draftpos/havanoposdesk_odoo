@@ -942,6 +942,16 @@ class HavanoChangePinWizard(models.TransientModel):
             }
         }
 
+    @api.model
+    def _update_last_login(self):
+        super()._update_last_login()
+        try:
+            user = self.env.user
+            if user and getattr(user, 'tenant_id', None) and user.tenant_id:
+                user.tenant_id.sudo().record_tenant_activity(user=user, platform='web')
+        except Exception:
+            pass
+
 
 
 

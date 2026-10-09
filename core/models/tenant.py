@@ -151,66 +151,209 @@ class HavanoposdeskTenant(models.Model):
     days_inactive = fields.Integer(string='Days Inactive', compute='_compute_tenant_online_activity', store=True, index=True, compute_sudo=True)
     days_inactive_display = fields.Char(string='Inactive Duration', compute='_compute_days_inactive_display', compute_sudo=True)
 
+    def record_tenant_activity(self, user=None, terminal=None, platform='mobile_pos'):
+        """Record real-time activity for this tenant."""
+        now = fields.Datetime.now()
+        vals = {
+            'last_activity': now,
+            'online_status': 'online',
+            'days_inactive': 0,
+        }
+        user_id = user.id if hasattr(user, 'id') else (user if isinstance(user, int) else False)
+        if user_id:
+            vals['last_logged_in_user_id'] = user_id
+        elif terminal and getattr(terminal, 'last_logged_in_user_id', None):
+            vals['last_logged_in_user_id'] = terminal.last_logged_in_user_id.id
+
+        for tenant in self:
+            try:
+                tenant.sudo().write(vals)
+                self.env['havanoposdesk.online.activity'].sudo().record_activity(
+                    user=user if hasattr(user, 'id') else False,
+                    tenant=tenant,
+                    terminal=terminal,
+                    platform=platform or ('mobile_pos' if terminal else 'web')
+                )
+            except Exception as e:
+                _logger.debug("Error recording tenant activity: %s", e)
+
+    @api.model
+    def _sync_tenants_activity_status(self):
+        """Batch update last_activity, last_logged_in_user_id, online_status, and days_inactive for all tenants.
+        Aggregates timestamps from POS terminals, user logins, sales, audit logs, and online activity."""
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("""
+                    WITH summary AS (
+                        SELECT 
+                            t.id AS tenant_id,
+                            sub.latest_dt,
+                            sub.latest_user_id
+                        FROM havanoposdesk_tenant t
+                        LEFT JOIN LATERAL (
+                            SELECT act_time AS latest_dt, act_uid AS latest_user_id
+                            FROM (
+                                -- 1. POS Terminals
+                                SELECT term.last_seen AS act_time, term.last_logged_in_user_id AS act_uid
+                                FROM havanoposdesk_pos_terminal term
+                                WHERE term.tenant_id = t.id AND term.last_seen IS NOT NULL
+                                UNION ALL
+                                -- 2. Users (login_date)
+                                SELECT u.login_date AS act_time, u.id AS act_uid
+                                FROM res_users u
+                                WHERE u.tenant_id = t.id AND u.login_date IS NOT NULL
+                                UNION ALL
+                                -- 3. Sales
+                                SELECT s.date_order AS act_time, s.user_id AS act_uid
+                                FROM havanoposdesk_sale s
+                                WHERE s.tenant_id = t.id AND s.date_order IS NOT NULL
+                                UNION ALL
+                                -- 4. Online Activity Tracker
+                                SELECT oa.last_activity AS act_time, oa.user_id AS act_uid
+                                FROM havanoposdesk_online_activity oa
+                                WHERE oa.tenant_id = t.id AND oa.last_activity IS NOT NULL
+                                UNION ALL
+                                -- 5. Audit Log
+                                SELECT al.timestamp AS act_time, al.user_id AS act_uid
+                                FROM havanoposdesk_audit_log al
+                                WHERE al.tenant_id = t.id AND al.timestamp IS NOT NULL
+                            ) all_acts
+                            ORDER BY act_time DESC NULLS LAST
+                            LIMIT 1
+                        ) sub ON TRUE
+                    )
+                    UPDATE havanoposdesk_tenant t
+                    SET 
+                        last_activity = s.latest_dt,
+                        last_logged_in_user_id = COALESCE(s.latest_user_id, t.last_logged_in_user_id),
+                        online_status = CASE 
+                            WHEN s.latest_dt IS NULL THEN 'offline'
+                            WHEN s.latest_dt >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '30 minutes') THEN 'online'
+                            WHEN s.latest_dt >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '60 minutes') THEN 'idle'
+                            ELSE 'offline'
+                        END,
+                        days_inactive = CASE 
+                            WHEN s.latest_dt IS NULL THEN 9999
+                            ELSE GREATEST(0, (CURRENT_DATE - (s.latest_dt AT TIME ZONE 'UTC')::date))
+                        END
+                    FROM summary s
+                    WHERE t.id = s.tenant_id
+                      AND (
+                          t.last_activity IS DISTINCT FROM s.latest_dt
+                          OR t.last_logged_in_user_id IS DISTINCT FROM s.latest_user_id
+                          OR t.online_status IS DISTINCT FROM (
+                              CASE 
+                                  WHEN s.latest_dt IS NULL THEN 'offline'
+                                  WHEN s.latest_dt >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '30 minutes') THEN 'online'
+                                  WHEN s.latest_dt >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '60 minutes') THEN 'idle'
+                                  ELSE 'offline'
+                              END
+                          )
+                          OR t.days_inactive IS DISTINCT FROM (
+                              CASE 
+                                  WHEN s.latest_dt IS NULL THEN 9999
+                                  ELSE GREATEST(0, (CURRENT_DATE - (s.latest_dt AT TIME ZONE 'UTC')::date))
+                              END
+                          )
+                      );
+                """)
+        except Exception as e:
+            _logger.warning("Error running _sync_tenants_activity_status: %s", e)
+            return False
+        return True
+
+    def action_sync_all_activity(self):
+        """Action button to manually refresh all tenant activity statuses."""
+        self.sudo()._sync_tenants_activity_status()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'reload',
+        }
+
+    @api.model
+    def web_search_read(self, *args, **kwargs):
+        # Automatically refresh tenant activity statuses when viewing the list/kanban view
+        try:
+            self.sudo()._sync_tenants_activity_status()
+        except Exception:
+            pass
+        return super().web_search_read(*args, **kwargs)
+
     def _compute_tenant_online_activity(self):
         now = fields.Datetime.now()
         today = fields.Date.today()
         for tenant in self:
-            act = self.env['havanoposdesk.online.activity'].sudo().search([
-                ('tenant_id', '=', tenant.id)
-            ], order='last_activity desc, id desc', limit=1)
+            latest_time = None
+            last_user = None
 
+            # 1. POS Terminals
             term = self.env['havanoposdesk.pos.terminal'].sudo().search([
                 ('tenant_id', '=', tenant.id),
                 ('last_seen', '!=', False)
             ], order='last_seen desc, id desc', limit=1)
-
-            latest_time = None
-            last_user = None
-            is_online = False
-            is_idle = False
-
-            if act and act.last_activity:
-                latest_time = act.last_activity
-                last_user = act.user_id
-                if act.online_status == 'online':
-                    is_online = True
-                elif act.online_status == 'idle':
-                    is_idle = True
-
             if term and term.last_seen:
-                if not latest_time or term.last_seen > latest_time:
-                    latest_time = term.last_seen
-                    if term.last_logged_in_user_id:
-                        last_user = term.last_logged_in_user_id
-                    delta_secs = (now - term.last_seen).total_seconds()
-                    if delta_secs <= 300:
-                        is_online = True
-                        is_idle = False
-                    elif delta_secs <= 900:
-                        if not is_online:
-                            is_idle = True
+                latest_time = term.last_seen
+                if term.last_logged_in_user_id:
+                    last_user = term.last_logged_in_user_id
 
+            # 2. Activity Tracker
+            act = self.env['havanoposdesk.online.activity'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('last_activity', '!=', False)
+            ], order='last_activity desc, id desc', limit=1)
+            if act and act.last_activity:
+                if not latest_time or act.last_activity > latest_time:
+                    latest_time = act.last_activity
+                    if act.user_id:
+                        last_user = act.user_id
+
+            # 3. User Logins
+            user = self.env['res.users'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('login_date', '!=', False)
+            ], order='login_date desc, id desc', limit=1)
+            if user and user.login_date:
+                if not latest_time or user.login_date > latest_time:
+                    latest_time = user.login_date
+                    last_user = user
+
+            # 4. Sales
+            sale = self.env['havanoposdesk.sale'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('date_order', '!=', False)
+            ], order='date_order desc, id desc', limit=1)
+            if sale and sale.date_order:
+                if not latest_time or sale.date_order > latest_time:
+                    latest_time = sale.date_order
+                    if sale.user_id:
+                        last_user = sale.user_id
+
+            # 5. Audit Log
             if not latest_time:
                 log = self.env['havanoposdesk.audit.log'].sudo().search([
-                    ('tenant_id', '=', tenant.id)
+                    ('tenant_id', '=', tenant.id),
+                    ('timestamp', '!=', False)
                 ], order='timestamp desc, id desc', limit=1)
                 if log and log.timestamp:
                     latest_time = log.timestamp
-                    last_user = log.user_id
+                    if log.user_id:
+                        last_user = log.user_id
 
             tenant.last_activity = latest_time
             tenant.last_logged_in_user_id = last_user.id if last_user else False
 
-            if is_online:
-                tenant.online_status = 'online'
-            elif is_idle:
-                tenant.online_status = 'idle'
-            else:
-                tenant.online_status = 'offline'
-
             if not latest_time:
+                tenant.online_status = 'offline'
                 tenant.days_inactive = 9999
             else:
+                delta_secs = (now - latest_time).total_seconds()
+                if delta_secs <= 1800:
+                    tenant.online_status = 'online'
+                elif delta_secs <= 3600:
+                    tenant.online_status = 'idle'
+                else:
+                    tenant.online_status = 'offline'
+
                 diff = (today - latest_time.date()).days
                 tenant.days_inactive = max(0, diff)
 
