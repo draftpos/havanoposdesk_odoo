@@ -624,6 +624,51 @@ class HavanoposdeskTenant(models.Model):
     ], string='Payment Status', default='unpaid')
     
     user_ids = fields.One2many('res.users', 'tenant_id', string='Users')
+    store_ids = fields.One2many('havanoposdesk.store', 'tenant_id', string='Stores')
+    terminal_ids = fields.One2many('havanoposdesk.pos.terminal', 'tenant_id', string='Terminals')
+
+    store_count = fields.Integer(string='Stores Count', compute='_compute_counts')
+    terminal_count = fields.Integer(string='Terminals Count', compute='_compute_counts')
+    user_count = fields.Integer(string='Users Count', compute='_compute_counts')
+
+    def _compute_counts(self):
+        for rec in self:
+            rec.store_count = len(rec.store_ids)
+            rec.terminal_count = len(rec.terminal_ids)
+            rec.user_count = len(rec.user_ids)
+
+    def action_view_stores(self):
+        self.ensure_one()
+        return {
+            'name': _('Stores'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.store',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
+
+    def action_view_terminals(self):
+        self.ensure_one()
+        return {
+            'name': _('Terminals'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.pos.terminal',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
+
+    def action_view_users(self):
+        self.ensure_one()
+        return {
+            'name': _('Users'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'res.users',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
 
     def check_subscription_active(self):
         self.ensure_one()

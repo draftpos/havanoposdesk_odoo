@@ -122,55 +122,150 @@
                     </header>
 
                     <sheet>
-                        <group string="Pending Plan Upgrade Request" invisible="not pending_subscription_plan_id">
-                            <field name="pending_subscription_plan_id" readonly="1" options="{'no_create': True}"/>
-                            <field name="pending_billing_cycle" readonly="1"/>
-                            <field name="pending_duration_months" readonly="1" invisible="pending_billing_cycle != 'custom_months'"/>
-                            <field name="pending_additional_terminals" readonly="1"/>
-                            <field name="pending_additional_stores" readonly="1"/>
-                            <field name="pending_subscription_total_amount" readonly="1"/>
-                        </group>
-                        <group>
-                            <group string="Active Subscription &amp; Wallet">
-                                <field name="name"
-                                        readonly="not context.is_super_admin"/>
-                                    <field name="account_balance" readonly="not context.is_super_admin"/>
-                                <field name="subscription_plan_id"
-                                       options="{'no_create': True}"
-                                        readonly="not context.is_super_admin"/>
-                                    <field name="billing_cycle" readonly="not context.is_super_admin"/>
-                                    <field name="duration_months" readonly="not context.is_super_admin" invisible="billing_cycle != 'custom_months'"/>
-                                    <field name="additional_terminals" readonly="not context.is_super_admin"/>
-                                    <field name="additional_stores" readonly="not context.is_super_admin"/>
-                                <field name="effective_max_stores" readonly="1"/>
-                                <field name="effective_max_terminals" readonly="1"/>
-                                <field name="subscription_total_amount" readonly="1"/>
-                                <field name="payment_status" readonly="not context.is_super_admin"/>
-                            </group>
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_view_stores" type="object" class="oe_stat_button" icon="fa-building-o">
+                                <field name="store_count" string="Stores" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_terminals" type="object" class="oe_stat_button" icon="fa-desktop">
+                                <field name="terminal_count" string="Terminals" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_users" type="object" class="oe_stat_button" icon="fa-users">
+                                <field name="user_count" string="Users" widget="statinfo"/>
+                            </button>
+                            <button name="action_sync_all_activity" type="object" class="oe_stat_button" icon="fa-circle">
+                                <field name="online_status" string="Status" widget="badge"
+                                       decoration-success="online_status == 'online'"
+                                       decoration-warning="online_status == 'idle'"
+                                       decoration-danger="online_status == 'offline'"/>
+                            </button>
+                        </div>
 
-                            <group string="Duration &amp; Status">
-                                <field name="subscription_start_date" readonly="1"/>
-                                <field name="subscription_end_date" readonly="1"/>
-                                <field name="active"
-                                       readonly="not context.is_super_admin"/>
+                        <div class="oe_title">
+                            <label for="name" string="Tenant Name"/>
+                            <h1>
+                                <field name="name" placeholder="e.g. Zuva Service Station / Marirangwe Bar" readonly="not context.is_super_admin"/>
+                            </h1>
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                                <span class="badge text-bg-light border">Tenant ID: <field name="id" readonly="1"/></span>
+                                <field name="days_inactive_display" widget="badge"
+                                       decoration-success="days_inactive == 0"
+                                       decoration-warning="days_inactive &gt; 0 and days_inactive &lt;= 3"
+                                       decoration-danger="days_inactive &gt; 3"/>
+                                <span class="text-muted small" invisible="not last_activity">
+                                    Last Active: <field name="last_activity" readonly="1"/>
+                                </span>
+                            </div>
+                        </div>
+
+                        <group string="Pending Plan Upgrade Request" invisible="not pending_subscription_plan_id" class="alert alert-warning">
+                            <group>
+                                <field name="pending_subscription_plan_id" readonly="1" options="{'no_create': True}"/>
+                                <field name="pending_billing_cycle" readonly="1"/>
+                                <field name="pending_duration_months" readonly="1" invisible="pending_billing_cycle != 'custom_months'"/>
                             </group>
-                            <group string="Features">
-                                <field name="restaurant_mode_enabled" widget="boolean_toggle"/>
-                                <field name="enable_item_group_subunits" widget="boolean_toggle"/>
+                            <group>
+                                <field name="pending_additional_terminals" readonly="1"/>
+                                <field name="pending_additional_stores" readonly="1"/>
+                                <field name="pending_subscription_total_amount" readonly="1"/>
                             </group>
-                            <group string="Tenant Profile &amp; Contact Information">
-                                <field name="admin_name"/>
-                                <field name="email"/>
-                                <field name="phone"/>
-                                <field name="owner_whatsapp"/>
-                                <field name="address"/>
+                        </group>
+
+                        <group>
+                            <group string="Contact &amp; Identity">
+                                <field name="admin_name" string="Admin / Contact Person"/>
+                                <field name="email" widget="email"/>
+                                <field name="phone" widget="phone"/>
+                                <field name="owner_whatsapp" string="Verified WhatsApp"/>
+                            </group>
+                            <group string="Location &amp; Staff">
                                 <field name="city"/>
-                                <field name="sales_rep"/>
-                                <field name="technician"/>
+                                <field name="address"/>
+                                <field name="sales_rep" string="Sales Rep"/>
+                                <field name="technician" string="Assigned Technician"/>
                             </group>
                         </group>
 
                         <notebook>
+                            <page string="Subscription &amp; Billing" name="subscription_billing">
+                                <group>
+                                    <group string="Plan &amp; Capacity Limits">
+                                        <field name="subscription_plan_id"
+                                               options="{'no_create': True}"
+                                               readonly="not context.is_super_admin"/>
+                                        <field name="billing_cycle" readonly="not context.is_super_admin"/>
+                                        <field name="duration_months" readonly="not context.is_super_admin" invisible="billing_cycle != 'custom_months'"/>
+                                        <field name="effective_max_stores" readonly="1"/>
+                                        <field name="effective_max_terminals" readonly="1"/>
+                                        <field name="additional_stores" readonly="not context.is_super_admin"/>
+                                        <field name="additional_terminals" readonly="not context.is_super_admin"/>
+                                    </group>
+                                    <group string="Wallet &amp; Validity">
+                                        <field name="account_balance" readonly="not context.is_super_admin"/>
+                                        <field name="subscription_total_amount" readonly="1"/>
+                                        <field name="payment_status" readonly="not context.is_super_admin"/>
+                                        <field name="subscription_start_date" readonly="1"/>
+                                        <field name="subscription_end_date" readonly="1"/>
+                                        <field name="active" readonly="not context.is_super_admin"/>
+                                    </group>
+                                </group>
+                            </page>
+
+                            <page string="Features &amp; Modules" name="features_modules">
+                                <group>
+                                    <group string="POS &amp; Operations">
+                                        <field name="restaurant_mode_enabled" widget="boolean_toggle"/>
+                                        <field name="enable_item_group_subunits" widget="boolean_toggle"/>
+                                        <field name="enable_manufacturing" widget="boolean_toggle"/>
+                                    </group>
+                                    <group string="ZIMRA Fiscalization">
+                                        <field name="enable_fiscalization" widget="boolean_toggle"/>
+                                        <field name="is_vat_registered" widget="boolean_toggle" invisible="not enable_fiscalization"/>
+                                        <field name="fiscal_provider" invisible="not enable_fiscalization"/>
+                                        <field name="fiscal_device_sn" invisible="not enable_fiscalization"/>
+                                    </group>
+                                </group>
+                            </page>
+
+                            <page string="Stores &amp; Branches" name="stores_page">
+                                <field name="store_ids" readonly="1">
+                                    <list string="Stores">
+                                        <field name="name" string="Store Name"/>
+                                        <field name="phone_1" string="Phone"/>
+                                        <field name="address" string="Address"/>
+                                        <field name="currency_id" string="Currency"/>
+                                        <field name="is_default" string="Default Store" widget="boolean"/>
+                                        <field name="terminal_count" string="Terminals"/>
+                                    </list>
+                                </field>
+                            </page>
+
+                            <page string="POS Terminals" name="terminals_page">
+                                <field name="terminal_ids" readonly="1">
+                                    <list string="Terminals" decoration-success="status == 'online'" decoration-warning="status == 'idle'" decoration-muted="status == 'offline'">
+                                        <field name="name" string="Terminal Name"/>
+                                        <field name="store_id" string="Assigned Store"/>
+                                        <field name="device_hardware_id" string="Hardware ID"/>
+                                        <field name="last_seen" string="Last Seen"/>
+                                        <field name="status" widget="badge"
+                                               decoration-success="status == 'online'"
+                                               decoration-warning="status == 'idle'"
+                                               decoration-danger="status == 'offline'"/>
+                                    </list>
+                                </field>
+                            </page>
+
+                            <page string="Users &amp; Cashiers" name="users_page">
+                                <field name="user_ids" readonly="1">
+                                    <list string="Users">
+                                        <field name="name" string="Name"/>
+                                        <field name="login" string="Login / Email"/>
+                                        <field name="havano_role" widget="badge" string="Role"/>
+                                        <field name="default_store_id" string="Default Store"/>
+                                        <field name="login_date" string="Last Login"/>
+                                    </list>
+                                </field>
+                            </page>
+
                             <page string="Transaction History &amp; Top-Ups" name="transaction_history">
                                 <field name="subscription_payment_ids" readonly="1">
                                     <list string="Payments &amp; Top-Up Log" default_order="date desc" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'">
