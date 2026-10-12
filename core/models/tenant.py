@@ -402,6 +402,8 @@ class HavanoposdeskTenant(models.Model):
 
     def check_subscription_active(self):
         self.ensure_one()
+        if self.env.context.get('bypass_subscription_check'):
+            return True
         today = fields.Date.context_today(self)
         if self.subscription_end_date and self.subscription_end_date < today:
             if self.subscription_state not in ('expired', 'cancelled'):

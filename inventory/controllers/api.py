@@ -1944,17 +1944,37 @@ class HavanoPOSDeskAPI(http.Controller):
             data = request.params
             
         customer_name = data.get('customer') or 'Walk-in'
-        customer = request.env['havanoposdesk.customer'].sudo().search([('name', '=', customer_name)], limit=1)
+        domain = []
+        if tenant:
+            domain.append(('tenant_id', '=', tenant.id))
+        
+        # Check by ID if numeric, otherwise by name
+        if str(customer_name).isdigit():
+            c_dom = list(domain) + [('id', '=', int(customer_name))]
+            customer = request.env['havanoposdesk.customer'].sudo().search(c_dom, limit=1)
+            if not customer:
+                customer = request.env['havanoposdesk.customer'].sudo().search([('id', '=', int(customer_name))], limit=1)
+        else:
+            customer = None
+
+        if not customer:
+            c_dom = list(domain) + [('name', '=ilike', str(customer_name).strip())]
+            customer = request.env['havanoposdesk.customer'].sudo().search(c_dom, limit=1)
+            if not customer:
+                customer = request.env['havanoposdesk.customer'].sudo().search([('name', '=ilike', str(customer_name).strip())], limit=1)
+
         balance_amount = 0.0
         if customer:
-            sales_domain = [('customer', '=', customer.id)]
-            if tenant:
-                sales_domain.append(('tenant_id', '=', tenant.id))
-            sales = request.env['havanoposdesk.sale'].sudo().search(sales_domain)
-            balance_amount = sum(sales.mapped('amount_total'))
+            balance_amount = getattr(customer, 'balance', 0.0) or 0.0
             
         res_data = {
-            'message': balance_amount
+            'message': {
+                'status': 'success',
+                'customer': customer.name if customer else customer_name,
+                'company': data.get('company') or (tenant.name if tenant else ''),
+                'balance': balance_amount
+            },
+            'balance': balance_amount
         }
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
 
@@ -2075,12 +2095,14 @@ class HavanoPOSDeskAPI(http.Controller):
         if not customer:
             return request.make_response(json.dumps({'error': f"Customer '{customer_name}' not found for store '{store.name}'"}), headers=[('Content-Type', 'application/json')], status=400)
             
+        is_return_val = bool(data.get('is_return', False)) or any(float(item.get('qty', 0)) < 0 for item in data.get('items', []))
         lines = []
         for item in data.get('items', []):
             item_code = item.get('item_code')
             item_name = item.get('item_name') or item_code
-            qty = float(item.get('qty', 1))
-            rate = float(item.get('rate') or item.get('standard_rate') or 0.0) or 10.0
+            raw_qty = float(item.get('qty', 1))
+            qty = abs(raw_qty) if is_return_val else raw_qty
+            rate = abs(float(item.get('rate') or item.get('standard_rate') or 0.0)) or 10.0
             uom_name = item.get('uom') or item.get('stock_uom') or item.get('uom_name')
 
             product = request.env['havanoposdesk.product'].sudo().search([
@@ -3833,11 +3855,13 @@ class HavanoPOSDeskAPI(http.Controller):
                             responses.append({"error": f"Oops! The customer '{customer_name}' does not exist for your business.", "local_invoice_id": local_invoice_id})
                             continue
 
+                        is_return_val = bool(sale_data.get('is_return', False)) or any(float(item.get('qty', 0)) < 0 for item in sale_data.get('items', []))
                         lines = []
                         for item in sale_data.get('items', []):
                             item_code = item.get('item_code') or item.get('item_name')
-                            qty = float(item.get('qty', 1.0))
-                            rate = float(item.get('rate', 0.0))
+                            raw_qty = float(item.get('qty', 1.0))
+                            qty = abs(raw_qty) if is_return_val else raw_qty
+                            rate = abs(float(item.get('rate', 0.0)))
                             uom_name = item.get('uom') or item.get('stock_uom') or item.get('uom_name')
 
                             product = env['havanoposdesk.product'].search([
@@ -4656,7 +4680,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 'transaction_category': 'customer_receipt' if payment_type == 'receipt' else 'supplier_payment'
             }
 
-            payment = env['havanoposdesk.payment'].create(payment_vals)
+            payment = env['havanoposdesk.payment'].with_context(bypass_subscription_check=True).create(payment_vals)
             
             # Post the payment if docstatus is 1 or auto-post
             docstatus = params.get('docstatus', 1)

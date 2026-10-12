@@ -953,14 +953,14 @@ class Sale(models.Model):
                     current_qty = valuation.on_hand_qty if valuation else 0.0
 
                     if is_item_return:
-                        new_balance = current_qty + item_qty
-                        in_qty = item_qty
+                        new_balance = current_qty + abs(item_qty)
+                        in_qty = abs(item_qty)
                         out_qty = 0.0
                         ledger_type = 'Credit Note' if sale.is_return else 'Return'
                     else:
-                        new_balance = current_qty - item_qty
+                        new_balance = current_qty - abs(item_qty)
                         in_qty = 0.0
-                        out_qty = item_qty
+                        out_qty = abs(item_qty)
                         ledger_type = 'Sale'
 
                     if valuation:
