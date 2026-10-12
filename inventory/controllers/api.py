@@ -3288,8 +3288,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 registry = odoo.modules.registry.Registry(db)
                 with registry.cursor() as cr:
                     env = odoo.api.Environment(cr, odoo.SUPERUSER_ID, {})
-                        credential = {'login': username, 'password': password, 'type': 'password'}
-                        auth_info = env['res.users'].authenticate(credential, {'interactive': False})
+                    credential = {'login': username, 'password': password, 'type': 'password'}
+                    auth_info = env['res.users'].authenticate(credential, {'interactive': False})
                     uid_res = auth_info.get('uid')
             except Exception:
                 uid_res = None
@@ -3300,7 +3300,7 @@ class HavanoPOSDeskAPI(http.Controller):
             _AUTH_CREDENTIALS_CACHE[cache_key] = (int(uid_res), now + _AUTH_CACHE_TTL)
             return int(uid_res)
 
-                return None
+        return None
 
     def _verify_token(self, token):
         if not token:
@@ -3347,30 +3347,30 @@ class HavanoPOSDeskAPI(http.Controller):
 
         # Second try: parse as base64-encoded "uid:login:saas_secret_key"
         if not resolved_uid:
-        try:
-            import base64
-            token_bytes = base64.b64decode(token.encode('utf-8'))
-            token_str = token_bytes.decode('utf-8')
-            parts = token_str.split(':')
-            if len(parts) == 3 and parts[2] == "saas_secret_key":
+            try:
+                import base64
+                token_bytes = base64.b64decode(token.encode('utf-8'))
+                token_str = token_bytes.decode('utf-8')
+                parts = token_str.split(':')
+                if len(parts) == 3 and parts[2] == "saas_secret_key":
                     resolved_uid, resolved_login = int(parts[0]), parts[1]
-        except Exception:
-            pass
+            except Exception:
+                pass
 
         # Third try: parse as old base64-encoded "username:password"
         if not resolved_uid:
-        try:
-            import base64
-            token_bytes = base64.b64decode(token.encode('utf-8'))
-            token_str = token_bytes.decode('utf-8')
-            if ':' in token_str:
-                username, password = token_str.split(':', 1)
-                db = request.db or 'odoo_db_com'
-                uid_res = self._check_credentials(db, username, password)
-                if uid_res:
+            try:
+                import base64
+                token_bytes = base64.b64decode(token.encode('utf-8'))
+                token_str = token_bytes.decode('utf-8')
+                if ':' in token_str:
+                    username, password = token_str.split(':', 1)
+                    db = request.db or 'odoo_db_com'
+                    uid_res = self._check_credentials(db, username, password)
+                    if uid_res:
                         resolved_uid, resolved_login = int(uid_res), username
-        except Exception:
-            pass
+            except Exception:
+                pass
 
         if resolved_uid:
             if len(_AUTH_TOKEN_CACHE) >= _AUTH_CACHE_MAX_ENTRIES:
@@ -4384,7 +4384,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             lines.append((0, 0, line_vals))
 
                         if not terminal:
-                        terminal = user.selected_terminal_id
+                            terminal = user.selected_terminal_id
                         payment_method_name = sale_data.get('payment_method')
                         account_id = False
                         if payment_method_name:
@@ -4511,13 +4511,13 @@ class HavanoPOSDeskAPI(http.Controller):
                         for attempt in range(2):
                             try:
                                 with env.cr.savepoint():
-                        sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
-                                try:
-                                    if tenant:
-                                        tenant.sudo().record_tenant_activity(user=sale_user, terminal=terminal, platform='mobile_pos')
-                                except Exception:
-                                    pass
-                                break
+                                    sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
+                                    try:
+                                        if tenant:
+                                            tenant.sudo().record_tenant_activity(user=sale_user, terminal=terminal, platform='mobile_pos')
+                                    except Exception:
+                                        pass
+                                    break
                             except Exception as create_err:
                                 err_msg = str(create_err)
                                 if attempt == 0 and ("could not serialize" in err_msg or "concurrent update" in err_msg):
@@ -9530,7 +9530,7 @@ class HavanoPOSDeskAPI(http.Controller):
                     return self._make_json_response({"error": "User email is already registered under another tenant"}, status=400)
 
             # Create new user
-                if not password:
+            if not password:
                 return self._make_json_response({"error": "Password is required for new users"}, status=400)
 
             company = env['res.company'].search([], limit=1)
@@ -10004,7 +10004,7 @@ class HavanoPOSDeskAPI(http.Controller):
             domain = []
             if terminal_id:
                 if isinstance(terminal_id, int) or (isinstance(terminal_id, str) and str(terminal_id).isdigit()):
-                domain.append(('id', '=', int(terminal_id)))
+                    domain.append(('id', '=', int(terminal_id)))
                 else:
                     domain.append(('name', '=', str(terminal_id)))
             if device_hardware_id:
@@ -10027,8 +10027,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     with env.cr.savepoint():
                         terminal.with_context(skip_audit_log=True).write({
                             'last_seen': now_dt,
-                    'status': 'online'
-                })
+                            'status': 'online'
+                        })
                         try:
                             user_rec = terminal.last_logged_in_user_id or (request.env.user if request.env.user and request.env.user.id != request.env.ref('base.public_user').id else False)
                             env['havanoposdesk.online.activity'].sudo().record_activity(
@@ -10049,8 +10049,8 @@ class HavanoPOSDeskAPI(http.Controller):
                                 )
                         except Exception:
                             pass
-                if custom_cr:
-                    custom_cr.commit()
+                    if custom_cr:
+                        custom_cr.commit()
                 except Exception as write_err:
                     _logger.debug("Concurrent lock during terminal ping update, skipped safely: %s", write_err)
 
@@ -10154,22 +10154,22 @@ class HavanoPOSDeskAPI(http.Controller):
             # Preserve existing sequence_prefix on the terminal to keep invoice IDs consistent; only generate if unset
             sale_id_prefix = (terminal.sequence_prefix or '').strip()
             if not sale_id_prefix:
-            sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
+                sale_id_prefix = ''.join(random.choices(string.ascii_uppercase, k=4))
 
             # Update selected terminal for new user with safe savepoint to prevent aborting transaction on concurrent lock
             try:
                 with env.cr.savepoint():
-            if user.selected_terminal_id.id != terminal.id:
-                user.sudo().write({'selected_terminal_id': terminal.id})
+                    if user.selected_terminal_id.id != terminal.id:
+                        user.sudo().write({'selected_terminal_id': terminal.id})
                     terminal.with_context(skip_audit_log=True).write({
-                'status': 'online',
-                'device_hardware_id': device_hardware_id,
-                'app_version': str(app_version) if app_version else terminal.app_version,
-                'last_seen': fields.Datetime.now(),
-                'last_logged_in_user_id': user.id,
-                'taken_by_user_id': user.id,
-                'sequence_prefix': sale_id_prefix
-            })
+                        'status': 'online',
+                        'device_hardware_id': device_hardware_id,
+                        'app_version': str(app_version) if app_version else terminal.app_version,
+                        'last_seen': fields.Datetime.now(),
+                        'last_logged_in_user_id': user.id,
+                        'taken_by_user_id': user.id,
+                        'sequence_prefix': sale_id_prefix
+                    })
             except Exception as write_collision:
                 _logger.info("Transient lock during terminal selection write, retrying: %s", write_collision)
                 try:
