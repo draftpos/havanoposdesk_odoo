@@ -69,8 +69,17 @@ jobs:
 
             if [ "$UPGRADE_MODULE" = "true" ] && [ -n "$DB_NAME" ]; then
               echo "=== Step 3: Upgrading havanoposdesk_odoo module on database $DB_NAME ==="
-              if command -v odoo &> /dev/null; then
-                odoo -c /etc/odoo.conf -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || odoo -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
+              ODOO_BIN=$(which odoo 2>/dev/null || find /usr -name odoo 2>/dev/null | grep -E 'bin/odoo$' | head -n 1 || echo "")
+              ODOO_CONF=$(find /etc -name "odoo*.conf" 2>/dev/null | head -n 1 || echo "")
+              echo "Found ODOO_BIN: $ODOO_BIN, ODOO_CONF: $ODOO_CONF"
+              if [ -n "$ODOO_BIN" ]; then
+                if [ -n "$ODOO_CONF" ]; then
+                  sudo -u odoo "$ODOO_BIN" -c "$ODOO_CONF" -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || \
+                  "$ODOO_BIN" -c "$ODOO_CONF" -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
+                else
+                  sudo -u odoo "$ODOO_BIN" -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || \
+                  "$ODOO_BIN" -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
+                fi
               elif [ -f "/opt/odoo/odoo-bin" ]; then
                 python3 /opt/odoo/odoo-bin -c /etc/odoo.conf -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
               elif command -v docker &> /dev/null && [ -f "docker-compose.yml" ]; then
