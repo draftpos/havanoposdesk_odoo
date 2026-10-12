@@ -12,6 +12,15 @@ class Sale(models.Model):
     _order = 'date desc, id desc'
 
 
+    @api.model
+    def _register_hook(self):
+        super()._register_hook()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_sale ADD COLUMN IF NOT EXISTS total_qty DOUBLE PRECISION DEFAULT 0.0;")
+        except Exception:
+            pass
+
     def _default_posting_time(self):
         now_utc = fields.Datetime.now()
         now_local = fields.Datetime.context_timestamp(self, now_utc)

@@ -64,16 +64,17 @@ jobs:
             git log -1 --oneline
 
             # 3. Optional Module Upgrade (if configured via manual trigger or environment variable)
-            UPGRADE_MODULE="${{ github.event.inputs.upgrade_module || secrets.UPGRADE_MODULE || 'false' }}"
-            DB_NAME="${{ github.event.inputs.database_name || secrets.ODOO_DB_NAME || '' }}"
+            UPGRADE_MODULE="${{ github.event.inputs.upgrade_module || secrets.UPGRADE_MODULE || 'true' }}"
+            DB_NAME="${{ github.event.inputs.database_name || secrets.ODOO_DB_NAME || 'saas' }}"
 
             if [ "$UPGRADE_MODULE" = "true" ] && [ -n "$DB_NAME" ]; then
               echo "=== Step 3: Upgrading havanoposdesk_odoo module on database $DB_NAME ==="
-              # Adjust odoo-bin and config path if needed
-              if command -v docker &> /dev/null && [ -f "docker-compose.yml" ]; then
-                docker compose exec -T odoo odoo -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
+              if command -v odoo &> /dev/null; then
+                odoo -c /etc/odoo.conf -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || odoo -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
               elif [ -f "/opt/odoo/odoo-bin" ]; then
                 python3 /opt/odoo/odoo-bin -c /etc/odoo.conf -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
+              elif command -v docker &> /dev/null && [ -f "docker-compose.yml" ]; then
+                docker compose exec -T odoo odoo -d "$DB_NAME" -u havanoposdesk_odoo --stop-after-init || true
               fi
             fi
 

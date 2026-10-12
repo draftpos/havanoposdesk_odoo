@@ -19,6 +19,17 @@ class HavanoposdeskProduct(models.Model):
             pass
         return res
 
+    @api.model
+    def _register_hook(self):
+        super()._register_hook()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS hs_code VARCHAR;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS print_after_order BOOLEAN DEFAULT FALSE;")
+        except Exception:
+            pass
+
     @api.constrains('name', 'tenant_id')
     def _check_unique_name_tenant_id_0(self):
         for record in self:

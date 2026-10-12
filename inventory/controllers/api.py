@@ -39,6 +39,16 @@ class HavanoPOSDeskAPI(http.Controller):
         return None
 
 
+    def _ensure_db_columns(self, env):
+        try:
+            with env.cr.savepoint():
+                env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
+                env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS hs_code VARCHAR;")
+                env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS print_after_order BOOLEAN DEFAULT FALSE;")
+                env.cr.execute("ALTER TABLE havanoposdesk_sale ADD COLUMN IF NOT EXISTS total_qty DOUBLE PRECISION DEFAULT 0.0;")
+        except Exception:
+            pass
+
     def _resolve_sale_user(self, env, sale_data, tenant):
         sale_user_value = (
             sale_data.get('salesperson_id')
@@ -158,6 +168,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 user_env = api.Environment(cr_to_close, odoo.SUPERUSER_ID, {})
             else:
                 user_env = request.env
+            self._ensure_db_columns(user_env)
                 
             pin_auth = False
             try:
@@ -1628,6 +1639,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
     # HELPER METHOD TO GET AUTHENTICATED USER OR FALLBACK
     def _get_user(self):
+        self._ensure_db_columns(request.env)
         user = None
         uid = request.session.uid
         if uid:
