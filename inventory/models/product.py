@@ -436,6 +436,33 @@ class HavanoposdeskProduct(models.Model):
                 if not product.is_variant:
                     super(HavanoposdeskProduct, product).write({'is_variant': True})
 
+        if 'selling_price' in vals and vals.get('selling_price') is not None:
+            new_sell_price = float(vals['selling_price'])
+            for product in self:
+                uom_prices = self.env['havanoposdesk.product.uom.price'].search([
+                    ('product_id', '=', product.id),
+                ])
+                if uom_prices:
+                    for uom_price in uom_prices:
+                        if not uom_price.qty_to_be_sold or uom_price.qty_to_be_sold == 1.0 or (product.uom_id and uom_price.uom_id == product.uom_id):
+                            uom_price.write({'price': new_sell_price})
+                elif product.allow_advanced_pricing and product.store_ids and product.uom_id:
+                    default_pricelist = self.env['havanoposdesk.pricelist'].search([('tenant_id', '=', product.tenant_id.id), ('name', 'ilike', 'Retail')], limit=1)
+                    if not default_pricelist:
+                        default_pricelist = self.env['havanoposdesk.pricelist'].search([('tenant_id', '=', product.tenant_id.id)], limit=1)
+                    if not default_pricelist:
+                        default_pricelist = self.env['havanoposdesk.pricelist'].create({'name': 'Retail', 'tenant_id': product.tenant_id.id})
+                    for store in product.store_ids:
+                        self.env['havanoposdesk.product.uom.price'].create({
+                            'product_id': product.id,
+                            'store_id': store.id,
+                            'pricelist_id': default_pricelist.id,
+                            'uom_id': product.uom_id.id,
+                            'qty_to_be_sold': 1.0,
+                            'price': new_sell_price,
+                            'tenant_id': product.tenant_id.id
+                        })
+
         if vals.get('all_stores'):
             for product in self:
                 all_store_records = self.env['havanoposdesk.store'].search([('tenant_id', '=', product.tenant_id.id)])
