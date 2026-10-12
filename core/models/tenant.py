@@ -99,6 +99,7 @@ class HavanoposdeskTenant(models.Model):
         try:
             with self.env.cr.savepoint():
                 self.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_variant_attributes BOOLEAN DEFAULT FALSE;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_hs_code BOOLEAN DEFAULT FALSE;")
         except Exception:
             pass
 

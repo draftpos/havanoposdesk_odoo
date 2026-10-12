@@ -39,7 +39,11 @@ class HavanoPOSDeskAPI(http.Controller):
         return None
 
 
+    _db_columns_checked = False
+
     def _ensure_db_columns(self, env):
+        if HavanoPOSDeskAPI._db_columns_checked:
+            return
         try:
             with env.cr.savepoint():
                 env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
@@ -47,6 +51,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS print_after_order BOOLEAN DEFAULT FALSE;")
                 env.cr.execute("ALTER TABLE havanoposdesk_sale ADD COLUMN IF NOT EXISTS total_qty DOUBLE PRECISION DEFAULT 0.0;")
                 env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_variant_attributes BOOLEAN DEFAULT FALSE;")
+                env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_hs_code BOOLEAN DEFAULT FALSE;")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_seq_prefix VARCHAR DEFAULT 'S';")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_seq_next INTEGER DEFAULT 1;")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_seq_padding INTEGER DEFAULT 4;")
@@ -65,6 +70,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_api_secret VARCHAR;")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_device_sn VARCHAR;")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_ping_interval INTEGER DEFAULT 5;")
+            HavanoPOSDeskAPI._db_columns_checked = True
         except Exception:
             pass
 
