@@ -20,7 +20,7 @@ class ItemSummaryLedgerReport(models.Model):
     date = fields.Datetime(string='Date', readonly=True)
     doc_no = fields.Char(string='Reference / Doc No', readonly=True)
     type = fields.Char(string='Transaction Type', readonly=True)
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True, index=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
     currency_id = fields.Many2one('res.currency', related='store_id.currency_id', readonly=True)
     create_uid = fields.Many2one('res.users', string='Created By', readonly=True)
     create_date = fields.Datetime(string='Created On', readonly=True)
@@ -49,7 +49,7 @@ class ItemSummaryLedgerReport(models.Model):
                     sl.create_date as date,
                     sl.doc_no as doc_no,
                     sl.type as type,
-                    sl.tenant_id as tenant_id,
+                    COALESCE(sl.tenant_id, p.tenant_id, st.tenant_id) as tenant_id,
                     sl.create_uid as create_uid,
                     sl.create_date as create_date
                 FROM
@@ -57,11 +57,8 @@ class ItemSummaryLedgerReport(models.Model):
                 JOIN
                     havanoposdesk_product p ON p.id = sl.product_id
                 LEFT JOIN
-                    havanoposdesk_store st ON (
-                        (sl.store_id = st.id AND st.tenant_id = sl.tenant_id)
-                        OR (sl.store_id IS NULL AND st.name = sl.store AND st.tenant_id = sl.tenant_id)
-                    )
+                    havanoposdesk_store st ON (sl.store_id = st.id OR (st.name = sl.store AND st.tenant_id = COALESCE(sl.tenant_id, p.tenant_id)))
                 LEFT JOIN
-                    havanoposdesk_sale s ON (s.name = sl.doc_no AND s.tenant_id = sl.tenant_id)
+                    havanoposdesk_sale s ON (s.name = sl.doc_no AND s.tenant_id = COALESCE(sl.tenant_id, p.tenant_id))
             )
         """ % (self._table,))

@@ -96,8 +96,16 @@
                     <filter string="Store" name="filter_store" domain="[('store_id', '!=', False)]"/>
                     <separator/>
                     <filter string="Today" name="today" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Yesterday" name="yesterday" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-1)).strftime('%Y-%m-%d 00:00:00')), ('posting_date', '&lt;=', (context_today() + datetime.timedelta(days=-1)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Last 2 Days" name="last_2_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-2)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 3 Days" name="last_3_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-3)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 4 Days" name="last_4_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-4)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 7 Days" name="last_7_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-7)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 10 Days" name="last_10_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-10)).strftime('%Y-%m-%d 00:00:00'))]"/>
+                    <filter string="Last 14 Days" name="last_14_days" domain="[('posting_date', '&gt;=', (context_today() + datetime.timedelta(days=-14)).strftime('%Y-%m-%d 00:00:00'))]"/>
                     <filter string="This Month" name="this_month" domain="[('posting_date', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00'))]" />
                     <group>
+                        <filter string="Tenant" name="group_by_tenant" context="{'group_by': 'tenant_id'}"/>
                         <filter string="Store" name="group_by_store" context="{'group_by': 'store_id'}"/>
                         <filter string="Created On" name="group_by_created_on" context="{'group_by': 'create_date:day'}"/>
                         <filter string="Created By" name="group_by_created_by" context="{'group_by': 'create_uid'}"/>
@@ -108,11 +116,36 @@
             </field>
         </record>
 
+        <!-- Graph View -->
+        <record id="view_havanoposdesk_stock_adjustment_graph" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.adjustment.graph</field>
+            <field name="model">havanoposdesk.stock.adjustment</field>
+            <field name="arch" type="xml">
+                <graph string="Stock Adjustments Analysis" type="bar" sample="1">
+                    <field name="posting_date" interval="day"/>
+                    <field name="total_amount_difference" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <!-- Pivot View -->
+        <record id="view_havanoposdesk_stock_adjustment_pivot" model="ir.ui.view">
+            <field name="name">havanoposdesk.stock.adjustment.pivot</field>
+            <field name="model">havanoposdesk.stock.adjustment</field>
+            <field name="arch" type="xml">
+                <pivot string="Stock Adjustments Analysis" sample="1">
+                    <field name="posting_date" interval="month" type="row"/>
+                    <field name="store_id" type="col"/>
+                    <field name="total_amount_difference" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
         <!-- Stock Adjustment Action -->
         <record id="action_havanoposdesk_stock_adjustment" model="ir.actions.act_window">
             <field name="name">Stock Adjustment</field>
             <field name="res_model">havanoposdesk.stock.adjustment</field>
-            <field name="view_mode">list,form</field>
+            <field name="view_mode">list,form,graph,pivot</field>
             <field name="search_view_id" ref="view_havanoposdesk_stock_adjustment_search"/>
             <field name="context">{'search_default_today': 1}</field>
             <field name="help" type="html">

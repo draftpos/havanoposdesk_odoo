@@ -2,7 +2,7 @@ from odoo import http
 from odoo.http import request
 # pyrefly: ignore [missing-import]
 from odoo.addons.web.controllers.home import Home
-# pyrefly: ignore [missing-import]
+from odoo.addons.web.controllers.utils import ensure_db
 from odoo.addons.web.controllers.webmanifest import WebManifest
 
 
@@ -13,17 +13,19 @@ class HavanoHome(Home):
     Visiting / also redirects to /havano instead of /odoo.
     """
 
-    @http.route(['/<string:base_path>', '/<string:base_path>/<path:subpath>'], type='http', auth='none',
+    @http.route(['/havano', '/havano/<path:subpath>', '/Havano', '/Havano/<path:subpath>',
+                 '/<string:base_path>', '/<string:base_path>/<path:subpath>'], type='http', auth='none',
                 readonly=Home._web_client_readonly)
-    def havano_client(self, base_path, subpath=None, s_action=None, **kw):
+    def havano_client(self, base_path='havano', subpath=None, s_action=None, **kw):
         # Allow standard Odoo routes to bypass (if they get caught here)
         if base_path in ('web', 'web_editor', 'website', 'odoo', 'mail', 'shop'):
             raise request.not_found()
             
+        ensure_db()
         icp = request.env['ir.config_parameter'].sudo()
         configured_base = (icp.get_param('havanoposdesk.web_base_url', 'havano')).lower()
         
-        if base_path == configured_base:
+        if base_path.lower() in ('havano', configured_base):
             return self.web_client(s_action=s_action, **kw)
         
         raise request.not_found()
@@ -31,8 +33,8 @@ class HavanoHome(Home):
     @http.route('/', type='http', auth='none')
     def index(self, s_action=None, db=None, **kw):
         """Redirect root to configured base instead of /odoo."""
-        # pyrefly: ignore [missing-import]
         from odoo.addons.web.controllers.utils import is_user_internal
+        ensure_db()
         icp = request.env['ir.config_parameter'].sudo()
         configured_base = (icp.get_param('havanoposdesk.web_base_url', 'havano')).lower()
         

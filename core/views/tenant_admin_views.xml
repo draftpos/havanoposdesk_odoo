@@ -2,7 +2,12 @@
 <odoo>
     <data>
         <menuitem id="menu_tenant_admin_settings_root" name="Configurations" web_icon="havanoposdesk_odoo,static/description/configs.png" sequence="550" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
-        <menuitem id="menu_my_business_topups" name="Top-Up &amp; Subscription Payments" parent="menu_tenant_admin_settings_root" action="action_subscription_payments" sequence="15" groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"/>
+        <menuitem id="menu_tenant_my_cashiers" name="Users &amp; Cashiers" parent="menu_tenant_admin_settings_root" action="action_my_cashiers" sequence="5" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_tenant_my_stores" name="Stores" parent="menu_tenant_admin_settings_root" action="action_my_stores" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_tenant_my_terminals" name="POS Terminals" parent="menu_tenant_admin_settings_root" action="action_my_terminals" sequence="12" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_tenant_user_rights" name="User Rights Profiles" parent="menu_tenant_admin_settings_root" action="action_user_rights_profiles" sequence="14" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
+        <menuitem id="menu_my_business_topups" name="Billing" parent="menu_tenant_admin_settings_root" action="action_subscription_payments" sequence="15" groups="base.group_system,havanoposdesk_odoo.group_tenant_admin"/>
+        <menuitem id="menu_sales_cashiers" name="Cashiers &amp; Staff" parent="menu_sales_master" action="action_my_cashiers" sequence="35" groups="havanoposdesk_odoo.group_tenant_admin,base.group_system"/>
 
         
         <record id="action_my_stores" model="ir.actions.act_window">
@@ -17,6 +22,8 @@
             <field name="name">My POS Terminals</field>
             <field name="res_model">havanoposdesk.pos.terminal</field>
             <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="havanoposdesk_odoo.view_pos_terminal_search"/>
+            <field name="context">{'active_test': False, 'search_default_filter_active': 1}</field>
         </record>
 
         <record id="action_user_rights_profiles" model="ir.actions.act_window">
@@ -89,6 +96,7 @@
                     <field name="havano_role" string="User Role" />
                     <field name="default_store_id" string="Default Store" optional="show" />
                     <field name="store_ids" string="Allowed Stores" widget="many2many_tags" optional="show" />
+                    <field name="category_ids" string="Allowed Sub-Units / Groups" widget="many2many_tags" optional="show" />
                     <field name="pricelist_id" string="Default Pricelist" optional="show" />
                     <field name="allow_backoffice" string="Backoffice" widget="boolean_toggle" optional="show" />
                     <field name="active" widget="boolean_toggle" optional="show" />
@@ -114,7 +122,7 @@
                             </div>
                         </div>
                         <group>
-                            <group>
+                            <group string="Access &amp; Security">
                                 <!-- LEFT COLUMN -->
                                 <field name="havano_role" string="User Role" />
                                 <field name="user_rights_profile_id" string="Rights Profile" options="{'no_create': True}" domain="[('tenant_id', '=', tenant_id), ('havano_role', '=', havano_role)]"/>
@@ -131,7 +139,7 @@
                                 
                                 <field name="active" string="Active User" widget="boolean_toggle" />
                             </group>
-                            <group>
+                            <group string="Store &amp; POS Setup">
                                 <!-- RIGHT COLUMN -->
                                 <field name="store_ids" string="Allowed Stores" widget="many2many_tags" required="havano_role != 'super_admin'" options="{'no_create': True}" />
                                 <field name="default_store_id" string="Default Store" required="havano_role != 'super_admin'" options="{'no_create': True}" />
@@ -141,7 +149,11 @@
                                 <field name="max_discount_percent" invisible="allow_discount == False" />
                                 <field name="require_shift" string="Require Shift" widget="boolean_toggle" />
                                 <field name="tenant_id" invisible="1" />
+                                <field name="enable_item_group_subunits" invisible="1" />
                             </group>
+                        </group>
+                        <group string="Sub-Units &amp; Department Restriction (Optional)" invisible="not enable_item_group_subunits">
+                            <field name="category_ids" string="Allowed Sub-Units / Groups" widget="many2many_tags" domain="[('tenant_id', '=', tenant_id)]" options="{'no_create': True}" placeholder="Leave empty for full store access, or select departments (e.g. Fuel, Kiosk, Gas)"/>
                         </group>
                     </sheet>
                 </form>
@@ -165,44 +177,33 @@
             <field name="model_id" ref="model_havanoposdesk_tenant" />
             <field name="state">code</field>
             <field name="code">
-is_super = env.user.havano_role == 'super_admin' or env.user.has_group('base.group_system') or env.user.id in (1, 2) or env.su
+tenant_id = env.user.tenant_id
+if not tenant_id:
+    # Fallback to the first available tenant (useful for System Admin)
+    tenant_id = env['havanoposdesk.tenant'].search([], limit=1)
 
-if is_super:
+if tenant_id:
     action = {
         'type': 'ir.actions.act_window',
-        'name': 'Manage Subscriptions',
+        'name': 'My Subscription',
         'res_model': 'havanoposdesk.tenant',
-        'view_mode': 'list,form',
+        'res_id': tenant_id.id,
+        'view_mode': 'form',
         'target': 'current',
-        'context': {'active_id': False, 'active_ids': [], 'active_model': 'havanoposdesk.tenant'},
-        'domain': [],
     }
 else:
-    tenant_id = env.user.tenant_id
-    if tenant_id:
-        action = {
-            'type': 'ir.actions.act_window',
-            'name': 'My Subscription',
-            'res_model': 'havanoposdesk.tenant',
-            'res_id': tenant_id.id,
-            'view_mode': 'form',
-            'target': 'current',
+    action = {
+        'type': 'ir.actions.client',
+        'tag': 'display_notification',
+        'params': {
+            'title': 'No Subscription',
+            'message': 'You do not belong to any tenant subscription.',
+            'type': 'danger',
+            'sticky': False,
         }
-    else:
-        action = {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'No Subscription',
-                'message': 'You do not belong to any tenant subscription.',
-                'type': 'danger',
-                'sticky': False,
-            }
-        }
+    }
             </field>
         </record>
-
-        <menuitem id="menu_my_subscription" name="My Subscription" parent="menu_tenant_admin_settings_root" action="action_my_subscription" sequence="10" groups="havanoposdesk_odoo.group_tenant_admin"/>
 
         <!-- Custom currency list view with base currency indicator -->
         <record id="view_havanoposdesk_currency_tree" model="ir.ui.view">
@@ -229,7 +230,7 @@ else:
             <field name="priority">20</field>
             <field name="arch" type="xml">
                 <form string="Currency">
-                    <div class="alert alert-info text-center" role="alert" invisible="not is_base_currency">
+                    <div class="alert alert-info text-center" role="status" invisible="not is_base_currency">
                         <i class="fa fa-star me-1"></i> This is your base (default) currency.
                     </div>
                     <sheet>

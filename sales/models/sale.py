@@ -11,6 +11,9 @@ class Sale(models.Model):
     _description = 'Sale'
     _order = 'date desc, id desc'
 
+    _sql_constraints = [
+        ('sale_local_invoice_tenant_unique', 'unique(local_invoice_id, tenant_id)', 'The Local Invoice ID must be unique per tenant!')
+    ]
 
     @api.model
     def _register_hook(self):
@@ -43,24 +46,7 @@ class Sale(models.Model):
     is_quotation = fields.Boolean(string='Is Quotation', default=False)
     return_id = fields.Many2one('havanoposdesk.sale', string='Original Sale')
     return_sale_ids = fields.One2many('havanoposdesk.sale', 'return_id', string='Credit Notes')
-    credit_note_count = fields.Integer(string='Credit Notes Count', compute='_compute_credit_note_count')
     invoice_type = fields.Char(string='Type', compute='_compute_invoice_type', store=True)
-
-    @api.depends('return_sale_ids', 'return_sale_ids.state')
-    def _compute_credit_note_count(self):
-        for sale in self:
-            sale.credit_note_count = len(sale.return_sale_ids.filtered(lambda r: r.state != 'cancelled'))
-
-    def action_view_credit_notes(self):
-        self.ensure_one()
-        action = self.env['ir.actions.act_window']._for_xml_id('havanoposdesk_odoo.action_sales_returns')
-        action['domain'] = [('return_id', '=', self.id)]
-        action['context'] = {'default_return_id': self.id, 'default_is_return': True}
-        if len(self.return_sale_ids) == 1:
-            form_view_id = self.env.ref('havanoposdesk_odoo.view_havanoposdesk_sale_form').id
-            action['views'] = [(form_view_id, 'form')]
-            action['res_id'] = self.return_sale_ids[0].id
-        return action
 
     @api.constrains('local_invoice_id', 'tenant_id')
     def _check_local_invoice_id_uniqueness(self):
@@ -74,15 +60,6 @@ class Sale(models.Model):
                 if duplicate:
                     raise ValidationError(_("The Local Invoice ID must be unique per tenant!"))
 
-    @api.constrains('store_id', 'tenant_id')
-    def _check_store_tenant_match(self):
-        for sale in self:
-            if sale.store_id and sale.tenant_id and sale.store_id.tenant_id:
-                if sale.store_id.tenant_id != sale.tenant_id:
-                    raise ValidationError(_(
-                        "Store '%s' belongs to tenant '%s', but this sale is assigned to tenant '%s'. Cross-tenant sale assignment is strictly prohibited."
-                    ) % (sale.store_id.name, sale.store_id.tenant_id.name, sale.tenant_id.name))
-
     @api.depends('is_return', 'is_quotation')
     def _compute_invoice_type(self):
         for record in self:
@@ -94,24 +71,11 @@ class Sale(models.Model):
                 record.invoice_type = 'Sales Invoice'
     
     def _default_account_id(self):
-        domain = [
+        return self.env['havanoposdesk.account'].search([
             ('type', 'in', ['Cash', 'Bank']),
             ('active', '=', True),
             ('is_on_account', '=', False),
-        ]
-        tenant = (hasattr(self, 'tenant_id') and self.tenant_id) or (
-            self.env.user.tenant_id if hasattr(self.env, 'user') and self.env.user else False
-        )
-        if tenant:
-            domain.append(('tenant_id', '=', tenant.id))
-        acc = self.env['havanoposdesk.account'].search(domain, limit=1)
-        if not acc:
-            acc = self.env['havanoposdesk.account'].search([
-                ('type', 'in', ['Cash', 'Bank']),
-                ('active', '=', True),
-                ('is_on_account', '=', False),
-            ], limit=1)
-        return acc.id if acc else False
+        ], limit=1).id
 
     def _default_payment_status(self):
         tenant = self.env.user.tenant_id
@@ -152,11 +116,7 @@ class Sale(models.Model):
             sale.has_variants = any(bool(line.variant_id) or (line.product_id and line.product_id.is_variant) for line in sale.line_ids)
 
     def _default_store_id(self):
-        user = self.env.user
-        domain = [('is_default', '=', True)]
-        if user.tenant_id:
-            domain.append(('tenant_id', '=', user.tenant_id.id))
-        return self.env['havanoposdesk.store'].search(domain, limit=1).id
+        return self.env['havanoposdesk.store'].search([('is_default', '=', True)], limit=1).id
 
     # View-required fields to avoid undefined errors
     tenant_id = fields.Many2one(
@@ -192,85 +152,39 @@ class Sale(models.Model):
 
 
 
-    def _get_currency_direct_rate(self, currency, tenant=None):
-        if not currency:
-            return 1.0
-        domain = [('currency_id', '=', currency.id)]
-        if tenant:
-            domain.append(('tenant_id', '=', tenant.id))
-        rate_rec = self.env['res.currency.rate'].sudo().search(
-            domain,
-            order='name desc, id desc',
-            limit=1
-        )
-        if not rate_rec and tenant:
-            rate_rec = self.env['res.currency.rate'].sudo().search(
-                [('currency_id', '=', currency.id)],
-                order='name desc, id desc',
-                limit=1
-            )
-        if rate_rec:
-            cr = rate_rec.company_rate
-            if cr and float(cr) > 0:
-                return float(cr)
-            if rate_rec.rate and float(rate_rec.rate) > 0:
-                r = float(rate_rec.rate)
-                return (1.0 / r) if r < 1.0 else r
-        return 1.0
-
     @api.onchange('customer')
     def _onchange_customer(self):
         if self.customer:
             target_currency = self.customer.currency_id
-            if target_currency:
-                self.currency_id = target_currency.id
-                if self.tenant_id and self.tenant_id.currency_id:
-                    is_base = (target_currency == self.tenant_id.currency_id) or (
-                        target_currency.name and self.tenant_id.currency_id.name and
-                        target_currency.name.strip().upper() == self.tenant_id.currency_id.name.strip().upper()
-                    )
-                    if is_base:
-                        self.exchange_rate = 1.0
-                    else:
-                        rate = self._get_currency_direct_rate(target_currency, self.tenant_id)
-                        self.exchange_rate = rate or 1.0
-            else:
-                if not self.currency_id and self.tenant_id and self.tenant_id.currency_id:
-                    self.currency_id = self.tenant_id.currency_id.id
+            self.currency_id = target_currency.id
+            
+            # Auto-fetch exchange rate for the target currency
+            if target_currency and self.tenant_id and self.tenant_id.currency_id:
+                if target_currency == self.tenant_id.currency_id:
                     self.exchange_rate = 1.0
-
-            if not self.payment_status:
-                self.payment_status = self.tenant_id.default_payment_status or 'cash'
-            if not self.payment_policy:
-                self.payment_policy = 'single'
-            if not self.account_id and self.payment_status in ['cash', 'partial']:
-                self.account_id = self._default_account_id()
+                else:
+                    date = self.date or fields.Date.context_today(self)
+                    rate = target_currency._get_conversion_rate(
+                        self.tenant_id.currency_id, target_currency, self.env.company, date
+                    )
+                    self.exchange_rate = rate or 1.0
 
     @api.onchange('currency_id', 'tenant_id')
     def _onchange_currency_id(self):
         if self.currency_id and self.tenant_id and self.tenant_id.currency_id:
-            is_base = (self.currency_id == self.tenant_id.currency_id) or (
-                self.currency_id.name and self.tenant_id.currency_id.name and
-                self.currency_id.name.strip().upper() == self.tenant_id.currency_id.name.strip().upper()
-            )
-            if is_base:
+            if self.currency_id == self.tenant_id.currency_id:
                 self.exchange_rate = 1.0
+                if not self.payment_status:
+                    self.payment_status = self.tenant_id.default_payment_status or 'cash'
             else:
-                rate = self._get_currency_direct_rate(self.currency_id, self.tenant_id)
+                # Odoo's res.currency stores rate as: 1 base = X foreign
+                date = self.date or fields.Date.context_today(self)
+                rate = self.currency_id._get_conversion_rate(self.tenant_id.currency_id, self.currency_id, self.env.company, date)
                 self.exchange_rate = rate or 1.0
-
-            # Preserve payment fields and default them if missing
-            if not self.payment_status:
-                self.payment_status = self.tenant_id.default_payment_status or 'cash'
-            if not self.payment_policy:
-                self.payment_policy = 'single'
-            if not self.account_id and self.payment_status in ['cash', 'partial']:
-                self.account_id = self._default_account_id()
-
+                # Force user to choose payment mode for foreign currency
+                self.payment_status = False
             if self.line_ids:
                 self.line_ids._recompute_prices_for_currency()
-            if self.payment_policy == 'single' and self.payment_status != 'account':
-                self.single_payment_amount = abs(self.amount_total)
     terminal_id = fields.Many2one(
         'havanoposdesk.pos.terminal', 
         string='POS Terminal', 
@@ -335,10 +249,10 @@ class Sale(models.Model):
 
     tenant_currency_id = fields.Many2one('res.currency', related='tenant_id.currency_id')
     amount_total_base = fields.Float(string='Base Total', compute='_compute_amount_total_base', store=True)
-    amount_paid_base = fields.Float(string='Paid (Base)', compute='_compute_amount_paid_base', store=True)
-    amount_balance_base = fields.Float(string='Balance Due (Base)', compute='_compute_amount_paid_base', store=True)
-    amount_paid = fields.Float(string='Paid Amount', compute='_compute_amount_paid_base', store=True)
-    amount_balance = fields.Float(string='Balance Due', compute='_compute_amount_paid_base', store=True)
+    amount_paid_base = fields.Float(string='Paid (Base)', compute='_compute_amount_paid_base', store=True, compute_sudo=True)
+    amount_balance_base = fields.Float(string='Balance Due (Base)', compute='_compute_amount_paid_base', store=True, compute_sudo=True)
+    amount_paid = fields.Float(string='Paid Amount', compute='_compute_amount_paid', compute_sudo=True)
+    amount_balance = fields.Float(string='Balance Due', compute='_compute_amount_paid', compute_sudo=True)
     single_payment_amount = fields.Float(string='Payment Amount', compute='_compute_single_payment_amount', store=True, readonly=False)
     
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
@@ -347,7 +261,6 @@ class Sale(models.Model):
     state = fields.Selection([
         ('draft', 'Draft'),
         ('confirmed', 'Confirmed'),
-        ('posted', 'Posted'),
         ('done', 'Done'),
         ('cancelled', 'Cancelled')
     ], string='Status', default='draft', required=True)
@@ -391,7 +304,6 @@ class Sale(models.Model):
                 bool(record.currency_id)
                 and bool(record.tenant_currency_id)
                 and record.currency_id != record.tenant_currency_id
-                and (record.currency_id.name or '').strip().upper() != (record.tenant_currency_id.name or '').strip().upper()
             )
 
     @api.depends('amount_untaxed', 'amount_tax', 'amount_total', 'exchange_rate', 'currency_id', 'tenant_currency_id')
@@ -403,12 +315,7 @@ class Sale(models.Model):
         Otherwise, the document is already in foreign currency, so we store the document totals.
         """
         for record in self:
-            is_base = (record.currency_id == record.tenant_currency_id) or (
-                record.currency_id and record.tenant_currency_id and
-                record.currency_id.name and record.tenant_currency_id.name and
-                record.currency_id.name.strip().upper() == record.tenant_currency_id.name.strip().upper()
-            )
-            if is_base:
+            if record.currency_id == record.tenant_currency_id:
                 rate = record.exchange_rate if record.exchange_rate else 1.0
                 record.amount_untaxed_fc = record.amount_untaxed * rate
                 record.amount_tax_fc = record.amount_tax * rate
@@ -436,12 +343,11 @@ class Sale(models.Model):
     def _inverse_payment_status_display(self):
         for record in self:
             if not record.payment_status_display:
-                if not record.payment_status:
-                    record.payment_status = record._default_payment_status() or 'cash'
+                record.payment_status = False
             elif record.payment_status == 'partial' and record.payment_status_display == 'account':
                 continue
             else:
-                record.payment_status = record.payment_status_display or 'cash'
+                record.payment_status = record.payment_status_display
 
     @api.depends(
         'payment_ids.amount', 'payment_ids.amount_base', 'payment_ids.state',
@@ -456,22 +362,38 @@ class Sale(models.Model):
             valid_payments = record.payment_ids.filtered(
                 lambda p: p.state in valid_states and p.payment_type == expected_type
             )
-
-            target_total = abs(record.amount_total)
             target_total_base = abs(record.amount_total_base)
 
-            if record.payment_policy == 'multi':
+            if record.payment_policy == 'multi' or record.payment_status == 'account':
                 record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
-                paid_doc = 0.0
-                for payment in valid_payments:
-                    if payment.currency_id == record.currency_id:
-                        paid_doc += payment.amount
-                    else:
-                        rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
-                        paid_doc += payment.amount_base * rate
-                record.amount_paid = paid_doc
-            elif record.payment_status == 'account':
-                record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+            else:
+                if record.state in ('confirmed', 'done') and valid_payments:
+                    record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+                else:
+                    target_total = abs(record.amount_total)
+                    raw_amount = record.single_payment_amount if record.single_payment_amount > 0 else target_total
+                    payment_amount = abs(raw_amount)
+                    rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
+                    record.amount_paid_base = payment_amount / rate
+
+            record.amount_balance_base = max(target_total_base - record.amount_paid_base, 0.0)
+
+    @api.depends(
+        'payment_ids.amount', 'payment_ids.amount_base', 'payment_ids.state',
+        'payment_ids.payment_type', 'payment_ids.currency_id', 'amount_total',
+        'payment_status', 'payment_policy', 'single_payment_amount',
+        'currency_id', 'exchange_rate', 'state'
+    )
+    def _compute_amount_paid(self):
+        for record in self:
+            valid_states = ('posted',) if record.state in ('confirmed', 'done') else ('draft', 'posted')
+            expected_type = 'payment' if record.is_return else 'receipt'
+            valid_payments = record.payment_ids.filtered(
+                lambda p: p.state in valid_states and p.payment_type == expected_type
+            )
+            target_total = abs(record.amount_total)
+
+            if record.payment_policy == 'multi' or record.payment_status == 'account':
                 paid_doc = 0.0
                 for payment in valid_payments:
                     if payment.currency_id == record.currency_id:
@@ -481,8 +403,7 @@ class Sale(models.Model):
                         paid_doc += payment.amount_base * rate
                 record.amount_paid = paid_doc
             else:
-                if valid_payments:
-                    record.amount_paid_base = sum(valid_payments.mapped('amount_base'))
+                if record.state in ('confirmed', 'done') and valid_payments:
                     paid_doc = 0.0
                     for payment in valid_payments:
                         if payment.currency_id == record.currency_id:
@@ -493,12 +414,8 @@ class Sale(models.Model):
                     record.amount_paid = paid_doc
                 else:
                     raw_amount = record.single_payment_amount if record.single_payment_amount > 0 else target_total
-                    payment_amount = abs(raw_amount)
-                    record.amount_paid = payment_amount
-                    rate = record.exchange_rate if record.exchange_rate and record.exchange_rate != 0 else 1.0
-                    record.amount_paid_base = payment_amount / rate
+                    record.amount_paid = abs(raw_amount)
 
-            record.amount_balance_base = max(target_total_base - record.amount_paid_base, 0.0)
             record.amount_balance = max(target_total - record.amount_paid, 0.0)
 
     @api.depends('amount_total', 'payment_policy', 'payment_status', 'is_return')
@@ -517,61 +434,26 @@ class Sale(models.Model):
             if record.state == 'draft' and record.payment_policy == 'single' and record.payment_status != 'account':
                 record.single_payment_amount = abs(record.amount_total)
 
-    @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'is_return')
+    @api.depends('line_ids.cost_price', 'line_ids.accepted_qty', 'line_ids.display_type', 'is_return')
     def _compute_total_cost(self):
         for record in self:
             sign = -1.0 if record.is_return else 1.0
-            record.total_cost = sum(line.cost_price * line.accepted_qty for line in record.line_ids) * sign
-
-    total_qty = fields.Float(string='Total Quantity', compute='_compute_total_qty', store=True)
-
-    @api.depends('line_ids.accepted_qty')
-    def _compute_total_qty(self):
-        for record in self:
-            record.total_qty = sum(line.accepted_qty for line in record.line_ids)
+            record.total_cost = sum(line.cost_price * line.accepted_qty for line in record.line_ids if not line.display_type) * sign
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            # Enforce store resolution and strict tenant matching
-            if vals.get('store_id'):
-                store_obj = self.env['havanoposdesk.store'].browse(vals['store_id'])
-                if store_obj.exists():
-                    if not vals.get('store'):
-                        vals['store'] = store_obj.name
-                    if store_obj.tenant_id:
-                        vals['tenant_id'] = store_obj.tenant_id.id
-            elif vals.get('store'):
-                user_tenant = self.env.user.tenant_id.id if self.env.user.tenant_id else None
-                domain = [('name', '=', vals['store'])]
-                t_id = vals.get('tenant_id') or user_tenant
-                if t_id:
-                    domain.append(('tenant_id', '=', t_id))
-                store_obj = self.env['havanoposdesk.store'].search(domain, limit=1)
-                if store_obj:
-                    vals['store_id'] = store_obj.id
-                    if store_obj.tenant_id:
-                        vals['tenant_id'] = store_obj.tenant_id.id
-
             if not vals.get('shift_id') and not vals.get('is_quotation'):
                 # Try to find an open shift for the current user and tenant
                 shift_domain = [
                     ('user_id', '=', self.env.user.id),
                     ('state', '=', 'open')
                 ]
-                if vals.get('tenant_id'):
-                    shift_domain.append(('tenant_id', '=', vals['tenant_id']))
-                elif self.env.user.tenant_id:
+                if self.env.user.tenant_id:
                     shift_domain.append(('tenant_id', '=', self.env.user.tenant_id.id))
                 open_shift = self.env['havanoposdesk.shift'].search(shift_domain, limit=1)
                 if open_shift:
                     vals['shift_id'] = open_shift.id
-
-            if not vals.get('payment_status'):
-                vals['payment_status'] = self._default_payment_status() or 'cash'
-
-            if vals.get('state') == 'posted':
-                vals['state'] = 'confirmed'
 
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
             if tenant_id:
@@ -582,31 +464,20 @@ class Sale(models.Model):
             if vals.get('name', 'New') == 'New':
                 tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env['havanoposdesk.tenant']
-                
-                store = False
-                if vals.get('store_id'):
-                    store = self.env['havanoposdesk.store'].browse(vals['store_id'])
-                elif vals.get('store'):
-                    domain = [('name', '=', vals['store'])]
-                    if tenant_id:
-                        domain.append(('tenant_id', '=', tenant_id))
-                    store = self.env['havanoposdesk.store'].search(domain, limit=1)
-                elif self.env.user.default_store_id:
-                    store = self.env.user.default_store_id
-
-                seq_type = 'quotation' if vals.get('is_quotation') else ('sale_ret' if vals.get('is_return') else 'sale')
-
-                if store:
-                    vals['name'] = store._get_next_sequence(seq_type)
-                elif tenant:
-                    vals['name'] = tenant._get_next_sequence(seq_type)
+                if tenant:
+                    if vals.get('is_quotation'):
+                        vals['name'] = tenant._get_next_sequence('quotation')
+                    elif vals.get('is_return'):
+                        vals['name'] = tenant._get_next_sequence('sale_ret')
+                    else:
+                        vals['name'] = tenant._get_next_sequence('sale')
                 else:
-                    code_map = {
-                        'quotation': 'havanoposdesk.quotation',
-                        'sale_ret': 'havanoposdesk.sale.return',
-                        'sale': 'havanoposdesk.sale',
-                    }
-                    vals['name'] = self.env['ir.sequence'].next_by_code(code_map.get(seq_type, 'havanoposdesk.sale')) or 'New'
+                    if vals.get('is_quotation'):
+                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.quotation') or 'New'
+                    elif vals.get('is_return'):
+                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale.return') or 'New'
+                    else:
+                        vals['name'] = self.env['ir.sequence'].next_by_code('havanoposdesk.sale') or 'New'
             
             # Default account_id for cash sales if not provided
             tenant_id = vals.get('tenant_id') or self.env.user.tenant_id.id
@@ -630,6 +501,45 @@ class Sale(models.Model):
                 store = self.env['havanoposdesk.store'].browse(vals['store_id'])
                 if store:
                     vals['store'] = store.name
+
+            # Resolve terminal if missing and ensure hardware prefix consistency
+            if not vals.get('terminal_id'):
+                loc_id = vals.get('local_invoice_id')
+                if loc_id and '-' in str(loc_id):
+                    cand_prefix = str(loc_id).split('-')[0].strip()
+                    if cand_prefix:
+                        term = self.env['havanoposdesk.pos.terminal'].sudo().search([
+                            ('sequence_prefix', '=ilike', cand_prefix),
+                            ('tenant_id', '=', tenant_id)
+                        ], limit=1)
+                        if term:
+                            vals['terminal_id'] = term.id
+                if not vals.get('terminal_id') and self.env.user.selected_terminal_id:
+                    vals['terminal_id'] = self.env.user.selected_terminal_id.id
+                if not vals.get('terminal_id') and vals.get('store_id'):
+                    store_terms = self.env['havanoposdesk.pos.terminal'].sudo().search([
+                        ('store_id', '=', vals.get('store_id')),
+                        ('tenant_id', '=', tenant_id)
+                    ])
+                    if store_terms:
+                        vals['terminal_id'] = store_terms[0].id
+
+            # Ensure local_invoice_id carries the terminal sequence prefix consistently
+            if vals.get('terminal_id'):
+                term = self.env['havanoposdesk.pos.terminal'].sudo().browse(vals['terminal_id'])
+                if term and term.sequence_prefix:
+                    pfx = term.sequence_prefix.strip()
+                    loc_id = vals.get('local_invoice_id')
+                    if loc_id:
+                        str_loc = str(loc_id).strip()
+                        parts = str_loc.split('-')
+                        if len(parts) >= 2 and len(parts[0]) == 4 and parts[0].isalpha() and parts[0].isupper():
+                            pass  # already carries a 4-letter sequence prefix
+                        elif not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
+                            vals['local_invoice_id'] = f"{pfx}-{str_loc}"
+                    elif not vals.get('is_quotation'):
+                        next_num = self.search_count([('terminal_id', '=', term.id)]) + 1
+                        vals['local_invoice_id'] = f"{pfx}-{str(next_num).zfill(4)}"
 
             # Store timezone validation safeguard
             client_tz = vals.get('timezone') or vals.get('tz') or vals.get('device_tz') or self.env.context.get('client_tz')
@@ -657,11 +567,7 @@ class Sale(models.Model):
             if not vals.get('currency_id'):
                 tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val) if tenant_id_val else self.env['havanoposdesk.tenant']
-                if vals.get('store_id'):
-                    store = self.env['havanoposdesk.store'].browse(vals['store_id'])
-                    if store and store.currency_id:
-                        vals['currency_id'] = store.currency_id.id
-                if not vals.get('currency_id') and vals.get('customer'):
+                if vals.get('customer'):
                     customer = self.env['havanoposdesk.customer'].browse(vals['customer'])
                     if customer.currency_id:
                         self.env['res.currency']._validate_tenant_currency(customer.currency_id, tenant)
@@ -675,35 +581,13 @@ class Sale(models.Model):
             tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
             tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val) if tenant_id_val else self.env['havanoposdesk.tenant']
             if vals.get('currency_id'):
-                validated_curr = self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
-                if validated_curr:
-                    vals['currency_id'] = validated_curr.id
-
-            curr_id = vals.get('currency_id')
-            if curr_id and tenant and tenant.currency_id:
-                curr_rec = self.env['res.currency'].browse(curr_id)
-                is_base = (curr_rec == tenant.currency_id) or (
-                    curr_rec.name and tenant.currency_id.name and
-                    curr_rec.name.strip().upper() == tenant.currency_id.name.strip().upper()
-                )
-                if is_base:
-                    vals['exchange_rate'] = 1.0
-                else:
-                    rate_val = vals.get('exchange_rate')
-                    if not rate_val or rate_val == 1.0:
-                        vals['exchange_rate'] = self._get_currency_direct_rate(curr_rec, tenant)
-                    elif 0 < rate_val < 1.0:
-                        direct = self._get_currency_direct_rate(curr_rec, tenant)
-                        if direct > 1.0:
-                            vals['exchange_rate'] = direct
-                        else:
-                            vals['exchange_rate'] = 1.0 / rate_val
+                self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)
 
         sales = super().create(vals_list)
         
         for sale in sales:
             # Mobile app syncs often include pos_payment_id. If present, or explicitly confirmed, auto-post.
-            if sale.state in ['confirmed', 'done', 'posted'] or sale.pos_payment_id or self.env.context.get('auto_post_sale'):
+            if sale.state in ['confirmed', 'done'] or sale.pos_payment_id or self.env.context.get('auto_post_sale'):
                 # Set to draft temporarily to let action_post execute
                 sale.state = 'draft'
                 sale.action_post()
@@ -711,8 +595,6 @@ class Sale(models.Model):
 
     def write(self, vals):
         from odoo.exceptions import ValidationError
-        if 'payment_status' in vals and not vals.get('payment_status'):
-            vals['payment_status'] = 'cash'
         allowed_post_fields = [
             'state', 'fiscal_status', 'fiscal_qr_code', 'fiscal_verification_code',
             'fiscal_receipt_counter', 'fiscal_global_no', 'fiscal_device_id',
@@ -840,29 +722,14 @@ class Sale(models.Model):
             elif requested_base + 0.0001 >= remaining_base:
                 payment_amount = target_amount
             if payment_amount > 0:
-                pay_curr = sale.account_id.currency_id if sale.account_id and sale.account_id.currency_id else sale.currency_id
-                pay_rate = sale.exchange_rate
-                final_pay_amount = payment_amount
-                if pay_curr != sale.currency_id:
-                    pay_rate_rec = self.env['res.currency.rate'].sudo().search(
-                        [('currency_id', '=', pay_curr.id)],
-                        order='name desc, id desc',
-                        limit=1
-                    )
-                    pay_rate = float(pay_rate_rec.company_rate) if (pay_rate_rec and pay_rate_rec.company_rate) else 1.0
-                    if not pay_rate or pay_rate == 1.0:
-                        pay_rate = pay_curr._get_conversion_rate(sale.tenant_id.currency_id, pay_curr, self.env.company, sale.posting_date or fields.Date.context_today(sale)) or 1.0
-                    base_to_pay = min(requested_base, remaining_base)
-                    final_pay_amount = base_to_pay * pay_rate
-
                 payment = self.env['havanoposdesk.payment'].create([{
                     'payment_type': expected_payment_type,
                     'partner_type': 'customer',
                     'customer_id': sale.customer.id,
                     'account_id': sale.account_id.id,
-                    'currency_id': pay_curr.id,
-                    'exchange_rate': pay_rate,
-                    'amount': final_pay_amount,
+                    'currency_id': sale.currency_id.id,
+                    'exchange_rate': sale.exchange_rate,
+                    'amount': payment_amount,
                     'date': sale.posting_date or fields.Date.context_today(sale),
                     'tenant_id': sale.tenant_id.id,
                     'sale_id': sale.id,
@@ -895,108 +762,150 @@ class Sale(models.Model):
             if sale.payment_status != 'account':
                 sale._post_sale_payments()
 
-            store_name = sale.store or (sale.store_id.name if sale.store_id else False)
             for line in sale.line_ids:
-                base_qty = line.accepted_qty * line.uom_qty_multiplier
-                is_item_return = sale.is_return or (base_qty < 0)
-                qty_delta = abs(base_qty)
-
-                if qty_delta <= 0:
+                if line.display_type:
                     continue
-
-                if not is_item_return:
+                base_qty = line.accepted_qty * line.uom_qty_multiplier
+                if base_qty > 0:
                     # Update price on parent product
-                    base_rate = line.rate
-                    base_cost = line.cost_price
-                    line.product_id.sudo().write({
-                        'selling_price': base_rate,
-                        'buying_price': (base_cost / line.uom_qty_multiplier) if line.uom_qty_multiplier else base_cost,
-                    })
-
-                    # Auto-create and complete Production Order if product uses ingredients
-                    if line.product_id.use_ingredients and line.product_id.bom_id:
-                        raw_materials = []
-                        for bom_line in line.product_id.bom_id.raw_material_ids:
-                            raw_materials.append((0, 0, {
-                                'product_id': bom_line.product_id.id,
-                                'qty': bom_line.qty,
-                                'total_qty': bom_line.qty * qty_delta,
-                            }))
-                        outputs = []
-                        for bom_out in line.product_id.bom_id.output_ids:
-                            outputs.append((0, 0, {
-                                'product_id': bom_out.product_id.id,
-                                'qty': bom_out.qty,
-                                'total_qty': bom_out.qty * qty_delta,
-                            }))
-                        production_order = self.env['havanoposdesk.production.order'].sudo().create({
-                            'bom_id': line.product_id.bom_id.id,
-                            'tenant_id': line.product_id.tenant_id.id,
-                            'qty_to_produce': qty_delta,
-                            'raw_material_ids': raw_materials,
-                            'output_ids': outputs,
+                    if not sale.is_return:
+                        base_rate = line.rate
+                        base_cost = line.cost_price
+                        line.product_id.sudo().write({
+                            'selling_price': base_rate,
+                            'buying_price': (base_cost / line.uom_qty_multiplier) if line.uom_qty_multiplier else base_cost,
                         })
-                        production_order.action_complete()
 
-                # Determine products for inventory changes
-                if line.product_id.is_bundle:
-                    products_to_process = [(comp.product_id, qty_delta * comp.qty, False) for comp in line.product_id.bundle_item_ids]
-                else:
-                    products_to_process = [(line.product_id, qty_delta, line.variant_id.id if line.variant_id else False)]
+                        # Auto-create and complete Production Order if product uses ingredients
+                        if line.product_id.use_ingredients and line.product_id.bom_id:
+                            raw_materials = []
+                            for bom_line in line.product_id.bom_id.raw_material_ids:
+                                raw_materials.append((0, 0, {
+                                    'product_id': bom_line.product_id.id,
+                                    'qty': bom_line.qty,
+                                    'total_qty': bom_line.qty * base_qty,
+                                }))
+                            outputs = []
+                            for bom_out in line.product_id.bom_id.output_ids:
+                                outputs.append((0, 0, {
+                                    'product_id': bom_out.product_id.id,
+                                    'qty': bom_out.qty,
+                                    'total_qty': bom_out.qty * base_qty,
+                                }))
+                            production_order = self.env['havanoposdesk.production.order'].sudo().create({
+                                'bom_id': line.product_id.bom_id.id,
+                                'tenant_id': line.product_id.tenant_id.id,
+                                'qty_to_produce': base_qty,
+                                'raw_material_ids': raw_materials,
+                                'output_ids': outputs,
+                            })
+                            production_order.action_complete()
 
-                for product_id, item_qty, item_variant_id in products_to_process:
-                    if not product_id.track_qty:
-                        continue
-
-                    domain = [
-                        ('product_id', '=', product_id.id),
-                    ]
-                    if store_name:
-                        domain.append(('store', '=', store_name))
-                    if sale.tenant_id:
-                        domain.append(('tenant_id', '=', sale.tenant_id.id))
-                    if item_variant_id:
-                        domain.append(('variant_id', '=', item_variant_id))
-
-                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
-                    current_qty = valuation.on_hand_qty if valuation else 0.0
-
-                    if is_item_return:
-                        new_balance = current_qty + abs(item_qty)
-                        in_qty = abs(item_qty)
-                        out_qty = 0.0
-                        ledger_type = 'Credit Note' if sale.is_return else 'Return'
+                    # Determine products for inventory changes
+                    if line.product_id.is_bundle:
+                        products_to_process = [(comp.product_id, base_qty * comp.qty, False) for comp in line.product_id.bundle_item_ids]
                     else:
-                        new_balance = current_qty - abs(item_qty)
-                        in_qty = 0.0
-                        out_qty = abs(item_qty)
-                        ledger_type = 'Sale'
+                        products_to_process = [(line.product_id, base_qty, line.variant_id.id if line.variant_id else False)]
 
-                    if valuation:
-                        valuation.write({'on_hand_qty': new_balance})
+                    for product_id, item_base_qty, item_variant_id in products_to_process:
+                        if not product_id.track_qty:
+                            continue
+                            
+                        domain = [
+                            ('product_id', '=', product_id.id),
+                            ('store', '=', sale.store)
+                        ]
+                        if item_variant_id:
+                            domain.append(('variant_id', '=', item_variant_id))
+                            
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
+                        
+                        current_qty = valuation.on_hand_qty if valuation else 0.0
+                        if sale.is_return:
+                            new_balance = current_qty + item_base_qty
+                        else:
+                            new_balance = current_qty - item_base_qty
+
+                        if valuation:
+                            valuation.write({'on_hand_qty': new_balance})
+                        else:
+                            self.env['havanoposdesk.stock.valuation'].sudo().create({
+                                'product_id': product_id.id,
+                                'variant_id': item_variant_id,
+                                'store': sale.store,
+                                'on_hand_qty': new_balance,
+                                'tenant_id': product_id.tenant_id.id,
+                            })
+
+                        if sale.is_return:
+                            # Add back to stock
+                            self.env['havanoposdesk.stock.ledger'].sudo().create({
+                                'product_id': product_id.id,
+                                'variant_id': item_variant_id,
+                                'in_qty': item_base_qty,
+                                'out_qty': 0.0,
+                                'balance_qty': new_balance,
+                                'buying_price': line.cost_price / line.uom_qty_multiplier if line.uom_qty_multiplier else line.cost_price,
+                                'store': sale.store,
+                                'type': 'Credit Note',
+                                'doc_no': sale.name,
+                                'tenant_id': product_id.tenant_id.id,
+                            })
+                        else:
+                            # Create Ledger Entry using sudo()
+                            self.env['havanoposdesk.stock.ledger'].sudo().create({
+                                'product_id': product_id.id,
+                                'variant_id': item_variant_id,
+                                'in_qty': 0.0,
+                                'out_qty': item_base_qty,
+                                'balance_qty': new_balance,
+                                'buying_price': line.cost_price / line.uom_qty_multiplier if line.uom_qty_multiplier else line.cost_price,
+                                'store': sale.store,
+                                'type': 'Sale',
+                                'doc_no': sale.name,
+                                'tenant_id': product_id.tenant_id.id,
+                            })
+                elif base_qty < 0:
+                    if line.product_id.is_bundle:
+                        products_to_process = [(comp.product_id, base_qty * comp.qty) for comp in line.product_id.bundle_item_ids]
                     else:
-                        self.env['havanoposdesk.stock.valuation'].sudo().create({
+                        products_to_process = [(line.product_id, base_qty)]
+
+                    for product_id, item_base_qty in products_to_process:
+                        if not product_id.track_qty:
+                            continue
+                        valuation = self.env['havanoposdesk.stock.valuation'].sudo().search([
+                            ('product_id', '=', product_id.id),
+                            ('store', '=', sale.store)
+                        ], limit=1)
+                        
+                        current_qty = valuation.on_hand_qty if valuation else 0.0
+                        if sale.is_return:
+                            new_balance = current_qty + item_base_qty
+                        else:
+                            new_balance = current_qty - item_base_qty
+
+                        if valuation:
+                            valuation.write({'on_hand_qty': new_balance})
+                        else:
+                            self.env['havanoposdesk.stock.valuation'].sudo().create({
+                                'product_id': product_id.id,
+                                'store': sale.store,
+                                'on_hand_qty': new_balance,
+                                'tenant_id': product_id.tenant_id.id,
+                            })
+
+                        # Return sale: add back to stock
+                        self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': product_id.id,
-                            'variant_id': item_variant_id,
-                            'store': store_name,
-                            'on_hand_qty': new_balance,
+                            'in_qty': abs(item_base_qty),
+                            'out_qty': 0.0,
+                            'balance_qty': new_balance,
+                            'store': sale.store,
+                            'type': 'Return',
+                            'doc_no': sale.name,
                             'tenant_id': product_id.tenant_id.id,
                         })
-
-                    # Create Stock Ledger Entry
-                    buying_price = (line.cost_price / line.uom_qty_multiplier) if line.uom_qty_multiplier else (line.cost_price or product_id.buying_price)
-                    self.env['havanoposdesk.stock.ledger'].sudo().create({
-                        'product_id': product_id.id,
-                        'variant_id': item_variant_id,
-                        'in_qty': in_qty,
-                        'out_qty': out_qty,
-                        'balance_qty': new_balance,
-                        'buying_price': buying_price,
-                        'store': store_name,
-                        'type': ledger_type,
-                        'doc_no': sale.name,
-                        'tenant_id': product_id.tenant_id.id,
-                    })
             sale.write({'state': 'done'})
             sale._trigger_fiscalization()
 
@@ -1011,19 +920,13 @@ class Sale(models.Model):
                 sale.write({'fiscal_status': 'not_required'})
                 continue
             try:
-                from ...core.models.fiscal_service import get_zimra_service
+                from odoo.addons.havanoposdesk_odoo.core.models.fiscal_service import get_zimra_service
                 service = get_zimra_service(self.env)
                 res = service.process_sale_fiscalization(sale)
-                status = res.get('status')
-                if status == 'not_required':
+                if res.get('status') in ('fiscalized', 'PENDING_SYNC'):
                     sale.write({
-                        'fiscal_status': 'not_required',
-                        'fiscal_error': False,
-                    })
-                elif status in ('fiscalized', 'PENDING_SYNC'):
-                    sale.write({
-                        'fiscal_status': status,
-                        'fiscal_qr_code': res.get('qr_code', ''),
+                        'fiscal_status': res.get('status'),
+                        'fiscal_qr_code': res.get('qr_code') or res.get('qr_code_url') or '',
                         'fiscal_verification_code': res.get('verification_code', ''),
                         'fiscal_receipt_counter': res.get('receipt_counter', 0),
                         'fiscal_global_no': res.get('global_no', ''),
@@ -1059,36 +962,13 @@ class Sale(models.Model):
 
     @api.model
     def cron_retry_pending_fiscalization(self):
-        # Retry PENDING_SYNC or failed sales, limited to 50 per batch
         pending_sales = self.sudo().search([
             ('state', '=', 'done'),
             ('fiscal_status', 'in', ['PENDING_SYNC', 'failed'])
-        ], order='id desc', limit=50)
-
-        if not pending_sales:
-            return
-
+        ], limit=50)
         _logger.info("[ZIMRA CRON] Retrying fiscalization for %s pending sales", len(pending_sales))
-        skipped_configs = set()
-
         for sale in pending_sales:
-            config_key = (sale.tenant_id.id, sale.store_id.id if sale.store_id else 0)
-            if config_key in skipped_configs:
-                continue
-
-            # Skip sales that permanently failed due to missing credentials or authentication error
-            if sale.fiscal_status == 'failed' and sale.fiscal_error and any(err in sale.fiscal_error for err in [
-                'Authentication Error', 'API Key and API Secret are required', 'Base URL and Device Serial Number', 'required'
-            ]):
-                continue
-
             sale._trigger_fiscalization()
-
-            # If failed due to configuration or auth error, skip other sales for this store/tenant in this batch
-            if sale.fiscal_status == 'failed' and sale.fiscal_error and any(err in sale.fiscal_error for err in [
-                'Authentication Error', 'API Key and API Secret are required', 'Base URL and Device Serial Number', 'required'
-            ]):
-                skipped_configs.add(config_key)
 
 
     def action_cancel(self):
@@ -1100,44 +980,18 @@ class Sale(models.Model):
                 sale.write({'state': 'cancelled'})
                 continue
             
-            store_name = sale.store or (sale.store_id.name if sale.store_id else False)
             for line in sale.line_ids:
-                base_qty = line.accepted_qty * line.uom_qty_multiplier
-                qty_delta = abs(base_qty)
-                if qty_delta <= 0:
+                if line.display_type:
                     continue
-
+                base_qty = line.accepted_qty * line.uom_qty_multiplier
                 if line.product_id.is_bundle:
-                    products_to_process = [(comp.product_id, qty_delta * comp.qty, False) for comp in line.product_id.bundle_item_ids]
+                    products_to_process = [(comp.product_id, base_qty * comp.qty, False) for comp in line.product_id.bundle_item_ids]
                 else:
-                    products_to_process = [(line.product_id, qty_delta, line.variant_id.id if line.variant_id else False)]
+                    products_to_process = [(line.product_id, base_qty, line.variant_id.id if line.variant_id else False)]
 
-                for product_id, item_qty, item_variant_id in products_to_process:
+                for product_id, item_base_qty, item_variant_id in products_to_process:
                     if not product_id.track_qty:
                         continue
-
-                    # Update Valuation Entry using sudo()
-                    val_domain = [
-                        ('product_id', '=', product_id.id),
-                    ]
-                    if store_name:
-                        val_domain.append(('store', '=', store_name))
-                    if sale.tenant_id:
-                        val_domain.append(('tenant_id', '=', sale.tenant_id.id))
-                    if item_variant_id:
-                        val_domain.append(('variant_id', '=', item_variant_id))
-                        
-                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain, limit=1)
-                    current_qty = valuation.on_hand_qty if valuation else 0.0
-
-                    if sale.is_return:
-                        new_balance = current_qty - item_qty
-                    else:
-                        new_balance = current_qty + item_qty
-
-                    if valuation:
-                        valuation.write({'on_hand_qty': new_balance})
-
                     # Create reverse ledger entry using sudo()
                     domain = [
                         ('doc_no', '=', sale.name),
@@ -1148,34 +1002,34 @@ class Sale(models.Model):
                         domain.append(('variant_id', '=', item_variant_id))
                         
                     orig_ledgers = self.env['havanoposdesk.stock.ledger'].sudo().search(domain)
-                    if orig_ledgers:
-                        for orig_ledger in orig_ledgers:
-                            self.env['havanoposdesk.stock.ledger'].sudo().create({
-                                'product_id': product_id.id,
-                                'variant_id': item_variant_id,
-                                'in_qty': orig_ledger.out_qty,
-                                'out_qty': orig_ledger.in_qty,
-                                'balance_qty': new_balance,
-                                'buying_price': orig_ledger.buying_price,
-                                'store': store_name,
-                                'type': 'Sale Cancelled',
-                                'doc_no': sale.name,
-                                'tenant_id': product_id.tenant_id.id,
-                            })
-                    else:
-                        buying_price = (line.cost_price / line.uom_qty_multiplier) if line.uom_qty_multiplier else (line.cost_price or product_id.buying_price)
+                    for orig_ledger in orig_ledgers:
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
                             'product_id': product_id.id,
                             'variant_id': item_variant_id,
-                            'in_qty': item_qty if not sale.is_return else 0.0,
-                            'out_qty': item_qty if sale.is_return else 0.0,
-                            'balance_qty': new_balance,
-                            'buying_price': buying_price,
-                            'store': store_name,
+                            'in_qty': orig_ledger.out_qty,
+                            'out_qty': orig_ledger.in_qty,
+                            'balance_qty': product_id.opening_stock,
+                            'buying_price': orig_ledger.buying_price,
+                            'store': sale.store,
                             'type': 'Sale Cancelled',
                             'doc_no': sale.name,
                             'tenant_id': product_id.tenant_id.id,
                         })
+
+                    # Update Valuation Entry using sudo()
+                    val_domain = [
+                        ('product_id', '=', product_id.id),
+                        ('store', '=', sale.store)
+                    ]
+                    if item_variant_id:
+                        val_domain.append(('variant_id', '=', item_variant_id))
+                        
+                    valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain, limit=1)
+                    if valuation:
+                        if sale.is_return:
+                            valuation.write({'on_hand_qty': valuation.on_hand_qty - item_base_qty})
+                        else:
+                            valuation.write({'on_hand_qty': valuation.on_hand_qty + item_base_qty})
 
 
             # Reverse POS Payment batch amounts and account balances
@@ -1208,6 +1062,32 @@ class Sale(models.Model):
 class SaleLine(models.Model):
     _name = 'havanoposdesk.sale.line'
     _description = 'Sale Line'
+    _order = 'sequence, id'
+
+    sequence = fields.Integer(string='Sequence', default=10)
+    display_type = fields.Selection([
+        ('line_section', 'Section'),
+        ('line_note', 'Note'),
+    ], default=False, string='Display Type')
+    name = fields.Text(string='Description')
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        if res.get('display_type') or self.env.context.get('default_display_type'):
+            res['accepted_qty'] = 0.0
+            res['rate'] = 0.0
+            res['amount'] = 0.0
+        return res
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('display_type') or self.env.context.get('default_display_type'):
+                vals['accepted_qty'] = 0.0
+                vals['rate'] = 0.0
+                vals['amount'] = 0.0
+        return super().create(vals_list)
 
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
@@ -1219,7 +1099,7 @@ class SaleLine(models.Model):
     store_id = fields.Many2one(related='sale_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='sale_id.currency_id', readonly=True)
     exchange_rate = fields.Float(related='sale_id.exchange_rate', readonly=True)
-    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True, domain="[('not_for_sale', '=', False), ('is_active', '=', True)]")
+    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=False, domain="[('not_for_sale', '=', False), ('is_active', '=', True)]")
     variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
@@ -1246,10 +1126,16 @@ class SaleLine(models.Model):
     cost_price = fields.Float(string='Cost Price', compute='_compute_cost_price', store=True, readonly=False)
     gross_profit = fields.Float(string='Gross Profit', compute='_compute_gross_profit', store=True)
 
+    @api.constrains('display_type', 'product_id')
+    def _check_product_or_section(self):
+        for line in self:
+            if not line.display_type and not line.product_id:
+                raise ValidationError(_("A product is required for normal order lines."))
+
     @api.constrains('product_id')
     def _check_product_not_for_sale(self):
         for line in self:
-            if line.product_id and line.product_id.not_for_sale:
+            if not line.display_type and line.product_id and line.product_id.not_for_sale:
                 raise ValidationError(_("The product '%s' is marked as 'Not for Sale' and cannot be added to sales.") % line.product_id.name)
 
     def _resolve_uom_multiplier(self, product_id, uom_id):
@@ -1296,17 +1182,20 @@ class SaleLine(models.Model):
                 break  # same UOM applied to all lines in the same write call
         return super().write(vals)
 
-    @api.depends('price_subtotal', 'cost_price', 'accepted_qty', 'sale_id.is_return')
+    @api.depends('price_subtotal', 'cost_price', 'accepted_qty', 'sale_id.is_return', 'display_type')
     def _compute_gross_profit(self):
         for line in self:
+            if line.display_type:
+                line.gross_profit = 0.0
+                continue
             sign = -1.0 if line.sale_id.is_return else 1.0
             total_cost = line.cost_price * line.accepted_qty * sign
             line.gross_profit = line.price_subtotal - total_cost
 
-    @api.depends('product_id', 'rate')
+    @api.depends('product_id', 'rate', 'display_type')
     def _compute_cost_price(self):
         for line in self:
-            if not line.product_id:
+            if line.display_type or not line.product_id:
                 line.cost_price = 0.0
                 continue
             
@@ -1322,9 +1211,14 @@ class SaleLine(models.Model):
                 # Use normal cost (product's buying_price or cost_price)
                 line.cost_price = line.product_id.buying_price or line.product_id.cost_price or 0.0
 
-    @api.depends('accepted_qty', 'rate', 'tax_ids', 'sale_id.is_return')
+    @api.depends('accepted_qty', 'rate', 'tax_ids', 'sale_id.is_return', 'display_type')
     def _compute_amount(self):
         for record in self:
+            if record.display_type:
+                record.price_subtotal = 0.0
+                record.price_tax = 0.0
+                record.amount = 0.0
+                continue
             sign = -1.0 if record.sale_id.is_return else 1.0
             base_amount = record.accepted_qty * record.rate
             taxes = record.tax_ids
@@ -1343,7 +1237,7 @@ class SaleLine(models.Model):
             record.price_tax = (inclusive_tax_amount + exclusive_tax_amount) * sign
             record.amount = record.price_subtotal + record.price_tax
 
-    @api.depends('price_subtotal', 'price_tax', 'amount', 'exchange_rate', 'sale_id.exchange_rate', 'sale_id.currency_id', 'sale_id.tenant_currency_id')
+    @api.depends('price_subtotal', 'price_tax', 'amount', 'exchange_rate', 'sale_id.exchange_rate', 'sale_id.currency_id', 'sale_id.tenant_currency_id', 'display_type')
     def _compute_fc_amounts(self):
         """Convert line amounts into the document's foreign currency.
 
@@ -1352,6 +1246,11 @@ class SaleLine(models.Model):
         Otherwise, the document is already in foreign currency, so we store the document amounts.
         """
         for record in self:
+            if record.display_type:
+                record.price_subtotal_fc = 0.0
+                record.price_tax_fc = 0.0
+                record.amount_fc = 0.0
+                continue
             if record.sale_id.currency_id == record.sale_id.tenant_currency_id:
                 rate = record.exchange_rate if record.exchange_rate else 1.0
                 record.price_subtotal_fc = record.price_subtotal * rate
@@ -1432,6 +1331,9 @@ class SaleLine(models.Model):
                 
             if not line.uom_id or line.uom_id.id not in line.available_uom_ids.ids:
                 line.uom_id = line.product_id.uom_id
+
+            if not line.name:
+                line.name = line.product_id.name
                 
             line.tax_ids = [(6, 0, line.product_id.sale_tax_ids.ids)]
             
