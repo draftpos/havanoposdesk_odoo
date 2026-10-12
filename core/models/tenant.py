@@ -35,6 +35,7 @@ class HavanoposdeskTenant(models.Model):
             ("enable_shift", "BOOLEAN DEFAULT FALSE"),
             ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
             ("enable_variant_attributes", "BOOLEAN DEFAULT FALSE"),
+            ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
             ("theme_color", "VARCHAR"),
             ("product_name_format", "VARCHAR"),
             ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
@@ -111,6 +112,7 @@ class HavanoposdeskTenant(models.Model):
             with self.env.cr.savepoint():
                 self.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_variant_attributes BOOLEAN DEFAULT FALSE;")
                 self.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_hs_code BOOLEAN DEFAULT FALSE;")
+            self.env.cr.commit()
         except Exception:
             pass
 
@@ -895,9 +897,13 @@ class HavanoposdeskTenant(models.Model):
                 vals['subscription_end_date'] = fields.Date.context_today(self) + relativedelta(days=duration)
             if not vals.get('payment_status'):
                 vals['payment_status'] = 'paid'
-            if not vals.get('subscription_state'):
-                vals['subscription_state'] = 'active'
-                
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_variant_attributes BOOLEAN DEFAULT FALSE;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_hs_code BOOLEAN DEFAULT FALSE;")
+        except Exception:
+            pass
+
         tenants = super().create(vals_list)
         for tenant in tenants:
             usd_currency = self.env.ref('base.USD', raise_if_not_found=False)

@@ -70,6 +70,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_api_secret VARCHAR;")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_device_sn VARCHAR;")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_ping_interval INTEGER DEFAULT 5;")
+            env.cr.commit()
             HavanoPOSDeskAPI._db_columns_checked = True
         except Exception:
             pass

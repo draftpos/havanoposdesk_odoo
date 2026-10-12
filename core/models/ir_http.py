@@ -49,6 +49,9 @@ class IrHttp(models.AbstractModel):
                         ("stock_decimal_places", "INTEGER DEFAULT 3"),
                         ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
                         ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
+                        ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
+                        ("enable_variant_attributes", "BOOLEAN DEFAULT FALSE"),
+                        ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
                     ]
                     # Fetch existing columns to avoid redundant ALTER TABLE calls (which require AccessExclusiveLocks)
                     cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'havanoposdesk_tenant'")
@@ -63,6 +66,7 @@ class IrHttp(models.AbstractModel):
                     existing_cols = {row[0] for row in cr.fetchall()}
                     if "initial_stock" not in existing_cols:
                         cr.execute("ALTER TABLE havanoposdesk_product_uom_price ADD COLUMN initial_stock DOUBLE PRECISION DEFAULT 0.0;")
+                cr.commit()
             except Exception as e:
                 import traceback
                 import os

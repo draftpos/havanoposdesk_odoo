@@ -57,6 +57,8 @@ class ResConfigSettings(models.TransientModel):
                 ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
                 ("enable_shift", "BOOLEAN DEFAULT FALSE"),
                 ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
+                ("enable_variant_attributes", "BOOLEAN DEFAULT FALSE"),
+                ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
                 ("theme_color", "VARCHAR"),
                 ("product_name_format", "VARCHAR"),
                 ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
