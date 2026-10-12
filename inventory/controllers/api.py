@@ -46,6 +46,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS hs_code VARCHAR;")
                 env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS print_after_order BOOLEAN DEFAULT FALSE;")
                 env.cr.execute("ALTER TABLE havanoposdesk_sale ADD COLUMN IF NOT EXISTS total_qty DOUBLE PRECISION DEFAULT 0.0;")
+                env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_variant_attributes BOOLEAN DEFAULT FALSE;")
         except Exception:
             pass
 

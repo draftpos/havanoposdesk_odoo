@@ -35,6 +35,7 @@ class HavanoposdeskTenant(models.Model):
             ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
             ("enable_shift", "BOOLEAN DEFAULT FALSE"),
             ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
+            ("enable_variant_attributes", "BOOLEAN DEFAULT FALSE"),
             ("theme_color", "VARCHAR"),
             ("product_name_format", "VARCHAR"),
             ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
@@ -91,6 +92,15 @@ class HavanoposdeskTenant(models.Model):
             except Exception:
                 pass
         return res
+
+    @api.model
+    def _register_hook(self):
+        super()._register_hook()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_variant_attributes BOOLEAN DEFAULT FALSE;")
+        except Exception:
+            pass
 
     name = fields.Char(string='Tenant Name', required=True)
     logo = fields.Image(string="Logo")
