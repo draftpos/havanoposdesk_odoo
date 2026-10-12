@@ -122,6 +122,8 @@ class HavanoposdeskTenant(models.Model):
     global_multi_currency_customers = fields.Boolean(string='Global Multi-Currency Customers', default=False)
     global_secondary_currency_id = fields.Many2one('res.currency', string='Default Secondary Currency')
     allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=True)
+    enable_variant_attributes = fields.Boolean(string='Enable Variant Attributes', default=False)
+    enable_hs_code = fields.Boolean(string='Enable HS Code', default=False)
 
     admin_name = fields.Char(string='Admin Name', compute='_compute_tenant_contact_info', store=True, readonly=False)
     email = fields.Char(string='Email', compute='_compute_tenant_contact_info', store=True, readonly=False)
