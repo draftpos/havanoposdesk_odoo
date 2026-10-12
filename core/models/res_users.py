@@ -18,7 +18,7 @@ class ResUsers(models.Model):
         return roles
 
     havano_role = fields.Selection(selection='_get_havano_role_selection', string="Havano Role", default='user')
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string="Tenant", index=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string="Tenant")
     saas_state = fields.Selection([
         ('unverified', 'Unverified'),
         ('verified', 'Verified'),
@@ -34,6 +34,30 @@ class ResUsers(models.Model):
     )
     selected_shop_id = fields.Many2one('havanoposdesk.store', string="Selected Shop")
     selected_terminal_id = fields.Many2one('havanoposdesk.pos.terminal', string="Selected Terminal")
+    category_ids = fields.Many2many(
+        'havanoposdesk.category',
+        'res_users_category_rel',
+        'user_id',
+        'category_id',
+        string="Allowed Item Groups / Sub-Units",
+        help="Restrict this cashier to specific item groups / sub-units (e.g. Fuel, Kiosk, Gas). If blank, cashier can access all item groups."
+    )
+    enable_item_group_subunits = fields.Boolean(
+        related='tenant_id.enable_item_group_subunits',
+        string="Sub-Units Enabled on Tenant",
+        readonly=True
+    )
+
+    def get_effective_category_ids(self):
+        """
+        Returns list of category IDs including the cashier's assigned categories
+        AND all child / descendant categories (e.g. Kiosk -> Drinks, Snacks).
+        """
+        self.ensure_one()
+        if not self.category_ids:
+            return []
+        return self.env['havanoposdesk.category'].sudo().search([('id', 'child_of', self.category_ids.ids)]).ids
+
     pin = fields.Char(string="PIN Code")
     user_rights_profile_id = fields.Many2one('havanoposdesk.user.rights.profile', string="User Rights Profile")
     allow_backoffice = fields.Boolean(string="Access Backoffice", compute="_compute_allow_backoffice", inverse="_inverse_allow_backoffice", store=True)
@@ -243,13 +267,6 @@ class ResUsers(models.Model):
             if not tenant:
                 tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
             if tenant and tenant.enable_shift:
-                return True
-            return False
-        if group_ext_id == 'havanoposdesk_odoo.group_variant_attributes':
-            tenant = self.env.user.tenant_id
-            if not tenant:
-                tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
-            if tenant and getattr(tenant, 'enable_variant_attributes', False):
                 return True
             return False
         return super().has_group(group_ext_id)
@@ -503,13 +520,9 @@ class ResUsers(models.Model):
                     existing_groups = vals.get('group_ids', [])
                 
                 # Assign correct backend groups based on role
-                if role == 'super_admin':
-                    if group_system:
-                        existing_groups.append((4, group_system.id, 0))
-                    if internal_group:
-                        existing_groups.append((4, internal_group.id, 0))
-                    if tenant_admin_group:
-                        existing_groups.append((3, tenant_admin_group.id, 0))
+                if role == 'super_admin' and group_system:
+                    existing_groups.append((4, group_system.id, 0))
+                    existing_groups.append((4, internal_group.id, 0))
                 elif role == 'admin' and tenant_admin_group and erp_manager_group:
                     existing_groups.append((4, tenant_admin_group.id, 0))
                     existing_groups.append((4, erp_manager_group.id, 0))
@@ -625,13 +638,8 @@ class ResUsers(models.Model):
                     user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, internal_group.id, 0)]})
 
                 if user.havano_role == 'super_admin':
-                    group_cmds = []
                     if group_system and group_system not in user.group_ids:
-                        group_cmds.append((4, group_system.id, 0))
-                    if tenant_admin_group and tenant_admin_group in user.group_ids:
-                        group_cmds.append((3, tenant_admin_group.id, 0))
-                    if group_cmds:
-                        user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
+                        user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, group_system.id, 0)]})
                 elif user.havano_role == 'admin':
                     # Admin: ensure they have both Tenant Admin group and Settings group
                     group_cmds = []
@@ -944,6 +952,16 @@ class HavanoChangePinWizard(models.TransientModel):
                 'sticky': False,
             }
         }
+
+    @api.model
+    def _update_last_login(self):
+        super()._update_last_login()
+        try:
+            user = self.env.user
+            if user and getattr(user, 'tenant_id', None) and user.tenant_id:
+                user.tenant_id.sudo().record_tenant_activity(user=user, platform='web')
+        except Exception:
+            pass
 
 
 

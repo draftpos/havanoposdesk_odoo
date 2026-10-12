@@ -60,7 +60,7 @@
             <field name="name">subscription.payment.tree</field>
             <field name="model">havanoposdesk.subscription.payment</field>
             <field name="arch" type="xml">
-                <list string="Subscription &amp; Top-Up Payments" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'">
+                <list string="Billing" decoration-success="state == 'done'" decoration-warning="state == 'pending'" decoration-danger="state == 'failed'">
                     <field name="date"/>
                     <field name="tenant_id"/>
                     <field name="payment_type"/>
@@ -127,7 +127,7 @@
         </record>
 
         <record id="action_subscription_payments" model="ir.actions.act_window">
-            <field name="name">Subscription &amp; Topup Payments</field>
+            <field name="name">Billing</field>
             <field name="res_model">havanoposdesk.subscription.payment</field>
             <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_subscription_payment_tree"/>

@@ -6,7 +6,7 @@ class HavanoPosDeskProductionOrder(models.Model):
     _description = 'Production Order'
 
     name = fields.Char(string='Order Reference', required=True, copy=False, readonly=True, default='New')
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id, index=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, default=lambda self: self.env.user.tenant_id.id)
     bom_id = fields.Many2one('havanoposdesk.manufacturing.bom', string='Bill of Materials', required=True)
     qty_to_produce = fields.Float(string='Quantity to Produce', default=1.0, required=True)
     

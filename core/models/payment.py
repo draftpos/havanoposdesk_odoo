@@ -7,7 +7,7 @@ class HavanoposdeskSubscriptionPayment(models.Model):
     _description = 'Subscription Payment Transaction Log'
     _order = 'date desc, id desc'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, index=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True)
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan', required=False)
     payment_type = fields.Selection([
         ('subscription', 'Subscription Plan Payment'),
@@ -55,7 +55,7 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
     _name = 'havanoposdesk.subscription.pay.wizard'
     _description = 'Pay Subscription Wizard'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade', index=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan', required=True, ondelete='cascade')
     billing_cycle = fields.Selection([
         ('1_month', '1 Month (Monthly)'),
@@ -65,8 +65,8 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
         ('custom_months', 'Custom Months')
     ], string='Billing Cycle', default='1_month', required=True)
     duration_months = fields.Integer(string='Duration (Months)', default=1, required=True)
-    monthly_rate = fields.Float(string='Monthly Rate ($)', compute='_compute_amount_and_rate', store=True)
-    amount = fields.Float(string='Amount to Pay ($)', compute='_compute_amount_and_rate', store=True, readonly=False)
+    monthly_rate = fields.Float(string='Monthly Rate ($)', compute='_compute_monthly_rate', compute_sudo=True)
+    amount = fields.Float(string='Amount to Pay ($)', compute='_compute_amount', store=True, readonly=False, compute_sudo=True)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card (Redirection)'),
         ('ecocash', 'EcoCash Mobile')
@@ -84,28 +84,38 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
         elif self.billing_cycle == '12_months':
             self.duration_months = 12
 
-    @api.depends('subscription_plan_id', 'tenant_id', 'duration_months', 'billing_cycle')
-    def _compute_amount_and_rate(self):
+    @api.depends('subscription_plan_id', 'tenant_id')
+    def _compute_monthly_rate(self):
         for wiz in self:
             tenant = wiz.tenant_id
             plan = wiz.subscription_plan_id or (tenant.pending_subscription_plan_id or tenant.subscription_plan_id if tenant else False)
             if not plan:
                 wiz.monthly_rate = 0.0
+                continue
+            if plan.is_custom and tenant:
+                extra_terms = tenant.pending_additional_terminals if tenant.pending_subscription_plan_id else (tenant.additional_terminals or 0)
+                extra_price = plan.extra_terminal_price or 12.0
+                wiz.monthly_rate = (plan.price or 12.0) + (extra_terms * extra_price)
+            else:
+                wiz.monthly_rate = plan.price or 0.0
+
+    @api.depends('subscription_plan_id', 'tenant_id', 'duration_months', 'billing_cycle')
+    def _compute_amount(self):
+        for wiz in self:
+            tenant = wiz.tenant_id
+            plan = wiz.subscription_plan_id or (tenant.pending_subscription_plan_id or tenant.subscription_plan_id if tenant else False)
+            if not plan:
                 wiz.amount = 0.0
                 continue
 
-            # Monthly base calculation
-            if tenant:
+            if plan.is_custom and tenant:
                 extra_terms = tenant.pending_additional_terminals if tenant.pending_subscription_plan_id else (tenant.additional_terminals or 0)
                 extra_price = plan.extra_terminal_price or 12.0
-                m_rate = (plan.price or 0.0) + (extra_terms * extra_price)
+                m_rate = (plan.price or 12.0) + (extra_terms * extra_price)
             else:
                 m_rate = plan.price or 0.0
 
-            wiz.monthly_rate = m_rate
             months = max(1, wiz.duration_months or 1)
-            
-            # Annual discount calculation if 12 months
             if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
                 discount = plan.annual_discount_percentage / 100.0
                 wiz.amount = m_rate * 12.0 * (1.0 - discount)
@@ -195,18 +205,16 @@ class HavanoposdeskSubscriptionPayWizard(models.TransientModel):
             tx.paynow_poll_url = mobile_res['pollurl']
             tx._set_pending()
 
-            # Ensure the transaction is monitored by the /payment/status page
-            from odoo.http import request
-            if request and hasattr(request, 'session'):
-                monitored_tx_ids = request.session.get('__payment_monitored_tx_ids__', [])
-                if tx.id not in monitored_tx_ids:
-                    monitored_tx_ids.append(tx.id)
-                    request.session['__payment_monitored_tx_ids__'] = monitored_tx_ids
-
             return {
-                'type': 'ir.actions.act_url',
-                'url': f'/payment/havano_payments/ecocash_waiting?reference={reference}',
-                'target': 'self',
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'EcoCash Payment Initiated',
+                    'message': mobile_res.get('instructions') or 'A prompt was sent to your phone. Please enter your PIN to authorize payment.',
+                    'type': 'success',
+                    'sticky': True,
+                    'next': {'type': 'ir.actions.act_window_close'},
+                }
             }
         else:
             return_url = f"{base_url}/payment/havano_payments/return?reference={reference}"
@@ -237,7 +245,7 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
     _name = 'havanoposdesk.tenant.topup.wizard'
     _description = 'Top Up Account Balance Wizard'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade', index=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
     amount = fields.Float(string='Top Up Amount ($)', default=10.0, required=True)
     payment_method = fields.Selection([
         ('paynow', 'Paynow Card / Online'),
@@ -369,18 +377,16 @@ class HavanoposdeskTenantTopupWizard(models.TransientModel):
             tx.paynow_poll_url = mobile_res['pollurl']
             tx._set_pending()
 
-            # Ensure the transaction is monitored by the /payment/status page
-            from odoo.http import request
-            if request and hasattr(request, 'session'):
-                monitored_tx_ids = request.session.get('__payment_monitored_tx_ids__', [])
-                if tx.id not in monitored_tx_ids:
-                    monitored_tx_ids.append(tx.id)
-                    request.session['__payment_monitored_tx_ids__'] = monitored_tx_ids
-
             return {
-                'type': 'ir.actions.act_url',
-                'url': f'/payment/havano_payments/ecocash_waiting?reference={reference}',
-                'target': 'self',
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'EcoCash Payment Initiated',
+                    'message': mobile_res.get('instructions') or 'A prompt was sent to your phone. Please enter your PIN to complete top-up.',
+                    'type': 'success',
+                    'sticky': True,
+                    'next': {'type': 'ir.actions.act_window_close'},
+                }
             }
         else:
             return_url = f"{base_url}/payment/havano_payments/return?reference={reference}"

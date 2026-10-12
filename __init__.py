@@ -1,8 +1,8 @@
 from . import core
 from . import accounts
 from . import inventory
-from . import suppliers
 from . import sales
+from . import suppliers
 from . import controllers
 from . import migrations
 from . import manufacturing
@@ -41,19 +41,12 @@ def post_migrate(env):
         if group_cmds:
             user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
 
-    # Grant Administration Settings group to all super admins and strip tenant admin group
+    # Grant Administration Settings group to all super admins
     if group_system:
-        super_admins = env['res.users'].with_context(active_test=False).search([
-            '|', ('havano_role', '=', 'super_admin'), ('id', '=', 1)
-        ])
+        super_admins = env['res.users'].with_context(active_test=False).search([('havano_role', '=', 'super_admin')])
         for user in super_admins:
-            group_cmds = []
             if group_system not in user.group_ids:
-                group_cmds.append((4, group_system.id, 0))
-            if tenant_admin_group and tenant_admin_group in user.group_ids:
-                group_cmds.append((3, tenant_admin_group.id, 0))
-            if group_cmds:
-                user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': group_cmds})
+                user.sudo().with_context(bypass_sync_role_groups=True).write({'group_ids': [(4, group_system.id, 0)]})
 
     if erp_manager_group:
         # Grant Settings group to all tenant admins
@@ -301,40 +294,6 @@ def post_migrate(env):
                         'can_delete': is_full,
                         'can_submit': is_full,
                     })
-    except Exception:
-        pass
-
-    # Auto-expire any tenants whose subscription_end_date has passed
-    try:
-        env.cr.execute("""
-            UPDATE havanoposdesk_tenant
-            SET subscription_state = 'expired'
-            WHERE subscription_end_date IS NOT NULL
-              AND subscription_end_date < CURRENT_DATE
-              AND subscription_state NOT IN ('expired', 'cancelled');
-        """)
-    except Exception:
-        pass
-
-    # Clean up any leftover views and fields referencing sync_to_frappe / frappe_odoo_sync if not on disk
-    try:
-        import odoo.modules.module
-        if not odoo.modules.module.get_module_path('frappe_odoo_sync'):
-            env.cr.execute("""
-                DELETE FROM ir_ui_view WHERE id IN (SELECT res_id FROM ir_model_data WHERE module = 'frappe_odoo_sync' AND model = 'ir.ui.view') OR arch_db::text ILIKE '%sync_to_frappe%' OR arch_db::text ILIKE '%frappe%';
-                DELETE FROM ir_cron WHERE id IN (SELECT res_id FROM ir_model_data WHERE module = 'frappe_odoo_sync' AND model = 'ir.cron');
-                DELETE FROM ir_act_server WHERE id IN (SELECT res_id FROM ir_model_data WHERE module = 'frappe_odoo_sync' AND model = 'ir.actions.server');
-                DELETE FROM ir_act_window WHERE id IN (SELECT res_id FROM ir_model_data WHERE module = 'frappe_odoo_sync' AND model = 'ir.actions.act_window');
-                DELETE FROM ir_ui_menu WHERE id IN (SELECT res_id FROM ir_model_data WHERE module = 'frappe_odoo_sync' AND model = 'ir.ui.menu');
-                DELETE FROM ir_model_access WHERE id IN (SELECT res_id FROM ir_model_data WHERE module = 'frappe_odoo_sync' AND model = 'ir.model.access');
-                DELETE FROM ir_model_fields_selection WHERE id IN (SELECT res_id FROM ir_model_data WHERE module = 'frappe_odoo_sync' AND model = 'ir.model.fields.selection');
-                DELETE FROM ir_model_fields WHERE model IN ('frappe.sync.log', 'frappe.sync.engine') OR (model = 'havanoposdesk.tenant' AND (name LIKE 'frappe_%' OR name = 'sync_to_frappe')) OR (model = 'havanoposdesk.product' AND (name LIKE 'frappe_%' OR name LIKE 'sync_%'));
-                DELETE FROM ir_model WHERE model IN ('frappe.sync.log', 'frappe.sync.engine');
-                DROP TABLE IF EXISTS frappe_sync_log CASCADE;
-                DROP TABLE IF EXISTS frappe_sync_engine CASCADE;
-                DELETE FROM ir_model_data WHERE module = 'frappe_odoo_sync';
-                UPDATE ir_module_module SET state = 'uninstalled' WHERE name = 'frappe_odoo_sync' AND state != 'uninstalled';
-            """)
     except Exception:
         pass
 

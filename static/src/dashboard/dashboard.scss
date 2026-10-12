@@ -214,4 +214,241 @@
     }
 }
 
+/* Havano Operations & Analytics Dashboard Design System */
+.o_action:has(.havano-monitoring-dashboard),
+.o_content:has(.havano-monitoring-dashboard) {
+    background-color: #f1f5f9 !important;
+}
+
+.havano-monitoring-dashboard, .o_sentry_dashboard {
+    background-color: #f1f5f9 !important;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    color: #1e293b;
+
+    input, button, select, h1, h2, h3, h4, h5, h6, p, span, div, small, label {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* Explicitly preserve icon fonts */
+    .fa, i.fa, [class*="fa-"], [class^="fa-"] {
+        font-family: 'FontAwesome' !important;
+    }
+
+    .oi, i.oi, [class*="oi-"], [class^="oi-"] {
+        font-family: 'odoo_ui_icons' !important;
+    }
+
+    .card {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03) !important;
+        border-radius: 10px !important;
+    }
+
+    .kpi-card {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03) !important;
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+        
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px -4px rgba(0, 128, 255, 0.16), 0 4px 8px -2px rgba(15, 23, 42, 0.05) !important;
+            border-color: #0080ff !important;
+        }
+
+        .kpi-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: #334155 !important;
+            text-transform: uppercase;
+        }
+
+        .kpi-subtitle {
+            font-size: 12px;
+            color: #475569 !important;
+            font-weight: 500;
+
+            strong {
+                color: #0f172a !important;
+                font-weight: 700;
+            }
+        }
+
+        .kpi-value {
+            font-size: 26px;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+        }
+    }
+
+    /* Havano Blue Icon Containers */
+    .havano-brand-icon,
+    .sentry-brand-icon {
+        background: rgba(0, 128, 255, 0.08) !important;
+        color: #0080ff !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(0, 128, 255, 0.18) !important;
+    }
+
+    .havano-icon-box,
+    .sentry-icon-box {
+        background: rgba(0, 128, 255, 0.08) !important;
+        color: #0080ff !important;
+        border-radius: 8px !important;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        border: 1px solid rgba(0, 128, 255, 0.14) !important;
+    }
+
+    /* Time Range Pill Filters */
+    .time-filter-group {
+        background: #f8fafc;
+        padding: 3px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+
+        .btn-time-pill {
+            border: none !important;
+            border-radius: 6px !important;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 12px;
+            color: #64748b;
+            background: transparent;
+            transition: all 0.15s ease;
+
+            &:hover {
+                color: #0f172a;
+                background: rgba(0, 0, 0, 0.04);
+            }
+
+            &.active {
+                background: #0080ff !important;
+                color: #ffffff !important;
+                box-shadow: 0 1px 3px rgba(0, 128, 255, 0.3) !important;
+            }
+        }
+    }
+
+    /* Tenant Selector */
+    .tenant-selector {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        background: #ffffff;
+        font-size: 12px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    /* Action Refresh Button */
+    .btn-refresh {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        font-size: 12px;
+        font-weight: 600;
+        color: #0080ff !important;
+        background: #ffffff !important;
+        transition: all 0.15s ease;
+
+        &:hover {
+            background: rgba(0, 128, 255, 0.05) !important;
+            border-color: #0080ff !important;
+        }
+    }
+
+    /* Card Headers */
+    .chart-card-header {
+        border-bottom: 1px solid #f1f5f9 !important;
+        padding: 14px 18px !important;
+        
+        .chart-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+            
+            i {
+                color: #0080ff !important;
+            }
+        }
+    }
+
+    .badge-havano-live {
+        background: rgba(16, 185, 129, 0.12) !important;
+        color: #047857 !important;
+        border: 1px solid rgba(16, 185, 129, 0.3) !important;
+        border-radius: 6px !important;
+        font-weight: 700 !important;
+        font-size: 11.5px !important;
+    }
+
+    .kpi-badge-blue {
+        background-color: rgba(0, 128, 255, 0.09) !important;
+        color: #0070e0 !important;
+        border: 1px solid rgba(0, 128, 255, 0.3) !important;
+        font-weight: 700 !important;
+        font-size: 11.5px !important;
+        border-radius: 6px !important;
+        letter-spacing: 0.02em;
+    }
+
+    .kpi-badge-neutral {
+        background-color: #f1f5f9 !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+        font-weight: 700 !important;
+        font-size: 11.5px !important;
+        border-radius: 6px !important;
+        letter-spacing: 0.02em;
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .tenant-multiselect-wrapper {
+        position: relative;
+        .tenant-multiselect-panel {
+            top: calc(100% + 5px);
+            right: 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1) !important;
+            border-radius: 12px !important;
+            border: 1px solid rgba(0,0,0,0.05) !important;
+            .tenant-option {
+                transition: background 0.1s ease;
+                &:hover {
+                    background: #f8fafc;
+                }
+            }
+            .tenant-select-all {
+                transition: background 0.1s ease;
+                &:hover {
+                    background: #f8fafc;
+                }
+            }
+            .input-group-text, .form-control {
+                background: white !important;
+                border-color: #e2e8f0 !important;
+                &:focus {
+                    box-shadow: none !important;
+                    border-color: #cbd5e1 !important;
+                }
+            }
+            .input-group-text {
+                background: #f8fafc !important;
+            }
+        }
+    }
+}
+
+
 
