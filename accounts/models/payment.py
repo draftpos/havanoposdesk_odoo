@@ -184,9 +184,9 @@ class Payment(models.Model):
                         conv_rate = curr_rec._get_conversion_rate(tenant.currency_id, curr_rec, self.env.company, pay_date)
                         if conv_rate and conv_rate != 1.0:
                             vals['exchange_rate'] = conv_rate
-            if tenant_id:
+            if tenant_id and not self.env.context.get('bypass_subscription_check'):
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id)
-                if tenant and not tenant.check_subscription_active():
+                if vals.get('payment_type') != 'receipt' and tenant and not tenant.check_subscription_active():
                     raise ValidationError(_("Your subscription has expired and the grace period has ended. Please upgrade your package to resume operations."))
             
             if vals.get('name', 'New') == 'New':

@@ -13,7 +13,7 @@ import logging
 _logger = logging.getLogger(__name__)
 
 class HavanoAccessController(http.Controller):
-    @http.route('/havano/check_access', type='json', auth='user')
+    @http.route('/havano/check_access', type='jsonrpc', auth='user')
     def check_access(self, model):
         # Default allow if not matched
         res = {'canCreate': True, 'canViewDetail': True, 'canEdit': True, 'canDelete': True}

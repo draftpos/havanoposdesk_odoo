@@ -10,5 +10,3 @@ from . import item_summary_ledger_report
 from . import shift
 from . import sales_item_tax_report
 from . import purchases_item_tax_report
-
-

@@ -10,12 +10,9 @@ AUDIT_IGNORED_FIELDS = {
     'display_name', 'message_ids', 'activity_ids', 'message_follower_ids',
     'access_token', 'access_token_signature', 'message_partner_ids',
     'rating_ids', 'website_message_ids', 'message_has_error', 'message_has_sms_error',
-    # POS heartbeat and status fields
-    'last_seen', 'status', 'ping_count',
-    # Tenant sequence counter fields
-    'prod_seq_next', 'stock_adj_seq_next', 'sale_seq_next', 'quotation_seq_next',
-    'sale_ret_seq_next', 'purch_seq_next', 'purch_ret_seq_next', 'pay_in_seq_next',
-    'pay_out_seq_next', 'exp_seq_next', 'trn_seq_next', 'cash_trn_seq_next',
+    'last_seen', 'status', 'online_status', 'last_ping', 'last_logged_in',
+    'last_logged_in_user_id', 'sequence_prefix', 'session_id', 'last_active',
+    'device_hardware_id', 'taken_by_user_id', 'app_version', 'pos_version', 'desktop_version'
 }
 
 
@@ -115,36 +112,8 @@ class HavanoAuditMixin(models.AbstractModel):
         except Exception as e:
             _logger.warning(f"Audit log generation failed for {self._name}: {e}")
 
-def _sanitize_x2many_commands(vals):
-    """
-    Sanitize x2many relational commands in vals to remove operations targeting
-    in-memory virtual IDs (e.g. 'virtual_4') that do not exist in PostgreSQL.
-    """
-    if not isinstance(vals, dict):
-        return vals
-    for k, v in list(vals.items()):
-        if isinstance(v, (list, tuple)) and v and isinstance(v[0], (list, tuple)):
-            clean_list = []
-            for cmd in v:
-                if not isinstance(cmd, (list, tuple)) or not cmd:
-                    continue
-                op = cmd[0]
-                if op in (1, 2, 3, 4):
-                    rec_id = cmd[1]
-                    if isinstance(rec_id, int) or (isinstance(rec_id, str) and rec_id.isdigit()):
-                        clean_list.append(cmd)
-                elif op == 6 and len(cmd) > 2 and isinstance(cmd[2], (list, tuple)):
-                    valid_ids = [i for i in cmd[2] if isinstance(i, int) or (isinstance(i, str) and i.isdigit())]
-                    clean_list.append((6, 0, valid_ids))
-                else:
-                    clean_list.append(cmd)
-            vals[k] = clean_list
-    return vals
-
     @api.model_create_multi
     def create(self, vals_list):
-        for vals in vals_list:
-            _sanitize_x2many_commands(vals)
         records = super().create(vals_list)
         if not self.env.context.get('skip_audit_log'):
             for record in records:
@@ -166,7 +135,6 @@ def _sanitize_x2many_commands(vals):
         return records
 
     def write(self, vals):
-        _sanitize_x2many_commands(vals)
         if self.env.context.get('skip_audit_log') or not vals:
             return super().write(vals)
 

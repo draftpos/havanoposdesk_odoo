@@ -7,9 +7,41 @@ class HavanoposdeskStore(models.Model):
     _inherit = ['havanoposdesk.audit.mixin']
     _description = 'Store'
 
-    _constraints = [
-        models.Constraint('unique (name, tenant_id)', 'Store name must be unique per tenant!')
-    ]
+    @api.model
+    def _register_hook(self):
+        super()._register_hook()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_seq_prefix VARCHAR DEFAULT 'S';")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_seq_next INTEGER DEFAULT 1;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_seq_padding INTEGER DEFAULT 4;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_ret_seq_prefix VARCHAR DEFAULT 'C';")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_ret_seq_next INTEGER DEFAULT 1;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_ret_seq_padding INTEGER DEFAULT 3;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS quotation_seq_prefix VARCHAR DEFAULT 'Q';")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS quotation_seq_next INTEGER DEFAULT 1;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS quotation_seq_padding INTEGER DEFAULT 4;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscalized_invoice_heading VARCHAR DEFAULT 'Fiscal Tax Invoice';")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS enable_fiscalization BOOLEAN DEFAULT FALSE;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS is_vat_registered BOOLEAN DEFAULT TRUE;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_provider VARCHAR DEFAULT 'havano_zimra';")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_base_url VARCHAR DEFAULT 'https://erpfiscal.havano.online';")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_api_key VARCHAR;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_api_secret VARCHAR;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_device_sn VARCHAR;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS fiscal_ping_interval INTEGER DEFAULT 5;")
+        except Exception:
+            pass
+
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_name_tenant_id_0(self):
+        for record in self:
+            if record.name and record.tenant_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('name', '=', record.name.id if hasattr(record.name, 'id') else record.name))
+                domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("Store name must be unique per tenant!")
 
     name = fields.Char(string='Store Name', required=True)
     tenant_id = fields.Many2one(

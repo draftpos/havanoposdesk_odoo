@@ -25,7 +25,6 @@ class HavanoposdeskTenant(models.Model):
             ("effective_max_stores", "INTEGER DEFAULT 0"),
             ("effective_max_terminals", "INTEGER DEFAULT 0"),
             ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
-            ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
             ("allow_negative_stock", "BOOLEAN DEFAULT TRUE"),
             ("enable_tax", "BOOLEAN DEFAULT FALSE"),
             ("enable_barcode", "BOOLEAN DEFAULT FALSE"),
@@ -35,6 +34,7 @@ class HavanoposdeskTenant(models.Model):
             ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
             ("enable_shift", "BOOLEAN DEFAULT FALSE"),
             ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
+            ("enable_variant_attributes", "BOOLEAN DEFAULT FALSE"),
             ("theme_color", "VARCHAR"),
             ("product_name_format", "VARCHAR"),
             ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
@@ -49,6 +49,7 @@ class HavanoposdeskTenant(models.Model):
             ("fiscal_device_sn", "VARCHAR"),
             ("fiscal_ping_interval", "INTEGER DEFAULT 5"),
             ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
+            ("enable_item_group_subunits", "BOOLEAN DEFAULT FALSE"),
             ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
             ("payroll_url", "VARCHAR"),
             ("stock_decimal_places", "INTEGER DEFAULT 3"),
@@ -58,7 +59,18 @@ class HavanoposdeskTenant(models.Model):
             ("duration_months", "INTEGER DEFAULT 1"),
             ("pending_billing_cycle", "VARCHAR DEFAULT '1_month'"),
             ("pending_duration_months", "INTEGER DEFAULT 1"),
-
+            ("admin_name", "VARCHAR"),
+            ("email", "VARCHAR"),
+            ("phone", "VARCHAR"),
+            ("address", "TEXT"),
+            ("city", "VARCHAR DEFAULT 'Harare'"),
+            ("sales_rep", "VARCHAR"),
+            ("technician", "VARCHAR"),
+            ("owner_whatsapp", "VARCHAR"),
+            ("online_status", "VARCHAR DEFAULT 'offline'"),
+            ("last_activity", "TIMESTAMP"),
+            ("last_logged_in_user_id", "INTEGER"),
+            ("days_inactive", "INTEGER DEFAULT 9999"),
         ]
         for col_name, col_type in columns:
             try:
@@ -92,6 +104,16 @@ class HavanoposdeskTenant(models.Model):
                 pass
         return res
 
+    @api.model
+    def _register_hook(self):
+        super()._register_hook()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_variant_attributes BOOLEAN DEFAULT FALSE;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_hs_code BOOLEAN DEFAULT FALSE;")
+        except Exception:
+            pass
+
     name = fields.Char(string='Tenant Name', required=True)
     logo = fields.Image(string="Logo")
     active = fields.Boolean(default=True)
@@ -100,6 +122,281 @@ class HavanoposdeskTenant(models.Model):
     global_multi_currency_customers = fields.Boolean(string='Global Multi-Currency Customers', default=False)
     global_secondary_currency_id = fields.Many2one('res.currency', string='Default Secondary Currency')
     allow_advanced_pricing = fields.Boolean(string='Allow Advanced Pricing & Multi-UOM', default=True)
+    enable_variant_attributes = fields.Boolean(string='Enable Variant Attributes', default=False)
+    enable_hs_code = fields.Boolean(string='Enable HS Code', default=False)
+
+    admin_name = fields.Char(string='Admin Name', compute='_compute_tenant_contact_info', store=True, readonly=False)
+    email = fields.Char(string='Email', compute='_compute_tenant_contact_info', store=True, readonly=False)
+    phone = fields.Char(string='Phone', compute='_compute_tenant_contact_info', store=True, readonly=False)
+    address = fields.Text(string='Address', compute='_compute_tenant_contact_info', store=True, readonly=False)
+    city = fields.Char(string='City', default='Harare')
+    sales_rep = fields.Char(string='Sales Rep')
+    technician = fields.Char(string='Technician')
+    owner_whatsapp = fields.Char(string='Verified WhatsApp Number (Owner)')
+
+    @api.depends('user_ids', 'user_ids.name', 'user_ids.login')
+    def _compute_tenant_contact_info(self):
+        for tenant in self:
+            admin_user = tenant.user_ids.filtered(lambda u: getattr(u, 'havano_role', False) in ('admin', 'super_admin'))
+            if not admin_user and tenant.user_ids:
+                admin_user = tenant.user_ids[:1]
+            if admin_user:
+                if not tenant.admin_name:
+                    tenant.admin_name = admin_user[0].name
+                if not tenant.email:
+                    tenant.email = admin_user[0].login or getattr(admin_user[0], 'email', False)
+                if not tenant.phone and getattr(admin_user[0], 'phone', False):
+                    tenant.phone = admin_user[0].phone
+            store = tenant.store_ids[:1] if getattr(tenant, 'store_ids', None) else False
+            if store:
+                if not tenant.phone and store.phone_1:
+                    tenant.phone = store.phone_1
+                if not tenant.address and store.address:
+                    tenant.address = store.address
+
+    online_status = fields.Selection([
+        ('online', 'Online'),
+        ('idle', 'Idle'),
+        ('offline', 'Offline')
+    ], string='Status', compute='_compute_tenant_online_activity', store=True, index=True, compute_sudo=True)
+    last_activity = fields.Datetime(string='Last Seen / Active', compute='_compute_tenant_online_activity', store=True, index=True, compute_sudo=True)
+    last_logged_in_user_id = fields.Many2one('res.users', string='Last Logged In User', compute='_compute_tenant_online_activity', store=True, compute_sudo=True)
+    days_inactive = fields.Integer(string='Days Inactive', compute='_compute_tenant_online_activity', store=True, index=True, compute_sudo=True)
+    days_inactive_display = fields.Char(string='Inactive Duration', compute='_compute_days_inactive_display', compute_sudo=True)
+
+    def record_tenant_activity(self, user=None, terminal=None, platform='mobile_pos'):
+        """Record real-time activity for this tenant."""
+        now = fields.Datetime.now()
+        vals = {
+            'last_activity': now,
+            'online_status': 'online',
+            'days_inactive': 0,
+        }
+        user_id = user.id if hasattr(user, 'id') else (user if isinstance(user, int) else False)
+        if user_id:
+            vals['last_logged_in_user_id'] = user_id
+        elif terminal and getattr(terminal, 'last_logged_in_user_id', None):
+            vals['last_logged_in_user_id'] = terminal.last_logged_in_user_id.id
+
+        for tenant in self:
+            try:
+                # Debounce: If tenant is already online and active within last 5 mins, skip redundant row write to avoid lock contention
+                should_write = True
+                if tenant.online_status == 'online' and tenant.last_activity:
+                    diff_secs = (now - tenant.last_activity).total_seconds()
+                    if diff_secs < 300 and tenant.days_inactive == 0:
+                        should_write = False
+                if should_write:
+                    tenant.sudo().write(vals)
+
+                self.env['havanoposdesk.online.activity'].sudo().record_activity(
+                    user=user if hasattr(user, 'id') else False,
+                    tenant=tenant,
+                    terminal=terminal,
+                    platform=platform or ('mobile_pos' if terminal else 'web')
+                )
+            except Exception as e:
+                _logger.debug("Error recording tenant activity: %s", e)
+
+    @api.model
+    def _sync_tenants_activity_status(self):
+        """Batch update last_activity, last_logged_in_user_id, online_status, and days_inactive for all tenants.
+        Aggregates timestamps from POS terminals, user logins, sales, audit logs, and online activity."""
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("""
+                    WITH summary AS (
+                        SELECT 
+                            t.id AS tenant_id,
+                            sub.latest_dt,
+                            sub.latest_user_id
+                        FROM havanoposdesk_tenant t
+                        LEFT JOIN LATERAL (
+                            SELECT act_time AS latest_dt, act_uid AS latest_user_id
+                            FROM (
+                                -- 1. POS Terminals
+                                SELECT term.last_seen AS act_time, term.last_logged_in_user_id AS act_uid
+                                FROM havanoposdesk_pos_terminal term
+                                WHERE term.tenant_id = t.id AND term.last_seen IS NOT NULL
+                                UNION ALL
+                                -- 2. Users (login_date)
+                                SELECT u.login_date AS act_time, u.id AS act_uid
+                                FROM res_users u
+                                WHERE u.tenant_id = t.id AND u.login_date IS NOT NULL
+                                UNION ALL
+                                -- 3. Sales
+                                SELECT s.date_order AS act_time, s.user_id AS act_uid
+                                FROM havanoposdesk_sale s
+                                WHERE s.tenant_id = t.id AND s.date_order IS NOT NULL
+                                UNION ALL
+                                -- 4. Online Activity Tracker
+                                SELECT oa.last_activity AS act_time, oa.user_id AS act_uid
+                                FROM havanoposdesk_online_activity oa
+                                WHERE oa.tenant_id = t.id AND oa.last_activity IS NOT NULL
+                                UNION ALL
+                                -- 5. Audit Log
+                                SELECT al.timestamp AS act_time, al.user_id AS act_uid
+                                FROM havanoposdesk_audit_log al
+                                WHERE al.tenant_id = t.id AND al.timestamp IS NOT NULL
+                            ) all_acts
+                            ORDER BY act_time DESC NULLS LAST
+                            LIMIT 1
+                        ) sub ON TRUE
+                    )
+                    UPDATE havanoposdesk_tenant t
+                    SET 
+                        last_activity = s.latest_dt,
+                        last_logged_in_user_id = COALESCE(s.latest_user_id, t.last_logged_in_user_id),
+                        online_status = CASE 
+                            WHEN s.latest_dt IS NULL THEN 'offline'
+                            WHEN s.latest_dt >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '30 minutes') THEN 'online'
+                            WHEN s.latest_dt >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '60 minutes') THEN 'idle'
+                            ELSE 'offline'
+                        END,
+                        days_inactive = CASE 
+                            WHEN s.latest_dt IS NULL THEN 9999
+                            ELSE GREATEST(0, (CURRENT_DATE - (s.latest_dt AT TIME ZONE 'UTC')::date))
+                        END
+                    FROM summary s
+                    WHERE t.id = s.tenant_id
+                      AND (
+                          t.last_activity IS DISTINCT FROM s.latest_dt
+                          OR t.last_logged_in_user_id IS DISTINCT FROM s.latest_user_id
+                          OR t.online_status IS DISTINCT FROM (
+                              CASE 
+                                  WHEN s.latest_dt IS NULL THEN 'offline'
+                                  WHEN s.latest_dt >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '30 minutes') THEN 'online'
+                                  WHEN s.latest_dt >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '60 minutes') THEN 'idle'
+                                  ELSE 'offline'
+                              END
+                          )
+                          OR t.days_inactive IS DISTINCT FROM (
+                              CASE 
+                                  WHEN s.latest_dt IS NULL THEN 9999
+                                  ELSE GREATEST(0, (CURRENT_DATE - (s.latest_dt AT TIME ZONE 'UTC')::date))
+                              END
+                          )
+                      );
+                """)
+        except Exception as e:
+            _logger.warning("Error running _sync_tenants_activity_status: %s", e)
+            return False
+        return True
+
+    def action_sync_all_activity(self):
+        """Action button to manually refresh all tenant activity statuses."""
+        self.sudo()._sync_tenants_activity_status()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'reload',
+        }
+
+    @api.model
+    def web_search_read(self, *args, **kwargs):
+        # Automatically refresh tenant activity statuses when viewing the list/kanban view
+        try:
+            self.sudo()._sync_tenants_activity_status()
+        except Exception:
+            pass
+        return super().web_search_read(*args, **kwargs)
+
+    def _compute_tenant_online_activity(self):
+        now = fields.Datetime.now()
+        today = fields.Date.today()
+        for tenant in self:
+            latest_time = None
+            last_user = None
+
+            # 1. POS Terminals
+            term = self.env['havanoposdesk.pos.terminal'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('last_seen', '!=', False)
+            ], order='last_seen desc, id desc', limit=1)
+            if term and term.last_seen:
+                latest_time = term.last_seen
+                if term.last_logged_in_user_id:
+                    last_user = term.last_logged_in_user_id
+
+            # 2. Activity Tracker
+            act = self.env['havanoposdesk.online.activity'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('last_activity', '!=', False)
+            ], order='last_activity desc, id desc', limit=1)
+            if act and act.last_activity:
+                if not latest_time or act.last_activity > latest_time:
+                    latest_time = act.last_activity
+                    if act.user_id:
+                        last_user = act.user_id
+
+            # 3. User Logins
+            user = self.env['res.users'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('login_date', '!=', False)
+            ], order='login_date desc, id desc', limit=1)
+            if user and user.login_date:
+                if not latest_time or user.login_date > latest_time:
+                    latest_time = user.login_date
+                    last_user = user
+
+            # 4. Sales
+            sale = self.env['havanoposdesk.sale'].sudo().search([
+                ('tenant_id', '=', tenant.id),
+                ('date_order', '!=', False)
+            ], order='date_order desc, id desc', limit=1)
+            if sale and sale.date_order:
+                if not latest_time or sale.date_order > latest_time:
+                    latest_time = sale.date_order
+                    if sale.user_id:
+                        last_user = sale.user_id
+
+            # 5. Audit Log
+            if not latest_time:
+                log = self.env['havanoposdesk.audit.log'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('timestamp', '!=', False)
+                ], order='timestamp desc, id desc', limit=1)
+                if log and log.timestamp:
+                    latest_time = log.timestamp
+                    if log.user_id:
+                        last_user = log.user_id
+
+            tenant.last_activity = latest_time
+            tenant.last_logged_in_user_id = last_user.id if last_user else False
+
+            if not latest_time:
+                tenant.online_status = 'offline'
+                tenant.days_inactive = 9999
+            else:
+                delta_secs = (now - latest_time).total_seconds()
+                if delta_secs <= 1800:
+                    tenant.online_status = 'online'
+                elif delta_secs <= 3600:
+                    tenant.online_status = 'idle'
+                else:
+                    tenant.online_status = 'offline'
+
+                diff = (today - latest_time.date()).days
+                tenant.days_inactive = max(0, diff)
+
+    @api.depends('days_inactive', 'online_status', 'last_activity')
+    def _compute_days_inactive_display(self):
+        for tenant in self:
+            if not tenant.last_activity:
+                tenant.days_inactive_display = "Never Used"
+            elif tenant.online_status == 'online':
+                tenant.days_inactive_display = "Online Now"
+            else:
+                diff = tenant.days_inactive
+                if diff == 0:
+                    tenant.days_inactive_display = "Active Today"
+                elif diff == 1:
+                    tenant.days_inactive_display = "Yesterday (1 day ago)"
+                elif diff < 30:
+                    tenant.days_inactive_display = f"{diff} days ago"
+                else:
+                    tenant.days_inactive_display = f"{diff // 30} month(s) ago"
+
+
 
     # ZIMRA Fiscalization Settings
     enable_fiscalization = fields.Boolean(string='Enable Fiscalization', default=False)
@@ -121,6 +418,11 @@ class HavanoposdeskTenant(models.Model):
 
     # Manufacturing Settings
     enable_manufacturing = fields.Boolean(string='Enable Manufacturing', default=False)
+    enable_item_group_subunits = fields.Boolean(
+        string='Enable Sub-Units / Item Group Rights',
+        default=False,
+        help="When enabled, cashiers can be strictly restricted to only sell items belonging to their assigned Item Groups / Sub-Units (e.g. Fuel, Gas, Kiosk)."
+    )
 
     has_transactions = fields.Boolean(string="Has Transactions", compute="_compute_has_transactions")
     
@@ -138,81 +440,6 @@ class HavanoposdeskTenant(models.Model):
                 has_tx = True
             tenant.has_transactions = has_tx
 
-    total_sales_count = fields.Integer(string="Total Sales", compute="_compute_sales_analytics")
-    total_sales_amount = fields.Float(string="Total Sales Amount ($)", compute="_compute_sales_analytics")
-    last_sale_date = fields.Date(string="Last Sale Date", compute="_compute_sales_analytics")
-    last_login = fields.Datetime(string="Last Login", compute="_compute_sales_analytics")
-    last_activity = fields.Datetime(string="Recent Activity", compute="_compute_sales_analytics")
-
-    def _compute_sales_analytics(self):
-        tenant_ids = tuple(self.ids)
-        if not tenant_ids:
-            return
-        # Sales query with safe NULL checks
-        self.env.cr.execute("""
-            SELECT
-                tenant_id,
-                COUNT(*) AS total_sales_count,
-                SUM(COALESCE(amount_total_base, amount_total, 0.0)) AS total_sales_amount,
-                MAX(posting_date) AS last_sale_date,
-                MAX(create_date) AS last_sale_create_date
-            FROM havanoposdesk_sale
-            WHERE tenant_id IN %s
-              AND COALESCE(is_return, FALSE) = FALSE
-              AND COALESCE(is_quotation, FALSE) = FALSE
-              AND COALESCE(state, 'done') != 'cancelled'
-            GROUP BY tenant_id
-        """, (tenant_ids,))
-        sales_map = {
-            r[0]: {'count': r[1], 'amount': r[2] or 0.0, 'last_date': r[3], 'last_sale_time': r[4]}
-            for r in self.env.cr.fetchall()
-        }
-
-        # Logins query
-        self.env.cr.execute("""
-            SELECT
-                u.tenant_id,
-                MAX(l.create_date) AS last_login
-            FROM res_users u
-            LEFT JOIN res_users_log l ON l.create_uid = u.id
-            WHERE u.active = TRUE
-              AND u.tenant_id IN %s
-            GROUP BY u.tenant_id
-        """, (tenant_ids,))
-        login_map = {r[0]: r[1] for r in self.env.cr.fetchall()}
-
-        for tenant in self:
-            s = sales_map.get(tenant.id, {'count': 0, 'amount': 0.0, 'last_date': False, 'last_sale_time': False})
-            tenant.total_sales_count = s['count']
-            tenant.total_sales_amount = s['amount']
-            tenant.last_sale_date = s['last_date']
-            u_login = login_map.get(tenant.id, False)
-            tenant.last_login = u_login
-            s_time = s['last_sale_time']
-            if u_login and s_time:
-                tenant.last_activity = max(u_login, s_time)
-            else:
-                tenant.last_activity = u_login or s_time or False
-
-    def action_view_sales(self):
-        self.ensure_one()
-        return {
-            'name': _('%s – Sales', self.name),
-            'type': 'ir.actions.act_window',
-            'res_model': 'havanoposdesk.sale',
-            'view_mode': 'list,form',
-            'domain': [
-                ('tenant_id', '=', self.id),
-                ('is_return', '=', False),
-                ('is_quotation', '=', False),
-            ],
-            'context': {
-                'default_tenant_id': self.id,
-                'search_default_tenant_id': self.id,
-            },
-            'target': 'current',
-        }
-            
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='Subscription Plan')
     billing_cycle = fields.Selection([
         ('1_month', '1 Month (Monthly)'),
@@ -263,7 +490,7 @@ class HavanoposdeskTenant(models.Model):
     pending_subscription_total_amount = fields.Float(string='Pending Total Amount ($)', compute='_compute_pending_subscription_total_amount', store=True)
     has_pending_upgrade = fields.Boolean(string='Has Pending Upgrade', compute='_compute_has_pending_upgrade')
     subscription_payment_ids = fields.One2many('havanoposdesk.subscription.payment', 'tenant_id', string='Transaction History & Top-Ups')
-    pending_topup_count = fields.Integer(string='Pending Top-Up Count', compute='_compute_pending_topup_count')
+    pending_topup_count = fields.Integer(string='Pending Top-Up Count', compute='_compute_pending_topup_count', search='_search_pending_topup_count')
 
     def _compute_pending_topup_count(self):
         for tenant in self:
@@ -272,6 +499,19 @@ class HavanoposdeskTenant(models.Model):
                 ('payment_type', '=', 'topup'),
                 ('state', '=', 'pending')
             ])
+
+    def _search_pending_topup_count(self, operator, value):
+        payments = self.env['havanoposdesk.subscription.payment'].sudo().search([
+            ('payment_type', '=', 'topup'),
+            ('state', '=', 'pending'),
+            ('tenant_id', '!=', False)
+        ])
+        tenant_ids = payments.mapped('tenant_id').ids
+        if (operator in ('>', '!=') and value == 0) or (operator == '=' and value > 0):
+            return [('id', 'in', tenant_ids)]
+        elif (operator in ('=', '<=') and value == 0) or (operator == '<' and value <= 1):
+            return [('id', 'not in', tenant_ids)]
+        return []
 
     def action_approve_pending_topup(self):
         self.ensure_one()
@@ -329,15 +569,18 @@ class HavanoposdeskTenant(models.Model):
             if not plan:
                 tenant.subscription_total_amount = 0.0
                 continue
-            stores_per_term = plan.stores_per_terminal or 3
-            base_term = plan.max_terminals or 1
-            extra_term = max(0, tenant.additional_terminals or 0)
-            if extra_term == 0 and tenant.additional_stores > 0:
-                calculated_total_terms = tenant.additional_stores // stores_per_term
-                if calculated_total_terms > base_term:
-                    extra_term = calculated_total_terms - base_term
-            extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-            m_rate = (plan.price or 0.0) + (extra_term * extra_price)
+            if plan.is_custom:
+                stores_per_term = plan.stores_per_terminal or 3
+                base_term = plan.max_terminals or 1
+                extra_term = max(0, tenant.additional_terminals or 0)
+                if extra_term == 0 and tenant.additional_stores > 0:
+                    calculated_total_terms = tenant.additional_stores // stores_per_term
+                    if calculated_total_terms > base_term:
+                        extra_term = calculated_total_terms - base_term
+                extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
+                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
+            else:
+                m_rate = plan.price or 0.0
             
             months = max(1, tenant.duration_months or 1)
             if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
@@ -353,15 +596,18 @@ class HavanoposdeskTenant(models.Model):
             if not plan:
                 tenant.pending_subscription_total_amount = 0.0
                 continue
-            stores_per_term = plan.stores_per_terminal or 3
-            base_term = plan.max_terminals or 1
-            extra_term = max(0, tenant.pending_additional_terminals or 0)
-            if extra_term == 0 and tenant.pending_additional_stores > 0:
-                calculated_total_terms = tenant.pending_additional_stores // stores_per_term
-                if calculated_total_terms > base_term:
-                    extra_term = calculated_total_terms - base_term
-            extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
-            m_rate = (plan.price or 0.0) + (extra_term * extra_price)
+            if plan.is_custom:
+                stores_per_term = plan.stores_per_terminal or 3
+                base_term = plan.max_terminals or 1
+                extra_term = max(0, tenant.pending_additional_terminals or 0)
+                if extra_term == 0 and tenant.pending_additional_stores > 0:
+                    calculated_total_terms = tenant.pending_additional_stores // stores_per_term
+                    if calculated_total_terms > base_term:
+                        extra_term = calculated_total_terms - base_term
+                extra_price = plan.extra_terminal_price or plan.extra_store_price or 12.0
+                m_rate = (plan.price or 12.0) + (extra_term * extra_price)
+            else:
+                m_rate = plan.price or 0.0
             
             months = max(1, tenant.pending_duration_months or 1)
             if months == 12 and getattr(plan, 'annual_discount_percentage', 0.0) > 0:
@@ -399,9 +645,56 @@ class HavanoposdeskTenant(models.Model):
     ], string='Payment Status', default='unpaid')
     
     user_ids = fields.One2many('res.users', 'tenant_id', string='Users')
+    store_ids = fields.One2many('havanoposdesk.store', 'tenant_id', string='Stores')
+    terminal_ids = fields.One2many('havanoposdesk.pos.terminal', 'tenant_id', string='Terminals')
+
+    store_count = fields.Integer(string='Stores Count', compute='_compute_counts')
+    terminal_count = fields.Integer(string='Terminals Count', compute='_compute_counts')
+    user_count = fields.Integer(string='Users Count', compute='_compute_counts')
+
+    def _compute_counts(self):
+        for rec in self:
+            rec.store_count = len(rec.store_ids)
+            rec.terminal_count = len(rec.terminal_ids)
+            rec.user_count = len(rec.user_ids)
+
+    def action_view_stores(self):
+        self.ensure_one()
+        return {
+            'name': _('Stores'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.store',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
+
+    def action_view_terminals(self):
+        self.ensure_one()
+        return {
+            'name': _('Terminals'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.pos.terminal',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
+
+    def action_view_users(self):
+        self.ensure_one()
+        return {
+            'name': _('Users'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'res.users',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
 
     def check_subscription_active(self):
         self.ensure_one()
+        if self.env.context.get('bypass_subscription_check'):
+            return True
         today = fields.Date.context_today(self)
         if self.subscription_end_date and self.subscription_end_date < today:
             if self.subscription_state not in ('expired', 'cancelled'):
@@ -414,7 +707,7 @@ class HavanoposdeskTenant(models.Model):
         if self.subscription_state == 'expired' and self.subscription_end_date:
             grace_days = int(self.env['ir.config_parameter'].sudo().get_param('havanoposdesk.subscription_grace_days', '5'))
             expiry_with_grace = self.subscription_end_date + relativedelta(days=grace_days)
-            if today <= expiry_with_grace:
+            if fields.Date.context_today(self) <= expiry_with_grace:
                 return True
                 
         return False
@@ -429,18 +722,12 @@ class HavanoposdeskTenant(models.Model):
         if not tenant:
             return {'show_banner': False}
 
-        today = fields.Date.context_today(self)
-        if tenant.subscription_end_date and tenant.subscription_end_date < today:
-            if tenant.subscription_state not in ('expired', 'cancelled'):
-                tenant.sudo().with_context(bypass_subscription_check=True).write({
-                    'subscription_state': 'expired'
-                })
-
         warning_days = int(self.env['ir.config_parameter'].sudo().get_param(
             'havanoposdesk.subscription_expiry_warning_days', '3'))
 
         days_left = None
         if tenant.subscription_end_date:
+            today = fields.Date.context_today(self)
             days_left = (tenant.subscription_end_date - today).days
 
         is_expiring_soon = days_left is not None and days_left <= warning_days
@@ -537,12 +824,10 @@ class HavanoposdeskTenant(models.Model):
     show_qty_on_hand = fields.Boolean(string='Show Qty on Hand in POS', default=False)
     enable_shift = fields.Boolean(string='Enable Shift Management', default=False)
     enable_kitchen_settings = fields.Boolean(string='Enable Kitchen Settings', default=False)
-    enable_variant_attributes = fields.Boolean(string='Enable Variant Attributes', default=False)
     enable_tax = fields.Boolean(string='Enable Tax', default=False)
     enable_barcode = fields.Boolean(string='Enable Barcode Scanning', default=False)
     allow_negative_stock = fields.Boolean(string='Allow Negative Stock', default=True)
     allow_edit_item_code = fields.Boolean(string='Allow Editing Item Code', default=False)
-    enable_hs_code = fields.Boolean(string='Enable HS Code', default=False)
     stock_decimal_places = fields.Integer(string='Stock Decimal Places', default=3, help='Number of decimal places (minimum 1)')
     do_not_round_stock = fields.Boolean(string='Do Not Round Stock (Truncate)', default=False, help='If checked, values are truncated without rounding, e.g., 1.67 with 1 decimal place becomes 1.6.')
     expenses_require_approval = fields.Boolean(string='Expenses Require Approval', default=False, help='If enabled, expenses submitted by cashiers will require manager approval before they are posted and deduct cash.')
@@ -610,11 +895,7 @@ class HavanoposdeskTenant(models.Model):
                 vals['subscription_end_date'] = fields.Date.context_today(self) + relativedelta(days=duration)
             if not vals.get('payment_status'):
                 vals['payment_status'] = 'paid'
-            today = fields.Date.context_today(self)
-            if vals.get('subscription_end_date') and fields.Date.to_date(vals['subscription_end_date']) < today:
-                if vals.get('subscription_state') != 'cancelled':
-                    vals['subscription_state'] = 'expired'
-            elif not vals.get('subscription_state'):
+            if not vals.get('subscription_state'):
                 vals['subscription_state'] = 'active'
                 
         tenants = super().create(vals_list)
@@ -1069,14 +1350,7 @@ class HavanoposdeskTenant(models.Model):
             # Activate plan
             tenant.action_pay_and_activate()
 
-    def init(self):
-        super().init()
-        # Clean up any leftover views referencing sync_to_frappe
-        self.env.cr.execute("""
-            DELETE FROM ir_ui_view 
-            WHERE arch_db::text ILIKE '%sync_to_frappe%' 
-               OR arch_db::text ILIKE '%frappe_sync%'
-        """)
+
 
     def _get_next_sequence(self, seq_type):
         self.ensure_one()
@@ -1085,8 +1359,8 @@ class HavanoposdeskTenant(models.Model):
         next_field = f"{seq_type}_seq_next"
         padding_field = f"{seq_type}_seq_padding"
         
-        # Ensure context skips audit logging for internal sequence advances
-        self = self.with_context(skip_audit_log=True)
+        # Prevent concurrency issues by selecting this tenant row for update
+        self.env.cr.execute("SELECT id FROM havanoposdesk_tenant WHERE id = %s FOR UPDATE", [self.id])
         
         prefix = getattr(self, prefix_field) or ''
         next_val = getattr(self, next_field) or 1
@@ -1132,12 +1406,8 @@ class HavanoposdeskTenant(models.Model):
             else:
                 break
         
-        # Direct SQL update avoids concurrent write serialization conflicts and write_date churn
-        self.env.cr.execute(
-            f'UPDATE havanoposdesk_tenant SET "{next_field}" = %s WHERE id = %s',
-            (next_val + 1, self.id)
-        )
-        self.invalidate_recordset([next_field])
+        # Increment and update
+        self.write({next_field: next_val + 1})
         
         return formatted_seq
 
@@ -1153,15 +1423,6 @@ class HavanoposdeskTenant(models.Model):
             if restricted_fields.intersection(vals.keys()):
                 if not self.env.context.get('bypass_subscription_check'):
                     raise ValidationError('You cannot modify subscription details or payment status directly. Please use the "Change/Upgrade Plan" or "Pay & Activate Plan" buttons.')
-
-        # If subscription_end_date is being set in the past, auto-set state to expired unless explicitly cancelled
-        if 'subscription_end_date' in vals and vals['subscription_end_date']:
-            today = fields.Date.context_today(self)
-            end_date = fields.Date.to_date(vals['subscription_end_date'])
-            if end_date and end_date < today:
-                if vals.get('subscription_state') != 'cancelled':
-                    vals['subscription_state'] = 'expired'
-
         return super().write(vals)
 
     def action_open_delete_wizard(self):
@@ -1370,22 +1631,24 @@ class HavanoposdeskTenant(models.Model):
     @api.model
     def cron_check_expired_subscriptions(self):
         """
-        Scheduled action to automatically set tenant subscription_state to 'expired'
-        when subscription_end_date has passed (< today).
+        Automated cron job (ir.cron ID 25):
+        Checks and marks tenant subscriptions as expired when subscription_end_date is past.
         """
         today = fields.Date.context_today(self)
+        _logger.info("Running cron_check_expired_subscriptions for date: %s", today)
         expired_tenants = self.sudo().search([
-            ('subscription_end_date', '!=', False),
             ('subscription_end_date', '<', today),
-            ('subscription_state', 'not in', ('expired', 'cancelled')),
+            ('subscription_state', '=', 'active'),
         ])
-        if expired_tenants:
-            _logger.info("cron_check_expired_subscriptions: Auto-expiring %s tenant(s) whose end date has passed (< %s)", len(expired_tenants), today)
-            expired_tenants.with_context(bypass_subscription_check=True).write({
-                'subscription_state': 'expired'
-            })
-        else:
-            _logger.info("cron_check_expired_subscriptions: No unexpired tenants with passed subscription end date.")
+        expired_count = 0
+        for tenant in expired_tenants:
+            try:
+                tenant.action_expire()
+                expired_count += 1
+                _logger.info("Marked subscription for tenant %s (ID: %s) as expired", tenant.name, tenant.id)
+            except Exception as e:
+                _logger.exception("Error expiring subscription for tenant %s: %s", tenant.name, e)
+        _logger.info("Finished cron_check_expired_subscriptions. Updated %s tenants.", expired_count)
         return True
 
     @api.model
@@ -1437,7 +1700,7 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
     _name = 'havanoposdesk.tenant.upgrade.wizard'
     _description = 'Upgrade Tenant Subscription Plan'
 
-    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade', index=True)
+    tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', required=True, ondelete='cascade')
     subscription_plan_id = fields.Many2one('havanoposdesk.subscription.plan', string='New Subscription Plan', required=True, ondelete='cascade')
     billing_cycle = fields.Selection([
         ('1_month', '1 Month (Monthly)'),
@@ -1494,9 +1757,12 @@ class HavanoposdeskTenantUpgradeWizard(models.TransientModel):
                 wizard.monthly_price = 0.0
                 wizard.computed_total_price = 0.0
                 continue
-            extra = max(0, wizard.additional_terminals or 0)
-            extra_price = plan.extra_terminal_price or 12.0
-            m_rate = (plan.price or 0.0) + (extra * extra_price)
+            if plan.is_custom:
+                extra = max(0, wizard.additional_terminals or 0)
+                extra_price = plan.extra_terminal_price or 12.0
+                m_rate = (plan.price or 12.0) + (extra * extra_price)
+            else:
+                m_rate = plan.price or 0.0
 
             wizard.monthly_price = m_rate
             months = max(1, wizard.duration_months or 1)
