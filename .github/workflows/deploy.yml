@@ -3,8 +3,9 @@ name: Auto Deploy to Server
 on:
   push:
     branches:
-      - main
       - master
+      - main
+      - develop
   workflow_dispatch:
     inputs:
       restart_odoo:
@@ -58,6 +59,7 @@ jobs:
 
             # Fetch and sync cleanly to avoid local merge conflict halts
             git fetch origin ${{ github.ref_name }}
+            git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
 
             echo "Latest commit deployed:"

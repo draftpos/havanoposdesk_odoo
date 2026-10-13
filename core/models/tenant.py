@@ -660,12 +660,22 @@ class HavanoposdeskTenant(models.Model):
     last_login = fields.Datetime(string='Last Login', related='last_activity', readonly=True)
 
     def _compute_sales_summary(self):
+        real_ids = tuple(i for i in self.ids if isinstance(i, int))
+        data = {}
+        if real_ids:
+            query = """
+                SELECT tenant_id, count(*), COALESCE(sum(amount_total_base), 0.0), max(date)
+                FROM havanoposdesk_sale
+                WHERE tenant_id IN %s
+                GROUP BY tenant_id
+            """
+            self.env.cr.execute(query, (real_ids,))
+            data = {row[0]: (row[1], row[2], row[3]) for row in self.env.cr.fetchall()}
         for tenant in self:
-            sales = self.env['havanoposdesk.sale'].sudo().search([('tenant_id', '=', tenant.id)])
-            tenant.total_sales_count = len(sales)
-            tenant.total_sales_amount = sum(sales.mapped('amount_total_base'))
-            last_sale = sales[:1]
-            tenant.last_sale_date = last_sale.date if last_sale else False
+            count, amount, last_dt = data.get(tenant.id, (0, 0.0, False))
+            tenant.total_sales_count = count
+            tenant.total_sales_amount = amount
+            tenant.last_sale_date = last_dt
 
     def action_view_sales(self):
         self.ensure_one()
