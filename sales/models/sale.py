@@ -1064,6 +1064,16 @@ class SaleLine(models.Model):
     _description = 'Sale Line'
     _order = 'sequence, id'
 
+    def _auto_init(self):
+        res = super()._auto_init()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_sale_line ADD COLUMN IF NOT EXISTS display_type VARCHAR;")
+            self.env.cr.commit()
+        except Exception:
+            pass
+        return res
+
     sequence = fields.Integer(string='Sequence', default=10)
     display_type = fields.Selection([
         ('line_section', 'Section'),
