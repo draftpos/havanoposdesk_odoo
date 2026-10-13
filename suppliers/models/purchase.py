@@ -492,6 +492,8 @@ class PurchaseLine(models.Model):
         try:
             with self.env.cr.savepoint():
                 self.env.cr.execute("ALTER TABLE havanoposdesk_purchase_line ADD COLUMN IF NOT EXISTS display_type VARCHAR;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_purchase_line ADD COLUMN IF NOT EXISTS sequence INTEGER DEFAULT 10;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_purchase_line ADD COLUMN IF NOT EXISTS name TEXT;")
             self.env.cr.commit()
         except Exception:
             pass
