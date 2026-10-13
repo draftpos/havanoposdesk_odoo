@@ -14,7 +14,12 @@ class HavanoposdeskCategory(models.Model):
         res = super()._auto_init()
         try:
             with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_category ADD COLUMN IF NOT EXISTS complete_name VARCHAR;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_category ADD COLUMN IF NOT EXISTS parent_id INTEGER;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_category ADD COLUMN IF NOT EXISTS parent_path VARCHAR;")
                 self.env.cr.execute("ALTER TABLE havanoposdesk_category ADD COLUMN IF NOT EXISTS is_sub_unit BOOLEAN DEFAULT FALSE;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_category ADD COLUMN IF NOT EXISTS not_for_pos BOOLEAN DEFAULT FALSE;")
+                self.env.cr.execute("UPDATE havanoposdesk_category SET complete_name = name WHERE complete_name IS NULL;")
             self.env.cr.commit()
         except Exception:
             pass
