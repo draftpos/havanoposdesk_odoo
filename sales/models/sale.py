@@ -255,6 +255,8 @@ class Sale(models.Model):
     amount_balance = fields.Float(string='Balance Due', compute='_compute_amount_paid', compute_sudo=True)
     single_payment_amount = fields.Float(string='Payment Amount', compute='_compute_single_payment_amount', store=True, readonly=False)
     
+    total_qty = fields.Float(string='Total Qty', compute='_compute_total_qty', store=True)
+    credit_note_count = fields.Integer(string='Credit Notes Count', compute='_compute_credit_note_count')
     total_cost = fields.Float(string='Total Cost', compute='_compute_total_cost', store=True)
     salesperson_id = fields.Many2one('res.users', string='Salesperson', default=lambda self: self.env.user.id)
     is_tax_enabled = fields.Boolean(related='tenant_id.enable_tax', string='Tax Enabled')
@@ -288,6 +290,27 @@ class Sale(models.Model):
             record.amount_untaxed = sum(record.line_ids.mapped('price_subtotal'))
             record.amount_tax = sum(record.line_ids.mapped('price_tax'))
             record.amount_total = sum(record.line_ids.mapped('amount'))
+
+    @api.depends('line_ids.accepted_qty', 'line_ids.display_type')
+    def _compute_total_qty(self):
+        for record in self:
+            record.total_qty = sum(line.accepted_qty for line in record.line_ids if not line.display_type)
+
+    @api.depends('return_sale_ids')
+    def _compute_credit_note_count(self):
+        for sale in self:
+            sale.credit_note_count = len(sale.return_sale_ids)
+
+    def action_view_credit_notes(self):
+        self.ensure_one()
+        return {
+            'name': _('Credit Notes'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.sale',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', self.return_sale_ids.ids)],
+            'context': {'default_return_id': self.id, 'default_is_return': True},
+        }
 
     @api.depends('amount_total', 'exchange_rate')
     def _compute_amount_total_base(self):
@@ -1115,6 +1138,7 @@ class SaleLine(models.Model):
     variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
+    qty = fields.Float(string='Quantity', related='accepted_qty', readonly=False)
     rate = fields.Float(string='Rate')
     tax_ids = fields.Many2many('havanoposdesk.tax', string='Taxes', domain="[('tax_type', '=', 'Sales'), ('active', '=', True)]")
     price_subtotal = fields.Float(string='Subtotal', compute='_compute_amount', store=True)

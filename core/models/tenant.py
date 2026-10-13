@@ -654,6 +654,30 @@ class HavanoposdeskTenant(models.Model):
     terminal_count = fields.Integer(string='Terminals Count', compute='_compute_counts')
     user_count = fields.Integer(string='Users Count', compute='_compute_counts')
 
+    total_sales_count = fields.Integer(string='# Sales', compute='_compute_sales_summary')
+    total_sales_amount = fields.Float(string='Sales ($)', compute='_compute_sales_summary')
+    last_sale_date = fields.Datetime(string='Last Sale', compute='_compute_sales_summary')
+    last_login = fields.Datetime(string='Last Login', related='last_activity', readonly=True)
+
+    def _compute_sales_summary(self):
+        for tenant in self:
+            sales = self.env['havanoposdesk.sale'].sudo().search([('tenant_id', '=', tenant.id)])
+            tenant.total_sales_count = len(sales)
+            tenant.total_sales_amount = sum(sales.mapped('amount_total_base'))
+            last_sale = sales[:1]
+            tenant.last_sale_date = last_sale.date if last_sale else False
+
+    def action_view_sales(self):
+        self.ensure_one()
+        return {
+            'name': _('Sales Invoices'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'havanoposdesk.sale',
+            'view_mode': 'list,form',
+            'domain': [('tenant_id', '=', self.id)],
+            'context': {'default_tenant_id': self.id},
+        }
+
     def _compute_counts(self):
         for rec in self:
             rec.store_count = len(rec.store_ids)

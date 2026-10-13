@@ -282,6 +282,19 @@ class ResConfigSettings(models.TransientModel):
         help="Enable independent sub-units (e.g. Fuel, Gas, Kiosk, Spare Parts) on a station/store and strictly restrict cashiers to only sell items from their assigned Item Groups."
     )
 
+    biz_enable_variant_attributes = fields.Boolean(
+        string="Enable Variant Attributes",
+        related='tenant_id.enable_variant_attributes',
+        readonly=False,
+        help="Enable product variant attributes (e.g. Size, Color) to create and manage variant combinations easily."
+    )
+    biz_enable_hs_code = fields.Boolean(
+        string="Enable HS Code",
+        related='tenant_id.enable_hs_code',
+        readonly=False,
+        help="Enable Harmonized System (HS) code field on products and inventory."
+    )
+
     # ZIMRA Fiscalization Settings
     biz_enable_fiscalization = fields.Boolean(
         string="Enable Fiscalization",

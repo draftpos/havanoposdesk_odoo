@@ -118,6 +118,7 @@ class SaleReturnWizardLine(models.TransientModel):
     wizard_id = fields.Many2one('havanoposdesk.sale.return.wizard', string='Wizard', ondelete='cascade')
     sale_line_id = fields.Many2one('havanoposdesk.sale.line', string='Sale Line', ondelete='cascade')
     product_id = fields.Many2one('havanoposdesk.product', string='Product', readonly=True, ondelete='cascade')
+    variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', related='sale_line_id.variant_id', readonly=True)
     qty_sold = fields.Float(string='Qty Sold', readonly=True)
     qty_returned = fields.Float(string='Return Qty', default=0.0)
     rate = fields.Float(string='Rate', readonly=True)
