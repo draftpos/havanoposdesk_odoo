@@ -10,6 +10,16 @@ class HavanoposdeskCategory(models.Model):
     _rec_name = 'complete_name'
     _order = 'complete_name, id'
 
+    def _auto_init(self):
+        res = super()._auto_init()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_category ADD COLUMN IF NOT EXISTS is_sub_unit BOOLEAN DEFAULT FALSE;")
+            self.env.cr.commit()
+        except Exception:
+            pass
+        return res
+
     name = fields.Char(string='Category Name', required=True)
     complete_name = fields.Char(
         string='Complete Name', 
