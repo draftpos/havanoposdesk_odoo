@@ -152,7 +152,8 @@ class HavanoZimraCloudService:
         if not base_url or not device_sn:
             return {'status': 'failed', 'error': 'ZIMRA Base URL and Device Serial Number (EFD SN) are required'}
 
-        invoice_number = sale.name
+        # Use unique local_invoice_id if present to prevent sequence collisions across tenants/stores
+        invoice_number = (sale.local_invoice_id or sale.name or '').strip()
         currency = (sale.currency_id.name or 'USD').upper()
         if currency in ('ZWD', 'ZWL', 'ZWG'):
             currency = 'ZIG'
@@ -199,7 +200,7 @@ class HavanoZimraCloudService:
         ok, token_or_err = self.fetch_csrf_token(base_url, session)
         if not ok:
             _logger.warning("[ZIMRA] Could not fetch token: %s", token_or_err)
-            return {'status': 'failed', 'error': f"ZIMRA CSRF Token Error: {token_or_err}"}
+            return self._process_offline(sale, device_sn)
 
         csrf_token = token_or_err
         send_url = f"{base_url.rstrip('/')}/api/method/havanozimracloud.api.sendinvoice"
@@ -209,9 +210,21 @@ class HavanoZimraCloudService:
             "Content-Type": "application/x-www-form-urlencoded",
         }
 
-        # ZIMRA expects add_customer="1" to display buyer details on the fiscal invoice
-        is_walkin = not sale.customer or (sale.customer.name or '').strip().lower() in ('walk-in customer', 'walk in', 'walk-in', 'walkin')
-        add_customer_flag = "0" if is_walkin else "1"
+        # ZIMRA expects add_customer="1" ONLY for tax-registered business buyers who have a real 10-digit TIN
+        cust_name = (sale.customer.name or '').strip().lower() if sale.customer else ''
+        cust_tin = (getattr(sale.customer, 'tin', '') or '').strip() if sale.customer else ''
+        is_generic_walkin = (
+            not sale.customer
+            or not cust_name
+            or cust_name in (
+                'walk-in customer', 'walk in', 'walk-in', 'walkin',
+                'cash customer', 'cash', 'default customer', 'general customer', 'havano default'
+            )
+            or not cust_tin
+            or len(cust_tin) != 10
+            or cust_tin == '111111111'
+        )
+        add_customer_flag = "0" if is_generic_walkin else "1"
 
         payload = {
             "device_sn": str(device_sn),
@@ -258,7 +271,7 @@ class HavanoZimraCloudService:
 
             if resp.status_code != 200:
                 _logger.warning("[ZIMRA] Non-200 HTTP response (%s): %s", resp.status_code, resp.text)
-                return {'status': 'failed', 'error': resp.text}
+                return self._process_offline(sale, device_sn)
 
             res_json = resp.json()
             msg = res_json.get("message", res_json)
@@ -291,11 +304,12 @@ class HavanoZimraCloudService:
                         'error': False
                     }
 
-            return {'status': 'failed', 'error': resp.text}
+            _logger.warning("[ZIMRA] API returned unexpected or empty response: %s", resp.text)
+            return self._process_offline(sale, device_sn)
 
         except Exception as e:
             _logger.exception("[ZIMRA] Exception during invoice submission: %s", e)
-            return {'status': 'failed', 'error': f"ZIMRA Connection Error: {e}"}
+            return self._process_offline(sale, device_sn)
 
     def _process_offline(self, sale, device_sn: str) -> dict:
         """
