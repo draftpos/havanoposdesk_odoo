@@ -22,3 +22,4 @@ from . import restaurant
 from . import ir_ui_menu
 from . import online_activity
 from . import tenant_analytics
+from . import res_partner_category
