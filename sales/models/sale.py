@@ -174,15 +174,15 @@ class Sale(models.Model):
         if self.currency_id and self.tenant_id and self.tenant_id.currency_id:
             if self.currency_id == self.tenant_id.currency_id:
                 self.exchange_rate = 1.0
-                if not self.payment_status:
-                    self.payment_status = self.tenant_id.default_payment_status or 'cash'
             else:
                 # Odoo's res.currency stores rate as: 1 base = X foreign
                 date = self.date or fields.Date.context_today(self)
                 rate = self.currency_id._get_conversion_rate(self.tenant_id.currency_id, self.currency_id, self.env.company, date)
                 self.exchange_rate = rate or 1.0
-                # Force user to choose payment mode for foreign currency
-                self.payment_status = False
+            if not self.payment_status:
+                self.payment_status = self.tenant_id.default_payment_status or 'cash'
+            if not self.payment_status_display:
+                self.payment_status_display = 'account' if self.payment_status == 'account' else 'cash'
             if self.line_ids:
                 self.line_ids._recompute_prices_for_currency()
     terminal_id = fields.Many2one(
@@ -366,11 +366,26 @@ class Sale(models.Model):
     def _inverse_payment_status_display(self):
         for record in self:
             if not record.payment_status_display:
-                record.payment_status = False
+                record.payment_status = 'cash'
             elif record.payment_status == 'partial' and record.payment_status_display == 'account':
                 continue
             else:
                 record.payment_status = record.payment_status_display
+
+    @api.onchange('payment_status_display')
+    def _onchange_payment_status_display(self):
+        if self.payment_status_display:
+            if self.payment_status == 'partial' and self.payment_status_display == 'account':
+                pass
+            else:
+                self.payment_status = self.payment_status_display
+        elif not self.payment_status:
+            self.payment_status = (self.tenant_id and self.tenant_id.default_payment_status) or 'cash'
+
+    @api.onchange('payment_status')
+    def _onchange_payment_status(self):
+        if self.payment_status:
+            self.payment_status_display = 'account' if self.payment_status in ('account', 'partial') else 'cash'
 
     @api.depends(
         'payment_ids.amount', 'payment_ids.amount_base', 'payment_ids.state',
@@ -466,6 +481,17 @@ class Sale(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            # Ensure payment_status is never missing or False
+            if not vals.get('payment_status'):
+                if vals.get('payment_status_display'):
+                    vals['payment_status'] = vals['payment_status_display']
+                else:
+                    tenant_id = vals.get('tenant_id') or (self.env.user.tenant_id and self.env.user.tenant_id.id)
+                    tenant = self.env['havanoposdesk.tenant'].browse(tenant_id) if tenant_id else self.env.user.tenant_id
+                    vals['payment_status'] = (tenant and tenant.default_payment_status) or 'cash'
+            if not vals.get('payment_status_display') and vals.get('payment_status'):
+                vals['payment_status_display'] = 'account' if vals['payment_status'] in ('account', 'partial') else 'cash'
+
             if not vals.get('shift_id') and not vals.get('is_quotation'):
                 # Try to find an open shift for the current user and tenant
                 shift_domain = [
@@ -590,9 +616,10 @@ class Sale(models.Model):
             if not vals.get('currency_id'):
                 tenant_id_val = vals.get('tenant_id') or self.env.user.tenant_id.id
                 tenant = self.env['havanoposdesk.tenant'].browse(tenant_id_val) if tenant_id_val else self.env['havanoposdesk.tenant']
-                if vals.get('customer'):
-                    customer = self.env['havanoposdesk.customer'].browse(vals['customer'])
-                    if customer.currency_id:
+                cust_val = vals.get('customer_id') or (vals.get('customer') if isinstance(vals.get('customer'), int) else None)
+                if cust_val:
+                    customer = self.env['havanoposdesk.customer'].browse(cust_val)
+                    if customer.exists() and customer.currency_id:
                         self.env['res.currency']._validate_tenant_currency(customer.currency_id, tenant)
                         vals['currency_id'] = customer.currency_id.id
                 if not vals.get('currency_id'):
@@ -617,6 +644,11 @@ class Sale(models.Model):
         return sales
 
     def write(self, vals):
+        if vals.get('payment_status_display') and not vals.get('payment_status'):
+            vals['payment_status'] = vals['payment_status_display']
+        elif 'payment_status' in vals and not vals['payment_status']:
+            vals['payment_status'] = vals.get('payment_status_display') or 'cash'
+
         from odoo.exceptions import ValidationError
         allowed_post_fields = [
             'state', 'fiscal_status', 'fiscal_qr_code', 'fiscal_verification_code',

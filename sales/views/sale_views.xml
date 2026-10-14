@@ -92,8 +92,8 @@
                             <group>
                                 <!-- RIGHT: Local Invoice ID, Payment fields -->
                                 <field name="local_invoice_id" readonly="1" class="border-bottom border-dark" />
-                                <field name="payment_status" invisible="1" />
-                                <field name="payment_status_display" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" invisible="is_quotation" />
+                                <field name="payment_status" invisible="1" force_save="1" />
+                                <field name="payment_status_display" force_save="1" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" invisible="is_quotation" />
                                 <field name="payment_policy" invisible="payment_status not in ['cash', 'partial'] or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" widget="radio" options="{'horizontal': true}" />
                                 <field name="account_id" domain="[('tenant_id', '=', tenant_id), ('type', 'in', ['Bank', 'Cash']), ('active', '=', True), ('is_on_account', '=', False)]" invisible="payment_status not in ['cash', 'partial'] or payment_policy != 'single' or is_quotation" required="not is_quotation and payment_status in ['cash', 'partial'] and payment_policy == 'single'" readonly="state != 'draft'" options="{'no_create': True, 'no_open': True}" class="border-bottom border-dark" />
                                 <field name="single_payment_amount" invisible="payment_status not in ['cash', 'partial'] or payment_policy != 'single' or is_quotation" readonly="state != 'draft'" class="border-bottom border-dark" />
