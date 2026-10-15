@@ -366,11 +366,13 @@ class Sale(models.Model):
     def _inverse_payment_status_display(self):
         for record in self:
             if not record.payment_status_display:
-                record.payment_status = 'cash'
+                target = 'cash'
             elif record.payment_status == 'partial' and record.payment_status_display == 'account':
                 continue
             else:
-                record.payment_status = record.payment_status_display
+                target = record.payment_status_display
+            if record.payment_status != target:
+                record.with_context(skip_confirmed_check=True).payment_status = target
 
     @api.onchange('payment_status_display')
     def _onchange_payment_status_display(self):
@@ -480,7 +482,13 @@ class Sale(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        for vals in vals_list:
+        to_post_map = {}
+        for idx, vals in enumerate(vals_list):
+            target_state = vals.get('state')
+            if target_state in ['confirmed', 'done'] or vals.get('pos_payment_id') or self.env.context.get('auto_post_sale'):
+                to_post_map[idx] = target_state or 'done'
+                vals['state'] = 'draft'
+
             # Ensure payment_status is never missing or False
             if not vals.get('payment_status'):
                 if vals.get('payment_status_display'):
@@ -635,13 +643,31 @@ class Sale(models.Model):
 
         sales = super().create(vals_list)
         
-        for sale in sales:
-            # Mobile app syncs often include pos_payment_id. If present, or explicitly confirmed, auto-post.
-            if sale.state in ['confirmed', 'done'] or sale.pos_payment_id or self.env.context.get('auto_post_sale'):
-                # Set to draft temporarily to let action_post execute
-                sale.state = 'draft'
-                sale.action_post()
+        for idx, sale in enumerate(sales):
+            if idx in to_post_map:
+                sale.with_context(auto_post_sale=True, skip_confirmed_check=True).action_post()
         return sales
+
+    def _is_field_value_changed(self, field_name, new_val):
+        field = self._fields.get(field_name)
+        if not field:
+            return False
+        current_val = self[field_name]
+        if field.type == 'many2one':
+            current_id = current_val.id if current_val else False
+            new_id = new_val if isinstance(new_val, int) else (new_val.id if hasattr(new_val, 'id') else False)
+            return current_id != new_id
+        elif field.type in ('one2many', 'many2many'):
+            return bool(new_val)
+        elif field.type in ('float', 'monetary'):
+            try:
+                return abs(float(current_val or 0.0) - float(new_val or 0.0)) > 1e-6
+            except (ValueError, TypeError):
+                return current_val != new_val
+        elif field.type == 'boolean':
+            return bool(current_val) != bool(new_val)
+        else:
+            return current_val != new_val
 
     def write(self, vals):
         if vals.get('payment_status_display') and not vals.get('payment_status'):
@@ -650,14 +676,26 @@ class Sale(models.Model):
             vals['payment_status'] = vals.get('payment_status_display') or 'cash'
 
         from odoo.exceptions import ValidationError
-        allowed_post_fields = [
-            'state', 'fiscal_status', 'fiscal_qr_code', 'fiscal_verification_code',
+        allowed_post_fields = {
+            'state', 'order_status', 'fiscal_status', 'fiscal_qr_code', 'fiscal_verification_code',
             'fiscal_receipt_counter', 'fiscal_global_no', 'fiscal_device_id',
-            'fiscal_device_serial', 'fiscal_day', 'fiscal_error'
-        ]
-        for record in self:
-            if record.state != 'draft' and any(f not in allowed_post_fields for f in vals.keys()):
-                raise ValidationError("You cannot modify a confirmed sale. Please cancel it first.")
+            'fiscal_device_serial', 'fiscal_day', 'fiscal_error', 'fiscal_signature',
+            'fiscal_counter', 'payment_status', 'payment_status_display',
+            'amount_paid', 'amount_balance', 'amount_paid_base', 'amount_balance_base',
+            'single_payment_amount', 'payment_ids', 'pos_payment_id', 'shift_id',
+            'z_report_id', 'sync_flag', 'offline_id', 'last_sync', 'synced_to_cloud',
+            'printed_receipt', 'print_counter'
+        }
+        skip_check = self.env.context.get('skip_confirmed_check') or self.env.context.get('auto_post_sale')
+        if not skip_check:
+            for record in self:
+                if record.state != 'draft':
+                    disallowed = [
+                        f for f in vals.keys()
+                        if f not in allowed_post_fields and record._is_field_value_changed(f, vals[f])
+                    ]
+                    if disallowed:
+                        raise ValidationError("You cannot modify a confirmed sale. Please cancel it first.")
             tenant = self.env['havanoposdesk.tenant'].browse(vals.get('tenant_id', record.tenant_id.id))
             if 'currency_id' in vals:
                 self.env['res.currency']._validate_tenant_currency(vals['currency_id'], tenant)

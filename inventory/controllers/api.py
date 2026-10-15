@@ -2477,7 +2477,7 @@ class HavanoPOSDeskAPI(http.Controller):
         if payment_vals.get('payment_commands'):
             sale_vals['payment_ids'] = payment_vals['payment_commands']
 
-        sale = request.env['havanoposdesk.sale'].with_user(user.id).sudo().create(sale_vals)
+        sale = request.env['havanoposdesk.sale'].with_user(user.id).with_context(auto_post_sale=True, skip_confirmed_check=True).sudo().create(sale_vals)
         
         res_data = {
             'data': {
@@ -3900,7 +3900,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if payment_vals.get('payment_commands'):
                 sale_vals['payment_ids'] = payment_vals['payment_commands']
 
-            sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
+            sale = env['havanoposdesk.sale'].with_user(sale_user.id).with_context(auto_post_sale=True, skip_confirmed_check=True).sudo().create(sale_vals)
 
             try:
                 if tenant:
@@ -4435,7 +4435,7 @@ class HavanoPOSDeskAPI(http.Controller):
                             if sale_data.get('fiscal_receipt_counter'):
                                 update_vals['fiscal_receipt_counter'] = int(sale_data.get('fiscal_receipt_counter'))
                             if update_vals:
-                                existing_sale.sudo().write(update_vals)
+                                existing_sale.with_context(skip_confirmed_check=True).sudo().write(update_vals)
                                 responses.append({
                                     "name": existing_sale.name,
                                     "id": existing_sale.id,
@@ -4668,7 +4668,7 @@ class HavanoPOSDeskAPI(http.Controller):
                         for attempt in range(2):
                             try:
                                 with env.cr.savepoint():
-                                    sale = env['havanoposdesk.sale'].with_user(sale_user.id).sudo().create(sale_vals)
+                                    sale = env['havanoposdesk.sale'].with_user(sale_user.id).with_context(auto_post_sale=True, skip_confirmed_check=True).sudo().create(sale_vals)
                                     try:
                                         if tenant:
                                             tenant.sudo().record_tenant_activity(user=sale_user, terminal=terminal, platform='mobile_pos')
