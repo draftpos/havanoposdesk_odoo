@@ -176,6 +176,7 @@ class HavanoPowerSyncController(http.Controller):
             'enable_item_group_subunits': bool(tenant.enable_item_group_subunits),
             'has_category_restriction': is_restricted,
             'allowed_category_ids': effective_cat_ids,
+            'category_ids': effective_cat_ids,
             'allowed_item_groups': [c.name for c in (user.category_ids | user.env['havanoposdesk.category'].sudo().search([('id', 'child_of', user.category_ids.ids)]))] if (hasattr(user, 'category_ids') and user.category_ids and is_restricted) else [],
         }
 

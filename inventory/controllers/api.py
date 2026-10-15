@@ -561,7 +561,10 @@ class HavanoPOSDeskAPI(http.Controller):
                         
                 warehouse_items.append({
                     "item_code": str(p.item_code) if p.item_code else "",
+                    "itemcode": str(p.item_code) if p.item_code else "",
+                    "name": str(p.name) if p.name else "",
                     "item_name": str(p.name) if p.name else "",
+                    "itemname": str(p.name) if p.name else "",
                     "description": str(p.name) if p.name else "",
                     "stock_uom": str(p.uom_id.name) if p.uom_id and p.uom_id.name else "Pieces",
                     "actual_qty": qty,
@@ -575,16 +578,30 @@ class HavanoPOSDeskAPI(http.Controller):
                     "custom_is_order_item_7": int(p.kitchen_order_7),
                     "sellbyprice": 1 if getattr(p, 'sellbyprice', False) else 0,
                     "sell_by_price": 1 if getattr(p, 'sellbyprice', False) else 0,
+                    "groupname": p.category_id.name or "All Item Groups",
+                    "item_group": p.category_id.name or "All Item Groups",
+                    "category": p.category_id.name or "All Item Groups",
+                    "category_name": p.category_id.name or "All Item Groups",
+                    "category_id": p.category_id.id if p.category_id else None,
                 })
                 
             import base64
             token_str = f"{login}:{password}"
             token_base64 = base64.b64encode(token_str.encode('utf-8')).decode('utf-8')
 
+            is_u_restricted = bool(user.havano_role not in ('admin', 'super_admin') and user.category_ids)
+            u_effective_cats = user.get_effective_category_ids() if (is_u_restricted and hasattr(user, 'get_effective_category_ids')) else (user.category_ids.ids if is_u_restricted and hasattr(user, 'category_ids') else [])
+            u_allowed_groups = [c.name for c in (user.category_ids | user_env['havanoposdesk.category'].sudo().search([('id', 'child_of', user.category_ids.ids)]))] if is_u_restricted else []
+
             res_data = {
                 "message": "Logged In",
                 "home_page": "/app/home",
                 "full_name": user.name or "",
+                "enable_item_group_subunits": bool(tenant and tenant.enable_item_group_subunits),
+                "has_category_restriction": is_u_restricted,
+                "allowed_category_ids": u_effective_cats,
+                "allowed_item_groups": u_allowed_groups,
+                "category_ids": u_effective_cats,
                 "user": {
                     "first_name": first_name,
                     "last_name": last_name,
@@ -606,7 +623,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     "currencies": currencies_data,
                     "payment_methods": payment_methods_data,
                     "warehouse_items": warehouse_items,
-                    "pin": user.pin or ""
+                    "pin": user.pin or "",
+                    "enable_item_group_subunits": bool(tenant and tenant.enable_item_group_subunits),
+                    "has_category_restriction": is_u_restricted,
+                    "allowed_category_ids": u_effective_cats,
+                    "allowed_item_groups": u_allowed_groups,
+                    "category_ids": u_effective_cats,
                 },
                 "token_string": token_str,
                 "token": token_base64
@@ -658,7 +680,12 @@ class HavanoPOSDeskAPI(http.Controller):
 
                 res_data.update({
                     "access_token": token_base64,
-                    "refresh_token": token_base64
+                    "refresh_token": token_base64,
+                    "enable_item_group_subunits": bool(tenant and tenant.enable_item_group_subunits),
+                    "has_category_restriction": is_u_restricted,
+                    "allowed_category_ids": u_effective_cats,
+                    "allowed_item_groups": u_allowed_groups,
+                    "category_ids": u_effective_cats,
                 })
                 res_data["user"].update({
                     "id": user.id,
@@ -674,8 +701,10 @@ class HavanoPOSDeskAPI(http.Controller):
                     "store_tz": (store.tz if store else False) or user.tz or 'Africa/Harare',
                     "tz": user.tz or (store.tz if store else False) or 'Africa/Harare',
                     "enable_item_group_subunits": bool(tenant and tenant.enable_item_group_subunits),
-                    "allowed_category_ids": user.get_effective_category_ids() if (hasattr(user, 'get_effective_category_ids') and user.category_ids) else (user.category_ids.ids if hasattr(user, 'category_ids') and user.category_ids else []),
-                    "allowed_item_groups": [c.name for c in (user.category_ids | user.env['havanoposdesk.category'].sudo().search([('id', 'child_of', user.category_ids.ids)]))] if hasattr(user, 'category_ids') and user.category_ids else [],
+                    "has_category_restriction": is_u_restricted,
+                    "allowed_category_ids": u_effective_cats,
+                    "allowed_item_groups": u_allowed_groups,
+                    "category_ids": u_effective_cats,
                 })
 
                 # Hardware based terminal assignment — strictly scoped to the user's assigned stores.
@@ -778,13 +807,35 @@ class HavanoPOSDeskAPI(http.Controller):
             return self._make_json_response({"error": str(e)}, status=500)
 
     # PRODUCTS
-    @http.route('/api/products/', auth='public', methods=['GET', 'POST'], type='http', csrf=False, cors='*')
+    @http.route(['/api/products/', '/api/products'], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def handle_products(self, **kw):
-        uid = request.session.uid
+        if request.httprequest.method == 'OPTIONS':
+            return request.make_response('{}', headers=[('Content-Type', 'application/json')], status=200)
+
+        token = request.httprequest.headers.get('Authorization')
+        uid, login = self._verify_token(token)
+        if not uid:
+            uid = request.session.uid
+        if not uid:
+            user = self._get_user()
+            uid = user.id if user else None
+
         if not uid:
             return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
             
         user = request.env['res.users'].sudo().browse(uid)
+        user_param = (
+            kw.get('user') or kw.get('cashier') or kw.get('username') or kw.get('email')
+            or request.params.get('user') or request.params.get('cashier') or request.params.get('username') or request.params.get('email')
+            or request.httprequest.headers.get('user') or request.httprequest.headers.get('cashier')
+        )
+        if user_param and user.login != str(user_param).strip():
+            found_user = request.env['res.users'].sudo().search([
+                ('share', '=', False),
+                '|', '|', ('login', '=ilike', str(user_param).strip()), ('name', '=ilike', str(user_param).strip()), ('partner_id.email', '=ilike', str(user_param).strip())
+            ], limit=1)
+            if found_user:
+                user = found_user
         
         if request.httprequest.method == 'GET':
             domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
@@ -804,7 +855,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 data.append({
                     'id': p.id,
                     'name': p.name,
+                    'item_name': p.name,
+                    'itemname': p.name,
                     'item_code': p.item_code,
+                    'itemcode': p.item_code,
                     'barcode': p.barcode if p.is_barcode_enabled else None,
                     'buying_price': p.buying_price,
                     'selling_price': p.selling_price,
@@ -817,6 +871,9 @@ class HavanoPOSDeskAPI(http.Controller):
                     'sellbyprice': 1 if getattr(p, 'sellbyprice', False) else 0,
                     'sell_by_price': 1 if getattr(p, 'sellbyprice', False) else 0,
                     'category': p.category_id.id if p.category_id else None,
+                    'category_id': p.category_id.id if p.category_id else None,
+                    'category_name': p.category_id.name or "All Item Groups",
+                    'item_group': p.category_id.name or "All Item Groups",
                     'uom': p.uom_id.id if p.uom_id else None,
                     'tenant_id': p.tenant_id.id,
                     'store_id': p.store_ids[0].id if p.store_ids else None,
@@ -966,14 +1023,15 @@ class HavanoPOSDeskAPI(http.Controller):
             return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')], status=201)
 
     # CATEGORIES
-    @http.route('/api/categories/', auth='public', methods=['GET', 'POST'], type='http', csrf=False, cors='*')
+    @http.route(['/api/categories/', '/api/categories', '/api/category/', '/api/category'], auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def handle_categories(self, **kw):
-        uid = request.session.uid
-        if not uid:
+        if request.httprequest.method == 'OPTIONS':
+            return request.make_response('{}', headers=[('Content-Type', 'application/json')], status=200)
+
+        user = self._get_user()
+        if not user or not user.exists():
             return request.make_response(json.dumps({'error': 'Unauthorized'}), headers=[('Content-Type', 'application/json')], status=401)
-            
-        user = request.env['res.users'].sudo().browse(uid)
-        
+
         request_params = dict(request.params or {})
         if request.httprequest.method == 'POST':
             try:
@@ -981,6 +1039,19 @@ class HavanoPOSDeskAPI(http.Controller):
                 request_params.update(body_data)
             except Exception:
                 pass
+
+        user_param = (
+            kw.get('user') or kw.get('cashier') or kw.get('username') or kw.get('email')
+            or request_params.get('user') or request_params.get('cashier') or request_params.get('username') or request_params.get('email')
+            or request.httprequest.headers.get('user') or request.httprequest.headers.get('cashier')
+        )
+        if user_param and user.login != str(user_param).strip():
+            found_user = request.env['res.users'].sudo().search([
+                ('share', '=', False),
+                '|', '|', ('login', '=ilike', str(user_param).strip()), ('name', '=ilike', str(user_param).strip()), ('partner_id.email', '=ilike', str(user_param).strip())
+            ], limit=1)
+            if found_user:
+                user = found_user
 
         tenant = user.tenant_id
         store = self._get_current_store(user, tenant, request_params)
@@ -991,8 +1062,25 @@ class HavanoPOSDeskAPI(http.Controller):
                 if not user.tenant_id:
                     return request.make_response(json.dumps([]), headers=[('Content-Type', 'application/json')])
                 domain.append(('tenant_id', '=', user.tenant_id.id))
+                if user.havano_role == 'user' and user.store_ids:
+                    domain.append('|')
+                    domain.append(('store_ids', '=', False))
+                    domain.append(('store_ids', 'in', user.store_ids.ids))
+                if hasattr(user, 'category_ids') and user.category_ids and user.havano_role not in ('admin', 'super_admin'):
+                    effective_cats = user.get_effective_category_ids() if hasattr(user, 'get_effective_category_ids') else user.category_ids.ids
+                    domain.append(('id', 'in', effective_cats))
             categories = request.env['havanoposdesk.category'].sudo().search(domain)
-            data = [{'id': c.id, 'name': c.name, 'tenant_id': c.tenant_id.id, 'store_id': c.store_ids[0].id if c.store_ids else None} for c in categories]
+            data = [{
+                'id': c.id,
+                'category_id': c.id,
+                'name': c.name,
+                'item_group_name': c.name,
+                'category_name': c.name,
+                'parent_item_group': c.parent_id.name if c.parent_id else "All Item Groups",
+                'is_sub_unit': bool(c.is_sub_unit),
+                'tenant_id': c.tenant_id.id if c.tenant_id else None,
+                'store_id': c.store_ids[0].id if c.store_ids else None
+            } for c in categories]
             return request.make_response(json.dumps(data), headers=[('Content-Type', 'application/json')])
         
         elif request.httprequest.method == 'POST':
@@ -1800,6 +1888,16 @@ class HavanoPOSDeskAPI(http.Controller):
         if (not user or not user.exists()) and request.env.user and request.env.user.id != request.env.ref('base.public_user').id:
             user = request.env.user
             
+        if not user or not user.exists():
+            req_user = (request.params.get('user') or request.params.get('email') or '').strip()
+            if req_user and request.env:
+                found_user = request.env['res.users'].sudo().search([
+                    ('share', '=', False),
+                    '|', '|', ('login', '=ilike', req_user), ('name', '=ilike', req_user), ('partner_id.email', '=ilike', req_user)
+                ], limit=1)
+                if found_user:
+                    user = found_user
+
         if not user or not user.exists():
             # Fallback for testing on localhost
             admin_user = request.env['res.users'].sudo().search([('havano_role', '=', 'admin')], limit=1)
@@ -2953,6 +3051,19 @@ class HavanoPOSDeskAPI(http.Controller):
             offset = 0
             
         user = self._get_user()
+        user_param = (
+            kw.get('user') or kw.get('cashier') or kw.get('username') or kw.get('email')
+            or params.get('user') or params.get('cashier') or params.get('username') or params.get('email')
+            or request.httprequest.headers.get('user') or request.httprequest.headers.get('cashier')
+        )
+        if user_param and user.login != str(user_param).strip():
+            found_user = request.env['res.users'].sudo().search([
+                ('share', '=', False),
+                '|', '|', ('login', '=ilike', str(user_param).strip()), ('name', '=ilike', str(user_param).strip()), ('partner_id.email', '=ilike', str(user_param).strip())
+            ], limit=1)
+            if found_user:
+                user = found_user
+
         tenant = user.tenant_id
         
         product_domain = [('is_active', '=', True), ('not_for_sale', '=', False), '|', ('category_id', '=', False), ('category_id.not_for_pos', '=', False)]
@@ -2998,6 +3109,24 @@ class HavanoPOSDeskAPI(http.Controller):
             
         if product_store_domain:
             product_domain.append(('store_ids', 'in', product_store_domain))
+
+        # Resolve category filtering from parameters
+        req_cat = params.get('item_group') or params.get('category') or params.get('groupname') or params.get('category_name') or params.get('item_group_name')
+        req_cat_id = params.get('category_id') or params.get('item_group_id')
+        if req_cat_id:
+            try:
+                c_id = int(req_cat_id)
+                product_domain.append(('category_id', 'child_of', c_id))
+            except (ValueError, TypeError):
+                pass
+        elif req_cat and str(req_cat).strip() not in ('All Item Groups', 'All', ''):
+            c_rec = request.env['havanoposdesk.category'].sudo().search([
+                ('name', '=', str(req_cat).strip()),
+                '|', ('tenant_id', '=', False), ('tenant_id', '=', resolved_tenant_id or (tenant.id if tenant else False))
+            ], limit=1)
+            if c_rec:
+                product_domain.append(('category_id', 'child_of', c_rec.id))
+
         if hasattr(user, 'category_ids') and user.category_ids and user.havano_role not in ('admin', 'super_admin'):
             effective_cats = user.get_effective_category_ids() if hasattr(user, 'get_effective_category_ids') else user.category_ids.ids
             product_domain.append(('category_id', 'in', effective_cats))
@@ -3178,9 +3307,17 @@ class HavanoPOSDeskAPI(http.Controller):
                 simple_code = p.item_code
                 
             products_list.append({
+                "id": p.id,
+                "item_code": p.item_code,
                 "itemcode": p.item_code,
+                "name": p.name,
+                "item_name": p.name,
                 "itemname": p.name,
                 "groupname": p.category_id.name or "All Item Groups",
+                "item_group": p.category_id.name or "All Item Groups",
+                "category": p.category_id.name or "All Item Groups",
+                "category_id": p.category_id.id if p.category_id else None,
+                "category_name": p.category_id.name or "All Item Groups",
                 "maintainstock": 1 if p.track_qty else 0,
                 "is_bundle": 1 if p.is_bundle else 0,
                 "is_stock_item": 1 if (p.track_qty and not p.is_bundle) else 0,
@@ -3264,8 +3401,8 @@ class HavanoPOSDeskAPI(http.Controller):
             _AUTH_CACHE_TTL = 300
             _AUTH_CACHE_MAX_ENTRIES = 5000
 
-        if not db:
-            db = 'odoo_db_com'
+        if not db or db == 'odoo_db_com':
+            db = request.db or (request.env.cr.dbname if request.env and getattr(request.env, 'cr', None) else None) or 'saas'
 
         norm_user = (username or '').strip().lower()
         pass_hash = hashlib.sha256((password or '').encode('utf-8', errors='ignore')).hexdigest()
@@ -3277,7 +3414,7 @@ class HavanoPOSDeskAPI(http.Controller):
             return cached[0]
 
         uid_res = None
-        if request.env and request.db == db:
+        if request.env and getattr(request, 'db', None) == db:
             try:
                 credential = {'login': username, 'password': password, 'type': 'password'}
                 auth_info = request.env['res.users'].authenticate(credential, {'interactive': False})
@@ -3306,10 +3443,11 @@ class HavanoPOSDeskAPI(http.Controller):
     def _verify_token(self, token):
         if not token:
             return None, None
-        if token.startswith("Bearer "):
-            token = token[7:]
-        elif token.startswith("token "):
-            token = token[6:]
+        for prefix in ('Bearer ', 'bearer ', 'Token ', 'token ', 'Basic ', 'basic '):
+            if token.startswith(prefix):
+                token = token[len(prefix):]
+                break
+        token = token.strip()
 
         import hashlib
         import time
@@ -3327,6 +3465,7 @@ class HavanoPOSDeskAPI(http.Controller):
 
         resolved_uid = None
         resolved_login = None
+        default_db = request.db or (request.env.cr.dbname if request.env and getattr(request.env, 'cr', None) else None) or 'saas'
 
         # First try: parse as the tokenString format "username:password" or "uid:hash"
         try:
@@ -3339,8 +3478,11 @@ class HavanoPOSDeskAPI(http.Controller):
                 except ValueError:
                     username = parts[0]
                     password = parts[1]
-                    db = request.db or 'odoo_db_com'
-                    uid_res = self._check_credentials(db, username, password)
+                    uid_res = self._check_credentials(default_db, username, password)
+                    if not uid_res and request.env:
+                        u_rec = request.env['res.users'].sudo().search([('login', '=', username)], limit=1)
+                        if u_rec:
+                            uid_res = u_rec.id
                     if uid_res:
                         resolved_uid, resolved_login = int(uid_res), username
         except Exception:
@@ -3366,10 +3508,24 @@ class HavanoPOSDeskAPI(http.Controller):
                 token_str = token_bytes.decode('utf-8')
                 if ':' in token_str:
                     username, password = token_str.split(':', 1)
-                    db = request.db or 'odoo_db_com'
-                    uid_res = self._check_credentials(db, username, password)
+                    uid_res = self._check_credentials(default_db, username, password)
+                    if not uid_res and request.env:
+                        u_rec = request.env['res.users'].sudo().search([('login', '=', username)], limit=1)
+                        if u_rec:
+                            uid_res = u_rec.id
                     if uid_res:
                         resolved_uid, resolved_login = int(uid_res), username
+            except Exception:
+                pass
+
+        # Fourth try: direct lookup if token is plain username or integer id
+        if not resolved_uid and request.env:
+            try:
+                u_rec = request.env['res.users'].sudo().search([('login', '=', token)], limit=1)
+                if not u_rec and token.isdigit():
+                    u_rec = request.env['res.users'].sudo().search([('id', '=', int(token))], limit=1)
+                if u_rec:
+                    resolved_uid, resolved_login = u_rec.id, u_rec.login
             except Exception:
                 pass
 
@@ -5647,7 +5803,7 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
-    @http.route('/api/resource/Item Group', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route(['/api/resource/Item Group', '/api/resource/Item%20Group', '/api/resource/item_group', '/api/resource/item-group', '/api/method/havano_pos_integration.api.get_item_groups'], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_resource_item_groups(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
@@ -5661,6 +5817,20 @@ class HavanoPOSDeskAPI(http.Controller):
         env, custom_cr = self._get_env(user_id=uid)
         try:
             user = env['res.users'].browse(uid)
+
+            user_param = (
+                kwargs.get('user') or kwargs.get('cashier') or kwargs.get('username') or kwargs.get('email')
+                or request.params.get('user') or request.params.get('cashier') or request.params.get('username') or request.params.get('email')
+                or request.httprequest.headers.get('user') or request.httprequest.headers.get('cashier')
+            )
+            if user_param and user.login != str(user_param).strip():
+                found_user = env['res.users'].sudo().search([
+                    ('share', '=', False),
+                    '|', '|', ('login', '=ilike', str(user_param).strip()), ('name', '=ilike', str(user_param).strip()), ('partner_id.email', '=ilike', str(user_param).strip())
+                ], limit=1)
+                if found_user:
+                    user = found_user
+
             tenant = user.tenant_id
 
             domain = [('not_for_pos', '=', False)]
@@ -5675,19 +5845,35 @@ class HavanoPOSDeskAPI(http.Controller):
                     effective_cats = user.get_effective_category_ids() if hasattr(user, 'get_effective_category_ids') else user.category_ids.ids
                     domain.append(('id', 'in', effective_cats))
 
-            categories = env['havanoposdesk.category'].search(domain)
+            req_store = kwargs.get('store_id') or kwargs.get('shop_id') or request.params.get('store_id') or request.params.get('shop_id')
+            if req_store:
+                try:
+                    s_id = int(req_store)
+                    domain.append('|')
+                    domain.append(('store_ids', '=', False))
+                    domain.append(('store_ids', 'in', [s_id]))
+                except (ValueError, TypeError):
+                    pass
+
+            categories = env['havanoposdesk.category'].sudo().search(domain)
             result = []
             for c in categories:
                 if c.name in ('Basics', 'All Item Groups'):
                     continue
                 result.append({
+                    "id": c.id,
+                    "category_id": c.id,
                     "name": c.name,
                     "item_group_name": c.name,
+                    "category_name": c.name,
                     "parent_item_group": c.parent_id.name if c.parent_id else "All Item Groups",
                     "is_group": 1 if c.child_ids else 0,
+                    "is_sub_unit": bool(getattr(c, 'is_sub_unit', False)),
+                    "tenant_id": c.tenant_id.id if c.tenant_id else None,
+                    "store_id": c.store_ids[0].id if c.store_ids else None,
                     "default_warehouse": c.store_ids[0].name if c.store_ids else (user.default_store_id.name if user.default_store_id else "")
                 })
-            return self._make_json_response({"data": result})
+            return self._make_json_response({"data": result, "message": result})
         finally:
             if custom_cr:
                 custom_cr.close()
@@ -6935,7 +7121,7 @@ class HavanoPOSDeskAPI(http.Controller):
             }
         })
 
-    @http.route('/api/method/saas_api.www.api.get_mobile_settings', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    @http.route(['/api/method/saas_api.www.api.get_mobile_settings', '/api/mobile/settings', '/api/mobile_settings'], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_get_mobile_settings(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
             return self._make_json_response({}, status=200)
@@ -6949,6 +7135,19 @@ class HavanoPOSDeskAPI(http.Controller):
         env, custom_cr = self._get_env(user_id=uid)
         try:
             user_rec = env['res.users'].browse(uid)
+            user_param = (
+                kwargs.get('user') or kwargs.get('cashier') or kwargs.get('username') or kwargs.get('email')
+                or request.params.get('user') or request.params.get('cashier') or request.params.get('username') or request.params.get('email')
+                or request.httprequest.headers.get('user') or request.httprequest.headers.get('cashier')
+            )
+            if user_param and user_rec.login != str(user_param).strip():
+                found_user = env['res.users'].sudo().search([
+                    ('share', '=', False),
+                    '|', '|', ('login', '=ilike', str(user_param).strip()), ('name', '=ilike', str(user_param).strip()), ('partner_id.email', '=ilike', str(user_param).strip())
+                ], limit=1)
+                if found_user:
+                    user_rec = found_user
+
             allow_discount = 1 if getattr(user_rec, 'allow_discount', True) else 0
             max_discount_percent = getattr(user_rec, 'max_discount_percent', 100.0)
             require_shift = 1 if getattr(user_rec, 'require_shift', False) else 0
@@ -6965,25 +7164,48 @@ class HavanoPOSDeskAPI(http.Controller):
             allow_dine_in = 1 if (getattr(tenant, 'allow_dine_in', True) if tenant else True) else 0
             allow_takeaway = 1 if (getattr(tenant, 'allow_takeaway', True) if tenant else True) else 0
 
+            enable_item_group_subunits = 1 if (tenant and getattr(tenant, 'enable_item_group_subunits', False)) else 0
+            has_cat_rest = bool(getattr(user_rec, 'category_ids', False)) and user_rec.havano_role not in ('admin', 'super_admin')
+            allowed_cat_ids = user_rec.get_effective_category_ids() if (has_cat_rest and hasattr(user_rec, 'get_effective_category_ids')) else (user_rec.category_ids.ids if has_cat_rest else [])
+            allowed_cat_names = [c.name for c in (user_rec.category_ids | env['havanoposdesk.category'].sudo().search([('id', 'child_of', user_rec.category_ids.ids)]))] if has_cat_rest else []
+
+            settings_dict = {
+                "allow_discount": allow_discount,
+                "max_discount_percent": max_discount_percent,
+                "require_shift": require_shift,
+                "enable_quotations": enable_quotations,
+                "enable_uom_conversion": enable_uom_conversion,
+                "enable_payment_entries": enable_payment_entries,
+                "show_qty_on_hand": show_qty_on_hand,
+                "enable_shift": enable_shift,
+                "stock_decimal_places": stock_decimal_places,
+                "do_not_round_stock": do_not_round_stock,
+                "stock_decimal_places_count": stock_decimal_places,
+                "expenses_require_approval": expenses_require_approval,
+                "allow_dine_in": allow_dine_in,
+                "allow_takeaway": allow_takeaway,
+                "enable_item_group_subunits": enable_item_group_subunits,
+                "has_category_restriction": 1 if has_cat_rest else 0,
+                "allowed_category_ids": allowed_cat_ids,
+                "allowed_item_groups": allowed_cat_names,
+                "category_ids": allowed_cat_ids,
+            }
+
             return self._make_json_response({
                 "message": {
-                    "settings": {
-                        "allow_discount": allow_discount,
-                        "max_discount_percent": max_discount_percent,
-                        "require_shift": require_shift,
-                        "enable_quotations": enable_quotations,
-                        "enable_uom_conversion": enable_uom_conversion,
-                        "enable_payment_entries": enable_payment_entries,
-                        "show_qty_on_hand": show_qty_on_hand,
-                        "enable_shift": enable_shift,
-                        "stock_decimal_places": stock_decimal_places,
-                        "do_not_round_stock": do_not_round_stock,
-                        "stock_decimal_places_count": stock_decimal_places,
-                        "expenses_require_approval": expenses_require_approval,
-                        "allow_dine_in": allow_dine_in,
-                        "allow_takeaway": allow_takeaway
-                    }
-                }
+                    "settings": settings_dict,
+                    "enable_item_group_subunits": enable_item_group_subunits,
+                    "has_category_restriction": 1 if has_cat_rest else 0,
+                    "allowed_category_ids": allowed_cat_ids,
+                    "allowed_item_groups": allowed_cat_names,
+                    "category_ids": allowed_cat_ids,
+                },
+                "settings": settings_dict,
+                "enable_item_group_subunits": enable_item_group_subunits,
+                "has_category_restriction": 1 if has_cat_rest else 0,
+                "allowed_category_ids": allowed_cat_ids,
+                "allowed_item_groups": allowed_cat_names,
+                "category_ids": allowed_cat_ids,
             })
         finally:
             if custom_cr:
@@ -7507,17 +7729,43 @@ class HavanoPOSDeskAPI(http.Controller):
         env, custom_cr = self._get_env(user_id=uid)
         try:
             user = env['res.users'].browse(uid)
+            user_param = (
+                kwargs.get('user') or kwargs.get('cashier') or kwargs.get('username') or kwargs.get('email')
+                or params.get('user') or params.get('cashier') or params.get('username') or params.get('email')
+                or request.httprequest.headers.get('user') or request.httprequest.headers.get('cashier')
+            )
+            if user_param and user.login != str(user_param).strip():
+                found_user = env['res.users'].sudo().search([
+                    ('share', '=', False),
+                    '|', '|', ('login', '=ilike', str(user_param).strip()), ('name', '=ilike', str(user_param).strip()), ('partner_id.email', '=ilike', str(user_param).strip())
+                ], limit=1)
+                if found_user:
+                    user = found_user
+
             tenant = user.tenant_id
             product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
             if not product:
                 return self._make_json_response({"message": {"product": None}})
 
+            if hasattr(user, 'category_ids') and user.category_ids and user.havano_role not in ('admin', 'super_admin'):
+                effective_cats = user.get_effective_category_ids() if hasattr(user, 'get_effective_category_ids') else user.category_ids.ids
+                if not product.category_id or product.category_id.id not in effective_cats:
+                    return self._make_json_response({"message": {"product": None}})
+
             return self._make_json_response({
                 "message": {
                     "product": {
+                        "id": product.id,
                         "itemcode": product.item_code,
+                        "item_code": product.item_code,
                         "itemname": product.name,
+                        "item_name": product.name,
+                        "name": product.name,
                         "groupname": product.category_id.name or "Basics",
+                        "category": product.category_id.name or "Basics",
+                        "category_id": product.category_id.id if product.category_id else None,
+                        "category_name": product.category_id.name or "Basics",
+                        "item_group": product.category_id.name or "Basics",
                         "maintainstock": 1 if product.track_qty else 0,
                         "sellbyprice": 1 if getattr(product, 'sellbyprice', False) else 0,
                         "sell_by_price": 1 if getattr(product, 'sellbyprice', False) else 0,
@@ -7630,55 +7878,7 @@ class HavanoPOSDeskAPI(http.Controller):
             }
         })
 
-    @http.route('/api/method/saas_api.www.api.get_mobile_settings', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
-    def api_get_mobile_settings(self, **kwargs):
-        if request.httprequest.method == 'OPTIONS':
-            return self._make_json_response({}, status=200)
-
-        token = request.httprequest.headers.get('Authorization')
-        uid, login = self._verify_token(token)
-        if not uid:
-            user = self._get_user()
-            uid = user.id
-
-        env, custom_cr = self._get_env(user_id=uid)
-        try:
-            user_rec = env['res.users'].browse(uid)
-            allow_discount = 1 if getattr(user_rec, 'allow_discount', True) else 0
-            max_discount_percent = getattr(user_rec, 'max_discount_percent', 100.0)
-            require_shift = 1 if getattr(user_rec, 'require_shift', False) else 0
-
-            tenant = user_rec.tenant_id
-            enable_quotations = 1 if tenant and tenant.enable_quotations else 0
-            enable_uom_conversion = 1 if tenant and tenant.enable_uom_conversion else 0
-            enable_payment_entries = 1 if tenant and tenant.enable_payment_entries else 0
-            show_qty_on_hand = 1 if tenant and tenant.show_qty_on_hand else 0
-            enable_shift = 1 if tenant and tenant.enable_shift else 0
-            stock_decimal_places = getattr(tenant, 'stock_decimal_places', 3) if tenant else 3
-            do_not_round_stock = 1 if (tenant and getattr(tenant, 'do_not_round_stock', False)) else 0
-            expenses_require_approval = 1 if (tenant and getattr(tenant, 'expenses_require_approval', False)) else 0
-
-            return self._make_json_response({
-                "message": {
-                    "settings": {
-                        "allow_discount": allow_discount,
-                        "max_discount_percent": max_discount_percent,
-                        "require_shift": require_shift,
-                        "enable_quotations": enable_quotations,
-                        "enable_uom_conversion": enable_uom_conversion,
-                        "enable_payment_entries": enable_payment_entries,
-                        "show_qty_on_hand": show_qty_on_hand,
-                        "enable_shift": enable_shift,
-                        "stock_decimal_places": stock_decimal_places,
-                        "do_not_round_stock": do_not_round_stock,
-                        "stock_decimal_places_count": stock_decimal_places,
-                        "expenses_require_approval": expenses_require_approval
-                    }
-                }
-            })
-        finally:
-            if custom_cr:
-                custom_cr.close()
+    # Note: api_get_mobile_settings route is defined above
 
 
     
@@ -8591,7 +8791,12 @@ class HavanoPOSDeskAPI(http.Controller):
             # Return success response
             return self._make_json_response({
                 "status": "success",
-                "message": user_data
+                "message": user_data,
+                "enable_item_group_subunits": user_data.get("enable_item_group_subunits", False),
+                "has_category_restriction": user_data.get("has_category_restriction", False),
+                "allowed_category_ids": user_data.get("allowed_category_ids", []),
+                "allowed_item_groups": user_data.get("allowed_item_groups", []),
+                "category_ids": user_data.get("category_ids", []),
             }, status=200)
 
         except Exception as e:
@@ -8725,6 +8930,10 @@ class HavanoPOSDeskAPI(http.Controller):
             }
             company_status = status_map.get(tenant.subscription_state, 'suspended')
         
+        is_restricted = bool(user.havano_role not in ('admin', 'super_admin') and user.category_ids)
+        effective_cats = user.get_effective_category_ids() if (is_restricted and hasattr(user, 'get_effective_category_ids')) else (user.category_ids.ids if is_restricted and hasattr(user, 'category_ids') else [])
+        allowed_groups = [c.name for c in (user.category_ids | env['havanoposdesk.category'].sudo().search([('id', 'child_of', user.category_ids.ids)]))] if is_restricted else []
+
         return {
             "user": {
                 "first_name": first_name,
@@ -8740,6 +8949,11 @@ class HavanoPOSDeskAPI(http.Controller):
                 "default_customer": default_customer_name,
                 "company": company_name,
                 "role": user.havano_role or "admin",
+                "enable_item_group_subunits": bool(tenant and tenant.enable_item_group_subunits),
+                "has_category_restriction": is_restricted,
+                "allowed_category_ids": effective_cats,
+                "allowed_item_groups": allowed_groups,
+                "category_ids": effective_cats,
                 "user_rights": self._get_user_rights_dict(user),
                 "company_registration": {
                     "name": tenant.name if tenant else company_name,
@@ -8754,7 +8968,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     "uom_list": uom_list,
                     "payment_methods": payment_methods_list
                 }
-            }
+            },
+            "enable_item_group_subunits": bool(tenant and tenant.enable_item_group_subunits),
+            "has_category_restriction": is_restricted,
+            "allowed_category_ids": effective_cats,
+            "allowed_item_groups": allowed_groups,
+            "category_ids": effective_cats,
         }
 
     def _get_user_assigned_store_ids(self, user):
@@ -9669,6 +9888,10 @@ class HavanoPOSDeskAPI(http.Controller):
                 cost_center = u.api_cost_center or (tenant.api_cost_center if tenant else False) or warehouse
                 profile_name = u.user_rights_profile_id.name if u.user_rights_profile_id else "Cashier"
 
+                is_u_restricted = bool(u.havano_role not in ('admin', 'super_admin') and u.category_ids)
+                u_effective_cats = u.get_effective_category_ids() if (is_u_restricted and hasattr(u, 'get_effective_category_ids')) else (u.category_ids.ids if is_u_restricted and hasattr(u, 'category_ids') else [])
+                u_allowed_groups = [c.name for c in (u.category_ids | env['havanoposdesk.category'].sudo().search([('id', 'child_of', u.category_ids.ids)]))] if is_u_restricted else []
+
                 data_list.append({
                     "id": u.id,
                     "tenant_id": u.tenant_id.id if u.tenant_id else None,
@@ -9692,6 +9915,11 @@ class HavanoPOSDeskAPI(http.Controller):
                     "role": u.havano_role or "user",
                     "role_select": role_val,
                     "is_admin": is_admin_flag,
+                    "enable_item_group_subunits": bool(tenant and tenant.enable_item_group_subunits),
+                    "has_category_restriction": is_u_restricted,
+                    "allowed_category_ids": u_effective_cats,
+                    "allowed_item_groups": u_allowed_groups,
+                    "category_ids": u_effective_cats,
                     "user_rights": self._get_user_rights_dict(u)
                 })
 
@@ -9970,7 +10198,15 @@ class HavanoPOSDeskAPI(http.Controller):
             
             # TODO: Add device_hardware_id if shop select also sends it?
             user_data = self._get_user_info_dict(user, env)
-            return self._make_json_response({"message": "Shop Selected", "user": user_data}, status=200)
+            return self._make_json_response({
+                "message": "Shop Selected",
+                "user": user_data,
+                "enable_item_group_subunits": user_data.get('enable_item_group_subunits', 0),
+                "has_category_restriction": user_data.get('has_category_restriction', 0),
+                "allowed_category_ids": user_data.get('allowed_category_ids', []),
+                "allowed_item_groups": user_data.get('allowed_item_groups', []),
+                "category_ids": user_data.get('category_ids', []),
+            }, status=200)
         except Exception as e:
             if custom_cr:
                 custom_cr.rollback()
@@ -10212,7 +10448,12 @@ class HavanoPOSDeskAPI(http.Controller):
             return self._make_json_response({
                 "message": "Terminal Selected",
                 "sale_id_prefix": sale_id_prefix,
-                "user": user_data
+                "user": user_data,
+                "enable_item_group_subunits": user_data.get('enable_item_group_subunits', 0),
+                "has_category_restriction": user_data.get('has_category_restriction', 0),
+                "allowed_category_ids": user_data.get('allowed_category_ids', []),
+                "allowed_item_groups": user_data.get('allowed_item_groups', []),
+                "category_ids": user_data.get('category_ids', []),
             }, status=200)
         except Exception as e:
             if custom_cr:
@@ -10316,6 +10557,10 @@ class HavanoPOSDeskAPI(http.Controller):
             if assigned_terminal:
                 hardware_terminal_id = assigned_terminal.id
 
+        is_restricted = bool(user.havano_role not in ('admin', 'super_admin') and user.category_ids)
+        effective_cats = user.get_effective_category_ids() if (is_restricted and hasattr(user, 'get_effective_category_ids')) else (user.category_ids.ids if is_restricted and hasattr(user, 'category_ids') else [])
+        allowed_groups = [c.name for c in (user.category_ids | env['havanoposdesk.category'].sudo().search([('id', 'child_of', user.category_ids.ids)]))] if is_restricted else []
+
         return {
             "id": user.id,
             "first_name": first_name,
@@ -10333,6 +10578,11 @@ class HavanoPOSDeskAPI(http.Controller):
             "store_ids": user.store_ids.ids if hasattr(user, 'store_ids') and user.store_ids else [],
             "tz": user.tz or 'UTC',
             "timezone": user.tz or 'UTC',
+            "enable_item_group_subunits": bool(user.tenant_id and user.tenant_id.enable_item_group_subunits),
+            "has_category_restriction": is_restricted,
+            "allowed_category_ids": effective_cats,
+            "allowed_item_groups": allowed_groups,
+            "category_ids": effective_cats,
             "user_rights": self._get_user_rights_dict(user)
         }
 
