@@ -4800,6 +4800,16 @@ class HavanoPOSDeskAPI(http.Controller):
             ], limit=1)
             if account:
                 return account
+
+        # Fallback to any active Cash or Bank account for this tenant
+        account = Account.search([
+            ('tenant_id', '=', tenant.id),
+            ('type', 'in', ['Cash', 'Bank']),
+            ('active', '=', True),
+        ], order="type asc, id asc", limit=1)
+        if account:
+            return account
+
         return Account.browse()
 
     def _prepare_payment_vals(self, env, tenant, customer, sale_data, default_account_id=False):
@@ -4931,10 +4941,32 @@ class HavanoPOSDeskAPI(http.Controller):
                 elif real_sum > 0:
                     single_payment_amount = real_sum
 
+            # Rounding tolerance (up to 5 cents) for tax / price-list float variations between app and server
+            rounding_tolerance = 0.05
+            is_near_full = (
+                invoice_total > 0 and not used_on_account and (
+                    real_sum + rounding_tolerance >= invoice_total
+                    or abs(real_sum - invoice_total) <= rounding_tolerance
+                )
+            )
+
             if used_on_account:
                 payment_status = 'partial'
-            elif invoice_total > 0 and real_sum + 0.0001 >= invoice_total:
+            elif is_near_full:
                 payment_status = 'cash'
+                # Align payment commands and single_payment_amount to invoice_total so balance is exactly 0.00
+                if len(payment_commands) == 1:
+                    payment_commands[0][2]['amount'] = invoice_total
+                    single_payment_amount = invoice_total
+                    real_sum = invoice_total
+            elif requested_status == 'cash' and not used_on_account and (
+                specified_paid is None or specified_paid >= (invoice_total - rounding_tolerance)
+            ):
+                payment_status = 'cash'
+                if len(payment_commands) == 1:
+                    payment_commands[0][2]['amount'] = invoice_total
+                    single_payment_amount = invoice_total
+                    real_sum = invoice_total
             elif real_sum > 0:
                 payment_status = 'partial'
             else:
