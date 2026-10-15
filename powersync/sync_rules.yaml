@@ -5,21 +5,11 @@ streams:
   tenant_master:
     auto_subscribe: true
     queries:
-      # 1. Products Catalog (Filtered by assigned cashier categories if restricted)
-      - SELECT * FROM havanoposdesk_product AS "products"
-        WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
-          AND (
-            ifnull(auth.parameter('has_category_restriction'), 'false') != 'true'
-            OR category_id IN (SELECT CAST(value AS INTEGER) FROM json_each(ifnull(auth.parameter('category_ids'), '[]')))
-          )
+      # 1. Products Catalog
+      - SELECT * FROM havanoposdesk_product AS "products" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
 
-      # 2. Categories / Item Groups (Filtered by assigned cashier categories if restricted)
-      - SELECT * FROM havanoposdesk_category AS "item_groups"
-        WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
-          AND (
-            ifnull(auth.parameter('has_category_restriction'), 'false') != 'true'
-            OR id IN (SELECT CAST(value AS INTEGER) FROM json_each(ifnull(auth.parameter('category_ids'), '[]')))
-          )
+      # 2. Categories / Item Groups
+      - SELECT * FROM havanoposdesk_category AS "item_groups" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
 
       # 3. Units of Measure (UOM)
       - SELECT * FROM havanoposdesk_uom AS "uoms" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
