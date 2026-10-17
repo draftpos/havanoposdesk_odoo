@@ -311,9 +311,19 @@ class Purchase(models.Model):
                     else:
                         # Normal Purchase
                         unit_rate_base = unit_rate / (purchase.exchange_rate or 1.0)
+                        tenant = purchase.tenant_id or line.product_id.tenant_id
 
-                        # Use the purchase price supplied by the API as the product cost.
-                        new_buying_price = unit_rate_base
+                        if tenant and tenant.stock_valuation_method == 'avco':
+                            # AVCO: Moving Weighted Average Cost
+                            current_qty = line.product_id.on_hand_qty
+                            current_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                            if current_qty > 0 and current_cost > 0:
+                                new_buying_price = round(((current_qty * current_cost) + (base_qty * unit_rate_base)) / (current_qty + base_qty), 4)
+                            else:
+                                new_buying_price = unit_rate_base
+                        else:
+                            # FIFO / Latest purchase price
+                            new_buying_price = unit_rate_base
                             
                         # Update buying_price (last updated value) using sudo()
                         line.product_id.sudo().write({
@@ -332,7 +342,6 @@ class Purchase(models.Model):
                         })
                         
                         # Calculate and store average cost
-                        # We use the properly weighted new_buying_price calculated above
                         self.env['havanoposdesk.product.costing'].sudo().create({
                             'product_id': line.product_id.id,
                             'purchase_line_id': line.id,
@@ -438,15 +447,35 @@ class Purchase(models.Model):
                         # Normal Purchase Cancelled
                         # Revert: Subtract stock using sudo() (no opening_stock update)
                         
-                        # Revert product buying price to the previous purchase's rate (if any)
-                        last_purchase = self.env['havanoposdesk.purchase.line'].search([
-                            ('product_id', '=', line.product_id.id),
-                            ('purchase_id.state', '=', 'posted'),
-                            ('purchase_id', '!=', purchase.id)
-                        ], order='id desc', limit=1)
-                        if last_purchase:
-                            last_rate = last_purchase.rate / last_purchase.uom_qty_multiplier if last_purchase.uom_qty_multiplier else last_purchase.rate
-                            line.product_id.sudo().buying_price = last_rate
+                        tenant = purchase.tenant_id or line.product_id.tenant_id
+                        if tenant and tenant.stock_valuation_method == 'avco':
+                            # Recompute average cost from remaining purchases
+                            self.env.cr.execute("""
+                                SELECT 
+                                    SUM(pl.accepted_qty * (pl.rate / COALESCE(p.exchange_rate, 1.0))) as total_val,
+                                    SUM(pl.accepted_qty) as total_qty
+                                FROM havanoposdesk_purchase_line pl
+                                JOIN havanoposdesk_purchase p ON p.id = pl.purchase_id
+                                WHERE pl.product_id = %s
+                                  AND pl.accepted_qty > 0
+                                  AND p.state = 'posted'
+                                  AND p.id != %s
+                                  AND NOT COALESCE(p.is_return, FALSE)
+                            """, (line.product_id.id, purchase.id))
+                            row = self.env.cr.fetchone()
+                            if row and row[1] and row[1] > 0:
+                                rev_price = round(row[0] / row[1], 4)
+                                line.product_id.sudo().write({'buying_price': rev_price, 'cost_price': rev_price})
+                        else:
+                            # Revert product buying price to the previous purchase's rate (if any)
+                            last_purchase = self.env['havanoposdesk.purchase.line'].search([
+                                ('product_id', '=', line.product_id.id),
+                                ('purchase_id.state', '=', 'posted'),
+                                ('purchase_id', '!=', purchase.id)
+                            ], order='id desc', limit=1)
+                            if last_purchase:
+                                last_rate = last_purchase.rate / last_purchase.uom_qty_multiplier if last_purchase.uom_qty_multiplier else last_purchase.rate
+                                line.product_id.sudo().write({'buying_price': last_rate, 'cost_price': last_rate})
 
                         # Create reverse ledger entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
