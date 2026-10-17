@@ -1,4 +1,4 @@
-from odoo import models, fields, tools
+from odoo import models, fields, tools, api
 
 class ItemDetailedLedgerReport(models.Model):
     _name = 'havanoposdesk.item.detailed.ledger.report'
@@ -78,3 +78,60 @@ class ItemDetailedLedgerReport(models.Model):
                     havanoposdesk_sale s ON (s.name = sl.doc_no AND s.tenant_id = COALESCE(sl.tenant_id, p.tenant_id))
             )
         """ % (self._table,))
+
+    @api.model
+    def formatted_read_group(self, domain, groupby=(), aggregates=(), having=(), offset=0, limit=None, order=None) -> list[dict]:
+        result = super().formatted_read_group(
+            domain, groupby, aggregates, having=having,
+            offset=offset, limit=limit, order=order)
+
+        has_opening = any('opening_stock' in agg for agg in aggregates)
+        has_closing = any('closing_stock' in agg for agg in aggregates)
+
+        if not (has_opening or has_closing) or not result:
+            return result
+
+        for group_line in result:
+            group_extra = group_line.get('__extra_domain') or []
+            group_domain = list(group_extra) + list(domain or [])
+            try:
+                query = self._search(group_domain)
+                where_clause = query.where_clause if getattr(query, '_where_clauses', None) else tools.SQL("TRUE")
+                sql = tools.SQL(
+                    """
+                    WITH sp_bounds AS (
+                        SELECT 
+                            COALESCE(store_id, 0) as s_id,
+                            product_id,
+                            (ARRAY_AGG(opening_stock ORDER BY date ASC, id ASC))[1] as sp_opening,
+                            (ARRAY_AGG(closing_stock ORDER BY date DESC, id DESC))[1] as sp_closing
+                        FROM %s
+                        WHERE %s
+                        GROUP BY COALESCE(store_id, 0), product_id
+                    )
+                    SELECT 
+                        COALESCE(SUM(sp_opening), 0.0) as actual_opening,
+                        COALESCE(SUM(sp_closing), 0.0) as actual_closing
+                    FROM sp_bounds
+                    """,
+                    query.from_clause,
+                    where_clause,
+                )
+                rows = self.env.execute_query(sql)
+                actual_opening = rows[0][0] if rows else 0.0
+                actual_closing = rows[0][1] if rows else 0.0
+            except Exception:
+                actual_opening = 0.0
+                actual_closing = 0.0
+
+            if has_opening:
+                if 'opening_stock:sum' in group_line:
+                    group_line['opening_stock:sum'] = actual_opening
+                group_line['opening_stock'] = actual_opening
+
+            if has_closing:
+                if 'closing_stock:sum' in group_line:
+                    group_line['closing_stock:sum'] = actual_closing
+                group_line['closing_stock'] = actual_closing
+
+        return result
