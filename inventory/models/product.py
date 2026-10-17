@@ -143,6 +143,7 @@ class HavanoposdeskProduct(models.Model):
     uom_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='UOM Prices')
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
+    stock_valuation_method = fields.Selection(related='tenant_id.stock_valuation_method', string='Valuation Method', readonly=True)
     track_qty = fields.Boolean(string='Track Qty', default=True)
     is_variant = fields.Boolean(string='Is Variant', default=False)
     enable_variant_attributes = fields.Boolean(related='tenant_id.enable_variant_attributes', string='Enable Variant Attributes')
