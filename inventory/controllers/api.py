@@ -2811,6 +2811,8 @@ class HavanoPOSDeskAPI(http.Controller):
             }
             if 'sellbyprice' in data or 'sell_by_price' in data:
                 product_vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
+            if 'not_for_sale' in data:
+                product_vals['not_for_sale'] = bool(data.get('not_for_sale'))
             if tax_ids:
                 product_vals['sale_tax_ids'] = [(6, 0, tax_ids)]
             product = request.env['havanoposdesk.product'].sudo().create(product_vals)
@@ -4008,6 +4010,13 @@ class HavanoPOSDeskAPI(http.Controller):
                     vals['sellbyprice'] = sbp_raw.lower() in ['yes', 'true', '1']
                 else:
                     vals['sellbyprice'] = bool(sbp_raw)
+
+            if 'not_for_sale' in params:
+                nfs_raw = params.get('not_for_sale')
+                if isinstance(nfs_raw, str):
+                    vals['not_for_sale'] = nfs_raw.lower() in ['yes', 'true', '1']
+                else:
+                    vals['not_for_sale'] = bool(nfs_raw)
 
             product.write(vals)
 
@@ -6003,7 +6012,7 @@ class HavanoPOSDeskAPI(http.Controller):
                 store_domain.append(('tenant_id', '=', tenant.id))
             stores = env['havanoposdesk.store'].search(store_domain)
 
-            product_domain = [('is_active', '=', True)]
+            product_domain = [('is_active', '=', True), ('not_for_sale', '=', False)]
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
             if hasattr(user, 'category_ids') and user.category_ids and user.havano_role not in ('admin', 'super_admin'):
@@ -6334,6 +6343,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 vals['is_active'] = not bool(data['disabled'])
             if 'sellbyprice' in data or 'sell_by_price' in data:
                 vals['sellbyprice'] = bool(data.get('sellbyprice') or data.get('sell_by_price'))
+            if 'not_for_sale' in data:
+                vals['not_for_sale'] = bool(data['not_for_sale'])
 
             # Resolve sale_tax_ids
             tax_ids = []
@@ -6978,7 +6989,7 @@ class HavanoPOSDeskAPI(http.Controller):
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
 
-            product_domain = [('is_active', '=', True)]
+            product_domain = [('is_active', '=', True), ('not_for_sale', '=', False)]
             if user.havano_role != 'super_admin' and tenant:
                 product_domain.append(('tenant_id', '=', tenant.id))
             if hasattr(user, 'category_ids') and user.category_ids and user.havano_role not in ('admin', 'super_admin'):
@@ -7711,7 +7722,7 @@ class HavanoPOSDeskAPI(http.Controller):
         user = self._get_user()
         tenant = user.tenant_id
 
-        domain = [('is_bundle', '=', True), ('is_active', '=', True)]
+        domain = [('is_bundle', '=', True), ('is_active', '=', True), ('not_for_sale', '=', False)]
         if user.havano_role != 'super_admin' and tenant:
             domain.append(('tenant_id', '=', tenant.id))
         
@@ -7775,7 +7786,12 @@ class HavanoPOSDeskAPI(http.Controller):
                     user = found_user
 
             tenant = user.tenant_id
-            product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
+            product = env['havanoposdesk.product'].search([
+                ('item_code', '=', item_code),
+                ('tenant_id', '=', tenant.id),
+                ('is_active', '=', True),
+                ('not_for_sale', '=', False)
+            ], limit=1)
             if not product:
                 return self._make_json_response({"message": {"product": None}})
 
