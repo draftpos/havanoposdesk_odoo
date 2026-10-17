@@ -42,12 +42,21 @@ class StockValuationDateWizard(models.TransientModel):
         for line in ledgers:
             key = (line.product_id.id, line.store_id.id, line.store)
             if key not in stock_data:
+                cost_price = line.product_id.buying_price or 0.0
+                if self.tenant_id.stock_valuation_method == 'avco':
+                    costing = self.env['havanoposdesk.product.costing'].search([
+                        ('product_id', '=', line.product_id.id),
+                        ('cost_type', '=', 'average'),
+                        ('date', '<=', self.date_to)
+                    ], order='date desc, id desc', limit=1)
+                    if costing and costing.price:
+                        cost_price = costing.price
                 stock_data[key] = {
                     'product_id': line.product_id.id,
                     'store_id': line.store_id.id,
                     'store': line.store,
                     'on_hand_qty': 0.0,
-                    'buying_price': line.product_id.buying_price,
+                    'buying_price': cost_price,
                     'selling_price': line.product_id.selling_price,
                 }
             stock_data[key]['on_hand_qty'] += (line.in_qty - line.out_qty)
