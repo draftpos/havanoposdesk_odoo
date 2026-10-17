@@ -124,6 +124,13 @@ class ResConfigSettings(models.TransientModel):
         help="If enabled, you can sell items even if their stock quantity goes below zero. Purchasing items will compensate for the negative balance."
     )
 
+    biz_stock_valuation_method = fields.Selection(
+        related='tenant_id.stock_valuation_method',
+        readonly=False,
+        string="Stock Valuation Method",
+        help="Choose how inventory cost and valuation are calculated: FIFO (First In, First Out / Latest Purchase Price) or AVCO (Weighted Average Cost)."
+    )
+
     biz_allow_edit_item_code = fields.Boolean(
         string="Allow Editing Product Code",
         related='tenant_id.allow_edit_item_code',
@@ -554,6 +561,7 @@ class ResConfigSettings(models.TransientModel):
     def set_values(self):
         icp = self.env['ir.config_parameter'].sudo()
         old_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
+        old_val_method = self.tenant_id.stock_valuation_method if self.tenant_id else False
         super().set_values()
         
         # Explicitly save tenant related fields to ensure they persist
@@ -561,7 +569,10 @@ class ResConfigSettings(models.TransientModel):
             self.tenant_id.sudo().write({
                 'enable_payroll': self.biz_enable_payroll,
                 'payroll_url': self.biz_payroll_url,
+                'stock_valuation_method': self.biz_stock_valuation_method or 'fifo',
             })
+            if old_val_method != (self.biz_stock_valuation_method or 'fifo'):
+                self.tenant_id.action_apply_stock_valuation_method()
             
         bot_name = icp.get_param('havanoposdesk.bot_name', 'HavanoBot')
         bot_email = icp.get_param('havanoposdesk.bot_email', 'bot@havano.cloud')
@@ -627,6 +638,22 @@ class ResConfigSettings(models.TransientModel):
                 'sticky': False,
             }
         }
+    def action_recompute_stock_valuation(self):
+        self.ensure_one()
+        if self.tenant_id:
+            self.tenant_id.action_apply_stock_valuation_method()
+            method_label = "AVCO (Weighted Average Cost)" if self.tenant_id.stock_valuation_method == 'avco' else "FIFO"
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Stock Valuation Updated',
+                    'message': f'Product cost prices and stock valuation recomputed successfully using {method_label}.',
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+
     havano_subscription_expiry_warning_days = fields.Integer(
         string="Subscription Expiry Warning Days",
         config_parameter="havanoposdesk.subscription_expiry_warning_days",
