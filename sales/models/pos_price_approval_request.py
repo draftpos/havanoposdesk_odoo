@@ -101,11 +101,13 @@ class PosPriceApprovalRequest(models.Model):
         if self.status != 'pending':
             raise UserError(_("This request is already resolved (Status: %s).") % self.status)
         price = approved_price if approved_price is not None else self.requested_price
-        self.write({
+        reviewer = self.env.user if self.env.user and self.env.user.id != self.env.ref('base.public_user').id else False
+        self.sudo().write({
             'status': 'approved',
             'approved_price': price,
             'note': note or self.note or _("Approved by Manager"),
-            'reviewed_by': self.env.user.id,
+            'reviewed_by': reviewer.id if reviewer else False,
+            'reviewed_by_name': reviewer.name if reviewer else (self.reviewed_by_name or 'Manager'),
             'updated_at': fields.Datetime.now(),
         })
         self._notify_pos_resolved()
@@ -115,10 +117,12 @@ class PosPriceApprovalRequest(models.Model):
         self.ensure_one()
         if self.status != 'pending':
             raise UserError(_("This request is already resolved (Status: %s).") % self.status)
-        self.write({
+        reviewer = self.env.user if self.env.user and self.env.user.id != self.env.ref('base.public_user').id else False
+        self.sudo().write({
             'status': 'rejected',
             'note': note or self.note or _("Rejected by Manager"),
-            'reviewed_by': self.env.user.id,
+            'reviewed_by': reviewer.id if reviewer else False,
+            'reviewed_by_name': reviewer.name if reviewer else (self.reviewed_by_name or 'Manager'),
             'updated_at': fields.Datetime.now(),
         })
         self._notify_pos_resolved()
@@ -128,12 +132,14 @@ class PosPriceApprovalRequest(models.Model):
         self.ensure_one()
         if self.status != 'pending':
             raise UserError(_("This request is already resolved (Status: %s).") % self.status)
-        self.write({
+        reviewer = self.env.user if self.env.user and self.env.user.id != self.env.ref('base.public_user').id else False
+        self.sudo().write({
             'status': 'counter_offer',
             'counter_price': counter_price,
             'approved_price': counter_price,
             'note': note or self.note or _("Manager counter-offer"),
-            'reviewed_by': self.env.user.id,
+            'reviewed_by': reviewer.id if reviewer else False,
+            'reviewed_by_name': reviewer.name if reviewer else (self.reviewed_by_name or 'Manager'),
             'updated_at': fields.Datetime.now(),
         })
         self._notify_pos_resolved()
@@ -142,7 +148,7 @@ class PosPriceApprovalRequest(models.Model):
     def action_cancel(self):
         for rec in self:
             if rec.status == 'pending':
-                rec.write({
+                rec.sudo().write({
                     'status': 'cancelled',
                     'updated_at': fields.Datetime.now(),
                 })

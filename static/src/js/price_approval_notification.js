@@ -133,20 +133,28 @@ function showApprovalToast(req, env) {
                 body: JSON.stringify({ action: "approve", note: "Approved via quick notification" })
             });
             const res = await resp.json();
-            if (res.status === "success") {
+            const isOk = res && (
+                res.status === "success" || 
+                res.success === true || 
+                res.status === "approved" || 
+                res.approval_status === "approved" || 
+                (res.data && (res.data.status === "approved" || res.data.approval_status === "approved"))
+            );
+            if (isOk) {
                 toast.style.borderLeftColor = "#10b981";
                 toast.querySelector(".havano-toast-body").innerHTML = `
                     <div style="color: #059669; font-weight: 700; display: flex; align-items: center; gap: 6px;">
                         ✓ Price approved at $${reqPrice}
                     </div>
                 `;
-                toast.querySelector(".havano-toast-actions").remove();
+                toast.querySelector(".havano-toast-actions")?.remove();
                 setTimeout(() => {
                     toast.classList.remove("visible");
                     setTimeout(() => toast.remove(), 400);
                 }, 2000);
             } else {
-                alert("Could not approve: " + (res.message || "Unknown error"));
+                const errMsg = res.message || (res.data && res.data.message) || "Unable to approve request";
+                alert("Could not approve: " + errMsg);
                 approveBtn.disabled = false;
                 approveBtn.textContent = `✓ Approve $${reqPrice}`;
             }

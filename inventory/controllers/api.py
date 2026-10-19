@@ -12491,8 +12491,10 @@ class HavanoPOSDeskAPI(http.Controller):
             
             req_code = req_rec.request_code or f"appr_{req_rec.id}"
             return self._make_json_response({
-                "status": initial_status,
+                "status": "success",
                 "success": True,
+                "approval_status": initial_status,
+                "state": initial_status,
                 "request_id": req_code,
                 "id": req_rec.id,
                 "product_id": prod_val,
@@ -12505,6 +12507,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "request_id": req_code,
                     "id": req_rec.id,
                     "status": initial_status,
+                    "state": initial_status,
+                    "approval_status": initial_status,
                     "product_id": prod_val,
                     "original_price": orig_price,
                     "requested_price": req_price,
@@ -12661,21 +12665,26 @@ class HavanoPOSDeskAPI(http.Controller):
                 return self._make_json_response({"status": "error", "message": "Approval request not found"}, status=404)
                 
             if action == 'approve':
-                req_rec.with_user(user).action_approve(note=note)
+                req_rec.sudo().action_approve(note=note)
             elif action == 'reject':
-                req_rec.with_user(user).action_reject(note=note)
+                req_rec.sudo().action_reject(note=note)
             elif action == 'counter_offer':
                 cp = float(counter_price or 0.0)
-                req_rec.with_user(user).action_counter_offer(counter_price=cp, note=note)
+                req_rec.sudo().action_counter_offer(counter_price=cp, note=note)
             else:
                 return self._make_json_response({"status": "error", "message": f"Invalid action: {action}"}, status=400)
+                
+            if user and user.exists() and user.id != request.env.ref('base.public_user').id:
+                req_rec.sudo().write({'reviewed_by': user.id, 'reviewed_by_name': user.name})
                 
             req_code = req_rec.request_code or f"appr_{req_rec.id}"
             status_val = req_rec.status
             reviewed_name = req_rec.reviewed_by_name or (req_rec.reviewed_by.name if req_rec.reviewed_by else "")
             return self._make_json_response({
-                "status": status_val,
+                "status": "success",
                 "success": True,
+                "approval_status": status_val,
+                "state": status_val,
                 "request_id": req_code,
                 "id": req_rec.id,
                 "approved_price": req_rec.approved_price,
@@ -12688,6 +12697,8 @@ class HavanoPOSDeskAPI(http.Controller):
                     "request_id": req_code,
                     "id": req_rec.id,
                     "status": status_val,
+                    "state": status_val,
+                    "approval_status": status_val,
                     "approved_price": req_rec.approved_price,
                     "counter_price": req_rec.counter_price,
                     "note": req_rec.note or "",
