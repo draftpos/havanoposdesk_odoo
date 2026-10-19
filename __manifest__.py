@@ -148,6 +148,8 @@
             'havanoposdesk_odoo/static/src/scss/section_and_note.scss',
             'havanoposdesk_odoo/static/src/js/section_and_note_fields.js',
             'havanoposdesk_odoo/static/src/xml/section_and_note.xml',
+            'havanoposdesk_odoo/static/src/scss/price_approval_notification.scss',
+            'havanoposdesk_odoo/static/src/js/price_approval_notification.js',
         ],
     },
     'post_init_hook': 'hooks.post_init_hook',
