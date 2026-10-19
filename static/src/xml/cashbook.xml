@@ -14,7 +14,7 @@
                                 PDF
                             </button>
                             <!-- XLSX Button (White) -->
-                            <button type="button" class="btn btn-secondary" style="background-color: #ffffff; border-color: #d3d3d3; color: #4c4c4c; border-radius: 3px; padding: 4px 10px; font-size: 13px; font-weight: 500;">
+                            <button type="button" class="btn btn-secondary" style="background-color: #ffffff; border-color: #d3d3d3; color: #4c4c4c; border-radius: 3px; padding: 4px 10px; font-size: 13px; font-weight: 500;" t-on-click="() => this.exportXLSX()">
                                 XLSX
                             </button>
                             <!-- Title -->
