@@ -179,12 +179,29 @@ class PosPriceApprovalRequest(models.Model):
 
     def _notify_pos_resolved(self):
         try:
+            code = self.request_code or f"appr_{self.id}"
+            reviewed_name = self.reviewed_by_name or (self.reviewed_by.name if self.reviewed_by else "")
             payload = {
-                'request_id': self.request_code or f"appr_{self.id}",
+                'request_id': code,
+                'id': self.id,
                 'status': self.status,
                 'approved_price': self.approved_price,
                 'counter_price': self.counter_price,
-                'note': self.note or (f"Approved by {self.reviewed_by.name}" if self.status == 'approved' and self.reviewed_by else '')
+                'note': self.note or '',
+                'rejection_reason': self.note or '',
+                'reviewed_by': reviewed_name,
+                'reviewed_by_name': reviewed_name,
+                'data': {
+                    'request_id': code,
+                    'id': self.id,
+                    'status': self.status,
+                    'approved_price': self.approved_price,
+                    'counter_price': self.counter_price,
+                    'note': self.note or '',
+                    'rejection_reason': self.note or '',
+                    'reviewed_by': reviewed_name,
+                    'reviewed_by_name': reviewed_name,
+                }
             }
             if hasattr(self.env['bus.bus'], '_sendone'):
                 channels = [

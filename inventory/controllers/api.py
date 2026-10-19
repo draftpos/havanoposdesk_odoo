@@ -12482,15 +12482,26 @@ class HavanoPOSDeskAPI(http.Controller):
                 'note': reason_note,
             })
             
+            req_code = req_rec.request_code or f"appr_{req_rec.id}"
             return self._make_json_response({
-                "status": "success",
+                "status": "pending",
+                "success": True,
+                "request_id": req_code,
+                "id": req_rec.id,
+                "product_id": prod_val,
+                "original_price": orig_price,
+                "requested_price": req_price,
+                "quantity": qty,
+                "expires_in_seconds": 60,
                 "data": {
-                    "request_id": req_rec.request_code or f"appr_{req_rec.id}",
+                    "request_id": req_code,
+                    "id": req_rec.id,
                     "status": "pending",
                     "product_id": prod_val,
                     "original_price": orig_price,
                     "requested_price": req_price,
-                    "quantity": qty
+                    "quantity": qty,
+                    "expires_in_seconds": 60
                 }
             }, status=200)
         except Exception as e:
@@ -12506,22 +12517,55 @@ class HavanoPOSDeskAPI(http.Controller):
             return self._make_json_response({})
         try:
             req_str = str(request_id).strip()
-            domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str) if req_str.isdigit() else 0)]
-            if req_str.startswith('appr_') and req_str[5:].isdigit():
-                domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str[5:]))]
+            req_rec = False
+            
+            # Self-healing fallback if client passes "null", "undefined", or empty
+            if req_str.lower() in ['null', 'undefined', '', '0', 'latest']:
+                user = self._get_user()
+                domain = []
+                if user.tenant_id:
+                    domain.append(('tenant_id', '=', user.tenant_id.id))
+                if user.id:
+                    domain.append(('cashier_id', '=', user.id))
+                req_rec = request.env['pos.price.approval.request'].sudo().search(domain, order='id desc', limit=1)
+            else:
+                domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str) if req_str.isdigit() else 0)]
+                if req_str.startswith('appr_') and req_str[5:].isdigit():
+                    domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str[5:]))]
+                req_rec = request.env['pos.price.approval.request'].sudo().search(domain, limit=1)
                 
-            req_rec = request.env['pos.price.approval.request'].sudo().search(domain, limit=1)
             if not req_rec:
-                return self._make_json_response({"status": "error", "message": "Approval request not found"}, status=404)
+                return self._make_json_response({
+                    "status": "not_found",
+                    "success": False,
+                    "message": "Approval request not found"
+                }, status=404)
                 
+            req_code = req_rec.request_code or f"appr_{req_rec.id}"
+            status_val = req_rec.status
+            reviewed_name = req_rec.reviewed_by_name or (req_rec.reviewed_by.name if req_rec.reviewed_by else "")
+            
             return self._make_json_response({
-                "status": "success",
+                "status": status_val,
+                "success": True,
+                "request_id": req_code,
+                "id": req_rec.id,
+                "approved_price": req_rec.approved_price,
+                "counter_price": req_rec.counter_price,
+                "note": req_rec.note or "",
+                "rejection_reason": req_rec.note or "",
+                "reviewed_by": reviewed_name,
+                "reviewed_by_name": reviewed_name,
                 "data": {
-                    "request_id": req_rec.request_code or f"appr_{req_rec.id}",
-                    "status": req_rec.status,
+                    "request_id": req_code,
+                    "id": req_rec.id,
+                    "status": status_val,
                     "approved_price": req_rec.approved_price,
                     "counter_price": req_rec.counter_price,
-                    "note": req_rec.note
+                    "note": req_rec.note or "",
+                    "rejection_reason": req_rec.note or "",
+                    "reviewed_by": reviewed_name,
+                    "reviewed_by_name": reviewed_name
                 }
             })
         except Exception as e:
@@ -12617,14 +12661,30 @@ class HavanoPOSDeskAPI(http.Controller):
             else:
                 return self._make_json_response({"status": "error", "message": f"Invalid action: {action}"}, status=400)
                 
+            req_code = req_rec.request_code or f"appr_{req_rec.id}"
+            status_val = req_rec.status
+            reviewed_name = req_rec.reviewed_by_name or (req_rec.reviewed_by.name if req_rec.reviewed_by else "")
             return self._make_json_response({
-                "status": "success",
+                "status": status_val,
+                "success": True,
+                "request_id": req_code,
+                "id": req_rec.id,
+                "approved_price": req_rec.approved_price,
+                "counter_price": req_rec.counter_price,
+                "note": req_rec.note or "",
+                "rejection_reason": req_rec.note or "",
+                "reviewed_by": reviewed_name,
+                "reviewed_by_name": reviewed_name,
                 "data": {
-                    "request_id": req_rec.request_code or f"appr_{req_rec.id}",
-                    "status": req_rec.status,
+                    "request_id": req_code,
+                    "id": req_rec.id,
+                    "status": status_val,
                     "approved_price": req_rec.approved_price,
                     "counter_price": req_rec.counter_price,
-                    "note": req_rec.note
+                    "note": req_rec.note or "",
+                    "rejection_reason": req_rec.note or "",
+                    "reviewed_by": reviewed_name,
+                    "reviewed_by_name": reviewed_name
                 }
             })
         except Exception as e:
