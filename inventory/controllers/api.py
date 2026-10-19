@@ -12465,6 +12465,12 @@ class HavanoPOSDeskAPI(http.Controller):
                 
             store = self._get_current_store(user, user.tenant_id, data)
             
+            tenant = user.tenant_id
+            requires_approval = bool(not tenant or tenant.require_price_change_approval)
+            initial_status = 'pending' if requires_approval else 'approved'
+            initial_appr_price = 0.0 if requires_approval else req_price
+            initial_note = reason_note if requires_approval else (reason_note or 'Auto-approved (Approvals turned off)')
+
             req_rec = request.env['pos.price.approval.request'].sudo().create({
                 'tenant_id': user.tenant_id.id if user.tenant_id else (user.company_id.id or 1),
                 'store_id': store.id if store else False,
@@ -12477,29 +12483,32 @@ class HavanoPOSDeskAPI(http.Controller):
                 'product_name': prod_name or 'Custom Item',
                 'original_price': orig_price,
                 'requested_price': req_price,
+                'approved_price': initial_appr_price,
                 'quantity': qty,
-                'status': 'pending',
-                'note': reason_note,
+                'status': initial_status,
+                'note': initial_note,
             })
             
             req_code = req_rec.request_code or f"appr_{req_rec.id}"
             return self._make_json_response({
-                "status": "pending",
+                "status": initial_status,
                 "success": True,
                 "request_id": req_code,
                 "id": req_rec.id,
                 "product_id": prod_val,
                 "original_price": orig_price,
                 "requested_price": req_price,
+                "approved_price": initial_appr_price,
                 "quantity": qty,
                 "expires_in_seconds": 60,
                 "data": {
                     "request_id": req_code,
                     "id": req_rec.id,
-                    "status": "pending",
+                    "status": initial_status,
                     "product_id": prod_val,
                     "original_price": orig_price,
                     "requested_price": req_price,
+                    "approved_price": initial_appr_price,
                     "quantity": qty,
                     "expires_in_seconds": 60
                 }

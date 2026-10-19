@@ -150,6 +150,8 @@ class PosPriceApprovalRequest(models.Model):
 
     def _notify_backoffice_new_request(self):
         try:
+            if self.tenant_id and not self.tenant_id.require_price_change_approval:
+                return
             payload = {
                 'request_id': self.request_code or f"appr_{self.id}",
                 'product_name': self.product_name,
