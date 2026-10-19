@@ -5498,6 +5498,59 @@ class HavanoPOSDeskAPI(http.Controller):
             if custom_cr:
                 custom_cr.close()
 
+    @http.route('/api/cashbook/export_xlsx', auth='public', methods=['GET', 'POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_cashbook_export_xlsx(self, **kwargs):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({}, status=200)
+        try:
+            token = request.httprequest.headers.get('Authorization')
+            params = self._get_request_json() if request.httprequest.method in ['POST'] else request.params
+            if not token:
+                token = params.get('token')
+
+            user = None
+            if token:
+                uid, login = self._verify_token(token)
+                if uid:
+                    user = request.env['res.users'].sudo().browse(uid)
+            if not user or not user.exists():
+                user = self._get_user()
+            if not user or not user.exists() or (request.env.ref('base.public_user', raise_if_not_found=False) and user.id == request.env.ref('base.public_user').id):
+                return self._make_json_response({"status": "error", "message": "Authentication required"}, status=401)
+
+            date_from = params.get('date_from') or params.get('from_date') or None
+            date_to = params.get('date_to') or params.get('to_date') or None
+            store_ids_raw = params.get('store_ids') or params.get('store_id')
+            comparison = params.get('comparison') or 'none'
+
+            store_ids = None
+            if store_ids_raw:
+                if isinstance(store_ids_raw, list):
+                    store_ids = [int(s) for s in store_ids_raw if str(s).isdigit()]
+                else:
+                    parts = [s.strip() for s in str(store_ids_raw).split(',') if s.strip().isdigit()]
+                    if parts:
+                        store_ids = [int(p) for p in parts]
+
+            xlsx_content = request.env['havanoposdesk.cashbook'].with_user(user).generate_xlsx_report(
+                date_from=date_from,
+                date_to=date_to,
+                store_ids=store_ids,
+                comparison=comparison
+            )
+
+            filename = f"Store_Cashbook_{fields.Date.today()}.xlsx"
+            return request.make_response(
+                xlsx_content,
+                headers=[
+                    ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+                    ('Content-Disposition', f'attachment; filename="{filename}"')
+                ]
+            )
+        except Exception as e:
+            _logger.exception("Error exporting cashbook xlsx: %s", e)
+            return self._make_json_response({"status": "error", "message": str(e)}, status=500)
+
     @http.route('/api/resource/Customer', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
     def api_resource_customer(self, **kwargs):
         if request.httprequest.method == 'OPTIONS':
