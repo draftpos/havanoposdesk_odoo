@@ -91,6 +91,7 @@
         'sales/views/sales_item_tax_report_views.xml',
         'sales/views/purchases_item_tax_report_views.xml',
         'sales/views/sales_stock_valuation_report_views.xml',
+        'sales/views/pos_price_approval_request_views.xml',
         'sales/views/sale_mobile_kanban_views.xml',
         'core/views/monitoring_views.xml',
         'core/views/clear_data_wizard_views.xml',

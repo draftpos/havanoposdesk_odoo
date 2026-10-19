@@ -52,6 +52,8 @@ class HavanoPOSDeskAPI(http.Controller):
                 env.cr.execute("ALTER TABLE havanoposdesk_sale ADD COLUMN IF NOT EXISTS total_qty DOUBLE PRECISION DEFAULT 0.0;")
                 env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_variant_attributes BOOLEAN DEFAULT FALSE;")
                 env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_hs_code BOOLEAN DEFAULT FALSE;")
+                env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS require_price_change_approval BOOLEAN DEFAULT FALSE;")
+                env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS price_approval_min_threshold_percent DOUBLE PRECISION DEFAULT 0.0;")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_seq_prefix VARCHAR DEFAULT 'S';")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_seq_next INTEGER DEFAULT 1;")
                 env.cr.execute("ALTER TABLE havanoposdesk_store ADD COLUMN IF NOT EXISTS sale_seq_padding INTEGER DEFAULT 4;")
@@ -2692,7 +2694,9 @@ class HavanoPOSDeskAPI(http.Controller):
                 'company': company_name,
                 'warehouse': warehouse,
                 'cost_center': cost_center,
-                'currency': currency
+                'currency': currency,
+                'require_price_change_approval': bool(tenant and tenant.require_price_change_approval),
+                'price_approval_min_threshold_percent': float(tenant.price_approval_min_threshold_percent if tenant else 0.0)
             }
         }
         return request.make_response(json.dumps(res_data), headers=[('Content-Type', 'application/json')])
@@ -10641,6 +10645,8 @@ class HavanoPOSDeskAPI(http.Controller):
             "tz": user.tz or 'UTC',
             "timezone": user.tz or 'UTC',
             "enable_item_group_subunits": bool(user.tenant_id and user.tenant_id.enable_item_group_subunits),
+            "require_price_change_approval": bool(user.tenant_id and user.tenant_id.require_price_change_approval),
+            "price_approval_min_threshold_percent": float(user.tenant_id.price_approval_min_threshold_percent if user.tenant_id else 0.0),
             "has_category_restriction": is_restricted,
             "allowed_category_ids": effective_cats,
             "allowed_item_groups": allowed_groups,
@@ -12421,3 +12427,206 @@ class HavanoPOSDeskAPI(http.Controller):
         finally:
             if custom_cr:
                 custom_cr.close()
+
+    # =========================================================================
+    # POS PRICE APPROVAL WORKFLOW
+    # =========================================================================
+    @http.route('/api/pos/price-approval/request', auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_pos_price_approval_request(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({})
+        try:
+            user = self._get_user()
+            data = self._get_request_json() or request.params
+            
+            prod_val = data.get('product_id')
+            prod_name = data.get('product_name') or ''
+            orig_price = float(data.get('original_price') or 0.0)
+            req_price = float(data.get('requested_price') or 0.0)
+            qty = float(data.get('quantity') or 1.0)
+            pos_prof = data.get('pos_profile') or ''
+            terminal_id = data.get('terminal_id') or ''
+            reason_note = data.get('reason') or data.get('note') or ''
+            
+            product_rec = False
+            prod_id_str = str(prod_val) if prod_val else ''
+            if isinstance(prod_val, int) or (isinstance(prod_val, str) and str(prod_val).isdigit()):
+                product_rec = request.env['havanoposdesk.product'].sudo().browse(int(prod_val))
+                if not product_rec.exists():
+                    product_rec = False
+            if not product_rec and prod_val:
+                product_rec = request.env['havanoposdesk.product'].sudo().search([
+                    ('tenant_id', '=', user.tenant_id.id if user.tenant_id else False),
+                    '|', ('item_code', '=', str(prod_val)), ('barcode', '=', str(prod_val))
+                ], limit=1)
+                
+            if product_rec and not prod_name:
+                prod_name = product_rec.name
+                
+            store = self._get_current_store(user, user.tenant_id, data)
+            
+            req_rec = request.env['pos.price.approval.request'].sudo().create({
+                'tenant_id': user.tenant_id.id if user.tenant_id else (user.company_id.id or 1),
+                'store_id': store.id if store else False,
+                'pos_profile': pos_prof or (store.name if store else ''),
+                'terminal_id': str(terminal_id),
+                'cashier_id': user.id,
+                'cashier_name': user.name,
+                'product_id': product_rec.id if product_rec else False,
+                'product_id_str': prod_id_str,
+                'product_name': prod_name or 'Custom Item',
+                'original_price': orig_price,
+                'requested_price': req_price,
+                'quantity': qty,
+                'status': 'pending',
+                'note': reason_note,
+            })
+            
+            return self._make_json_response({
+                "status": "success",
+                "data": {
+                    "request_id": req_rec.request_code or f"appr_{req_rec.id}",
+                    "status": "pending",
+                    "product_id": prod_val,
+                    "original_price": orig_price,
+                    "requested_price": req_price,
+                    "quantity": qty
+                }
+            }, status=200)
+        except Exception as e:
+            _logger.exception("Error in api_pos_price_approval_request: %s", e)
+            return self._make_json_response({"status": "error", "message": str(e)}, status=500)
+
+    @http.route([
+        '/api/pos/price-approval/status/<string:request_id>',
+        '/api/pos/price-approval/status/<int:request_id>'
+    ], auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_pos_price_approval_status(self, request_id, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({})
+        try:
+            req_str = str(request_id).strip()
+            domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str) if req_str.isdigit() else 0)]
+            if req_str.startswith('appr_') and req_str[5:].isdigit():
+                domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str[5:]))]
+                
+            req_rec = request.env['pos.price.approval.request'].sudo().search(domain, limit=1)
+            if not req_rec:
+                return self._make_json_response({"status": "error", "message": "Approval request not found"}, status=404)
+                
+            return self._make_json_response({
+                "status": "success",
+                "data": {
+                    "request_id": req_rec.request_code or f"appr_{req_rec.id}",
+                    "status": req_rec.status,
+                    "approved_price": req_rec.approved_price,
+                    "counter_price": req_rec.counter_price,
+                    "note": req_rec.note
+                }
+            })
+        except Exception as e:
+            _logger.exception("Error in api_pos_price_approval_status: %s", e)
+            return self._make_json_response({"status": "error", "message": str(e)}, status=500)
+
+    @http.route([
+        '/api/pos/price-approval/cancel/<string:request_id>',
+        '/api/pos/price-approval/cancel/<int:request_id>'
+    ], auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_pos_price_approval_cancel(self, request_id, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({})
+        try:
+            req_str = str(request_id).strip()
+            domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str) if req_str.isdigit() else 0)]
+            if req_str.startswith('appr_') and req_str[5:].isdigit():
+                domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str[5:]))]
+                
+            req_rec = request.env['pos.price.approval.request'].sudo().search(domain, limit=1)
+            if req_rec:
+                req_rec.action_cancel()
+            return self._make_json_response({
+                "status": "success",
+                "message": "Approval request cancelled"
+            })
+        except Exception as e:
+            _logger.exception("Error in api_pos_price_approval_cancel: %s", e)
+            return self._make_json_response({"status": "error", "message": str(e)}, status=500)
+
+    @http.route('/api/pos/price-approval/pending', auth='public', methods=['GET', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_pos_price_approval_pending(self, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({})
+        try:
+            user = self._get_user()
+            domain = [('status', '=', 'pending')]
+            if user.tenant_id and user.havano_role != 'super_admin':
+                domain.append(('tenant_id', '=', user.tenant_id.id))
+                
+            requests = request.env['pos.price.approval.request'].sudo().search(domain, order='create_date desc')
+            res_list = []
+            for r in requests:
+                res_list.append({
+                    "request_id": r.request_code or f"appr_{r.id}",
+                    "cashier_name": r.cashier_name or (r.cashier_id.name if r.cashier_id else ''),
+                    "pos_profile": r.pos_profile or '',
+                    "product_name": r.product_name,
+                    "quantity": r.quantity,
+                    "original_price": r.original_price,
+                    "requested_price": r.requested_price,
+                    "difference_percent": r.difference_percent,
+                    "created_at": fields.Datetime.to_string(r.created_at) if r.created_at else ''
+                })
+            return self._make_json_response({
+                "status": "success",
+                "data": res_list
+            })
+        except Exception as e:
+            _logger.exception("Error in api_pos_price_approval_pending: %s", e)
+            return self._make_json_response({"status": "error", "message": str(e)}, status=500)
+
+    @http.route([
+        '/api/pos/price-approval/resolve/<string:request_id>',
+        '/api/pos/price-approval/resolve/<int:request_id>'
+    ], auth='public', methods=['POST', 'OPTIONS'], type='http', csrf=False, cors='*')
+    def api_pos_price_approval_resolve(self, request_id, **kw):
+        if request.httprequest.method == 'OPTIONS':
+            return self._make_json_response({})
+        try:
+            user = self._get_user()
+            data = self._get_request_json() or request.params
+            action = data.get('action') # 'approve' | 'reject' | 'counter_offer'
+            note = data.get('note') or ''
+            counter_price = data.get('counter_price')
+            
+            req_str = str(request_id).strip()
+            domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str) if req_str.isdigit() else 0)]
+            if req_str.startswith('appr_') and req_str[5:].isdigit():
+                domain = ['|', ('request_code', '=', req_str), ('id', '=', int(req_str[5:]))]
+                
+            req_rec = request.env['pos.price.approval.request'].sudo().search(domain, limit=1)
+            if not req_rec:
+                return self._make_json_response({"status": "error", "message": "Approval request not found"}, status=404)
+                
+            if action == 'approve':
+                req_rec.with_user(user).action_approve(note=note)
+            elif action == 'reject':
+                req_rec.with_user(user).action_reject(note=note)
+            elif action == 'counter_offer':
+                cp = float(counter_price or 0.0)
+                req_rec.with_user(user).action_counter_offer(counter_price=cp, note=note)
+            else:
+                return self._make_json_response({"status": "error", "message": f"Invalid action: {action}"}, status=400)
+                
+            return self._make_json_response({
+                "status": "success",
+                "data": {
+                    "request_id": req_rec.request_code or f"appr_{req_rec.id}",
+                    "status": req_rec.status,
+                    "approved_price": req_rec.approved_price,
+                    "counter_price": req_rec.counter_price,
+                    "note": req_rec.note
+                }
+            })
+        except Exception as e:
+            _logger.exception("Error in api_pos_price_approval_resolve: %s", e)
+            return self._make_json_response({"status": "error", "message": str(e)}, status=500)

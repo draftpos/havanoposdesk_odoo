@@ -12,9 +12,8 @@
                     <field name="closing_stock" string="Closing Stock" sum="Total Closing Stock"/>
                     <field name="wholesale_valuation" string="Wholesale" widget="monetary" sum="Total Wholesale"/>
                     <field name="retail_valuation" string="Retail" widget="monetary" sum="Total Retail"/>
-                    <field name="other_valuation" string="Other Pricelists" widget="monetary" sum="Total Other" optional="show"/>
-                    <field name="total_valuation" string="Total" widget="monetary" sum="Total Valuation"/>
-                    <field name="sales_amount" string="Actual Sales" widget="monetary" sum="Total Sales" optional="show"/>
+                    <field name="other_valuation" string="Other Pricelists" widget="monetary" sum="Total Other" optional="hide"/>
+                    <field name="sales_amount" string="Actual Sales" widget="monetary" sum="Total Sales"/>
                 </list>
             </field>
         </record>
@@ -29,7 +28,6 @@
                     <field name="closing_stock" type="measure"/>
                     <field name="wholesale_valuation" type="measure"/>
                     <field name="retail_valuation" type="measure"/>
-                    <field name="total_valuation" type="measure"/>
                     <field name="sales_amount" type="measure"/>
                 </pivot>
             </field>

@@ -368,6 +368,13 @@
                         <setting string="Restrict Price Modification" help="If checked, only Tenant Admins can modify unit prices on sales and purchases.">
                             <field name="biz_restrict_price_modification"/>
                         </setting>
+                        <setting string="Require Price Change Approval" help="Require manager approval from Back Office when a POS cashier modifies item prices.">
+                            <field name="biz_require_price_change_approval"/>
+                            <div class="content-group mt8" invisible="not biz_require_price_change_approval">
+                                <label for="biz_price_approval_min_threshold_percent" string="Min Discount Threshold (%)"/>
+                                <field name="biz_price_approval_min_threshold_percent" class="oe_inline"/>
+                            </div>
+                        </setting>
                         <setting string="Allow Credit Sales" help="Allow creating sales invoices on credit (e.g. from POS terminals or API).">
                             <field name="biz_allow_credit_sales"/>
                         </setting>

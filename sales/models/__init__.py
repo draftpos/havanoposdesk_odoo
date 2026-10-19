@@ -11,3 +11,4 @@ from . import shift
 from . import sales_item_tax_report
 from . import purchases_item_tax_report
 from . import sales_stock_valuation_report
+from . import pos_price_approval_request

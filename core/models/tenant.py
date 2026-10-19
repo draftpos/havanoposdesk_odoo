@@ -40,6 +40,8 @@ class HavanoposdeskTenant(models.Model):
             ("theme_color", "VARCHAR"),
             ("product_name_format", "VARCHAR"),
             ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
+            ("require_price_change_approval", "BOOLEAN DEFAULT FALSE"),
+            ("price_approval_min_threshold_percent", "DOUBLE PRECISION DEFAULT 0.0"),
             ("payment_status", "VARCHAR"),
             ("enable_fiscalization", "BOOLEAN DEFAULT FALSE"),
             ("restaurant_mode_enabled", "BOOLEAN DEFAULT FALSE"),
@@ -639,6 +641,18 @@ class HavanoposdeskTenant(models.Model):
         string="Restrict Price Modification",
         default=False,
         help="If checked, only Tenant Admins can modify unit prices on sales and purchases."
+    )
+    
+    require_price_change_approval = fields.Boolean(
+        string="Require Price Change Approval",
+        default=False,
+        help="If checked, any price changes on POS terminals require manager approval from Back Office."
+    )
+    
+    price_approval_min_threshold_percent = fields.Float(
+        string="Price Approval Min Threshold (%)",
+        default=0.0,
+        help="Discount percentage threshold before approval is required. If 0%, all changes require approval."
     )
     
     payment_status = fields.Selection([
