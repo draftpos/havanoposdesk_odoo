@@ -175,6 +175,20 @@ export class CashbookReport extends Component {
     printReport() {
         window.print();
     }
+
+    exportXLSX() {
+        const dateFrom = this.state.dateFrom || '';
+        const dateTo = this.state.dateTo || '';
+        const storeIds = (this.state.selectedStores || []).join(',');
+        const comp = this.state.comparison || 'none';
+        const url = `/api/cashbook/export_xlsx?date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}&store_ids=${encodeURIComponent(storeIds)}&comparison=${encodeURIComponent(comp)}`;
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `Store_Cashbook_${dateFrom}_${dateTo}.xlsx`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 }
 
 CashbookReport.template = "havanoposdesk.CashbookReport";
