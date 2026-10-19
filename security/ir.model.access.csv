@@ -86,3 +86,4 @@ access_havanoposdesk_purchases_item_tax_report,havanoposdesk.purchases.item.tax.
 access_havanoposdesk_attribute,havanoposdesk.attribute,model_havanoposdesk_attribute,base.group_user,1,1,1,1
 access_havanoposdesk_attribute_value,havanoposdesk.attribute.value,model_havanoposdesk_attribute_value,base.group_user,1,1,1,1
 access_havanoposdesk_tenant_analytics,havanoposdesk.tenant.analytics,model_havanoposdesk_tenant_analytics,base.group_user,1,1,1,1
+access_havanoposdesk_sales_stock_valuation_report,havanoposdesk.sales.stock.valuation.report,model_havanoposdesk_sales_stock_valuation_report,base.group_user,1,1,1,1
