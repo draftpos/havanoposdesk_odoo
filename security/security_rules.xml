@@ -253,6 +253,14 @@
             <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids), ('salesperson_id', '=', user.id)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
         </record>
 
+        <!-- Sales Stock Valuation Report Model Isolation Rule -->
+        <record id="rule_havano_sales_stock_valuation_report_isolation" model="ir.rule">
+            <field name="name">Havano Sales Stock Valuation Report Isolation</field>
+            <field name="model_id" ref="model_havanoposdesk_sales_stock_valuation_report"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[] if user.havano_role == 'super_admin' or not user.tenant_id else [('tenant_id', '=', user.tenant_id.id), '|', ('store_id', '=', False), ('store_id', 'in', user.store_ids.ids)] if user.havano_role == 'user' else [('tenant_id', '=', user.tenant_id.id)]</field>
+        </record>
+
         <!-- Cash Transfer Model Isolation Rule -->
         <record id="rule_havano_cash_transfer_isolation" model="ir.rule">
             <field name="name">Havano Cash Transfer Isolation</field>
