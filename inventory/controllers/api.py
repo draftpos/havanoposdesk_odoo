@@ -7098,7 +7098,14 @@ class HavanoPOSDeskAPI(http.Controller):
         try:
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
-            product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
+            product = env['havanoposdesk.product'].search([
+                ('item_code', '=', item_code),
+                ('tenant_id', '=', tenant.id),
+                ('not_for_sale', '=', False),
+                ('is_active', '=', True)
+            ], limit=1)
+            if not product:
+                return self._make_json_response({"message": {"stock": []}})
             qty = product.opening_stock if product else 0.0
             return self._make_json_response({
                 "message": {
@@ -7860,7 +7867,14 @@ class HavanoPOSDeskAPI(http.Controller):
         try:
             user = env['res.users'].browse(uid)
             tenant = user.tenant_id
-            product = env['havanoposdesk.product'].search([('item_code', '=', item_code), ('tenant_id', '=', tenant.id)], limit=1)
+            product = env['havanoposdesk.product'].search([
+                ('item_code', '=', item_code),
+                ('tenant_id', '=', tenant.id),
+                ('not_for_sale', '=', False),
+                ('is_active', '=', True)
+            ], limit=1)
+            if not product:
+                return self._make_json_response({"message": {"stock": []}})
             qty = product.opening_stock if product else 0.0
             return self._make_json_response({
                 "message": {

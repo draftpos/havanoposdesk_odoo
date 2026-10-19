@@ -5,8 +5,8 @@ streams:
   tenant_master:
     auto_subscribe: true
     queries:
-      # 1. Products Catalog
-      - SELECT * FROM havanoposdesk_product AS "products" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+      # 1. Products Catalog (strictly exclude Not For Sale and inactive)
+      - SELECT * FROM havanoposdesk_product AS "products" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER) AND (is_active IS TRUE OR is_active IS NULL) AND (not_for_sale IS FALSE OR not_for_sale IS NULL)
 
       # 2. Categories / Item Groups
       - SELECT * FROM havanoposdesk_category AS "item_groups" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
@@ -14,11 +14,11 @@ streams:
       # 3. Units of Measure (UOM)
       - SELECT * FROM havanoposdesk_uom AS "uoms" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
 
-      # 4. Store-Specific UOM Prices & Overrides
-      - SELECT * FROM havanoposdesk_product_uom_price AS "item_price_lists" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+      # 4. Store-Specific UOM Prices & Overrides (exclude prices for Not For Sale or inactive products)
+      - SELECT * FROM havanoposdesk_product_uom_price AS "item_price_lists" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER) AND product_id IN (SELECT id FROM havanoposdesk_product WHERE (not_for_sale IS FALSE OR not_for_sale IS NULL) AND (is_active IS TRUE OR is_active IS NULL))
 
-      # 5. Product Bundles & Combo Recipes
-      - SELECT * FROM havanoposdesk_product_bundle_item AS "product_bundles" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+      # 5. Product Bundles & Combo Recipes (exclude combos with Not For Sale components or parents)
+      - SELECT * FROM havanoposdesk_product_bundle_item AS "product_bundles" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER) AND parent_product_id IN (SELECT id FROM havanoposdesk_product WHERE (not_for_sale IS FALSE OR not_for_sale IS NULL) AND (is_active IS TRUE OR is_active IS NULL)) AND product_id IN (SELECT id FROM havanoposdesk_product WHERE (not_for_sale IS FALSE OR not_for_sale IS NULL) AND (is_active IS TRUE OR is_active IS NULL))
 
       # 6. Customers & Walk-ins
       - SELECT * FROM havanoposdesk_customer AS "customers" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
@@ -32,8 +32,8 @@ streams:
       # 9. POS Terminals
       - SELECT * FROM havanoposdesk_pos_terminal AS "terminals" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
 
-      # 10. Live Inventory Stock Balances
-      - SELECT * FROM havanoposdesk_stock_valuation AS "inventory" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+      # 10. Live Inventory Stock Balances (exclude inventory balances for Not For Sale or inactive products)
+      - SELECT * FROM havanoposdesk_stock_valuation AS "inventory" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER) AND product_id IN (SELECT id FROM havanoposdesk_product WHERE (not_for_sale IS FALSE OR not_for_sale IS NULL) AND (is_active IS TRUE OR is_active IS NULL))
 
       # 11. Cashier Shifts
       - SELECT * FROM havanoposdesk_shift AS "shifts" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)

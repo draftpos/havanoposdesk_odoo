@@ -69,6 +69,9 @@ class StockValuationDateWizard(models.TransientModel):
         
         report_lines = []
         for key, data in stock_data.items():
+            if self.tenant_id.stock_valuation_method == 'fifo' and data['on_hand_qty'] > 0:
+                prod = self.env['havanoposdesk.product'].browse(data['product_id'])
+                data['buying_price'] = prod._compute_fifo_cost(on_hand_qty=data['on_hand_qty'], date_to=self.date_to)
             report_lines.append({
                 'wizard_id': self.id,
                 'tenant_id': self.tenant_id.id,
