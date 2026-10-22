@@ -28,6 +28,8 @@ class ResConfigSettings(models.TransientModel):
     @api.model
     def default_get(self, fields_list):
         self._ensure_tenant_columns()
+        if fields_list:
+            fields_list = [f for f in fields_list if f in self._fields]
         return super().default_get(fields_list)
 
     @api.model
@@ -62,6 +64,8 @@ class ResConfigSettings(models.TransientModel):
                 ("theme_color", "VARCHAR"),
                 ("product_name_format", "VARCHAR"),
                 ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
+                ("require_price_change_approval", "BOOLEAN DEFAULT FALSE"),
+                ("price_approval_min_threshold_percent", "DOUBLE PRECISION DEFAULT 0.0"),
                 ("payment_status", "VARCHAR"),
                 ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
                 ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
@@ -109,6 +113,18 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.restrict_price_modification',
         readonly=False,
         string="Restrict Price Modification"
+    )
+
+    biz_require_price_change_approval = fields.Boolean(
+        related='tenant_id.require_price_change_approval',
+        readonly=False,
+        string="Require Price Change Approval"
+    )
+
+    biz_price_approval_min_threshold_percent = fields.Float(
+        related='tenant_id.price_approval_min_threshold_percent',
+        readonly=False,
+        string="Min Discount Threshold (%)"
     )
 
     biz_restaurant_mode_enabled = fields.Boolean(
