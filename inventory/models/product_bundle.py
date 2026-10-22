@@ -1,4 +1,5 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError
 
 class HavanoposdeskProductBundleItem(models.Model):
     _name = 'havanoposdesk.product.bundle.item'
@@ -28,6 +29,12 @@ class HavanoposdeskProductBundleItem(models.Model):
         required=True, 
         default=lambda self: self.env.user.tenant_id.id or (self.env['havanoposdesk.tenant'].search([], limit=1) or self.env['havanoposdesk.tenant'].create({'name': 'Default Tenant'})).id
     )
+
+    @api.constrains('parent_product_id', 'product_id')
+    def _check_self_bundle(self):
+        for item in self:
+            if item.parent_product_id and item.product_id and item.parent_product_id.id == item.product_id.id:
+                raise ValidationError(_("A bundle cannot contain itself as a component!"))
 
     @api.depends('product_id')
     def _compute_prices(self):

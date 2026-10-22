@@ -15,9 +15,17 @@ class HavanoposdeskProductUomPrice(models.Model):
             pass
         return res
 
-    _constraints = [
-        models.Constraint('unique (product_id, store_id, pricelist_id, uom_id)', 'A price line for this combination of Store, Pricelist, and Unit of Measure already exists for this product! At least one must be different.')
-    ]
+    @api.constrains('product_id', 'store_id', 'pricelist_id', 'uom_id')
+    def _check_unique_product_id_store_id_pricelist_id_uom_id_0(self):
+        for record in self:
+            if record.product_id and record.store_id and record.pricelist_id and record.uom_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('product_id', '=', record.product_id.id if hasattr(record.product_id, 'id') else record.product_id))
+                domain.append(('store_id', '=', record.store_id.id if hasattr(record.store_id, 'id') else record.store_id))
+                domain.append(('pricelist_id', '=', record.pricelist_id.id if hasattr(record.pricelist_id, 'id') else record.pricelist_id))
+                domain.append(('uom_id', '=', record.uom_id.id if hasattr(record.uom_id, 'id') else record.uom_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("A price line for this combination of Store, Pricelist, and Unit of Measure already exists for this product! At least one must be different.")
 
     product_id = fields.Many2one('havanoposdesk.product', string='Product', required=True, ondelete='cascade')
     store_id = fields.Many2one('havanoposdesk.store', string='Store', required=True)

@@ -13,7 +13,7 @@ import logging
 _logger = logging.getLogger(__name__)
 
 class HavanoAccessController(http.Controller):
-    @http.route('/havano/check_access', type='json', auth='user')
+    @http.route('/havano/check_access', type='jsonrpc', auth='user')
     def check_access(self, model):
         # Default allow if not matched
         res = {'canCreate': True, 'canViewDetail': True, 'canEdit': True, 'canDelete': True}
@@ -119,6 +119,13 @@ class HavanoAuthSignup(AuthSignupHome):
 
         if 'error' not in qcontext and request.httprequest.method == 'POST':
             try:
+                try:
+                    with request.env.cr.savepoint():
+                        request.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_variant_attributes BOOLEAN DEFAULT FALSE;")
+                        request.env.cr.execute("ALTER TABLE havanoposdesk_tenant ADD COLUMN IF NOT EXISTS enable_hs_code BOOLEAN DEFAULT FALSE;")
+                    request.env.cr.commit()
+                except Exception:
+                    pass
                 request.env = request.env(context=dict(request.env.context, no_reset_password=True, create_user=True))
                 self.do_signup(qcontext)
                 

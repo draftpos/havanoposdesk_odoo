@@ -19,11 +19,44 @@ class HavanoposdeskProduct(models.Model):
             pass
         return res
 
-    _constraints = [
-        models.Constraint('unique (name, tenant_id)', 'The product name must be unique per tenant!'),
-        models.Constraint('unique (item_code, tenant_id)', 'The Product Code must be unique per tenant!'),
-        models.Constraint('unique (barcode, tenant_id)', 'The Product Barcode must be unique per tenant!')
-    ]
+    @api.model
+    def _register_hook(self):
+        super()._register_hook()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS sellbyprice BOOLEAN DEFAULT FALSE;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS hs_code VARCHAR;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_product ADD COLUMN IF NOT EXISTS print_after_order BOOLEAN DEFAULT FALSE;")
+        except Exception:
+            pass
+
+    @api.constrains('name', 'tenant_id')
+    def _check_unique_name_tenant_id_0(self):
+        for record in self:
+            if record.name and record.tenant_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('name', '=', record.name.id if hasattr(record.name, 'id') else record.name))
+                domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("The product name must be unique per tenant!")
+    @api.constrains('item_code', 'tenant_id')
+    def _check_unique_item_code_tenant_id_1(self):
+        for record in self:
+            if record.item_code and record.tenant_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('item_code', '=', record.item_code.id if hasattr(record.item_code, 'id') else record.item_code))
+                domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("The Product Code must be unique per tenant!")
+    @api.constrains('barcode', 'tenant_id')
+    def _check_unique_barcode_tenant_id_2(self):
+        for record in self:
+            if record.barcode and record.tenant_id:
+                domain = [('id', '!=', record.id)]
+                domain.append(('barcode', '=', record.barcode.id if hasattr(record.barcode, 'id') else record.barcode))
+                domain.append(('tenant_id', '=', record.tenant_id.id if hasattr(record.tenant_id, 'id') else record.tenant_id))
+                if self.search_count(domain) > 0:
+                    raise odoo.exceptions.ValidationError("The Product Barcode must be unique per tenant!")
 
     name = fields.Char(string='Product Name', required=True)
     item_code = fields.Char(string='Product Code', required=False, copy=False, default=lambda self: 'New')
@@ -110,6 +143,7 @@ class HavanoposdeskProduct(models.Model):
     uom_price_ids = fields.One2many('havanoposdesk.product.uom.price', 'product_id', string='UOM Prices')
     markup = fields.Float(string='Markup', compute='_compute_markup')
     cost_price = fields.Float(string='Cost Price')
+    stock_valuation_method = fields.Selection(related='tenant_id.stock_valuation_method', string='Valuation Method', readonly=True)
     track_qty = fields.Boolean(string='Track Qty', default=True)
     is_variant = fields.Boolean(string='Is Variant', default=False)
     enable_variant_attributes = fields.Boolean(related='tenant_id.enable_variant_attributes', string='Enable Variant Attributes')
@@ -184,7 +218,7 @@ class HavanoposdeskProduct(models.Model):
                 unallocated_qty = sum(unallocated_vals.mapped('on_hand_qty'))
                 record.on_hand_qty = sum(record.variant_ids.mapped('on_hand_qty')) + unallocated_qty
             else:
-                valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', '=', record.id)])
+                valuations = self.env['havanoposdesk.stock.valuation'].search([('product_id', 'in', record.ids)])
                 record.on_hand_qty = sum(valuations.mapped('on_hand_qty'))
 
     sale_tax_ids = fields.Many2many('havanoposdesk.tax', 'product_sale_tax_rel', 'product_id', 'tax_id', string='Sales Taxes', domain=[('tax_type', '=', 'Sales'), ('active', '=', True)])
@@ -402,6 +436,33 @@ class HavanoposdeskProduct(models.Model):
             for product in self:
                 if not product.is_variant:
                     super(HavanoposdeskProduct, product).write({'is_variant': True})
+
+        if 'selling_price' in vals and vals.get('selling_price') is not None:
+            new_sell_price = float(vals['selling_price'])
+            for product in self:
+                uom_prices = self.env['havanoposdesk.product.uom.price'].search([
+                    ('product_id', '=', product.id),
+                ])
+                if uom_prices:
+                    for uom_price in uom_prices:
+                        if not uom_price.qty_to_be_sold or uom_price.qty_to_be_sold == 1.0 or (product.uom_id and uom_price.uom_id == product.uom_id):
+                            uom_price.write({'price': new_sell_price})
+                elif product.allow_advanced_pricing and product.store_ids and product.uom_id:
+                    default_pricelist = self.env['havanoposdesk.pricelist'].search([('tenant_id', '=', product.tenant_id.id), ('name', 'ilike', 'Retail')], limit=1)
+                    if not default_pricelist:
+                        default_pricelist = self.env['havanoposdesk.pricelist'].search([('tenant_id', '=', product.tenant_id.id)], limit=1)
+                    if not default_pricelist:
+                        default_pricelist = self.env['havanoposdesk.pricelist'].create({'name': 'Retail', 'tenant_id': product.tenant_id.id})
+                    for store in product.store_ids:
+                        self.env['havanoposdesk.product.uom.price'].create({
+                            'product_id': product.id,
+                            'store_id': store.id,
+                            'pricelist_id': default_pricelist.id,
+                            'uom_id': product.uom_id.id,
+                            'qty_to_be_sold': 1.0,
+                            'price': new_sell_price,
+                            'tenant_id': product.tenant_id.id
+                        })
 
         if vals.get('all_stores'):
             for product in self:

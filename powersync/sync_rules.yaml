@@ -1,0 +1,60 @@
+config:
+  edition: 3
+
+streams:
+  tenant_master:
+    auto_subscribe: true
+    queries:
+      # 1. Products Catalog
+      - SELECT * FROM havanoposdesk_product AS "products" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 2. Categories / Item Groups
+      - SELECT * FROM havanoposdesk_category AS "item_groups" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 3. Units of Measure (UOM)
+      - SELECT * FROM havanoposdesk_uom AS "uoms" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 4. Store-Specific UOM Prices & Overrides
+      - SELECT * FROM havanoposdesk_product_uom_price AS "item_price_lists" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 5. Product Bundles & Combo Recipes
+      - SELECT * FROM havanoposdesk_product_bundle_item AS "product_bundles" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 6. Customers & Walk-ins
+      - SELECT * FROM havanoposdesk_customer AS "customers" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 7. Price Lists
+      - SELECT * FROM havanoposdesk_pricelist AS "price_lists" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 8. Stores / Warehouses
+      - SELECT * FROM havanoposdesk_store AS "warehouses" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 9. POS Terminals
+      - SELECT * FROM havanoposdesk_pos_terminal AS "terminals" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 10. Live Inventory Stock Balances
+      - SELECT * FROM havanoposdesk_stock_valuation AS "inventory" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 11. Cashier Shifts
+      - SELECT * FROM havanoposdesk_shift AS "shifts" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 12. Sales Invoices
+      - SELECT * FROM havanoposdesk_sale AS "sales" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 13. Sale Items / Lines
+      - SELECT * FROM havanoposdesk_sale_line AS "sale_items" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 14. Payment Entries (Tenders)
+      - SELECT * FROM havanoposdesk_payment AS "payments" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 15. Currencies
+      - SELECT * FROM res_currency AS "currencies" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER) OR tenant_id IS NULL
+
+      # 16. Multi-Currency Exchange Rates
+      - SELECT * FROM res_currency_rate AS "currency_rates" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER) OR tenant_id IS NULL
+
+      # 17. Tenant Configuration & Settings
+      - SELECT * FROM havanoposdesk_tenant AS "settings" WHERE id = CAST(auth.parameter('tenant_id') AS INTEGER)
+
+      # 18. Cashier Users (Offline auth & permissions)
+      - SELECT * FROM res_users AS "users" WHERE tenant_id = CAST(auth.parameter('tenant_id') AS INTEGER)

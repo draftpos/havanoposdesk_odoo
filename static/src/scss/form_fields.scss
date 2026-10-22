@@ -8,4 +8,107 @@
     border-bottom: none !important;
 }
 
+/* Remove underline from smart button stat numbers - aggressive override */
+.oe_button_box .o_field_widget,
+.oe_button_box .o_field_widget *,
+.oe_stat_button .o_field_widget,
+.oe_stat_button .o_field_widget *,
+.oe_stat_button .o_stat_value,
+.oe_stat_button .o_stat_text,
+.oe_stat_button .o_stat_info,
+.oe_stat_button .o_stat_info *,
+.oe_stat_button span,
+.oe_stat_button div,
+.oe_stat_button .o_field_widget.o_field_statinfo,
+.o_form_view .oe_button_box button.oe_stat_button > .o_field_widget {
+    border-bottom: none !important;
+    border-top: none !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+    outline: none !important;
+}
 
+/* Larger, cleaner stat buttons with Havano Blue accent on hover */
+.oe_button_box {
+    border-bottom: 1px solid #e9ecef !important;
+}
+
+.oe_button_box .oe_stat_button {
+    border-right: 1px solid #e9ecef !important;
+    border-bottom: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    padding: 10px 20px !important;
+    min-width: 100px !important;
+    min-height: 64px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    transition: background 0.15s ease !important;
+
+    &:hover {
+        background-color: rgba(0, 128, 255, 0.05) !important;
+
+        .o_stat_value,
+        .o_stat_info .o_stat_value {
+            color: #0080ff !important;
+        }
+
+        i.fa {
+            color: #0052cc !important;
+        }
+    }
+
+    /* Ensure absolutely no underline on ANY child */
+    * {
+        border-bottom: none !important;
+        box-shadow: none !important;
+        text-decoration: none !important;
+    }
+
+    .o_stat_value {
+        font-size: 22px !important;
+        font-weight: 800 !important;
+        color: #0f172a !important;
+        line-height: 1.1 !important;
+        border-bottom: none !important;
+    }
+
+    .o_stat_text {
+        font-size: 10.5px !important;
+        font-weight: 700 !important;
+        color: #64748b !important;
+        letter-spacing: 0.04em !important;
+        text-transform: uppercase !important;
+        border-bottom: none !important;
+    }
+
+    i.fa {
+        color: #0080ff !important;
+        font-size: 20px !important;
+        margin-bottom: 4px !important;
+        border-bottom: none !important;
+    }
+}
+
+/* Compact form group labels for tenant form */
+.o_form_view .o_wrap_field .o_cell:first-child label.o_form_label,
+.o_form_view .o_form_label {
+    color: #475569 !important;
+    font-weight: 600 !important;
+    font-size: 12.5px !important;
+}
+
+/* Compact group title */
+.o_form_view .o_group_name {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    color: #334155 !important;
+    border-bottom: 2px solid #0080ff !important;
+    padding-bottom: 4px !important;
+    margin-bottom: 6px !important;
+}

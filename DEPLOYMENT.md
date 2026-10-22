@@ -1,6 +1,6 @@
 # Auto Deployment Setup Guide
 
-This repository includes a GitHub Actions workflow in `.github/workflows/deploy.yml` that automatically deploys the latest code to your server whenever commits are pushed or merged into `main` or `master`.
+This repository includes a GitHub Actions workflow in `.github/workflows/deploy.yml` that automatically deploys the latest code to your server whenever commits are pushed or merged into `develop`, `master`, or `main`.
 
 ---
 
@@ -19,7 +19,7 @@ Add the following secrets:
 | `SERVER_PORT` | No | SSH Port (defaults to `22` if omitted) | `22` |
 | `SERVER_TARGET_DIR` | No | Full path to this addon folder on the server (defaults to `/opt/odoo-secure/addons-custom/havanoposdesk_odoo`) | `/opt/odoo-secure/addons-custom/havanoposdesk_odoo` |
 | `UPGRADE_MODULE` | No | Set to `true` if you want automatic `-u havanoposdesk_odoo` | `false` |
-| `ODOO_DB_NAME` | No | Odoo database name (if `UPGRADE_MODULE` is enabled) | `production_db` |
+| `ODOO_DB_NAME` | No | Odoo database name (if `UPGRADE_MODULE` is enabled) | `saas` |
 
 ---
 
@@ -55,5 +55,5 @@ your_username ALL=(ALL) NOPASSWD: /bin/systemctl restart odoo, /bin/systemctl re
 
 ## 3. Triggering Deployments
 
-- **Automatic**: Any `git push` or PR merge into `main` or `master` triggers a deploy.
+- **Automatic**: Any `git push` or PR merge into `develop`, `master`, or `main` triggers a deploy.
 - **Manual**: Navigate to **Actions** in GitHub, select **Auto Deploy to Server**, click **Run workflow**, and optionally specify options (e.g. database upgrade or restart).

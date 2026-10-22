@@ -25,7 +25,79 @@ class ResConfigSettings(models.TransientModel):
             return super(ResConfigSettings, self.sudo()).execute()
         return super().execute()
 
-    # Dynamic DDL methods removed from default_get to eliminate AccessExclusiveLock delays
+    @api.model
+    def default_get(self, fields_list):
+        self._ensure_tenant_columns()
+        return super().default_get(fields_list)
+
+    @api.model
+    def _ensure_tenant_columns(self):
+        cr = self.env.cr
+        try:
+            cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'havanoposdesk_tenant'")
+            existing_cols = {row[0] for row in cr.fetchall()}
+            cols = [
+                ("account_balance", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("pending_subscription_plan_id", "INTEGER"),
+                ("pending_additional_terminals", "INTEGER DEFAULT 0"),
+                ("pending_additional_stores", "INTEGER DEFAULT 0"),
+                ("pending_subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("additional_terminals", "INTEGER DEFAULT 0"),
+                ("additional_stores", "INTEGER DEFAULT 0"),
+                ("subscription_total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("effective_max_stores", "INTEGER DEFAULT 0"),
+                ("effective_max_terminals", "INTEGER DEFAULT 0"),
+                ("allow_edit_item_code", "BOOLEAN DEFAULT FALSE"),
+                ("allow_negative_stock", "BOOLEAN DEFAULT TRUE"),
+                ("enable_tax", "BOOLEAN DEFAULT FALSE"),
+                ("enable_barcode", "BOOLEAN DEFAULT FALSE"),
+                ("enable_quotations", "BOOLEAN DEFAULT FALSE"),
+                ("enable_uom_conversion", "BOOLEAN DEFAULT FALSE"),
+                ("enable_payment_entries", "BOOLEAN DEFAULT FALSE"),
+                ("show_qty_on_hand", "BOOLEAN DEFAULT FALSE"),
+                ("enable_shift", "BOOLEAN DEFAULT FALSE"),
+                ("enable_kitchen_settings", "BOOLEAN DEFAULT FALSE"),
+                ("enable_variant_attributes", "BOOLEAN DEFAULT FALSE"),
+                ("enable_hs_code", "BOOLEAN DEFAULT FALSE"),
+                ("theme_color", "VARCHAR"),
+                ("product_name_format", "VARCHAR"),
+                ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
+                ("payment_status", "VARCHAR"),
+                ("enable_manufacturing", "BOOLEAN DEFAULT FALSE"),
+                ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
+                ("payroll_url", "VARCHAR"),
+                ("stock_decimal_places", "INTEGER DEFAULT 3"),
+                ("do_not_round_stock", "BOOLEAN DEFAULT FALSE"),
+                ("expenses_require_approval", "BOOLEAN DEFAULT FALSE"),
+            ]
+            for col_name, col_type in cols:
+                if col_name not in existing_cols:
+                    cr.execute(f"ALTER TABLE havanoposdesk_tenant ADD COLUMN {col_name} {col_type};")
+
+            # Ensure wizard foreign keys have ON DELETE CASCADE so they never block tenant operations
+            wizard_tables = [
+                'havanoposdesk_tenant_topup_wizard',
+                'havanoposdesk_subscription_pay_wizard',
+                'havanoposdesk_tenant_upgrade_wizard'
+            ]
+            for tbl in wizard_tables:
+                try:
+                    cr.execute(f"SELECT to_regclass('{tbl}');")
+                    if cr.fetchone()[0]:
+                        cr.execute(f"""
+                            SELECT conname 
+                            FROM pg_constraint 
+                            WHERE conrelid = '{tbl}'::regclass 
+                              AND confrelid = 'havanoposdesk_tenant'::regclass;
+                        """)
+                        for row in cr.fetchall():
+                            con_name = row[0]
+                            cr.execute(f"ALTER TABLE {tbl} DROP CONSTRAINT IF EXISTS \"{con_name}\";")
+                            cr.execute(f"ALTER TABLE {tbl} ADD CONSTRAINT \"{con_name}\" FOREIGN KEY (tenant_id) REFERENCES havanoposdesk_tenant(id) ON DELETE CASCADE;")
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     biz_product_name_format = fields.Selection(
         related='tenant_id.product_name_format',
@@ -52,18 +124,18 @@ class ResConfigSettings(models.TransientModel):
         help="If enabled, you can sell items even if their stock quantity goes below zero. Purchasing items will compensate for the negative balance."
     )
 
+    biz_stock_valuation_method = fields.Selection(
+        related='tenant_id.stock_valuation_method',
+        readonly=False,
+        string="Stock Valuation Method",
+        help="Choose how inventory cost and valuation are calculated: FIFO (First In, First Out / Latest Purchase Price) or AVCO (Weighted Average Cost)."
+    )
+
     biz_allow_edit_item_code = fields.Boolean(
         string="Allow Editing Product Code",
         related='tenant_id.allow_edit_item_code',
         readonly=False,
         help="If enabled, users will be allowed to edit the product codes (item codes) on products."
-    )
-
-    biz_enable_hs_code = fields.Boolean(
-        string="Enable HS Code",
-        related='tenant_id.enable_hs_code',
-        readonly=False,
-        help="If enabled, shows the Harmonized System (HS) Code field on products."
     )
 
     biz_stock_decimal_places = fields.Integer(
@@ -98,7 +170,7 @@ class ResConfigSettings(models.TransientModel):
         string="Tenant",
         ondelete='cascade',
         default=_default_tenant_id
-    , index=True)
+    )
 
     biz_currency_id = fields.Many2one(
         'res.currency', 
@@ -192,11 +264,6 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.enable_kitchen_settings',
         readonly=False
     )
-    biz_enable_variant_attributes = fields.Boolean(
-        string="Enable Variant Attributes",
-        related='tenant_id.enable_variant_attributes',
-        readonly=False
-    )
     biz_enable_manufacturing = fields.Boolean(
         string="Enable Manufacturing",
         related='tenant_id.enable_manufacturing',
@@ -213,6 +280,26 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.payroll_url',
         readonly=False,
         string="Payroll URL"
+    )
+
+    biz_enable_item_group_subunits = fields.Boolean(
+        string="Enable Sub-Units / Item Group Rights",
+        related='tenant_id.enable_item_group_subunits',
+        readonly=False,
+        help="Enable independent sub-units (e.g. Fuel, Gas, Kiosk, Spare Parts) on a station/store and strictly restrict cashiers to only sell items from their assigned Item Groups."
+    )
+
+    biz_enable_variant_attributes = fields.Boolean(
+        string="Enable Variant Attributes",
+        related='tenant_id.enable_variant_attributes',
+        readonly=False,
+        help="Enable product variant attributes (e.g. Size, Color) to create and manage variant combinations easily."
+    )
+    biz_enable_hs_code = fields.Boolean(
+        string="Enable HS Code",
+        related='tenant_id.enable_hs_code',
+        readonly=False,
+        help="Enable Harmonized System (HS) code field on products and inventory."
     )
 
     # ZIMRA Fiscalization Settings
@@ -474,6 +561,7 @@ class ResConfigSettings(models.TransientModel):
     def set_values(self):
         icp = self.env['ir.config_parameter'].sudo()
         old_base = icp.get_param('havanoposdesk.web_base_url', 'havano')
+        old_val_method = self.tenant_id.stock_valuation_method if self.tenant_id else False
         super().set_values()
         
         # Explicitly save tenant related fields to ensure they persist
@@ -481,7 +569,10 @@ class ResConfigSettings(models.TransientModel):
             self.tenant_id.sudo().write({
                 'enable_payroll': self.biz_enable_payroll,
                 'payroll_url': self.biz_payroll_url,
+                'stock_valuation_method': self.biz_stock_valuation_method or 'fifo',
             })
+            if old_val_method != (self.biz_stock_valuation_method or 'fifo'):
+                self.tenant_id.action_apply_stock_valuation_method()
             
         bot_name = icp.get_param('havanoposdesk.bot_name', 'HavanoBot')
         bot_email = icp.get_param('havanoposdesk.bot_email', 'bot@havano.cloud')
@@ -547,6 +638,22 @@ class ResConfigSettings(models.TransientModel):
                 'sticky': False,
             }
         }
+    def action_recompute_stock_valuation(self):
+        self.ensure_one()
+        if self.tenant_id:
+            self.tenant_id.action_apply_stock_valuation_method()
+            method_label = "AVCO (Weighted Average Cost)" if self.tenant_id.stock_valuation_method == 'avco' else "FIFO"
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Stock Valuation Updated',
+                    'message': f'Product cost prices and stock valuation recomputed successfully using {method_label}.',
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+
     havano_subscription_expiry_warning_days = fields.Integer(
         string="Subscription Expiry Warning Days",
         config_parameter="havanoposdesk.subscription_expiry_warning_days",

@@ -19,22 +19,6 @@
                 <app logo="/havanoposdesk_odoo/static/description/configs.png" data-string="Settings" string="Settings" name="havanoposdesk_my_business" groups="base.group_user">
                     <field name="tenant_id" invisible="1"/>
                     
-                    <block title="Subscription &amp; Wallet" name="subscription_config">
-                        <setting string="Prepaid Wallet Balance" help="Your prepaid balance for subscription renewals and upgrades.">
-                            <div class="content-group mt8">
-                                <field name="biz_account_balance" widget="monetary" options="{'currency_field': 'biz_currency_id'}" class="oe_inline fw-bold fs-5 text-primary"/>
-                            </div>
-                            <div class="mt16">
-                                <button name="action_open_topup_wizard" type="object" string="Top Up Balance" icon="fa-plus-circle" class="btn btn-primary me-2"/>
-                            </div>
-                        </setting>
-                        <setting string="My Subscription Plan" help="View and manage your current subscription plan and billing.">
-                            <div class="mt16">
-                                <button name="%(action_my_subscription)d" type="action" string="Manage Subscription" icon="fa-arrow-right" class="btn btn-secondary"/>
-                            </div>
-                        </setting>
-                    </block>
-
                     <block title="Users &amp; Roles" name="users_roles_config">
                         <setting string="Users" help="Manage your cashiers and backoffice users">
                             <div class="mt16">
@@ -96,6 +80,12 @@
                         <setting id="enable_manufacturing_setting" string="Enable Manufacturing" help="Enable Manufacturing (Bill of Materials and Production Orders).">
                             <field name="biz_enable_manufacturing"/>
                         </setting>
+                        <setting id="enable_item_group_subunits_setting" string="Sub-Units &amp; Item Groups" help="Enable independent sub-units (e.g. Fuel, Gas, Kiosk, Spare Parts) on a station/store and strictly restrict cashiers to only sell items from their assigned Item Groups.">
+                            <field name="biz_enable_item_group_subunits"/>
+                            <div class="mt16" invisible="not biz_enable_item_group_subunits">
+                                <button name="%(havanoposdesk_odoo.action_havanoposdesk_category)d" type="action" string="Manage Item Groups / Sub-Units" icon="fa-arrow-right" class="btn-link"/>
+                            </div>
+                        </setting>
                     </block>
 
                     <block title="Decimal Precision &amp; Rounding" name="decimal_precision_config">
@@ -155,6 +145,22 @@
                         <setting string="Device Test &amp; Ping" help="Test connectivity to ZIMRA Cloud API server" invisible="not biz_enable_fiscalization">
                             <div class="mt16">
                                 <button name="action_ping_zimra_device" type="object" string="Ping ZIMRA Device" icon="fa-plug" class="btn btn-primary"/>
+                            </div>
+                        </setting>
+                    </block>
+
+                    <block title="Subscription &amp; Wallet" name="subscription_config">
+                        <setting string="Prepaid Wallet Balance" help="Your prepaid balance for subscription renewals and upgrades.">
+                            <div class="content-group mt8">
+                                <field name="biz_account_balance" widget="monetary" options="{'currency_field': 'biz_currency_id'}" class="oe_inline fw-bold fs-5 text-primary"/>
+                            </div>
+                            <div class="mt16">
+                                <button name="action_open_topup_wizard" type="object" string="Top Up Balance" icon="fa-plus-circle" class="btn btn-primary me-2"/>
+                            </div>
+                        </setting>
+                        <setting string="My Subscription Plan" help="View and manage your current subscription plan and billing.">
+                            <div class="mt16">
+                                <button name="%(action_my_subscription)d" type="action" string="Manage Subscription" icon="fa-arrow-right" class="btn btn-secondary"/>
                             </div>
                         </setting>
                     </block>
@@ -423,6 +429,12 @@
                         </setting>
                         <setting id="enable_variant_attributes_setting" string="Variant Attributes" help="Enable product variant attributes (e.g. Size, Color) to create and manage variant combinations easily.">
                             <field name="biz_enable_variant_attributes"/>
+                        </setting>
+                        <setting id="stock_valuation_method_setting" string="Stock Valuation Method" help="Choose how inventory cost and valuation are calculated: FIFO (First In, First Out / Latest Purchase Price) or AVCO (Weighted Average Cost).">
+                            <field name="biz_stock_valuation_method" widget="radio"/>
+                            <div class="mt8">
+                                <button name="action_recompute_stock_valuation" type="object" string="Recompute Product Costs &amp; Valuation" icon="fa-refresh" class="btn-link"/>
+                            </div>
                         </setting>
                     </block>
                     <block title="Sequence Configuration" name="stock_seq_config">

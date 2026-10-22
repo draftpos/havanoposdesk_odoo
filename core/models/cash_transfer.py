@@ -93,7 +93,7 @@ class CashTransfer(models.Model):
         readonly=True,
     )
     state = fields.Selection([
-        ('draft', 'Draft'),
+        ("draft", "Draft"),
         ("posted", "Transferred"),
         ("cancelled", "Cancelled"),
     ], string="Status", default="draft", required=True, copy=False)

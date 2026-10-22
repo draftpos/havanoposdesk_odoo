@@ -29,7 +29,7 @@ def _b64url_encode(data_bytes):
     return base64.urlsafe_b64encode(data_bytes).decode('utf-8').rstrip('=')
 
 
-def generate_powersync_jwt(user_id, tenant_id, store_id=None, store_ids=None, role=None, secret_key=None, expires_in=86400):
+def generate_powersync_jwt(user_id, tenant_id, store_id=None, store_ids=None, category_ids=None, has_category_restriction=None, role=None, secret_key=None, expires_in=86400):
     """Generate a HS256 JWT for PowerSync client authentication."""
     secret = secret_key or DEFAULT_JWT_SECRET
     now = int(time.time())
@@ -38,6 +38,9 @@ def generate_powersync_jwt(user_id, tenant_id, store_id=None, store_ids=None, ro
         "alg": "HS256",
         "typ": "JWT"
     }
+
+    if has_category_restriction is None:
+        has_category_restriction = bool(category_ids and role not in ('admin', 'super_admin'))
 
     payload = {
         "sub": str(user_id),
@@ -48,6 +51,8 @@ def generate_powersync_jwt(user_id, tenant_id, store_id=None, store_ids=None, ro
         "tenant_id": str(tenant_id) if tenant_id else "",
         "store_id": str(store_id) if store_id else "",
         "store_ids": [str(s) for s in (store_ids or [])],
+        "category_ids": [str(c) for c in (category_ids or [])],
+        "has_category_restriction": "true" if has_category_restriction else "false",
         "role": role or "user",
     }
 
@@ -94,9 +99,14 @@ class HavanoPowerSyncController(http.Controller):
             except Exception:
                 pass
 
-            user = user_env['res.users'].sudo().search([
-                '|', ('login', '=', token), ('id', '=', token)
-            ], limit=1)
+            if token.isdigit():
+                user = user_env['res.users'].sudo().search([
+                    '|', ('login', '=', token), ('id', '=', int(token))
+                ], limit=1)
+            else:
+                user = user_env['res.users'].sudo().search([
+                    ('login', '=', token)
+                ], limit=1)
             if user:
                 return user
 
@@ -138,11 +148,19 @@ class HavanoPowerSyncController(http.Controller):
 
         powersync_url, powersync_secret = self._get_powersync_config()
 
+        is_restricted = bool(
+            user.havano_role not in ('admin', 'super_admin')
+            and user.category_ids
+        )
+        effective_cat_ids = user.get_effective_category_ids() if (is_restricted and hasattr(user, 'get_effective_category_ids')) else (user.category_ids.ids if (is_restricted and hasattr(user, 'category_ids')) else [])
+
         jwt_token = generate_powersync_jwt(
             user_id=user.id,
             tenant_id=tenant.id,
             store_id=req_store_id,
             store_ids=user.store_ids.ids if user.store_ids else [],
+            category_ids=effective_cat_ids,
+            has_category_restriction=is_restricted,
             role=user.havano_role,
             secret_key=powersync_secret,
             expires_in=expires_in
@@ -155,6 +173,11 @@ class HavanoPowerSyncController(http.Controller):
             'tenant_id': str(tenant.id),
             'user_id': str(user.id),
             'store_id': str(req_store_id) if req_store_id else None,
+            'enable_item_group_subunits': bool(tenant.enable_item_group_subunits),
+            'has_category_restriction': is_restricted,
+            'allowed_category_ids': effective_cat_ids,
+            'category_ids': effective_cat_ids,
+            'allowed_item_groups': [c.name for c in (user.category_ids | user.env['havanoposdesk.category'].sudo().search([('id', 'child_of', user.category_ids.ids)]))] if (hasattr(user, 'category_ids') and user.category_ids and is_restricted) else [],
         }
 
         return request.make_response(
@@ -218,16 +241,113 @@ class HavanoPowerSyncController(http.Controller):
                         sale_data = item.get('sale', {})
                         items = item.get('items', [])
                         payments = item.get('payments', [])
-                        local_invoice_id = sale_data.get('local_invoice_id')
+                        raw_local_id = sale_data.get('local_invoice_id') or item.get('sale_id')
+
+                        # Resolve store
+                        store = False
+                        warehouse_name = sale_data.get('warehouse') or ''
+                        if warehouse_name:
+                            store = request.env['havanoposdesk.store'].sudo().search([
+                                ('name', '=', warehouse_name),
+                                ('tenant_id', '=', user.tenant_id.id)
+                            ], limit=1)
+                        if not store and sale_data.get('store_id'):
+                            store = request.env['havanoposdesk.store'].sudo().browse(int(sale_data['store_id']))
+                        if not store or not store.exists():
+                            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
+
+                        # Resolve terminal
+                        terminal = False
+                        if sale_data.get('terminal_id'):
+                            try:
+                                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                                    ('tenant_id', '=', user.tenant_id.id),
+                                    ('id', '=', int(sale_data['terminal_id']))
+                                ], limit=1)
+                            except Exception:
+                                pass
+                        if not terminal:
+                            t_name = sale_data.get('terminal') or sale_data.get('terminal_name') or sale_data.get('pos_profile')
+                            if t_name:
+                                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                                    ('tenant_id', '=', user.tenant_id.id),
+                                    ('name', '=ilike', str(t_name).strip())
+                                ], limit=1)
+                        if not terminal:
+                            hw_id = sale_data.get('device_hardware_id') or sale_data.get('hardware_id')
+                            if hw_id:
+                                terminal = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                                    ('tenant_id', '=', user.tenant_id.id),
+                                    ('device_hardware_id', '=', str(hw_id).strip())
+                                ], limit=1)
+                        if not terminal and user.selected_terminal_id:
+                            terminal = user.selected_terminal_id
+                        if not terminal and store:
+                            store_terminals = request.env['havanoposdesk.pos.terminal'].sudo().search([
+                                ('store_id', '=', store.id),
+                                ('tenant_id', '=', user.tenant_id.id)
+                            ])
+                            if store_terminals:
+                                terminal = store_terminals[0]
+
+                        # Standardize local_invoice_id with terminal sequence prefix
+                        local_invoice_id = raw_local_id
+                        if terminal and terminal.sequence_prefix:
+                            pfx = terminal.sequence_prefix.strip()
+                            str_loc = str(local_invoice_id).strip()
+                            parts = str_loc.split('-')
+                            if len(parts) >= 2 and len(parts[0]) == 4 and parts[0].isalpha() and parts[0].isupper():
+                                pass
+                            elif not str_loc.upper().startswith(pfx.upper() + '-') and not str_loc.upper().startswith(pfx.upper()):
+                                local_invoice_id = f"{pfx}-{str_loc}"
 
                         # Check for idempotency
-                        existing_sale = SaleModel.search([
+                        dup_domain = [
                             ('tenant_id', '=', user.tenant_id.id),
-                            ('local_invoice_id', '=', local_invoice_id)
-                        ], limit=1)
+                            ('local_invoice_id', 'in', list({str(raw_local_id).strip(), str(local_invoice_id).strip()}))
+                        ]
+                        raw_parts = str(raw_local_id).strip().split('-')
+                        if len(raw_parts) >= 2 and raw_parts[-1].isdigit():
+                            base_tail = f"-{raw_parts[-2]}-{raw_parts[-1]}"
+                            dup_domain = [
+                                '&', ('tenant_id', '=', user.tenant_id.id),
+                                '|', ('local_invoice_id', '=ilike', f"%{base_tail}"),
+                                ('local_invoice_id', 'in', list({str(raw_local_id).strip(), str(local_invoice_id).strip()}))
+                            ]
+                        existing_sale = SaleModel.search(dup_domain, limit=1)
 
                         if existing_sale:
-                            results.append({'sale_id': item.get('sale_id'), 'status': 'already_exists', 'id': existing_sale.id, 'name': existing_sale.name})
+                            # Update fiscal data if incoming mutation contains it
+                            update_vals = {}
+                            qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url')
+                            if qr and existing_sale.fiscal_qr_code != qr:
+                                update_vals['fiscal_qr_code'] = qr
+                                update_vals['fiscal_status'] = 'fiscalized'
+                            code = sale_data.get('fiscal_verification_code') or sale_data.get('fiscal_code') or sale_data.get('custom_fiscal_verification_code') or sale_data.get('verification_code')
+                            if code and existing_sale.fiscal_verification_code != code:
+                                update_vals['fiscal_verification_code'] = code
+                            sn = sale_data.get('fiscal_device_serial') or sale_data.get('custom_fiscal_device_sn') or sale_data.get('fiscal_device_id')
+                            if sn and existing_sale.fiscal_device_serial != sn:
+                                update_vals['fiscal_device_serial'] = sn
+                            if sale_data.get('fiscal_day') and existing_sale.fiscal_day != sale_data.get('fiscal_day'):
+                                update_vals['fiscal_day'] = sale_data.get('fiscal_day')
+                            if sale_data.get('fiscal_global_no') and existing_sale.fiscal_global_no != sale_data.get('fiscal_global_no'):
+                                update_vals['fiscal_global_no'] = sale_data.get('fiscal_global_no')
+                            if sale_data.get('fiscal_receipt_counter'):
+                                update_vals['fiscal_receipt_counter'] = int(sale_data.get('fiscal_receipt_counter'))
+
+                            if update_vals:
+                                existing_sale.write(update_vals)
+                            results.append({
+                                'sale_id': item.get('sale_id'),
+                                'status': 'updated' if update_vals else 'already_exists',
+                                'id': existing_sale.id,
+                                'name': existing_sale.name,
+                                'fiscal_status': existing_sale.fiscal_status or '',
+                                'fiscal_qr_code': existing_sale.fiscal_qr_code or '',
+                                'qr_code_url': existing_sale.fiscal_qr_code or '',
+                                'verification_code': existing_sale.fiscal_verification_code or '',
+                            })
                             continue
 
                         # Resolve customer
@@ -244,24 +364,24 @@ class HavanoPowerSyncController(http.Controller):
                                 'tenant_id': user.tenant_id.id,
                             })
 
-                        # Resolve store
-                        store = False
-                        warehouse_name = sale_data.get('warehouse') or ''
-                        if warehouse_name:
-                            store = request.env['havanoposdesk.store'].sudo().search([
-                                ('name', '=', warehouse_name),
-                                ('tenant_id', '=', user.tenant_id.id)
-                            ], limit=1)
-                        if not store and sale_data.get('store_id'):
-                            store = request.env['havanoposdesk.store'].sudo().browse(int(sale_data['store_id']))
-                        if not store or not store.exists():
-                            store = user.default_store_id or (user.store_ids[0] if user.store_ids else False)
-
                         sale_tenant_id = store.tenant_id.id if (store and store.tenant_id) else user.tenant_id.id
+
+                        fiscal_qr = sale_data.get('fiscal_qr_code') or sale_data.get('qr_code') or sale_data.get('custom_fiscal_qr_code') or sale_data.get('qr_code_url') or ''
+                        fiscal_verif = sale_data.get('fiscal_verification_code') or sale_data.get('fiscal_code') or sale_data.get('custom_fiscal_verification_code') or sale_data.get('verification_code') or ''
+                        fiscal_sn = sale_data.get('fiscal_device_serial') or sale_data.get('custom_fiscal_device_sn') or sale_data.get('fiscal_device_id') or ''
+                        fiscal_stat = 'fiscalized' if fiscal_qr else (sale_data.get('fiscal_status') or sale_data.get('custom_fiscal_status') or 'not_required')
+
+                        app_ver = (
+                            sale_data.get('desktop_version') or sale_data.get('desktopVersion')
+                            or (terminal.app_version if terminal and terminal.app_version and str(terminal.app_version).startswith('2.0.8') else None)
+                            or sale_data.get('app_version') or sale_data.get('appVersion')
+                            or (terminal.app_version if terminal else None)
+                        )
 
                         sale_vals = {
                             'tenant_id': sale_tenant_id,
                             'customer': customer.id,
+                            'terminal_id': terminal.id if terminal else False,
                             'local_invoice_id': local_invoice_id,
                             'grand_total': float(sale_data.get('grand_total') or 0.0),
                             'total_tax': float(sale_data.get('total_tax_amount') or 0.0),
@@ -273,10 +393,16 @@ class HavanoPowerSyncController(http.Controller):
                             'store': store.name if store else '',
                             'store_id': store.id if store else False,
                             'posting_date': sale_data.get('posting_date') or fields.Date.context_today(user),
+                            'app_version': str(app_ver).strip() if app_ver else False,
                             'is_return': bool(sale_data.get('is_return')),
                             'is_quotation': bool(sale_data.get('is_quotation')),
-                            'fiscal_code': sale_data.get('fiscal_code') or '',
-                            'qr_code': sale_data.get('fiscal_qr_code') or '',
+                            'fiscal_status': fiscal_stat,
+                            'fiscal_qr_code': fiscal_qr,
+                            'fiscal_verification_code': fiscal_verif,
+                            'fiscal_device_serial': fiscal_sn,
+                            'fiscal_day': sale_data.get('fiscal_day') or '',
+                            'fiscal_global_no': sale_data.get('fiscal_global_no') or '',
+                            'fiscal_receipt_counter': int(sale_data.get('fiscal_receipt_counter') or 0),
                         }
 
                         new_sale = SaleModel.create(sale_vals)
@@ -322,7 +448,16 @@ class HavanoPowerSyncController(http.Controller):
                                 'reference': p.get('reference') or local_invoice_id or '',
                             })
 
-                        results.append({'sale_id': item.get('sale_id'), 'status': 'created', 'server_id': new_sale.id, 'name': new_sale.name})
+                        results.append({
+                            'sale_id': item.get('sale_id'),
+                            'status': 'created',
+                            'server_id': new_sale.id,
+                            'name': new_sale.name,
+                            'fiscal_status': new_sale.fiscal_status or '',
+                            'fiscal_qr_code': new_sale.fiscal_qr_code or '',
+                            'qr_code_url': new_sale.fiscal_qr_code or '',
+                            'verification_code': new_sale.fiscal_verification_code or '',
+                        })
                         processed_count += 1
 
                     # ---------------------------------------------------------

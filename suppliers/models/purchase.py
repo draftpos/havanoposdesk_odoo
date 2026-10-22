@@ -230,8 +230,8 @@ class Purchase(models.Model):
             if purchase.state != 'draft':
                 continue
                 
-            # Auto-create payment if cash
-            if purchase.payment_status == 'cash' and purchase.account_id:
+            # Auto-create payment if cash and total is greater than zero
+            if purchase.payment_status == 'cash' and purchase.account_id and purchase.amount_total > 0:
                 payment_type = 'receipt' if purchase.is_return else 'payment'
                 
                 existing_payment = self.env['havanoposdesk.payment'].search([
@@ -264,6 +264,8 @@ class Purchase(models.Model):
                     purchase.pos_payment_id = payment.id
 
             for line in purchase.line_ids:
+                if line.display_type:
+                    continue
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
                 unit_rate = line.rate / line.uom_qty_multiplier if line.uom_qty_multiplier else line.rate
                 if base_qty > 0:
@@ -309,9 +311,19 @@ class Purchase(models.Model):
                     else:
                         # Normal Purchase
                         unit_rate_base = unit_rate / (purchase.exchange_rate or 1.0)
+                        tenant = purchase.tenant_id or line.product_id.tenant_id
 
-                        # Use the purchase price supplied by the API as the product cost.
-                        new_buying_price = unit_rate_base
+                        if tenant and tenant.stock_valuation_method == 'avco':
+                            # AVCO: Moving Weighted Average Cost
+                            current_qty = line.product_id.on_hand_qty
+                            current_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+                            if current_qty > 0 and current_cost > 0:
+                                new_buying_price = round(((current_qty * current_cost) + (base_qty * unit_rate_base)) / (current_qty + base_qty), 4)
+                            else:
+                                new_buying_price = unit_rate_base
+                        else:
+                            # FIFO / Latest purchase price
+                            new_buying_price = unit_rate_base
                             
                         # Update buying_price (last updated value) using sudo()
                         line.product_id.sudo().write({
@@ -330,7 +342,6 @@ class Purchase(models.Model):
                         })
                         
                         # Calculate and store average cost
-                        # We use the properly weighted new_buying_price calculated above
                         self.env['havanoposdesk.product.costing'].sudo().create({
                             'product_id': line.product_id.id,
                             'purchase_line_id': line.id,
@@ -400,6 +411,8 @@ class Purchase(models.Model):
             ]).unlink()
 
             for line in purchase.line_ids:
+                if line.display_type:
+                    continue
                 base_qty = line.accepted_qty * line.uom_qty_multiplier
                 unit_rate = line.rate / line.uom_qty_multiplier if line.uom_qty_multiplier else line.rate
                 if base_qty > 0:
@@ -434,15 +447,35 @@ class Purchase(models.Model):
                         # Normal Purchase Cancelled
                         # Revert: Subtract stock using sudo() (no opening_stock update)
                         
-                        # Revert product buying price to the previous purchase's rate (if any)
-                        last_purchase = self.env['havanoposdesk.purchase.line'].search([
-                            ('product_id', '=', line.product_id.id),
-                            ('purchase_id.state', '=', 'posted'),
-                            ('purchase_id', '!=', purchase.id)
-                        ], order='id desc', limit=1)
-                        if last_purchase:
-                            last_rate = last_purchase.rate / last_purchase.uom_qty_multiplier if last_purchase.uom_qty_multiplier else last_purchase.rate
-                            line.product_id.sudo().buying_price = last_rate
+                        tenant = purchase.tenant_id or line.product_id.tenant_id
+                        if tenant and tenant.stock_valuation_method == 'avco':
+                            # Recompute average cost from remaining purchases
+                            self.env.cr.execute("""
+                                SELECT 
+                                    SUM(pl.accepted_qty * (pl.rate / COALESCE(p.exchange_rate, 1.0))) as total_val,
+                                    SUM(pl.accepted_qty) as total_qty
+                                FROM havanoposdesk_purchase_line pl
+                                JOIN havanoposdesk_purchase p ON p.id = pl.purchase_id
+                                WHERE pl.product_id = %s
+                                  AND pl.accepted_qty > 0
+                                  AND p.state = 'posted'
+                                  AND p.id != %s
+                                  AND NOT COALESCE(p.is_return, FALSE)
+                            """, (line.product_id.id, purchase.id))
+                            row = self.env.cr.fetchone()
+                            if row and row[1] and row[1] > 0:
+                                rev_price = round(row[0] / row[1], 4)
+                                line.product_id.sudo().write({'buying_price': rev_price, 'cost_price': rev_price})
+                        else:
+                            # Revert product buying price to the previous purchase's rate (if any)
+                            last_purchase = self.env['havanoposdesk.purchase.line'].search([
+                                ('product_id', '=', line.product_id.id),
+                                ('purchase_id.state', '=', 'posted'),
+                                ('purchase_id', '!=', purchase.id)
+                            ], order='id desc', limit=1)
+                            if last_purchase:
+                                last_rate = last_purchase.rate / last_purchase.uom_qty_multiplier if last_purchase.uom_qty_multiplier else last_purchase.rate
+                                line.product_id.sudo().write({'buying_price': last_rate, 'cost_price': last_rate})
 
                         # Create reverse ledger entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
@@ -481,6 +514,44 @@ class Purchase(models.Model):
 class PurchaseLine(models.Model):
     _name = 'havanoposdesk.purchase.line'
     _description = 'Purchase Line'
+    _order = 'sequence, id'
+
+    def _auto_init(self):
+        res = super()._auto_init()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute("ALTER TABLE havanoposdesk_purchase_line ADD COLUMN IF NOT EXISTS display_type VARCHAR;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_purchase_line ADD COLUMN IF NOT EXISTS sequence INTEGER DEFAULT 10;")
+                self.env.cr.execute("ALTER TABLE havanoposdesk_purchase_line ADD COLUMN IF NOT EXISTS name TEXT;")
+            self.env.cr.commit()
+        except Exception:
+            pass
+        return res
+
+    sequence = fields.Integer(string='Sequence', default=10)
+    display_type = fields.Selection([
+        ('line_section', 'Section'),
+        ('line_note', 'Note'),
+    ], default=False, string='Display Type')
+    name = fields.Text(string='Description')
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        if res.get('display_type') or self.env.context.get('default_display_type'):
+            res['accepted_qty'] = 0.0
+            res['rate'] = 0.0
+            res['amount'] = 0.0
+        return res
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('display_type') or self.env.context.get('default_display_type'):
+                vals['accepted_qty'] = 0.0
+                vals['rate'] = 0.0
+                vals['amount'] = 0.0
+        return super().create(vals_list)
 
     tenant_id = fields.Many2one(
         'havanoposdesk.tenant', 
@@ -492,7 +563,7 @@ class PurchaseLine(models.Model):
     store_id = fields.Many2one(related='purchase_id.store_id', store=True)
     currency_id = fields.Many2one('res.currency', related='purchase_id.currency_id', readonly=True)
     exchange_rate = fields.Float(related='purchase_id.exchange_rate', readonly=True)
-    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=True)
+    product_id = fields.Many2one('havanoposdesk.product', string='Item', required=False)
     variant_id = fields.Many2one('havanoposdesk.product.variant', string='Variant', domain="[('product_id', '=', product_id)]")
     item_code = fields.Char(related='product_id.item_code', string='Product Code', readonly=True)
     accepted_qty = fields.Float(string='Accepted Quantity', default=1.0)
@@ -505,9 +576,20 @@ class PurchaseLine(models.Model):
     uom_qty_multiplier = fields.Float(string='UOM Multiplier', default=1.0)
     available_uom_ids = fields.Many2many('havanoposdesk.uom', compute='_compute_available_uom_ids', compute_sudo=True, store=False)
 
-    @api.depends('accepted_qty', 'rate', 'tax_ids')
+    @api.constrains('display_type', 'product_id')
+    def _check_product_or_section(self):
+        for line in self:
+            if not line.display_type and not line.product_id:
+                raise ValidationError(_("A product is required for normal purchase lines."))
+
+    @api.depends('accepted_qty', 'rate', 'tax_ids', 'display_type')
     def _compute_amount(self):
         for record in self:
+            if record.display_type:
+                record.price_subtotal = 0.0
+                record.price_tax = 0.0
+                record.amount = 0.0
+                continue
             base_amount = record.accepted_qty * record.rate
             taxes = record.tax_ids
             
@@ -562,6 +644,9 @@ class PurchaseLine(models.Model):
                 
             if not line.uom_id or line.uom_id.id not in line.available_uom_ids.ids:
                 line.uom_id = line.product_id.uom_id
+
+            if not line.name:
+                line.name = line.product_id.name
                 
             line.tax_ids = [(6, 0, line.product_id.purchase_tax_ids.ids)]
             

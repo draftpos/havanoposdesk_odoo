@@ -121,6 +121,10 @@ class HavanoErrorIssue(models.Model):
 
                 existing = self.search([('bugsink_id', '=', bugsink_id)], limit=1)
                 if existing:
+                    # If locally marked resolved, keep resolved unless new events arrived
+                    if existing.is_resolved and not issue_data.get('is_resolved', False):
+                        if issue_data.get('digested_event_count', 0) <= existing.event_count:
+                            vals['is_resolved'] = True
                     existing.write(vals)
                 else:
                     self.create(vals)
@@ -130,6 +134,21 @@ class HavanoErrorIssue(models.Model):
         except Exception as e:
             _logger.error(f"Failed to sync issues from Bugsink: {e}")
             raise UserError(f"Failed to sync issues from Bugsink: {e}")
+
+    def action_mark_resolved(self):
+        """Mark selected issues as resolved."""
+        self.write({'is_resolved': True})
+
+    def action_mark_unresolved(self):
+        """Reopen selected issues."""
+        self.write({'is_resolved': False})
+
+    def action_resolve_all(self):
+        """Mark all unresolved issues in the system as resolved."""
+        unresolved = self.search([('is_resolved', '=', False)])
+        if unresolved:
+            unresolved.write({'is_resolved': True})
+        return True
 
     # ── Sync Events ──────────────────────────────────────────────────────────
     def action_sync_events(self):
