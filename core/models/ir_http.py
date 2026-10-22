@@ -43,6 +43,8 @@ class IrHttp(models.AbstractModel):
                         ("theme_color", "VARCHAR"),
                         ("product_name_format", "VARCHAR"),
                         ("restrict_price_modification", "BOOLEAN DEFAULT FALSE"),
+                        ("require_price_change_approval", "BOOLEAN DEFAULT FALSE"),
+                        ("price_approval_min_threshold_percent", "DOUBLE PRECISION DEFAULT 0.0"),
                         ("payment_status", "VARCHAR"),
                         ("enable_payroll", "BOOLEAN DEFAULT FALSE"),
                         ("payroll_url", "VARCHAR"),
