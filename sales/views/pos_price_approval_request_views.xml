@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- POS Price Approval Wizard Form -->
+        <record id="view_pos_price_approval_wizard_form" model="ir.ui.view">
+            <field name="name">pos.price.approval.wizard.form</field>
+            <field name="model">pos.price.approval.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Price Approval Action">
+                    <field name="currency_id" invisible="1"/>
+                    <field name="action_type" invisible="1"/>
+                    <group>
+                        <group string="Item Details">
+                            <field name="request_id" readonly="1"/>
+                            <field name="original_price" widget="monetary"/>
+                            <field name="requested_price" widget="monetary"/>
+                        </group>
+                        <group string="Action Details">
+                            <field name="counter_price" widget="monetary" invisible="action_type != 'counter_offer'" required="action_type == 'counter_offer'"/>
+                            <field name="note" placeholder="Enter reason or explanation for cashier..."/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_confirm" type="object" string="Confirm" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <!-- Wizard Action: Reject -->
+        <record id="action_pos_price_approval_reject_wizard" model="ir.actions.act_window">
+            <field name="name">Reject Price Change</field>
+            <field name="res_model">pos.price.approval.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="context">{'default_action_type': 'reject'}</field>
+        </record>
+
+        <!-- Wizard Action: Counter Offer -->
+        <record id="action_pos_price_approval_counter_wizard" model="ir.actions.act_window">
+            <field name="name">Counter-Offer Price</field>
+            <field name="res_model">pos.price.approval.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="context">{'default_action_type': 'counter_offer'}</field>
+        </record>
+
+        <!-- POS Price Approval Request List View -->
+        <record id="view_pos_price_approval_request_list" model="ir.ui.view">
+            <field name="name">pos.price.approval.request.list</field>
+            <field name="model">pos.price.approval.request</field>
+            <field name="arch" type="xml">
+                <list string="Price Approvals" 
+                      decoration-warning="status == 'pending'" 
+                      decoration-success="status == 'approved'" 
+                      decoration-danger="status == 'rejected'" 
+                      decoration-info="status == 'counter_offer'" 
+                      decoration-muted="status in ('cancelled', 'expired')"
+                      create="false">
+                    <field name="currency_id" column_invisible="True"/>
+                    <field name="created_at" string="Time"/>
+                    <field name="request_code" string="ID"/>
+                    <field name="cashier_name" string="Cashier"/>
+                    <field name="pos_profile" string="Terminal"/>
+                    <field name="product_name" string="Product"/>
+                    <field name="quantity" string="Qty"/>
+                    <field name="original_price" string="Original" widget="monetary"/>
+                    <field name="requested_price" string="Requested" widget="monetary"/>
+                    <field name="difference_amount" string="Diff" widget="monetary"/>
+                    <field name="difference_percent" string="Diff %" widget="percentage" optional="show"/>
+                    <field name="counter_price" string="Counter" widget="monetary" optional="show"/>
+                    <field name="status" string="Status" widget="badge" 
+                           decoration-warning="status == 'pending'" 
+                           decoration-success="status == 'approved'" 
+                           decoration-danger="status == 'rejected'" 
+                           decoration-info="status == 'counter_offer'" 
+                           decoration-muted="status in ('cancelled', 'expired')"/>
+                    <field name="reviewed_by_name" string="Reviewer" optional="hide"/>
+                    <field name="note" string="Note" optional="show"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-success btn-sm" invisible="status != 'pending'"/>
+                    <button name="%(action_pos_price_approval_counter_wizard)d" type="action" string="Counter" class="btn-primary btn-sm" invisible="status != 'pending'"/>
+                    <button name="%(action_pos_price_approval_reject_wizard)d" type="action" string="Reject" class="btn-danger btn-sm" invisible="status != 'pending'"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- POS Price Approval Request Form View -->
+        <record id="view_pos_price_approval_request_form" model="ir.ui.view">
+            <field name="name">pos.price.approval.request.form</field>
+            <field name="model">pos.price.approval.request</field>
+            <field name="arch" type="xml">
+                <form string="Price Approval Request">
+                    <header>
+                        <button name="action_approve" type="object" string="Approve" class="oe_highlight btn-success" invisible="status != 'pending'"/>
+                        <button name="%(action_pos_price_approval_counter_wizard)d" type="action" string="Counter-Offer" class="oe_highlight btn-primary" invisible="status != 'pending'"/>
+                        <button name="%(action_pos_price_approval_reject_wizard)d" type="action" string="Reject" class="btn-danger" invisible="status != 'pending'"/>
+                        <button name="action_cancel" type="object" string="Cancel" invisible="status != 'pending'"/>
+                        <field name="status" widget="statusbar" statusbar_visible="pending,approved,rejected"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="request_code" readonly="1"/>
+                            </h1>
+                            <h3>
+                                <field name="product_name" readonly="1"/>
+                            </h3>
+                        </div>
+                        <group>
+                            <group string="Pricing Comparison">
+                                <field name="currency_id" invisible="1"/>
+                                <field name="original_price" widget="monetary" readonly="1"/>
+                                <field name="requested_price" widget="monetary" readonly="1"/>
+                                <field name="difference_amount" widget="monetary" readonly="1"/>
+                                <field name="difference_percent" readonly="1"/>
+                                <field name="counter_price" widget="monetary" readonly="1" invisible="not counter_price"/>
+                                <field name="approved_price" widget="monetary" readonly="1" invisible="not approved_price"/>
+                            </group>
+                            <group string="Transaction &amp; Terminal Details">
+                                <field name="quantity" readonly="1"/>
+                                <field name="cashier_name" readonly="1"/>
+                                <field name="pos_profile" readonly="1"/>
+                                <field name="store_id" readonly="1"/>
+                                <field name="created_at" readonly="1"/>
+                            </group>
+                        </group>
+                        <group string="Resolution &amp; Notes">
+                            <field name="reviewed_by" readonly="1"/>
+                            <field name="updated_at" string="Response Time" readonly="1"/>
+                            <field name="note" readonly="status != 'pending'"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- POS Price Approval Search View -->
+        <record id="view_pos_price_approval_request_search" model="ir.ui.view">
+            <field name="name">pos.price.approval.request.search</field>
+            <field name="model">pos.price.approval.request</field>
+            <field name="arch" type="xml">
+                <search string="Search Price Approvals">
+                    <field name="request_code"/>
+                    <field name="product_name"/>
+                    <field name="cashier_name"/>
+                    <field name="pos_profile"/>
+                    <separator/>
+                    <filter string="Pending Approval" name="filter_pending" domain="[('status', '=', 'pending')]"/>
+                    <filter string="Approved" name="filter_approved" domain="[('status', '=', 'approved')]"/>
+                    <filter string="Counter-Offers" name="filter_counter" domain="[('status', '=', 'counter_offer')]"/>
+                    <filter string="Rejected" name="filter_rejected" domain="[('status', '=', 'rejected')]"/>
+                    <separator/>
+                    <filter string="Today" name="filter_today" domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('create_date', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <group>
+                        <filter string="Status" name="group_by_status" context="{'group_by':'status'}"/>
+                        <filter string="Cashier" name="group_by_cashier" context="{'group_by':'cashier_id'}"/>
+                        <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Action: POS Price Approvals -->
+        <record id="action_pos_price_approval_request" model="ir.actions.act_window">
+            <field name="name">Price Approvals</field>
+            <field name="res_model">pos.price.approval.request</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_pos_price_approval_request_search"/>
+            <field name="context">{'search_default_filter_pending': 1}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No price approval requests.
+                </p>
+                <p>
+                    When POS cashiers request custom unit prices during checkout, pending requests will appear here for immediate review.
+                </p>
+            </field>
+        </record>
+
+        <!-- Menuitem under Sales -> Operations -->
+        <menuitem id="menu_pos_price_approval_request"
+                  name="Price Approvals"
+                  parent="menu_sales_operations"
+                  action="action_pos_price_approval_request"
+                  groups="havanoposdesk_odoo.group_price_approval_manager"
+                  sequence="15"/>
+    </data>
+</odoo>

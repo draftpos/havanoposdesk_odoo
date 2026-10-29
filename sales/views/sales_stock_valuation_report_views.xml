@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Sales &stock Valuation Report Tree (List) View -->
+        <record id="view_sales_stock_valuation_report_list" model="ir.ui.view">
+            <field name="name">havanoposdesk.sales.stock.valuation.report.list</field>
+            <field name="model">havanoposdesk.sales.stock.valuation.report</field>
+            <field name="arch" type="xml">
+                <list string="Sales &amp;stock Valuation" create="false" edit="false" delete="false">
+                    <field name="currency_id" column_invisible="True"/>
+                    <field name="store_id" string="Store"/>
+                    <field name="closing_stock" string="Closing Stock" sum="Total Closing Stock"/>
+                    <field name="wholesale_valuation" string="Wholesale" widget="monetary" sum="Total Wholesale"/>
+                    <field name="retail_valuation" string="Retail" widget="monetary" sum="Total Retail"/>
+                    <field name="other_valuation" string="Other Pricelists" widget="monetary" sum="Total Other" optional="hide"/>
+                    <field name="sales_amount" string="Actual Sales" widget="monetary" sum="Total Sales"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Sales &stock Valuation Report Pivot View -->
+        <record id="view_sales_stock_valuation_report_pivot" model="ir.ui.view">
+            <field name="name">havanoposdesk.sales.stock.valuation.report.pivot</field>
+            <field name="model">havanoposdesk.sales.stock.valuation.report</field>
+            <field name="arch" type="xml">
+                <pivot string="Sales &amp;stock Valuation" disable_linking="True">
+                    <field name="store_id" type="row"/>
+                    <field name="closing_stock" type="measure"/>
+                    <field name="wholesale_valuation" type="measure"/>
+                    <field name="retail_valuation" type="measure"/>
+                    <field name="sales_amount" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- Sales &stock Valuation Report Search View -->
+        <record id="view_sales_stock_valuation_report_search" model="ir.ui.view">
+            <field name="name">havanoposdesk.sales.stock.valuation.report.search</field>
+            <field name="model">havanoposdesk.sales.stock.valuation.report</field>
+            <field name="arch" type="xml">
+                <search string="Search Sales &amp;stock Valuation">
+                    <field name="store_id"/>
+                    <separator/>
+                    <filter string="Has Stock" name="filter_has_stock" domain="[('closing_stock', '!=', 0)]"/>
+                    <filter string="Has Sales" name="filter_has_sales" domain="[('sales_amount', '>', 0)]"/>
+                    <group>
+                        <filter string="Store" name="group_by_store" context="{'group_by':'store_id'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Action for Sales &stock Valuation Report -->
+        <record id="action_sales_stock_valuation_report" model="ir.actions.act_window">
+            <field name="name">Sales &amp;stock Valuation</field>
+            <field name="res_model">havanoposdesk.sales.stock.valuation.report</field>
+            <field name="view_mode">list,pivot</field>
+            <field name="search_view_id" ref="view_sales_stock_valuation_report_search"/>
+            <field name="context">{}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No sales &amp; stock valuation data available.
+                </p>
+                <p>
+                    Closing stock valuation and actual sales by store and pricelist will appear here.
+                </p>
+            </field>
+        </record>
+
+        <!-- Menu Item under Sales -> Reports -->
+        <menuitem id="menu_sales_stock_valuation_report" 
+                  name="Sales &amp;stock Valuation" 
+                  parent="menu_sales_reports" 
+                  action="action_sales_stock_valuation_report" 
+                  sequence="35"/>
+    </data>
+</odoo>

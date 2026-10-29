@@ -923,11 +923,11 @@ class HavanoposdeskTenant(models.Model):
                 if product.is_bundle:
                     continue
                 if tenant.stock_valuation_method == 'avco':
-                    # Compute weighted average from purchase history
+                    # Compute weighted average from purchase history considering UOM multiplier and exchange rate
                     self.env.cr.execute("""
                         SELECT 
                             SUM(pl.accepted_qty * (pl.rate / COALESCE(p.exchange_rate, 1.0))) as total_val,
-                            SUM(pl.accepted_qty) as total_qty
+                            SUM(pl.accepted_qty * COALESCE(NULLIF(pl.uom_qty_multiplier, 0), 1.0)) as total_qty
                         FROM havanoposdesk_purchase_line pl
                         JOIN havanoposdesk_purchase p ON p.id = pl.purchase_id
                         WHERE pl.product_id = %s
@@ -940,22 +940,29 @@ class HavanoposdeskTenant(models.Model):
                         avg_cost = round(row[0] / row[1], 4)
                         product.write({'buying_price': avg_cost, 'cost_price': avg_cost})
                 else:
-                    # FIFO / Latest purchase price
-                    self.env.cr.execute("""
-                        SELECT (pl.rate / COALESCE(p.exchange_rate, 1.0)) as last_price
-                        FROM havanoposdesk_purchase_line pl
-                        JOIN havanoposdesk_purchase p ON p.id = pl.purchase_id
-                        WHERE pl.product_id = %s
-                          AND pl.accepted_qty > 0
-                          AND p.state = 'posted'
-                          AND NOT COALESCE(p.is_return, FALSE)
-                        ORDER BY p.posting_date DESC, pl.id DESC
-                        LIMIT 1
-                    """, (product.id,))
-                    row = self.env.cr.fetchone()
-                    if row and row[0] is not None:
-                        last_cost = round(row[0], 4)
-                        product.write({'buying_price': last_cost, 'cost_price': last_cost})
+                    # FIFO: Compute true FIFO unit cost of on-hand inventory
+                    vals = self.env['havanoposdesk.stock.valuation'].sudo().search([('product_id', '=', product.id)])
+                    on_hand = sum(vals.mapped('on_hand_qty'))
+                    fifo_cost = product._compute_fifo_cost(on_hand_qty=on_hand)
+                    if fifo_cost > 0:
+                        product.write({'buying_price': fifo_cost, 'cost_price': fifo_cost})
+                    else:
+                        # Fallback to latest purchase unit price considering UOM multiplier
+                        self.env.cr.execute("""
+                            SELECT ((pl.rate / COALESCE(NULLIF(pl.uom_qty_multiplier, 0), 1.0)) / COALESCE(p.exchange_rate, 1.0)) as last_price
+                            FROM havanoposdesk_purchase_line pl
+                            JOIN havanoposdesk_purchase p ON p.id = pl.purchase_id
+                            WHERE pl.product_id = %s
+                              AND pl.accepted_qty > 0
+                              AND p.state = 'posted'
+                              AND NOT COALESCE(p.is_return, FALSE)
+                            ORDER BY p.posting_date DESC, pl.id DESC
+                            LIMIT 1
+                        """, (product.id,))
+                        row = self.env.cr.fetchone()
+                        if row and row[0] is not None:
+                            last_cost = round(row[0], 4)
+                            product.write({'buying_price': last_cost, 'cost_price': last_cost})
             
             # Recompute stock valuation records for this tenant
             valuations = self.env['havanoposdesk.stock.valuation'].search([('tenant_id', '=', tenant.id)])

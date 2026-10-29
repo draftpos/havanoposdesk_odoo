@@ -1,0 +1,217 @@
+/* Price Approval Floating Toast Notification Styles */
+.havano-price-approval-container {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 420px;
+    width: calc(100vw - 40px);
+    pointer-events: none;
+}
+
+.havano-price-approval-toast {
+    pointer-events: auto;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-left: 5px solid #f59e0b;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.havano-price-approval-toast.visible {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.havano-toast-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.havano-toast-title-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.havano-toast-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #fef3c7;
+    color: #d97706;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    animation: havano-pulse-bell 1.5s infinite ease-in-out;
+}
+
+@keyframes havano-pulse-bell {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15) rotate(10deg); }
+}
+
+.havano-toast-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.havano-toast-close {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.havano-toast-close:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.havano-toast-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.havano-toast-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    background: #e0f2fe;
+    color: #0369a1;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.havano-toast-body {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.havano-toast-product {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+    display: flex;
+    justify-content: space-between;
+}
+
+.havano-toast-price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.havano-price-compare {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.havano-price-orig {
+    color: #9ca3af;
+    text-decoration: line-through;
+    font-size: 12px;
+}
+
+.havano-price-arrow {
+    color: #6b7280;
+    font-size: 11px;
+}
+
+.havano-price-req {
+    color: #059669;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.havano-discount-tag {
+    background: #fee2e2;
+    color: #b91c1c;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.havano-toast-reason {
+    font-size: 12px;
+    color: #4b5563;
+    font-style: italic;
+    border-top: 1px dashed #e5e7eb;
+    padding-top: 4px;
+    margin-top: 2px;
+}
+
+.havano-toast-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.havano-toast-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.havano-toast-btn-approve {
+    background: #10b981;
+    color: #ffffff;
+}
+
+.havano-toast-btn-approve:hover {
+    background: #059669;
+}
+
+.havano-toast-btn-review {
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+.havano-toast-btn-review:hover {
+    background: #2563eb;
+}
+
+.havano-toast-btn:active {
+    transform: scale(0.97);
+}

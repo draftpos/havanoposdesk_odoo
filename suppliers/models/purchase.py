@@ -313,23 +313,35 @@ class Purchase(models.Model):
                         unit_rate_base = unit_rate / (purchase.exchange_rate or 1.0)
                         tenant = purchase.tenant_id or line.product_id.tenant_id
 
+                        # Query real current on-hand quantity directly from stock.valuation to prevent stale ORM cache
+                        val_domain = [('product_id', '=', line.product_id.id)]
+                        if line.variant_id:
+                            val_domain.append(('variant_id', '=', line.variant_id.id))
+                        existing_vals = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain)
+                        current_qty = sum(existing_vals.mapped('on_hand_qty'))
+                        current_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
+
                         if tenant and tenant.stock_valuation_method == 'avco':
                             # AVCO: Moving Weighted Average Cost
-                            current_qty = line.product_id.on_hand_qty
-                            current_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
                             if current_qty > 0 and current_cost > 0:
                                 new_buying_price = round(((current_qty * current_cost) + (base_qty * unit_rate_base)) / (current_qty + base_qty), 4)
                             else:
                                 new_buying_price = unit_rate_base
                         else:
-                            # FIFO / Latest purchase price
-                            new_buying_price = unit_rate_base
+                            # FIFO: Moving valuation of on-hand inventory
+                            if current_qty > 0 and current_cost > 0:
+                                new_buying_price = round(((current_qty * current_cost) + (base_qty * unit_rate_base)) / (current_qty + base_qty), 4)
+                            else:
+                                new_buying_price = unit_rate_base
                             
                         # Update buying_price (last updated value) using sudo()
                         line.product_id.sudo().write({
                             'buying_price': new_buying_price,
                             'cost_price': new_buying_price,
                         })
+                        
+                        # Invalidate product cache so any subsequent lines or models see updated price and stock
+                        line.product_id.invalidate_recordset(['buying_price', 'cost_price', 'on_hand_qty'])
                         
                         # Create costing records in costing table
                         self.env['havanoposdesk.product.costing'].sudo().create({
@@ -359,8 +371,8 @@ class Purchase(models.Model):
                             domain.append(('variant_id', '=', line.variant_id.id))
                         valuation = self.env['havanoposdesk.stock.valuation'].sudo().search(domain, limit=1)
                         
-                        current_qty = valuation.on_hand_qty if valuation else 0.0
-                        new_balance = current_qty + base_qty
+                        current_store_qty = valuation.on_hand_qty if valuation else 0.0
+                        new_balance = current_store_qty + base_qty
                         
                         if valuation:
                             valuation.write({
@@ -374,6 +386,9 @@ class Purchase(models.Model):
                                 'on_hand_qty': new_balance,
                                 'tenant_id': line.product_id.tenant_id.id,
                             })
+
+                        # Invalidate on_hand_qty after updating valuation
+                        line.product_id.invalidate_recordset(['on_hand_qty'])
 
                         # Create Ledger Entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({
@@ -449,11 +464,11 @@ class Purchase(models.Model):
                         
                         tenant = purchase.tenant_id or line.product_id.tenant_id
                         if tenant and tenant.stock_valuation_method == 'avco':
-                            # Recompute average cost from remaining purchases
+                            # Recompute average cost from remaining posted purchases
                             self.env.cr.execute("""
                                 SELECT 
                                     SUM(pl.accepted_qty * (pl.rate / COALESCE(p.exchange_rate, 1.0))) as total_val,
-                                    SUM(pl.accepted_qty) as total_qty
+                                    SUM(pl.accepted_qty * COALESCE(NULLIF(pl.uom_qty_multiplier, 0), 1.0)) as total_qty
                                 FROM havanoposdesk_purchase_line pl
                                 JOIN havanoposdesk_purchase p ON p.id = pl.purchase_id
                                 WHERE pl.product_id = %s
@@ -466,16 +481,21 @@ class Purchase(models.Model):
                             if row and row[1] and row[1] > 0:
                                 rev_price = round(row[0] / row[1], 4)
                                 line.product_id.sudo().write({'buying_price': rev_price, 'cost_price': rev_price})
+                            else:
+                                init_cost = line.product_id.cost_price or line.product_id.buying_price or 0.0
+                                line.product_id.sudo().write({'buying_price': init_cost, 'cost_price': init_cost})
                         else:
-                            # Revert product buying price to the previous purchase's rate (if any)
-                            last_purchase = self.env['havanoposdesk.purchase.line'].search([
-                                ('product_id', '=', line.product_id.id),
-                                ('purchase_id.state', '=', 'posted'),
-                                ('purchase_id', '!=', purchase.id)
-                            ], order='id desc', limit=1)
-                            if last_purchase:
-                                last_rate = last_purchase.rate / last_purchase.uom_qty_multiplier if last_purchase.uom_qty_multiplier else last_purchase.rate
-                                line.product_id.sudo().write({'buying_price': last_rate, 'cost_price': last_rate})
+                            # Recompute FIFO cost from remaining purchases
+                            val_domain = [('product_id', '=', line.product_id.id)]
+                            if line.variant_id:
+                                val_domain.append(('variant_id', '=', line.variant_id.id))
+                            existing_vals = self.env['havanoposdesk.stock.valuation'].sudo().search(val_domain)
+                            rem_qty = max(0.0, sum(existing_vals.mapped('on_hand_qty')) - base_qty)
+                            rev_price = line.product_id._compute_fifo_cost(on_hand_qty=rem_qty)
+                            if rev_price > 0:
+                                line.product_id.sudo().write({'buying_price': rev_price, 'cost_price': rev_price})
+
+                        line.product_id.invalidate_recordset(['buying_price', 'cost_price', 'on_hand_qty'])
 
                         # Create reverse ledger entry using sudo()
                         self.env['havanoposdesk.stock.ledger'].sudo().create({

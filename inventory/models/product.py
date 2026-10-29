@@ -782,6 +782,51 @@ class HavanoposdeskProduct(models.Model):
             'target': 'new',
         }
 
+    def _compute_fifo_cost(self, on_hand_qty=None, date_to=None):
+        """Compute the FIFO unit cost of the ending inventory quantity for this product.
+        Walks backwards through posted purchases (newest to oldest) to price the remaining stock.
+        """
+        self.ensure_one()
+        if on_hand_qty is None:
+            valuations = self.env['havanoposdesk.stock.valuation'].sudo().search([('product_id', '=', self.id)])
+            on_hand_qty = sum(valuations.mapped('on_hand_qty'))
+
+        if on_hand_qty <= 0:
+            return self.buying_price or self.cost_price or 0.0
+
+        domain = [
+            ('product_id', '=', self.id),
+            ('purchase_id.state', '=', 'posted'),
+            ('accepted_qty', '>', 0),
+            ('purchase_id.is_return', '=', False)
+        ]
+        if date_to:
+            domain.append(('purchase_id.posting_date', '<=', date_to))
+
+        plines = self.env['havanoposdesk.purchase.line'].sudo().search(domain, order='id desc')
+
+        remaining_qty = on_hand_qty
+        total_val = 0.0
+
+        for pl in plines:
+            mult = pl.uom_qty_multiplier or 1.0
+            ex_rate = pl.purchase_id.exchange_rate or 1.0
+            base_qty = pl.accepted_qty * mult
+            unit_rate = (pl.rate / mult) / ex_rate
+
+            take_qty = min(remaining_qty, base_qty)
+            total_val += take_qty * unit_rate
+            remaining_qty -= take_qty
+
+            if remaining_qty <= 0:
+                break
+
+        if remaining_qty > 0:
+            base_cost = self.buying_price or self.cost_price or 0.0
+            total_val += remaining_qty * base_cost
+
+        return round(total_val / on_hand_qty, 4)
+
 class HavanoposdeskProductCosting(models.Model):
     _name = 'havanoposdesk.product.costing'
     _description = 'Product Costing Table'
