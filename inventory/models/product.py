@@ -1,3 +1,4 @@
+from datetime import datetime, time, date
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
 
@@ -791,6 +792,19 @@ class HavanoposdeskProduct(models.Model):
             valuations = self.env['havanoposdesk.stock.valuation'].sudo().search([('product_id', '=', self.id)])
             on_hand_qty = sum(valuations.mapped('on_hand_qty'))
 
+        limit_dt = None
+        if date_to:
+            if isinstance(date_to, str):
+                limit_dt = fields.Datetime.to_datetime(date_to)
+                if not limit_dt:
+                    d = fields.Date.to_date(date_to)
+                    if d:
+                        limit_dt = datetime.combine(d, time.max)
+            elif isinstance(date_to, datetime):
+                limit_dt = date_to
+            elif hasattr(date_to, 'year'):
+                limit_dt = datetime.combine(date_to, time.max)
+
         # Fetch posted purchase lines chronologically newest first
         domain = [
             ('product_id', '=', self.id),
@@ -798,12 +812,17 @@ class HavanoposdeskProduct(models.Model):
             ('accepted_qty', '>', 0),
             ('purchase_id.is_return', '=', False)
         ]
-        if date_to:
-            domain.append(('purchase_id.posting_date', '<=', date_to))
+        if limit_dt:
+            domain.append(('purchase_id.posting_date', '<=', limit_dt))
 
-        plines = self.env['havanoposdesk.purchase.line'].sudo().search(
-            domain, 
-            order='purchase_id.posting_date desc, purchase_id.id desc, id desc'
+        plines = self.env['havanoposdesk.purchase.line'].sudo().search(domain, order='id desc')
+        plines = plines.sorted(
+            key=lambda l: (
+                l.purchase_id.posting_date or l.purchase_id.create_date or fields.Datetime.now(),
+                l.purchase_id.id or 0,
+                l.id or 0,
+            ),
+            reverse=True,
         )
 
         if on_hand_qty <= 0:
@@ -828,7 +847,7 @@ class HavanoposdeskProduct(models.Model):
 
             # Deduct any returns against this purchase
             ret_lines = pl.purchase_id.return_purchase_ids.filtered(
-                lambda r: r.state == 'posted' and (not date_to or r.posting_date <= date_to)
+                lambda r: r.state == 'posted' and (not limit_dt or (r.posting_date and r.posting_date <= limit_dt))
             ).line_ids.filtered(lambda l: l.product_id.id == self.id)
             ret_qty = sum(l.accepted_qty * (l.uom_qty_multiplier or 1.0) for l in ret_lines)
             net_base_qty = max(0.0, base_qty - ret_qty)
@@ -862,14 +881,29 @@ class HavanoposdeskProduct(models.Model):
         """
         self.ensure_one()
 
-        date_filter_p = "AND p.posting_date <= %s" if date_to else ""
-        date_filter_s = "AND s.posting_date <= %s" if date_to else ""
+        limit_dt = None
+        limit_date = None
+        if date_to:
+            if isinstance(date_to, str):
+                limit_dt = fields.Datetime.to_datetime(date_to)
+                limit_date = fields.Date.to_date(date_to)
+                if not limit_dt and limit_date:
+                    limit_dt = datetime.combine(limit_date, time.max)
+            elif isinstance(date_to, datetime):
+                limit_dt = date_to
+                limit_date = date_to.date()
+            elif hasattr(date_to, 'year'):
+                limit_dt = datetime.combine(date_to, time.max)
+                limit_date = date_to
+
+        date_filter_p = "AND p.posting_date <= %s" if limit_dt else ""
+        date_filter_s = "AND s.posting_date <= %s" if limit_date else ""
         params = [self.id]
-        if date_to:
-            params.append(date_to)
+        if limit_dt:
+            params.append(limit_dt)
         params.append(self.id)
-        if date_to:
-            params.append(date_to)
+        if limit_date:
+            params.append(limit_date)
 
         query = f"""
             SELECT 

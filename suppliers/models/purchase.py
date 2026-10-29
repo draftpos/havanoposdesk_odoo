@@ -229,6 +229,9 @@ class Purchase(models.Model):
         for purchase in self:
             if purchase.state != 'draft':
                 continue
+            if not purchase.posting_date:
+                purchase.posting_date = fields.Datetime.now()
+            purchase.write({'state': 'posted'})
                 
             # Auto-create payment if cash and total is greater than zero
             if purchase.payment_status == 'cash' and purchase.account_id and purchase.amount_total > 0:
@@ -411,6 +414,7 @@ class Purchase(models.Model):
         for purchase in self:
             if purchase.state != 'posted':
                 continue
+            purchase.write({'state': 'cancelled'})
                 
             # Reverse POS Payment batch amounts and account balances
             if purchase.payment_status == 'cash' and purchase.pos_payment_id:
