@@ -183,7 +183,6 @@
                   name="Price Approvals"
                   parent="menu_sales_operations"
                   action="action_pos_price_approval_request"
-                  groups="havanoposdesk_odoo.group_price_approval_manager"
                   sequence="15"/>
     </data>
 </odoo>

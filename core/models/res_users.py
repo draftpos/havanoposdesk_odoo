@@ -270,12 +270,14 @@ class ResUsers(models.Model):
                 return True
             return False
         if group_ext_id == 'havanoposdesk_odoo.group_price_approval_manager':
+            if self.env.is_admin() or getattr(self.env.user, 'havano_role', False) in ('admin', 'super_admin'):
+                return True
             tenant = self.env.user.tenant_id
             if not tenant:
                 tenant = self.env['havanoposdesk.tenant'].sudo().search([], limit=1)
             if tenant and tenant.require_price_change_approval:
                 return True
-            return False
+            return super().has_group(group_ext_id)
         return super().has_group(group_ext_id)
 
     @api.model_create_multi
