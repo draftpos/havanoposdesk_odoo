@@ -44,13 +44,9 @@ class StockValuationDateWizard(models.TransientModel):
             if key not in stock_data:
                 cost_price = line.product_id.buying_price or 0.0
                 if self.tenant_id.stock_valuation_method == 'avco':
-                    costing = self.env['havanoposdesk.product.costing'].search([
-                        ('product_id', '=', line.product_id.id),
-                        ('cost_type', '=', 'average'),
-                        ('date', '<=', self.date_to)
-                    ], order='date desc, id desc', limit=1)
-                    if costing and costing.price:
-                        cost_price = costing.price
+                    avco_cost = line.product_id._compute_avco_cost(date_to=self.date_to)
+                    if avco_cost and avco_cost > 0:
+                        cost_price = avco_cost
                 stock_data[key] = {
                     'product_id': line.product_id.id,
                     'store_id': line.store_id.id,

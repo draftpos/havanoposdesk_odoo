@@ -783,17 +783,15 @@ class HavanoposdeskProduct(models.Model):
         }
 
     def _compute_fifo_cost(self, on_hand_qty=None, date_to=None):
-        """Compute the FIFO unit cost of the ending inventory quantity for this product.
-        Walks backwards through posted purchases (newest to oldest) to price the remaining stock.
+        """Compute the FIFO unit cost of the ending inventory quantity for this product adhering to IAS 2.
+        Walks backwards through posted purchases (newest to oldest chronologically) to price the remaining stock.
         """
         self.ensure_one()
         if on_hand_qty is None:
             valuations = self.env['havanoposdesk.stock.valuation'].sudo().search([('product_id', '=', self.id)])
             on_hand_qty = sum(valuations.mapped('on_hand_qty'))
 
-        if on_hand_qty <= 0:
-            return self.buying_price or self.cost_price or 0.0
-
+        # Fetch posted purchase lines chronologically newest first
         domain = [
             ('product_id', '=', self.id),
             ('purchase_id.state', '=', 'posted'),
@@ -803,7 +801,22 @@ class HavanoposdeskProduct(models.Model):
         if date_to:
             domain.append(('purchase_id.posting_date', '<=', date_to))
 
-        plines = self.env['havanoposdesk.purchase.line'].sudo().search(domain, order='id desc')
+        plines = self.env['havanoposdesk.purchase.line'].sudo().search(
+            domain, 
+            order='purchase_id.posting_date desc, purchase_id.id desc, id desc'
+        )
+
+        if on_hand_qty <= 0:
+            # Under IAS 2, if no stock on hand, return replacement cost (latest purchase price) or fallback to current cost
+            if plines:
+                latest = plines[0]
+                mult = latest.uom_qty_multiplier or 1.0
+                ex_rate = latest.purchase_id.exchange_rate or 1.0
+                base_qty = latest.accepted_qty * mult
+                if latest.price_subtotal and base_qty > 0:
+                    return round((latest.price_subtotal / base_qty) / ex_rate, 4)
+                return round((latest.rate / mult) / ex_rate, 4)
+            return self.buying_price or self.cost_price or 0.0
 
         remaining_qty = on_hand_qty
         total_val = 0.0
@@ -812,9 +825,22 @@ class HavanoposdeskProduct(models.Model):
             mult = pl.uom_qty_multiplier or 1.0
             ex_rate = pl.purchase_id.exchange_rate or 1.0
             base_qty = pl.accepted_qty * mult
-            unit_rate = (pl.rate / mult) / ex_rate
 
-            take_qty = min(remaining_qty, base_qty)
+            # Deduct any returns against this purchase
+            ret_lines = pl.purchase_id.return_purchase_ids.filtered(
+                lambda r: r.state == 'posted' and (not date_to or r.posting_date <= date_to)
+            ).line_ids.filtered(lambda l: l.product_id.id == self.id)
+            ret_qty = sum(l.accepted_qty * (l.uom_qty_multiplier or 1.0) for l in ret_lines)
+            net_base_qty = max(0.0, base_qty - ret_qty)
+            if net_base_qty <= 0:
+                continue
+
+            if pl.price_subtotal and base_qty > 0:
+                unit_rate = (pl.price_subtotal / base_qty) / ex_rate
+            else:
+                unit_rate = (pl.rate / mult) / ex_rate
+
+            take_qty = min(remaining_qty, net_base_qty)
             total_val += take_qty * unit_rate
             remaining_qty -= take_qty
 
@@ -822,10 +848,95 @@ class HavanoposdeskProduct(models.Model):
                 break
 
         if remaining_qty > 0:
+            # Account for opening stock / initial inventory balance
             base_cost = self.buying_price or self.cost_price or 0.0
             total_val += remaining_qty * base_cost
 
         return round(total_val / on_hand_qty, 4)
+
+    def _compute_avco_cost(self, on_hand_qty=None, date_to=None):
+        """Compute the Moving Weighted Average Cost (AVCO) adhering to IAS 2.
+        Replays inventory transactions chronologically (initial stock, purchases, sales, returns)
+        so that each receipt updates the moving weighted average cost of stock on hand,
+        and sales reduce inventory without distorting the unit average cost.
+        """
+        self.ensure_one()
+
+        date_filter_p = "AND p.posting_date <= %s" if date_to else ""
+        date_filter_s = "AND s.posting_date <= %s" if date_to else ""
+        params = [self.id]
+        if date_to:
+            params.append(date_to)
+        params.append(self.id)
+        if date_to:
+            params.append(date_to)
+
+        query = f"""
+            SELECT 
+                'purchase' as trans_type,
+                COALESCE(p.posting_date, p.create_date)::timestamp as t_date,
+                p.id as doc_id,
+                pl.id as line_id,
+                (pl.accepted_qty * COALESCE(NULLIF(pl.uom_qty_multiplier, 0), 1.0)) as qty,
+                COALESCE(p.is_return, FALSE) as is_return,
+                (COALESCE(pl.price_subtotal, pl.accepted_qty * pl.rate) / 
+                 NULLIF(pl.accepted_qty * COALESCE(NULLIF(pl.uom_qty_multiplier, 0), 1.0), 0) / 
+                 COALESCE(NULLIF(p.exchange_rate, 0), 1.0)) as unit_cost
+            FROM havanoposdesk_purchase_line pl
+            JOIN havanoposdesk_purchase p ON p.id = pl.purchase_id
+            WHERE pl.product_id = %s
+              AND p.state = 'posted'
+              AND pl.accepted_qty > 0
+              {date_filter_p}
+            UNION ALL
+            SELECT 
+                'sale' as trans_type,
+                COALESCE(s.posting_date::timestamp, s.create_date) as t_date,
+                s.id as doc_id,
+                sl.id as line_id,
+                (sl.accepted_qty * COALESCE(NULLIF(sl.uom_qty_multiplier, 0), 1.0)) as qty,
+                COALESCE(s.is_return, FALSE) as is_return,
+                0.0 as unit_cost
+            FROM havanoposdesk_sale_line sl
+            JOIN havanoposdesk_sale s ON s.id = sl.sale_id
+            WHERE sl.product_id = %s
+              AND s.state IN ('confirmed', 'done')
+              AND sl.accepted_qty > 0
+              {date_filter_s}
+            ORDER BY t_date ASC, doc_id ASC, line_id ASC
+        """
+        self.env.cr.execute(query, tuple(params))
+        transactions = self.env.cr.fetchall()
+
+        # Initial state from opening stock if present
+        running_qty = max(0.0, self.opening_stock or 0.0)
+        running_cost = self.buying_price or self.cost_price or 0.0
+
+        for mtype, tdate, doc_id, line_id, qty, is_return, unit_cost in transactions:
+            qty = qty or 0.0
+            unit_cost = unit_cost or 0.0
+            if mtype == 'purchase':
+                if is_return:
+                    # Purchase return / Debit Note reduces on-hand quantity
+                    running_qty = max(0.0, running_qty - qty)
+                else:
+                    # Normal Purchase receipt
+                    if running_qty > 0 and running_cost > 0:
+                        running_cost = ((running_qty * running_cost) + (qty * unit_cost)) / (running_qty + qty)
+                    else:
+                        running_cost = unit_cost
+                    running_qty += qty
+            elif mtype == 'sale':
+                if is_return:
+                    # Sale return / Credit note adds stock back at current moving cost
+                    running_qty += qty
+                else:
+                    # Normal Sale issue: reduces stock quantity; average unit cost stays unchanged
+                    running_qty = max(0.0, running_qty - qty)
+
+        if running_cost > 0:
+            return round(running_cost, 4)
+        return self.buying_price or self.cost_price or 0.0
 
 class HavanoposdeskProductCosting(models.Model):
     _name = 'havanoposdesk.product.costing'

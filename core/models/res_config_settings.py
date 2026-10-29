@@ -144,7 +144,7 @@ class ResConfigSettings(models.TransientModel):
         related='tenant_id.stock_valuation_method',
         readonly=False,
         string="Stock Valuation Method",
-        help="Choose how inventory cost and valuation are calculated: FIFO (First In, First Out / Latest Purchase Price) or AVCO (Weighted Average Cost)."
+        help="Choose how inventory cost and valuation are calculated adhering to IAS 2 (Inventories): FIFO (First In, First Out) or AVCO (Weighted Average Cost)."
     )
 
     biz_allow_edit_item_code = fields.Boolean(
@@ -664,7 +664,7 @@ class ResConfigSettings(models.TransientModel):
                 'tag': 'display_notification',
                 'params': {
                     'title': 'Stock Valuation Updated',
-                    'message': f'Product cost prices and stock valuation recomputed successfully using {method_label}.',
+                    'message': f'Product cost prices and stock valuation recomputed successfully using {method_label} in accordance with IAS 2.',
                     'type': 'success',
                     'sticky': False,
                 }

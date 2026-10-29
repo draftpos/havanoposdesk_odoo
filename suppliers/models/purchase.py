@@ -310,7 +310,10 @@ class Purchase(models.Model):
                         })
                     else:
                         # Normal Purchase
-                        unit_rate_base = unit_rate / (purchase.exchange_rate or 1.0)
+                        if line.price_subtotal and base_qty > 0:
+                            unit_rate_base = (line.price_subtotal / base_qty) / (purchase.exchange_rate or 1.0)
+                        else:
+                            unit_rate_base = unit_rate / (purchase.exchange_rate or 1.0)
                         tenant = purchase.tenant_id or line.product_id.tenant_id
 
                         # Query real current on-hand quantity directly from stock.valuation to prevent stale ORM cache
@@ -322,17 +325,17 @@ class Purchase(models.Model):
                         current_cost = line.product_id.buying_price or line.product_id.cost_price or 0.0
 
                         if tenant and tenant.stock_valuation_method == 'avco':
-                            # AVCO: Moving Weighted Average Cost
+                            # AVCO: Moving Weighted Average Cost (IAS 2)
                             if current_qty > 0 and current_cost > 0:
                                 new_buying_price = round(((current_qty * current_cost) + (base_qty * unit_rate_base)) / (current_qty + base_qty), 4)
                             else:
-                                new_buying_price = unit_rate_base
+                                new_buying_price = round(unit_rate_base, 4)
                         else:
-                            # FIFO: Moving valuation of on-hand inventory
-                            if current_qty > 0 and current_cost > 0:
-                                new_buying_price = round(((current_qty * current_cost) + (base_qty * unit_rate_base)) / (current_qty + base_qty), 4)
+                            # FIFO: First In, First Out (IAS 2)
+                            if current_qty <= 0:
+                                new_buying_price = round(unit_rate_base, 4)
                             else:
-                                new_buying_price = unit_rate_base
+                                new_buying_price = line.product_id._compute_fifo_cost(on_hand_qty=current_qty + base_qty)
                             
                         # Update buying_price (last updated value) using sudo()
                         line.product_id.sudo().write({
@@ -464,28 +467,12 @@ class Purchase(models.Model):
                         
                         tenant = purchase.tenant_id or line.product_id.tenant_id
                         if tenant and tenant.stock_valuation_method == 'avco':
-                            # Recompute average cost from remaining posted purchases
-                            self.env.cr.execute("""
-                                SELECT 
-                                    SUM(pl.accepted_qty * (pl.rate / COALESCE(p.exchange_rate, 1.0))) as total_val,
-                                    SUM(pl.accepted_qty * COALESCE(NULLIF(pl.uom_qty_multiplier, 0), 1.0)) as total_qty
-                                FROM havanoposdesk_purchase_line pl
-                                JOIN havanoposdesk_purchase p ON p.id = pl.purchase_id
-                                WHERE pl.product_id = %s
-                                  AND pl.accepted_qty > 0
-                                  AND p.state = 'posted'
-                                  AND p.id != %s
-                                  AND NOT COALESCE(p.is_return, FALSE)
-                            """, (line.product_id.id, purchase.id))
-                            row = self.env.cr.fetchone()
-                            if row and row[1] and row[1] > 0:
-                                rev_price = round(row[0] / row[1], 4)
+                            # Recompute average cost according to IAS 2
+                            rev_price = line.product_id._compute_avco_cost()
+                            if rev_price > 0:
                                 line.product_id.sudo().write({'buying_price': rev_price, 'cost_price': rev_price})
-                            else:
-                                init_cost = line.product_id.cost_price or line.product_id.buying_price or 0.0
-                                line.product_id.sudo().write({'buying_price': init_cost, 'cost_price': init_cost})
                         else:
-                            # Recompute FIFO cost from remaining purchases
+                            # Recompute FIFO cost from remaining purchases according to IAS 2
                             val_domain = [('product_id', '=', line.product_id.id)]
                             if line.variant_id:
                                 val_domain.append(('variant_id', '=', line.variant_id.id))

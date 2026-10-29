@@ -10,9 +10,9 @@
                     <field name="currency_id" column_invisible="True"/>
                     <field name="store_id" string="Store"/>
                     <field name="closing_stock" string="Closing Stock" sum="Total Closing Stock"/>
-                    <field name="wholesale_valuation" string="Wholesale" widget="monetary" sum="Total Wholesale"/>
-                    <field name="retail_valuation" string="Retail" widget="monetary" sum="Total Retail"/>
-                    <field name="other_valuation" string="Other Pricelists" widget="monetary" sum="Total Other" optional="hide"/>
+                    <field name="wholesale_qty" string="Wholesale" sum="Total Wholesale"/>
+                    <field name="retail_qty" string="Retail" sum="Total Retail"/>
+                    <field name="total_qty" string="Total" sum="Total"/>
                     <field name="sales_amount" string="Actual Sales" widget="monetary" sum="Total Sales"/>
                 </list>
             </field>
@@ -26,8 +26,9 @@
                 <pivot string="Sales &amp;stock Valuation" disable_linking="True">
                     <field name="store_id" type="row"/>
                     <field name="closing_stock" type="measure"/>
-                    <field name="wholesale_valuation" type="measure"/>
-                    <field name="retail_valuation" type="measure"/>
+                    <field name="wholesale_qty" type="measure"/>
+                    <field name="retail_qty" type="measure"/>
+                    <field name="total_qty" type="measure"/>
                     <field name="sales_amount" type="measure"/>
                 </pivot>
             </field>

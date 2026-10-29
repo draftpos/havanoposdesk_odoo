@@ -9,13 +9,18 @@ class SalesStockValuationReport(models.Model):
     store_id = fields.Many2one('havanoposdesk.store', string='Store', readonly=True)
     store_name = fields.Char(string='Store Name', readonly=True)
     closing_stock = fields.Float(string='Closing Stock', readonly=True)
-    wholesale_valuation = fields.Monetary(string='Wholesale', currency_field='currency_id', readonly=True)
-    retail_valuation = fields.Monetary(string='Retail', currency_field='currency_id', readonly=True)
-    other_valuation = fields.Monetary(string='Other Pricelists', currency_field='currency_id', readonly=True)
-    total_valuation = fields.Monetary(string='Total', currency_field='currency_id', readonly=True)
+    wholesale_qty = fields.Float(string='Wholesale', readonly=True)
+    retail_qty = fields.Float(string='Retail', readonly=True)
+    total_qty = fields.Float(string='Total', readonly=True)
     sales_amount = fields.Monetary(string='Actual Sales', currency_field='currency_id', readonly=True)
     tenant_id = fields.Many2one('havanoposdesk.tenant', string='Tenant', readonly=True)
     currency_id = fields.Many2one('res.currency', string='Currency', readonly=True)
+
+    # Backward compatibility aliases
+    wholesale_valuation = fields.Float(string='Wholesale', readonly=True)
+    retail_valuation = fields.Float(string='Retail', readonly=True)
+    total_valuation = fields.Float(string='Total', readonly=True)
+    other_valuation = fields.Float(string='Other Pricelists', readonly=True)
 
     def init(self):
         tools.drop_view_if_exists(self.env.cr, self._table)
@@ -26,10 +31,13 @@ class SalesStockValuationReport(models.Model):
                     s.id as store_id,
                     s.name as store_name,
                     COALESCE(stock_sub.closing_stock, 0.0) as closing_stock,
-                    COALESCE(val_sub.wholesale_valuation, 0.0) as wholesale_valuation,
-                    COALESCE(val_sub.retail_valuation, 0.0) as retail_valuation,
-                    COALESCE(val_sub.other_valuation, 0.0) as other_valuation,
-                    COALESCE(val_sub.total_valuation, 0.0) as total_valuation,
+                    COALESCE(sales_qty_sub.wholesale_qty, 0.0) as wholesale_qty,
+                    COALESCE(sales_qty_sub.retail_qty, 0.0) as retail_qty,
+                    (COALESCE(sales_qty_sub.wholesale_qty, 0.0) + COALESCE(sales_qty_sub.retail_qty, 0.0)) as total_qty,
+                    COALESCE(sales_qty_sub.wholesale_qty, 0.0) as wholesale_valuation,
+                    COALESCE(sales_qty_sub.retail_qty, 0.0) as retail_valuation,
+                    (COALESCE(sales_qty_sub.wholesale_qty, 0.0) + COALESCE(sales_qty_sub.retail_qty, 0.0)) as total_valuation,
+                    0.0 as other_valuation,
                     COALESCE(sales_sub.total_sales, 0.0) as sales_amount,
                     s.tenant_id as tenant_id,
                     COALESCE(s.currency_id, t.currency_id) as currency_id
@@ -42,21 +50,25 @@ class SalesStockValuationReport(models.Model):
                 ) stock_sub ON stock_sub.store_id = s.id
                 LEFT JOIN (
                     SELECT 
-                        sv.store_id,
-                        SUM(sv.on_hand_qty * COALESCE(pup.price, p.selling_price, 0.0)) as total_valuation,
-                        SUM(CASE WHEN pl.name ILIKE '%%wholesale%%' THEN sv.on_hand_qty * COALESCE(pup.price, p.selling_price, 0.0) ELSE 0.0 END) as wholesale_valuation,
-                        SUM(CASE WHEN pl.name ILIKE '%%retail%%' THEN sv.on_hand_qty * COALESCE(pup.price, p.selling_price, 0.0) ELSE 0.0 END) as retail_valuation,
-                        SUM(CASE WHEN pl.name NOT ILIKE '%%wholesale%%' AND pl.name NOT ILIKE '%%retail%%' THEN sv.on_hand_qty * COALESCE(pup.price, p.selling_price, 0.0) ELSE 0.0 END) as other_valuation
-                    FROM havanoposdesk_stock_valuation sv
-                    JOIN havanoposdesk_product p ON p.id = sv.product_id
-                    JOIN havanoposdesk_pricelist pl ON pl.tenant_id = sv.tenant_id AND pl.type = 'selling'
-                    LEFT JOIN havanoposdesk_product_uom_price pup 
-                        ON pup.product_id = sv.product_id 
-                        AND pup.store_id = sv.store_id 
-                        AND pup.pricelist_id = pl.id
-                        AND (pup.uom_id = p.uom_id OR pup.uom_id IS NULL)
-                    GROUP BY sv.store_id
-                ) val_sub ON val_sub.store_id = s.id
+                        s_inner.store_id,
+                        SUM(CASE 
+                            WHEN pl.name ILIKE '%%wholesale%%' 
+                            THEN (CASE WHEN s_inner.is_return THEN -COALESCE(sl.accepted_qty, 0.0) ELSE COALESCE(sl.accepted_qty, 0.0) END) 
+                            ELSE 0.0 
+                        END) as wholesale_qty,
+                        SUM(CASE 
+                            WHEN pl.name ILIKE '%%retail%%' 
+                            THEN (CASE WHEN s_inner.is_return THEN -COALESCE(sl.accepted_qty, 0.0) ELSE COALESCE(sl.accepted_qty, 0.0) END) 
+                            ELSE 0.0 
+                        END) as retail_qty
+                    FROM havanoposdesk_sale s_inner
+                    JOIN havanoposdesk_sale_line sl ON sl.sale_id = s_inner.id 
+                        AND (sl.display_type IS NULL OR sl.display_type NOT IN ('line_section', 'line_note'))
+                    LEFT JOIN havanoposdesk_store st_inner ON st_inner.id = s_inner.store_id
+                    LEFT JOIN havanoposdesk_pricelist pl ON pl.id = COALESCE(s_inner.pricelist_id, st_inner.pricelist_id)
+                    WHERE s_inner.state IN ('confirmed', 'done')
+                    GROUP BY s_inner.store_id
+                ) sales_qty_sub ON sales_qty_sub.store_id = s.id
                 LEFT JOIN (
                     SELECT 
                         s_inner.store_id, 

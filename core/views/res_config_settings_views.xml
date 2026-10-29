@@ -437,7 +437,7 @@
                         <setting id="enable_variant_attributes_setting" string="Variant Attributes" help="Enable product variant attributes (e.g. Size, Color) to create and manage variant combinations easily.">
                             <field name="biz_enable_variant_attributes"/>
                         </setting>
-                        <setting id="stock_valuation_method_setting" string="Stock Valuation Method" help="Choose how inventory cost and valuation are calculated: FIFO (First In, First Out / Latest Purchase Price) or AVCO (Weighted Average Cost).">
+                        <setting id="stock_valuation_method_setting" string="Stock Valuation Method" help="Choose how inventory cost and valuation are calculated adhering to IAS 2 (Inventories): FIFO (First In, First Out) or AVCO (Weighted Average Cost).">
                             <field name="biz_stock_valuation_method" widget="radio"/>
                             <div class="mt8">
                                 <button name="action_recompute_stock_valuation" type="object" string="Recompute Product Costs &amp; Valuation" icon="fa-refresh" class="btn-link"/>
