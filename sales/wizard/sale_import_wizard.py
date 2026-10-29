@@ -3,7 +3,10 @@ import io
 import json
 import logging
 from datetime import datetime, date
-import openpyxl
+try:
+    import openpyxl
+except ImportError:
+    openpyxl = None
 import csv
 
 from odoo import models, fields, api, _
@@ -138,6 +141,8 @@ class SaleImportWizard(models.TransientModel):
                 is_excel = True
 
         if is_excel:
+            if not openpyxl:
+                raise UserError(_("The 'openpyxl' Python library is required to import Excel files. Please install it using 'pip install openpyxl'."))
             in_mem = io.BytesIO(file_bytes)
             wb = openpyxl.load_workbook(in_mem, data_only=True)
             sheet = wb.active

@@ -207,6 +207,15 @@ class HavanoposdeskTenant(models.Model):
     def _sync_tenants_activity_status(self):
         """Batch update last_activity, last_logged_in_user_id, online_status, and days_inactive for all tenants.
         Aggregates timestamps from POS terminals, user logins, sales, audit logs, and online activity."""
+        from odoo.tools.sql import table_exists
+        required_tables = [
+            'havanoposdesk_tenant', 'havanoposdesk_pos_terminal',
+            'res_users', 'res_users_log', 'havanoposdesk_sale',
+            'havanoposdesk_online_activity', 'havanoposdesk_audit_log'
+        ]
+        if not all(table_exists(self.env.cr, tbl) for tbl in required_tables):
+            return
+
         try:
             with self.env.cr.savepoint():
                 self.env.cr.execute("""
@@ -224,15 +233,16 @@ class HavanoposdeskTenant(models.Model):
                                 FROM havanoposdesk_pos_terminal term
                                 WHERE term.tenant_id = t.id AND term.last_seen IS NOT NULL
                                 UNION ALL
-                                -- 2. Users (login_date)
-                                SELECT u.login_date AS act_time, u.id AS act_uid
-                                FROM res_users u
-                                WHERE u.tenant_id = t.id AND u.login_date IS NOT NULL
+                                -- 2. Users (login_date via res_users_log)
+                                SELECT ul.create_date AS act_time, ul.create_uid AS act_uid
+                                FROM res_users_log ul
+                                JOIN res_users u ON u.id = ul.create_uid
+                                WHERE u.tenant_id = t.id AND ul.create_date IS NOT NULL
                                 UNION ALL
                                 -- 3. Sales
-                                SELECT s.date_order AS act_time, s.user_id AS act_uid
+                                SELECT s.date AS act_time, s.create_uid AS act_uid
                                 FROM havanoposdesk_sale s
-                                WHERE s.tenant_id = t.id AND s.date_order IS NOT NULL
+                                WHERE s.tenant_id = t.id AND s.date IS NOT NULL
                                 UNION ALL
                                 -- 4. Online Activity Tracker
                                 SELECT oa.last_activity AS act_time, oa.user_id AS act_uid
@@ -308,54 +318,67 @@ class HavanoposdeskTenant(models.Model):
     def _compute_tenant_online_activity(self):
         now = fields.Datetime.now()
         today = fields.Date.today()
+        from odoo.tools.sql import table_exists
+
+        has_user_log = table_exists(self.env.cr, 'res_users_log')
+        has_terminal = table_exists(self.env.cr, 'havanoposdesk_pos_terminal')
+        has_act = table_exists(self.env.cr, 'havanoposdesk_online_activity')
+        has_sale = table_exists(self.env.cr, 'havanoposdesk_sale')
+        has_log = table_exists(self.env.cr, 'havanoposdesk_audit_log')
+
         for tenant in self:
             latest_time = None
             last_user = None
 
             # 1. POS Terminals
-            term = self.env['havanoposdesk.pos.terminal'].sudo().search([
-                ('tenant_id', '=', tenant.id),
-                ('last_seen', '!=', False)
-            ], order='last_seen desc, id desc', limit=1)
-            if term and term.last_seen:
-                latest_time = term.last_seen
-                if term.last_logged_in_user_id:
-                    last_user = term.last_logged_in_user_id
+            if has_terminal:
+                term = self.env['havanoposdesk.pos.terminal'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('last_seen', '!=', False)
+                ], order='last_seen desc, id desc', limit=1)
+                if term and term.last_seen:
+                    latest_time = term.last_seen
+                    if term.last_logged_in_user_id:
+                        last_user = term.last_logged_in_user_id
 
             # 2. Activity Tracker
-            act = self.env['havanoposdesk.online.activity'].sudo().search([
-                ('tenant_id', '=', tenant.id),
-                ('last_activity', '!=', False)
-            ], order='last_activity desc, id desc', limit=1)
-            if act and act.last_activity:
-                if not latest_time or act.last_activity > latest_time:
-                    latest_time = act.last_activity
-                    if act.user_id:
-                        last_user = act.user_id
+            if has_act:
+                act = self.env['havanoposdesk.online.activity'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('last_activity', '!=', False)
+                ], order='last_activity desc, id desc', limit=1)
+                if act and act.last_activity:
+                    if not latest_time or act.last_activity > latest_time:
+                        latest_time = act.last_activity
+                        if act.user_id:
+                            last_user = act.user_id
 
-            # 3. User Logins
-            user = self.env['res.users'].sudo().search([
-                ('tenant_id', '=', tenant.id),
-                ('login_date', '!=', False)
-            ], order='login_date desc, id desc', limit=1)
-            if user and user.login_date:
-                if not latest_time or user.login_date > latest_time:
-                    latest_time = user.login_date
-                    last_user = user
+            # 3. User Logins (via res.users.log)
+            if has_user_log:
+                user_ids = self.env['res.users'].sudo().search([('tenant_id', '=', tenant.id)]).ids
+                if user_ids:
+                    u_log = self.env['res.users.log'].sudo().search([
+                        ('create_uid', 'in', user_ids)
+                    ], order='create_date desc, id desc', limit=1)
+                    if u_log and u_log.create_date:
+                        if not latest_time or u_log.create_date > latest_time:
+                            latest_time = u_log.create_date
+                            last_user = u_log.create_uid
 
             # 4. Sales
-            sale = self.env['havanoposdesk.sale'].sudo().search([
-                ('tenant_id', '=', tenant.id),
-                ('date_order', '!=', False)
-            ], order='date_order desc, id desc', limit=1)
-            if sale and sale.date_order:
-                if not latest_time or sale.date_order > latest_time:
-                    latest_time = sale.date_order
-                    if sale.user_id:
-                        last_user = sale.user_id
+            if has_sale:
+                sale = self.env['havanoposdesk.sale'].sudo().search([
+                    ('tenant_id', '=', tenant.id),
+                    ('date', '!=', False)
+                ], order='date desc, id desc', limit=1)
+                if sale and sale.date:
+                    if not latest_time or sale.date > latest_time:
+                        latest_time = sale.date
+                        if sale.create_uid:
+                            last_user = sale.create_uid
 
             # 5. Audit Log
-            if not latest_time:
+            if not latest_time and has_log:
                 log = self.env['havanoposdesk.audit.log'].sudo().search([
                     ('tenant_id', '=', tenant.id),
                     ('timestamp', '!=', False)
